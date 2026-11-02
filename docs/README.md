@@ -13,6 +13,8 @@
 | [roadmap.md](./roadmap.md) | 파트별 상세 로드맵. 각자 할 일 | 각 파트 |
 | [schema.md](./schema.md) | 레포 구조 + Firebase 데이터 스키마 | 전원 (**계약서**) |
 | [verification.md](./verification.md) | SDK 검증 8개 결과 기록 | A |
+| [architecture.md](./architecture.md) | 기술 스택 결정과 근거, 선례에서 확인된 제약 | 전원 |
+| [demo-scenario.md](./demo-scenario.md) | 시연 9단계와 Virtual Console 명령 | A·B·D |
 
 ## 읽는 순서
 

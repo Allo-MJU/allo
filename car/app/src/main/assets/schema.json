@@ -1,0 +1,41 @@
+{
+  "packageName": "ai.allo.car",
+  "appDescription": "Rear-seat collecting game. Reports the egg the child is incubating and suggests destinations with unseen species.",
+  "invokeWord": "알로",
+  "version": "0.1",
+  "actionCalls": [
+    {
+      "type": "function",
+      "function": {
+        "name": "REPORT_EGG_STATUS",
+        "description": "Tell the driver what egg the rear-seat child is incubating, its progress, and whether smoother driving would help.",
+        "parameters": { "type": "object", "properties": {}, "required": [] },
+        "component": "service"
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "SUGGEST_DESTINATION",
+        "description": "Suggest a nearby region (coast, mountain, city) the family has not visited where an unseen species appears, and offer to set it as the navigation destination.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "confirm": { "type": "boolean", "description": "true when the driver accepted the suggestion and the destination should be set." }
+          },
+          "required": []
+        },
+        "component": "service"
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "CELEBRATE_HATCH",
+        "description": "Announce to the driver that the egg has hatched and which species appeared.",
+        "parameters": { "type": "object", "properties": {}, "required": [] },
+        "component": "service"
+      }
+    }
+  ]
+}

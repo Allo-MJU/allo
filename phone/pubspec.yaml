@@ -1,0 +1,32 @@
+name: allo_phone
+description: 알로 — 뒷자리 아이용 수집 게임 (폰 앱)
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.5.0
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  allo_core:
+    path: packages/allo_core
+  firebase_core: ^3.6.0
+  firebase_database: ^11.1.4
+  mobile_scanner: ^6.0.2
+  shared_preferences: ^2.3.2
+  go_router: ^14.6.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/species/
+    - assets/egg/
+    - assets/ui/
+    - ../data/species.json

@@ -1,0 +1,74 @@
+package ai.allo.car.model
+
+import kotlinx.serialization.Serializable
+
+/** 차 화면 모드. CarUxRestrictions + 기어로 결정한다. */
+enum class CarScreen { Pairing, Driving, Parked }
+
+/** /sessions/{sid}/meta — docs/schema.md 3.2 */
+@Serializable
+data class SessionMeta(
+    val createdAt: Long,
+    val pairCode: String,
+    val paired: Boolean = false,
+    val carAppVersion: String,
+)
+
+/**
+ * /sessions/{sid}/vehicle — docs/schema.md 3.3
+ * 차량 앱이 1초마다 쓴다. 판정하지 않고 raw + 파생 카운트만 올린다.
+ * ⚠️ 위도·경도 필드는 이 클래스에 절대 추가하지 않는다.
+ */
+@Serializable
+data class VehicleSnapshot(
+    val ts: Long,
+    val gear: String,                 // "P" | "R" | "N" | "D"
+    val speedKph: Double,
+    val distanceM: Double,            // 세션 누적
+    val harshBrake: Int,              // 세션 누적 횟수
+    val harshSteer: Int,
+    val wiperLevel: Int,              // 0..3
+    val headlightOn: Boolean,
+    val seatRow2: Boolean,            // 반전 처리 후
+    val etaSec: Long? = null,         // 내비 미사용 시 null
+    val envTags: List<String>,
+    val capabilities: List<String>,
+)
+
+/** /sessions/{sid}/game — docs/schema.md 3.4. 폰이 쓰고 차는 읽기만 한다. */
+@Serializable
+data class GameState(
+    val ts: Long = 0,
+    val eggTier: String = "small",
+    val stage: String = "idle",       // "idle" | "incubating" | "hatched"
+    val progress: Double = 0.0,
+    val speciesId: String? = null,
+    val attribute: String? = null,
+    val tier: Int? = null,
+    val careCount: Int = 0,
+    val lookOutCount: Int = 0,
+    val hatchAtM: Double? = null,
+    val hatchAtSec: Long? = null,
+)
+
+/** /sessions/{sid}/events/{pushId} — docs/schema.md 3.5 */
+@Serializable
+data class GameEvent(
+    val ts: Long,
+    val type: String,                 // paired | hatched | lookOutPrompt | gleoSpeak | destinationSuggest | sessionEnd
+    val by: String,                   // "phone" | "car"
+    val payload: Map<String, String> = emptyMap(),
+)
+
+/** 신호 이름. /vehicle/capabilities 에 그대로 들어간다. */
+object Capability {
+    const val WIPER = "wiper"
+    const val LIGHT = "light"
+    const val SEAT = "seat"
+    const val ODOMETER = "odometer"
+    const val BRAKE = "brake"
+    const val STEERING = "steering"
+    const val SPEED = "speed"
+    const val GEAR = "gear"
+    const val ETA = "eta"
+}

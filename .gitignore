@@ -1,0 +1,52 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# Secrets — never commit
+**/google-services.json
+**/GoogleService-Info.plist
+phone/lib/firebase_options.dart
+.env
+*.keystore
+*.jks
+
+# Android / Gradle
+car/.gradle/
+car/build/
+car/app/build/
+car/local.properties
+car/.kotlin/
+car/captures/
+*.apk
+!apk/*.apk
+*.aab
+
+# Flutter / Dart
+phone/.dart_tool/
+phone/.flutter-plugins
+phone/.flutter-plugins-dependencies
+phone/.packages
+phone/build/
+phone/.metadata
+phone/ios/Pods/
+phone/ios/.symlinks/
+phone/ios/Flutter/ephemeral/
+phone/android/.gradle/
+phone/android/local.properties
+phone/packages/allo_core/.dart_tool/
+phone/packages/allo_core/build/
+pubspec.lock
+!phone/pubspec.lock
+
+# Art working files
+art/src/*.aseprite~
+art/src/**/*.bak
+
+# Logs
+*.log

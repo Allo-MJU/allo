@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature android:name="android.hardware.type.automotive" android:required="true" />
+
+    <!--
+      ⚠️ 읽기 권한만 선언한다. CONTROL_CAR_* / PRIVATE_* 는 절대 추가하지 않는다 (앱마켓 승인 필요, 선언 시 심사 탈락).
+      각 권한이 어느 신호를 위한 것인지 옆에 적어둔다. 안 쓰는 권한은 넣지 않는다.
+    -->
+    <!-- Pleos Vehicle SDK -->
+    <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />              <!-- Brake 도메인 -->
+    <uses-permission android:name="pleos.car.permission.READ_CAR_STEERING" />      <!-- 조향각 -->
+    <uses-permission android:name="pleos.car.permission.READ_WINDSHIELD_WIPERS" /> <!-- Wiper → rain -->
+    <uses-permission android:name="pleos.car.permission.CAR_LIGHTS" />             <!-- 전조등 → tunnel/night -->
+    <uses-permission android:name="pleos.car.permission.CAR_SEATS" />              <!-- 2열 좌석 점유 -->
+    <uses-permission android:name="pleos.car.permission.CAR_MILEAGE" />            <!-- Odometer -->
+    <uses-permission android:name="pleos.car.permission.CAR_INFO" />
+
+    <!-- Pleos NaviHelper -->
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE" />             <!-- ETA, 경로 -->
+    <uses-permission android:name="pleos.car.permission.NAVI_ROUTE_SEARCH" />      <!-- 목적지 제안 → 설정 -->
+
+    <!-- AAOS car-lib: 속도·기어 (Vehicle SDK 2.3.2에서 속도 리스너 삭제됨) -->
+    <uses-permission android:name="android.car.permission.CAR_SPEED" />
+    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
+
+    <!-- Firebase REST -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- 주행 중 백그라운드 신호 수집 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:name=".AlloApp"
+        android:allowBackup="false"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Allo">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:resizeableActivity="true"
+            android:launchMode="singleTask">
+            <!-- 주행 중에도 표시 허용 (차 화면은 진행 상태 한 줄만 보여준다) -->
+            <meta-data android:name="distractionOptimized" android:value="true" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 신호 수집 + Firebase 전송. 화면이 꺼져도 세션 동안 유지 -->
+        <service
+            android:name=".sync.SessionService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <!-- Gleo 음성 함수. assets/schema.json 의 actionCalls[].function.name 과 action 이 1:1 -->
+        <receiver android:name=".gleo.GleoReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="REPORT_EGG_STATUS" />
+                <action android:name="SUGGEST_DESTINATION" />
+                <action android:name="CELEBRATE_HATCH" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

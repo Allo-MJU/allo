@@ -31,84 +31,58 @@ GitHub 링크 하나로 제출하므로 모노레포가 유리합니다.
 ```
 allo/
 ├── README.md                  # 심사용. ⚠️ 실명·소속 금지
+├── CLAUDE.md                  # 작업 규칙 (Claude Code)
 ├── .gitignore
 ├── docs/
-│   ├── schema.md              # 이 문서의 스키마 부분 (계약)
-│   ├── architecture.md
+│   ├── schema.md              # 이 문서 (계약)
+│   ├── architecture.md        # 스택 결정·근거
 │   ├── verification.md        # A의 검증 8개 결과 기록
 │   └── demo-scenario.md       # 시연 9단계
 │
-├── car/                       # A
-│   ├── app/
-│   │   └── src/main/
-│   │       ├── java/.../
-│   │       │   ├── MainActivity.kt
-│   │       │   ├── vehicle/
-│   │       │   │   ├── VehicleSignalReader.kt    # 도메인별 구독
-│   │       │   │   ├── CapabilityChecker.kt      # 지원 신호 판별
-│   │       │   │   ├── SignalDerivation.kt       # 급제동·급조향 카운트
-│   │       │   │   └── EnvTagger.kt              # envTags 변환
-│   │       │   ├── sync/
-│   │       │   │   ├── SessionManager.kt         # 세션 생성·페어코드
-│   │       │   │   ├── VehiclePublisher.kt       # /vehicle 쓰기
-│   │       │   │   └── GameSubscriber.kt         # /game 읽기
-│   │       │   ├── ui/
-│   │       │   │   ├── DrivingScreen.kt          # 주행 중 (한 줄)
-│   │       │   │   ├── ParkedScreen.kt           # 정차 (게임 미러)
-│   │       │   │   └── PairingScreen.kt          # QR + 6자리
-│   │       │   └── gleo/
-│   │       │       └── GleoFunctions.kt
-│   │       ├── assets/schema.json                # Gleo 함수 정의
-│   │       └── AndroidManifest.xml               # ⚠️ CAR_* 읽기만
-│   ├── build.gradle.kts
-│   └── settings.gradle.kts                       # Pleos Maven
+├── car/                       # A — Kotlin · Compose · Pleos SDK
+│   ├── app/src/main/
+│   │   ├── java/ai/allo/car/
+│   │   │   ├── AlloApp.kt · MainActivity.kt
+│   │   │   ├── model/Models.kt               # 3장 스키마와 1:1
+│   │   │   ├── vehicle/
+│   │   │   │   ├── VehicleSignalReader.kt    # Pleos 도메인별 구독
+│   │   │   │   ├── AaosPropertyReader.kt     # 속도·기어 (CarPropertyManager)
+│   │   │   │   ├── CapabilityChecker.kt      # 지원 신호 판별
+│   │   │   │   ├── SignalDerivation.kt       # 급제동·급조향·거리
+│   │   │   │   ├── EnvTagger.kt              # envTags 변환
+│   │   │   │   ├── RegionTagger.kt           # 좌표 → 지역 태그 (좌표는 여기서 끝)
+│   │   │   │   └── SeatPolarity.kt           # 좌석 반전 상수
+│   │   │   ├── sync/
+│   │   │   │   ├── FirebaseRest.kt           # REST + SSE
+│   │   │   │   ├── SessionManager.kt         # 세션·페어코드·1초 발행·/game 구독
+│   │   │   │   └── SessionService.kt         # 포그라운드 서비스
+│   │   │   ├── ui/                           # PairingScreen · DrivingScreen · ParkedScreen
+│   │   │   └── gleo/                         # GleoFunctions · GleoReceiver
+│   │   ├── assets/schema.json                # Gleo 함수 정의
+│   │   └── AndroidManifest.xml               # ⚠️ 읽기 권한만
+│   ├── app/src/test/                         # 순수 Kotlin 단위 테스트
+│   ├── build.gradle.kts · settings.gradle.kts · gradle/libs.versions.toml
+│   └── local.properties.example              # ALLO_DB_URL
 │
-├── phone/                     # B
+├── phone/                     # B — Flutter
 │   ├── lib/
-│   │   ├── main.dart
-│   │   ├── feed/
-│   │   │   ├── vehicle_feed.dart                 # 추상 인터페이스
-│   │   │   ├── firebase_feed.dart
-│   │   │   └── fake_feed.dart                    # ⭐ Day 1에 먼저
-│   │   ├── screens/
-│   │   │   ├── pairing_screen.dart
-│   │   │   ├── incubating_screen.dart
-│   │   │   ├── hatching_screen.dart              # 연출 집중
-│   │   │   ├── companion_screen.dart
-│   │   │   └── dex_screen.dart
-│   │   ├── widgets/
-│   │   └── storage/
-│   │       └── dex_store.dart                    # 로컬 저장 (서버 X)
-│   ├── packages/
-│   │   └── allo_core/         # C — 순수 Dart, Flutter 비의존
-│   │       ├── lib/
-│   │       │   ├── rarity_engine.dart
-│   │       │   ├── hatch_timer.dart
-│   │       │   ├── models.dart
-│   │       │   └── species_table.dart
-│   │       └── test/
-│   │           ├── rarity_engine_test.dart
-│   │           └── hatch_timer_test.dart
-│   ├── assets/
-│   │   ├── species/           # D의 에셋 배치
-│   │   ├── egg/
-│   │   └── ui/
+│   │   ├── main.dart                         # FEED=fake|firebase
+│   │   ├── app.dart                          # 라우팅
+│   │   ├── feed/                             # vehicle_feed(추상) · fake_feed ⭐ · firebase_feed
+│   │   ├── game/game_controller.dart         # 세션 상태 머신
+│   │   ├── screens/                          # pairing · incubating · hatching · companion · dex
+│   │   └── storage/dex_store.dart            # 로컬 저장 (서버 X)
+│   ├── packages/allo_core/    # C — 순수 Dart
+│   │   ├── lib/src/                          # models · rarity_engine · hatch_timer · species_table
+│   │   └── test/
+│   ├── assets/{species,egg,ui}/              # D의 에셋 배치
 │   └── pubspec.yaml
 │
-├── data/                      # C
-│   └── species.json           # 생물 12종 정의
-│
-├── art/                       # D — 원본 파일
-│   ├── src/                   # .aseprite 등
-│   └── export/                # png
-│
-├── scripts/                   # C
-│   ├── scenario_rainy_highway.sh
-│   ├── scenario_tunnel_rough.sh
-│   └── seed_firebase.sh       # 테스트 데이터 주입
-│
+├── data/species.json          # C — 생물 12종
+├── firebase/database.rules.json
+├── art/{src,export}/          # D — 원본·png
+├── scripts/                   # vc.sh · scenario_*.sh · seed_firebase.sh · fake_vehicle_feed.sh
 └── apk/
-    └── allo-phone-v1.0.0.apk
 ```
 
 > `allo_core`를 `phone/packages/` 안에 두면 C가 **Flutter 설치 없이** `dart test`로 개발할 수 있습니다.
@@ -171,7 +145,7 @@ allo/
 | 필드 | 타입 | 비고 |
 | --- | --- | --- |
 | `ts` | number | 전송 시각 |
-| `gear` | `"P"\|"R"\|"N"\|"D"` | 정차 판정의 기준 |
+| `gear` | `"P"\|"R"\|"N"\|"D"` | 정차 판정의 기준. AAOS `GEAR_SELECTION` |
 | `speedKph` | number | AAOS `CarPropertyManager` |
 | `distanceM` | number | **세션 누적**. Odometer 델타 또는 속도 적분 |
 | `harshBrake` | number | **세션 누적 횟수** |

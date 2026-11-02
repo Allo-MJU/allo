@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "_comment": "12종 = 속성 3 × tier 3 + 희귀 3. sprite 는 phone/assets/ 기준 경로. 영어 이름은 창밖 사물 단어를 포함한다 (학습 레이어).",
+  "species": [
+    { "id": "road_sprout",  "nameEn": "Road Sprout",    "nameKo": "길싹이",   "attribute": "normal", "tier": 1, "requires": { "envTags": [] },                       "hint": "어디서든 처음 만나는 친구",            "sprite": "species/road_sprout.png" },
+    { "id": "bridge_hopper","nameEn": "Bridge Hopper",  "nameKo": "다리뛰기", "attribute": "normal", "tier": 2, "requires": { "envTags": [], "maxHarsh": 6 },        "hint": "다리를 건널 때 조금 부드럽게",        "sprite": "species/bridge_hopper.png" },
+    { "id": "mountain_sprite","nameEn": "Mountain Sprite","nameKo": "산정령", "attribute": "normal", "tier": 3, "requires": { "envTags": [], "maxHarsh": 2 },        "hint": "급제동 없이 끝까지 가면",              "sprite": "species/mountain_sprite.png" },
+
+    { "id": "puddle_pip",   "nameEn": "Puddle Pip",     "nameKo": "웅덩이삐약","attribute": "water", "tier": 1, "requires": { "envTags": ["rain"] },                 "hint": "비 오는 날이면 누구나",                "sprite": "species/puddle_pip.png" },
+    { "id": "river_glider", "nameEn": "River Glider",   "nameKo": "강미끄럼", "attribute": "water",  "tier": 2, "requires": { "envTags": ["rain"], "maxHarsh": 6 },  "hint": "비 오는 날 천천히",                    "sprite": "species/river_glider.png" },
+    { "id": "tide_keeper",  "nameEn": "Tide Keeper",    "nameKo": "물결지기", "attribute": "water",  "tier": 3, "requires": { "envTags": ["rain"], "maxHarsh": 2 },  "hint": "비 오는 날 부드럽게 달리면",           "sprite": "species/tide_keeper.png" },
+
+    { "id": "lamp_moth",    "nameEn": "Lamp Moth",      "nameKo": "등불나방", "attribute": "dark",   "tier": 1, "requires": { "envTags": ["night"] },                "hint": "해가 지면 나와요",                     "sprite": "species/lamp_moth.png" },
+    { "id": "tunnel_moth",  "nameEn": "Tunnel Moth",    "nameKo": "터널나방", "attribute": "dark",   "tier": 2, "requires": { "envTags": ["tunnel"], "maxHarsh": 6 },"hint": "터널을 지나면",                        "sprite": "species/tunnel_moth.png" },
+    { "id": "star_owl",     "nameEn": "Star Owl",       "nameKo": "별부엉이", "attribute": "dark",   "tier": 3, "requires": { "envTags": ["night"], "maxHarsh": 2 },  "hint": "밤길을 아주 부드럽게",                 "sprite": "species/star_owl.png" },
+
+    { "id": "storm_lantern","nameEn": "Storm Lantern",  "nameKo": "폭풍등",   "attribute": "water",  "tier": 3, "requires": { "envTags": ["rain", "tunnel"], "maxHarsh": 4 }, "hint": "비 오는 날 터널을 지나면",     "sprite": "species/storm_lantern.png" },
+    { "id": "highway_comet","nameEn": "Highway Comet",  "nameKo": "고속혜성", "attribute": "dark",   "tier": 3, "requires": { "envTags": ["highway", "night"], "maxHarsh": 2 }, "hint": "밤 고속도로를 끝까지 부드럽게", "sprite": "species/highway_comet.png" },
+    { "id": "sea_mist",     "nameEn": "Sea Mist",       "nameKo": "바다안개", "attribute": "water",  "tier": 3, "requires": { "envTags": ["coast", "rain"], "maxHarsh": 4 }, "hint": "비 오는 바닷가에서만",         "sprite": "species/sea_mist.png" }
+  ]
+}
