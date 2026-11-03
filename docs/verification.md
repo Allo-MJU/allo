@@ -12,7 +12,7 @@
 | Vehicle SDK | `ai.pleos.playground:Vehicle:2.3.2` |
 | NaviHelper SDK | 3.0.5 |
 | Android Studio | Homebrew cask, JDK 17 로 Gradle 실행 |
-| 검증일 | 2026-11-03 (#1 · #2 · #8) |
+| 검증일 | 2026-11-03 (#1 · #2 · #4 · #6 · #8 실측, #5 · #7 부분) |
 
 ## 결과
 
@@ -20,11 +20,11 @@
 | --- | --- | --- | --- |
 | 1 | `Wiper` 값 갱신 | ✅ 됨 | VC Off/Low/High/Auto → SDK OFF/CONTINUOUS_LEVEL_1/CONTINUOUS_LEVEL_3/AUTO. 아래 실측 참조 |
 | 2 | `Light`(전조등) 값 갱신 | ⚠️ 조건부 | 하향등 ON/OFF 는 갱신됨. 단 에뮬레이터는 Auto 모드에서 켜지지 않음 (아래 참조) |
-| 3 | NaviHelper ETA 주행 중 갱신 | ⬜ 미확인 | 갱신 주기도 함께 기록 |
-| 4 | `Odometer` 해상도 1km 미만 | ⬜ 미확인 | 최소 변화 단위 기록 |
-| 5 | `INTERNET` 권한 외부 호출 | ⬜ 미확인 | **실패 시 설계 전면 재검토** |
-| 6 | `CarUxRestrictions` 신호대기 판정 | ⬜ 미확인 | 기어 D + 속도 0일 때 상태값 |
-| 7 | Gleo Interface 함수 등록 | ⬜ 미확인 | 신청 필요 여부 |
+| 3 | NaviHelper ETA 주행 중 갱신 | ⬜ 미확인 | 샘플앱에 Navi 화면이 없어 allo 앱 구현 후 확인. 내비 서비스·지도 앱은 설치돼 있음 |
+| 4 | `Odometer` 해상도 1km 미만 | ⚠️ 조건부 | SDK 는 km 소수 그대로 전달(13.257 → 13.257). **단 에뮬레이터는 주행해도 Odometer 가 안 늘어난다** → 시연은 속도 적분 폴백 |
+| 5 | `INTERNET` 권한 외부 호출 | ⚠️ OS 레벨만 확인 | 에뮬레이터 네트워크 VALIDATED, 외부 ping 성공. 앱에서 Firebase 쓰기는 DB URL 받은 뒤 |
+| 6 | `CarUxRestrictions` 신호대기 판정 | ✅ 됨 | **기어 D + 0km/h = 제한(DO true)**. 제한 해제는 기어 P 에서만 → 설계(P 기준) 그대로 |
+| 7 | Gleo Interface 함수 등록 | ⬜ 미확인 | Gleo · TTS 시스템 패키지는 있음. 함수 호출은 allo 앱 설치 후 |
 | 8 | `Seat` 2열 점유값 반전 | ✅ 반전 확인 | VC `occupied` 와 SDK `getCurrentSeatOccupancy` 가 모든 좌석에서 반대. `SDK_OCCUPIED = false` 유지 |
 
 > 표기: ✅ 됨 / ⚠️ 조건부 / ❌ 안 됨 / ⬜ 미확인
@@ -139,3 +139,45 @@ curl -X PUT "http://127.0.0.1:8088/vehicle/lights?feature=high_beam&value=true"
 - **TextToSpeech 는 콘솔에서 "Coming Soon"** (STT · FusedLocation · Vehicle Control 도 동일). 단 Maven 저장소에는 `ai.pleos.playground:TextToSpeech` 3.3.1 까지 공개돼 있다. 라이브러리는 받을 수 있고 콘솔 신청만 막힌 것으로 추정. 에뮬레이터 발화 여부는 검증 #7 때 함께 확인하고, 안 되면 차 화면 텍스트로 대체
 - 빌드 환경: JDK 17 + SDK Platform 35 로 `testDebugUnitTest`(12개 통과) · `assembleDebug` 성공. Pleos Maven 은 인증 없이 의존성 해석됨
 - **공식 샘플앱은 그대로 빌드되지 않는다.** `gradle/libs.versions.toml` 이 `vehicleSdk = "2.3.1"` 인데 Pleos Maven 에는 2.0.3 · 2.3.2 만 있다 → `2.3.2` 로 고치면 `assembleDebug` 성공. 또 `gradlew` 에 실행 권한이 없어 `sh ./gradlew ...` 로 실행해야 한다
+
+### 2026-11-03 · #4 Odometer · #5 · #6 · #7 실측
+
+**#4 Odometer** — Odometer 도메인 10개 기능. 누적 거리는 **`Distance Driven`** 의 `registerDistanceDriven` 리스너로 받는다 (`getCurrentDistanceDriven` 은 샘플앱에서 capability 미선언, `Current Distance Driven` 은 read API 없음)
+
+| VC `PUT /vehicle/odometer?traveled_distance_km=` | `onDistanceDrivenUpdated` |
+| --- | --- |
+| 13.0 | 13.0 |
+| 13.257 | **13.257** |
+| 13.3 | 13.3 |
+
+- 단위는 **km(Double)**, 소수 그대로 → 해상도는 1km 보다 훨씬 작다 (m 단위까지 표현 가능)
+- ⚠️ **에뮬레이터는 주행으로 Odometer 를 올리지 않는다.** `gear=Drive` + 108km/h 로 20초 달려도 `traveled_distance_km` 0.0 그대로 (VC 가 속도를 적분하지 않음)
+  - `SignalDerivation` 이 "오도미터가 안 변하면 속도 적분" 폴백을 이미 갖고 있어 에뮬레이터 시연은 그 경로로 간다
+  - 또는 시나리오 스크립트가 `PUT /vehicle/odometer` 로 거리를 직접 올린다
+- ⚠️ **코드 주의**: SDK 는 km 인데 `SignalDerivation.update(odometerM=)` 는 m 를 받는다. `VehicleSignalReader` 에서 **×1000** 해서 넘긴다
+
+**#5 INTERNET (OS 레벨)**
+- 에뮬레이터 기본 네트워크 `VALIDATED`(안드로이드 연결 확인 통과), `ping 8.8.8.8` 성공
+- 앱 프로세스에서 `INTERNET` 권한으로 Firebase REST 를 부르는 것은 **DB URL 을 받은 뒤** allo 앱으로 확인한다. 선례(핸들온)는 동작
+
+**#6 CarUxRestrictions** — `adb shell dumpsys car_service --services CarUxRestrictionsManagerService`
+
+| VC 상태 | `DO`(Distraction Optimization 필요) | `UxR` |
+| --- | --- | --- |
+| P · 0km/h | false | 0 |
+| **D · 0km/h (신호대기)** | **true** | 0x50 |
+| D · 40km/h | true | 0x50 |
+| D → 다시 0km/h | true | 0x50 |
+| 다시 P | false | 0 |
+
+- 설정 자체가 `idling`(D + 정지) 과 `moving` 을 같은 제한(0x50 = NO_KEYBOARD | NO_VIDEO)으로 둔다. **신호대기는 주행 중으로 판정된다** → 정차 화면은 기어 P 기준 유지
+- 에뮬레이터 제한엔 글자 수 제한(0x4)이 없다. 선례(Roadio)와 일치. 실차와 다를 수 있으니 차 화면 주행 모드는 한 줄 원칙 유지
+
+**#7 Gleo · TTS (시스템 패키지)**
+- Gleo: `ai.pleos.gleoai.model.provider` 설치됨
+- TTS: `android.intent.action.TTS_SERVICE` 를 `ai.pleos.playground.caas` 의 `SpeechService` 가 처리한다 → 콘솔 "Coming Soon" 과 별개로 **에뮬레이터엔 TTS 서비스가 있다**
+- 내비: `ai.pleos.playground.service.navi`, 지도 앱 `ai.umos.maps.android.navigation.app` 설치됨 (#3 용)
+- 함수 등록·발화는 allo 앱(`assets/schema.json`, `GleoReceiver`) 설치 후 확인
+
+**확인 못 한 것**
+- AAOS 속도·기어(`CarPropertyManager`)를 셸에서 읽는 `cmd car_service get-property-value` 는 user 빌드라 막힘 → allo 앱의 `AaosPropertyReader` 로 확인한다
