@@ -30,7 +30,7 @@ GitHub 링크 하나로 제출하므로 모노레포가 유리합니다.
 
 ```
 allo/
-├── README.md                  # 심사용. ⚠️ 실명·소속 금지
+├── README.md                  # 심사용. ⚠️ 소속·연락처 금지
 ├── CLAUDE.md                  # 작업 규칙 (Claude Code)
 ├── .gitignore
 ├── docs/
