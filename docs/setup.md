@@ -60,7 +60,7 @@ JAVA_HOME=<jdk17> ./gradlew testDebugUnitTest assembleDebug
 | 항목 | 값 |
 | --- | --- |
 | 프로젝트명 | `allo` |
-| 개발사명 | `team allo` (⚠️ 실명·소속 금지) |
+| 개발사명 | `team allo` (⚠️ 소속·연락처 금지) |
 | 카테고리 | 키즈 |
 
 - Vehicle State 11개 · NaviHelper 2개는 생성 직후 이미 "사용 가능". 별도 신청 없음
