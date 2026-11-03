@@ -55,11 +55,16 @@ class SessionManager(private val context: Context) {
         started = true
         context.startForegroundService(Intent(context, SessionService::class.java))
         caps.assumeAaos()
-        aaos.start()
+        if (!aaos.start()) caps.mark(Capability.SPEED, false) // 권한 허용 후 onSpeedPermissionGranted 에서 다시 true
         vehicleReader.start()
         scope.launch { createSession() }
         scope.launch { publishLoop() }
         scope.launch { subscribeGame() }
+    }
+
+    /** MainActivity 가 CAR_SPEED 런타임 권한을 받은 뒤 호출. */
+    fun onSpeedPermissionGranted() {
+        if (aaos.startSpeed()) caps.mark(Capability.SPEED, true)
     }
 
     fun stop() {
@@ -89,11 +94,14 @@ class SessionManager(private val context: Context) {
                 harshSteer = derivation.harshSteerCount,
                 wiperLevel = r.wiperLevel,
                 headlightOn = r.headlightOn,
-                seatRow2 = SeatPolarity.isOccupied(r.seatRow2Raw),
+                seatRow2 = r.seatRow2Occupied,
                 etaSec = etaSec.value,
                 envTags = envTagger.tags(now, a.speedKph, r.wiperLevel, r.headlightOn, regionTagger.tag(null, null)),
                 capabilities = caps.snapshot(),
             )
+            if (BuildConfig.DEBUG && snap.copy(ts = 0) != _vehicle.value?.copy(ts = 0)) {
+                android.util.Log.d("SessionManager", "vehicle $snap") // 디버그 빌드만. 값이 바뀔 때만
+            }
             _vehicle.value = snap
             if (rest.isConfigured) runCatching { rest.put("sessions/$sessionId/vehicle", rest.json.encodeToString(snap)) }
             delay(1_000)

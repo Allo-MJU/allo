@@ -6,6 +6,7 @@ import android.car.VehiclePropertyIds
 import android.car.hardware.CarPropertyValue
 import android.car.hardware.property.CarPropertyManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,13 +42,32 @@ class AaosPropertyReader(private val context: Context) {
         }
     }
 
-    fun start() {
-        val c = Car.createCar(context) ?: run { Log.e(TAG, "Car.createCar returned null"); return }
+    /** @return 속도 구독까지 됐으면 true. false 면 CAR_SPEED 권한 대기 중 */
+    fun start(): Boolean {
+        val c = Car.createCar(context) ?: run { Log.e(TAG, "Car.createCar returned null"); return false }
         car = c
         val manager = c.getCarManager(Car.PROPERTY_SERVICE) as CarPropertyManager
         pm = manager
-        manager.registerCallback(callback, VehiclePropertyIds.PERF_VEHICLE_SPEED, CarPropertyManager.SENSOR_RATE_NORMAL)
         manager.registerCallback(callback, VehiclePropertyIds.GEAR_SELECTION, CarPropertyManager.SENSOR_RATE_ONCHANGE)
+        return startSpeed()
+    }
+
+    /**
+     * CAR_SPEED 는 dangerous 권한이라 런타임 허용 전엔 등록이 막힌다.
+     * MainActivity 가 권한을 받은 뒤 다시 부른다. 이미 등록돼 있어도 같은 콜백이라 중복되지 않는다.
+     */
+    fun startSpeed(): Boolean {
+        val manager = pm ?: return false
+        if (context.checkSelfPermission(SPEED_PERMISSION) != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "$SPEED_PERMISSION not granted yet")
+            return false
+        }
+        return try {
+            manager.registerCallback(callback, VehiclePropertyIds.PERF_VEHICLE_SPEED, CarPropertyManager.SENSOR_RATE_NORMAL)
+        } catch (e: SecurityException) {
+            Log.w(TAG, "speed register denied", e)
+            false
+        }
     }
 
     fun stop() {
@@ -63,5 +83,8 @@ class AaosPropertyReader(private val context: Context) {
         else -> "D"
     }
 
-    private companion object { const val TAG = "AaosPropertyReader" }
+    companion object {
+        private const val TAG = "AaosPropertyReader"
+        const val SPEED_PERMISSION = "android.car.permission.CAR_SPEED"
+    }
 }

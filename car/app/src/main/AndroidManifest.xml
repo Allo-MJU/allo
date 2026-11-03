@@ -10,7 +10,8 @@
     <!-- Pleos Vehicle SDK -->
     <uses-permission android:name="pleos.car.permission.CAR_DRIVE" />              <!-- Brake 도메인 -->
     <uses-permission android:name="pleos.car.permission.READ_CAR_STEERING" />      <!-- 조향각 -->
-    <uses-permission android:name="pleos.car.permission.READ_WINDSHIELD_WIPERS" /> <!-- Wiper → rain -->
+    <uses-permission android:name="pleos.car.permission.CAR_WINDOWS" />            <!-- Wiper → rain. SDK 가 실제로 요구하는 권한 (verification #1) -->
+    <uses-permission android:name="pleos.car.permission.READ_WINDSHIELD_WIPERS" /> <!-- Wiper. 에뮬레이터엔 정의 없음, 실차 대비 유지 -->
     <uses-permission android:name="pleos.car.permission.CAR_LIGHTS" />             <!-- 전조등 → tunnel/night -->
     <uses-permission android:name="pleos.car.permission.CAR_SEATS" />              <!-- 2열 좌석 점유 -->
     <uses-permission android:name="pleos.car.permission.CAR_MILEAGE" />            <!-- Odometer -->
