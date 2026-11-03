@@ -8,11 +8,11 @@
 
 | 항목 | 값 |
 | --- | --- |
-| Pleos Connect Emulator | (버전 기입) |
+| Pleos Connect Emulator | 2.1.0 (API 34, `crp_avd_arm64`, Vehicle Service 2.3.22) |
 | Vehicle SDK | `ai.pleos.playground:Vehicle:2.3.2` |
 | NaviHelper SDK | 3.0.5 |
-| Android Studio | |
-| 검증일 | |
+| Android Studio | Homebrew cask, JDK 17 로 Gradle 실행 |
+| 검증일 | 2026-11-03 (#8) |
 
 ## 결과
 
@@ -25,7 +25,7 @@
 | 5 | `INTERNET` 권한 외부 호출 | ⬜ 미확인 | **실패 시 설계 전면 재검토** |
 | 6 | `CarUxRestrictions` 신호대기 판정 | ⬜ 미확인 | 기어 D + 속도 0일 때 상태값 |
 | 7 | Gleo Interface 함수 등록 | ⬜ 미확인 | 신청 필요 여부 |
-| 8 | `Seat` 2열 점유값 반전 | ⬜ 미확인 | 반전이면 상수 처리 |
+| 8 | `Seat` 2열 점유값 반전 | ✅ 반전 확인 | VC `occupied` 와 SDK `getCurrentSeatOccupancy` 가 모든 좌석에서 반대. `SDK_OCCUPIED = false` 유지 |
 
 > 표기: ✅ 됨 / ⚠️ 조건부 / ❌ 안 됨 / ⬜ 미확인
 
@@ -68,13 +68,37 @@ Vehicle State 11개 항목, NaviHelper 2개 항목 모두 "사용 가능". 별�
 | 와이퍼 | **창문 상태 조회** 안에 "와이퍼 모드" | ✅ |
 | ETA · 경로 | NaviHelper 경로 정보 조회 | ✅ |
 | 목적지 제안 | NaviHelper 경로 탐색 설정 | ✅ |
-| 2열 좌석 점유 | 좌석 설정 상태 조회 | ⚠️ 설명에 점유 없음 (포지션·열선·안전벨트·머리 받침대) |
-| 조향각 (급조향) | **목록에 없음** | ⚠️ |
+| 2열 좌석 점유 | 좌석 설정 상태 조회 | ✅ 에뮬레이터 실측 — 아래 참조 (콘솔 설명엔 없지만 API 있음) |
+| 조향각 (급조향) | 콘솔 목록에 없음 | ✅ 에뮬레이터 실측 — 아래 참조 (API 있음) |
 | 속도 · 기어 | — (AAOS `CarPropertyManager`) | 기존 계획대로 |
 
-- ⚠️ 두 항목은 에뮬레이터 `VehicleApiExplorer` 로 메서드 존재 여부를 확인한다. 샘플앱 README 에는 Steering wheel 도메인이 있어 콘솔 목록에서만 빠졌을 가능성도 있다
-  - 조향각 불가 → `harshSteer` 를 빼고 급제동만으로 tier 판정 (**C 합의 필요**)
-  - 좌석 점유 불가 → 2열 **안전벨트 착용** 으로 대체 검토
+### 2026-11-03 · 에뮬레이터 실측 (`VehicleApiExplorer` + Virtual Console)
+
+콘솔 목록과 실제 SDK 는 다르다. **콘솔에 없는 조향각·좌석 점유도 SDK 에는 있고 동작한다.**
+
+**Seat Occupancy (검증 #8)** — `checkSeatOccupancyCapabilities` Supported. area 는 `ROW_1_LEFT` ~ `ROW_3_RIGHT` 9개
+
+| area | VC `seat.occupied` | SDK `getCurrentSeatOccupancy` |
+| --- | --- | --- |
+| `ROW_1_LEFT` (운전석) | `false` | `true` |
+| `ROW_2_RIGHT` | `true` (`PUT /vehicle/seat?area=rear_right&kind=occupied&value=true`) | `false` |
+| `ROW_2_LEFT` | `false` | `true` |
+
+→ **세 좌석 모두 반전.** 알려진 SDK 버그와 일치. `SeatPolarity.SDK_OCCUPIED = false` 로 처리한다
+
+**Steering Wheel Angle** — `checkSteeringWheelAngleCapabilities` Supported, range **-470..500**
+
+| VC `steering` | SDK `getCurrentSteeringWheelAngle` |
+| --- | --- |
+| 0 | 0.0 |
+| **120** (`PUT /vehicle/controls?...&steering=120`) | **-120.0** |
+
+→ 값은 읽히지만 **부호가 VC 와 반대**다. `SignalDerivation` 은 조향각 **변화량의 절댓값**만 쓰므로 급조향 판정엔 영향 없음. 좌·우 방향이 필요해지면(예: 생물이 코너 방향으로 기울기) 부호를 확인하고 써야 한다. 실차 부호 규약은 미확인
+- 조향각이 읽히므로 `harshSteer` 를 뺄 필요 없음 (C 공유만)
+- VC 상한은 ±540 인데 SDK range 는 -470..500. 시나리오 스크립트는 ±470 안에서 쓴다
+
+**Virtual Console 상태 응답에서 본 것** (`PUT /vehicle/controls` 응답 전체 상태)
+- `body.wipers.front.mode`, `lights.headlamp_mode`, `odometer.traveled_distance_km`(소수) 키가 있다 → #1·#2·#4 를 VC 로 주입할 수 있을 것 (엔드포인트는 미확인)
 - **TextToSpeech 는 콘솔에서 "Coming Soon"** (STT · FusedLocation · Vehicle Control 도 동일). 단 Maven 저장소에는 `ai.pleos.playground:TextToSpeech` 3.3.1 까지 공개돼 있다. 라이브러리는 받을 수 있고 콘솔 신청만 막힌 것으로 추정. 에뮬레이터 발화 여부는 검증 #7 때 함께 확인하고, 안 되면 차 화면 텍스트로 대체
 - 빌드 환경: JDK 17 + SDK Platform 35 로 `testDebugUnitTest`(12개 통과) · `assembleDebug` 성공. Pleos Maven 은 인증 없이 의존성 해석됨
 - **공식 샘플앱은 그대로 빌드되지 않는다.** `gradle/libs.versions.toml` 이 `vehicleSdk = "2.3.1"` 인데 Pleos Maven 에는 2.0.3 · 2.3.2 만 있다 → `2.3.2` 로 고치면 `assembleDebug` 성공. 또 `gradlew` 에 실행 권한이 없어 `sh ./gradlew ...` 로 실행해야 한다
