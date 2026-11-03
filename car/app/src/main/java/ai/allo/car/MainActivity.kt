@@ -1,7 +1,11 @@
 package ai.allo.car
 
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
+import ai.allo.car.sync.SessionManager
+import ai.allo.car.vehicle.AaosPropertyReader
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -15,6 +19,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val session = (application as AlloApp).session
         session.ensureStarted()
+        requestSpeedPermission(session)
 
         setContent {
             val screen by session.screen.collectAsStateWithLifecycle()
@@ -26,5 +31,14 @@ class MainActivity : ComponentActivity() {
                 CarScreen.Parked -> ParkedScreen(game = game)
             }
         }
+    }
+
+    /** 속도(CAR_SPEED)는 dangerous 권한. 에뮬레이터 시연의 거리 = 속도 적분이라 없으면 알이 안 자란다. */
+    private fun requestSpeedPermission(session: SessionManager) {
+        val perm = AaosPropertyReader.SPEED_PERMISSION
+        if (checkSelfPermission(perm) == PackageManager.PERMISSION_GRANTED) return
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) session.onSpeedPermissionGranted()
+        }.launch(perm)
     }
 }

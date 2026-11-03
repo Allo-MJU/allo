@@ -181,3 +181,33 @@ curl -X PUT "http://127.0.0.1:8088/vehicle/lights?feature=high_beam&value=true"
 
 **확인 못 한 것**
 - AAOS 속도·기어(`CarPropertyManager`)를 셸에서 읽는 `cmd car_service get-property-value` 는 user 빌드라 막힘 → allo 앱의 `AaosPropertyReader` 로 확인한다
+
+### 2026-11-03 · 권한 실측 (allo 차량 앱 설치 후)
+
+`adb shell dumpsys package ai.allo.car` · `pm list permissions -g -f` 기준
+
+| 권한 | 에뮬레이터 | 조치 |
+| --- | --- | --- |
+| `pleos.car.permission.READ_WINDSHIELD_WIPERS` | **정의 없음** → Wiper capability `need Permission` | |
+| `pleos.car.permission.CAR_WINDOWS` | normal (읽기) | **Wiper 에 실제로 필요한 권한.** manifest 추가 (`CONTROL_*` 아님) |
+| `pleos.car.permission.CAR_MILEAGE` · `READ_CAR_STEERING` | 정의 없음 | 없어도 Odometer · 조향각 동작. 실차 대비 유지 |
+| `android.car.permission.CAR_SPEED` | **dangerous** → 설치 시 `granted=false` | **런타임 요청 필요.** 안 받으면 속도 0 → 에뮬레이터 거리(속도 적분)도 0 → 알이 안 자람 |
+
+- ⚠️ AAOS 는 `CAR_SPEED` 를 **위치 권한 그룹**으로 묶는다. 권한 창 문구가 **"알로에서 이 기기의 위치 정보에 액세스하도록 허용하시겠습니까?"** 로 뜬다. 실제로는 속도만 읽고 좌표는 쓰지 않지만, "위치를 수집하지 않는다"는 기획서·심사 메시지와 화면이 어긋나 보일 수 있다 → 권한 요청 전에 "속도만 읽어요" 안내 화면을 두는 것을 검토 (D·A)
+
+### 2026-11-03 · `VehicleSignalReader` 연결 확인
+
+VC 로 신호를 넣고 `SessionManager` 디버그 로그(`adb logcat -s SessionManager`)로 `VehicleSnapshot` 을 확인했다.
+
+| VC 입력 | 스냅샷 |
+| --- | --- |
+| 2열 오른쪽 점유 | `seatRow2=true` (반전 처리 후) |
+| 와이퍼 High | `wiperLevel=3`, `envTags` 에 `rain` |
+| 하향등 LowBeam (KST 주간) | `headlightOn=true`, `tunnel` |
+| D · 72km/h 1초마다 | `distanceM` 약 20m 씩 증가 (속도 적분 폴백) |
+| 조향 0 → 150 | `harshSteer=1` |
+| 72 → 40km/h | `harshBrake=1` |
+| Odometer 1.5km 주입 | 첫 값은 기준점으로만 잡혀 거리가 튀지 않음 |
+| capabilities | `gear, light, wiper, seat, steering, brake, odometer, speed` 전부 |
+
+- `night`/`tunnel` 은 에뮬레이터 시간대(America/Los_Angeles)가 아니라 `EnvTagger` 의 `Asia/Seoul` 기준이다. 시연을 한국 낮에 녹화하면 하향등 = `tunnel`
