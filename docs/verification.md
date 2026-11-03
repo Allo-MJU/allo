@@ -12,7 +12,7 @@
 | Vehicle SDK | `ai.pleos.playground:Vehicle:2.3.2` |
 | NaviHelper SDK | 3.0.5 |
 | Android Studio | Homebrew cask, JDK 17 로 Gradle 실행 |
-| 검증일 | 2026-11-03 (#1 · #2 · #4 · #6 · #8 실측, #5 · #7 부분) |
+| 검증일 | 2026-11-03 (#1 · #2 · #3 · #4 · #6 · #8 실측, #5 · #7 부분) |
 
 ## 결과
 
@@ -20,7 +20,7 @@
 | --- | --- | --- | --- |
 | 1 | `Wiper` 값 갱신 | ✅ 됨 | VC Off/Low/High/Auto → SDK OFF/CONTINUOUS_LEVEL_1/CONTINUOUS_LEVEL_3/AUTO. 아래 실측 참조 |
 | 2 | `Light`(전조등) 값 갱신 | ⚠️ 조건부 | 하향등 ON/OFF 는 갱신됨. 단 에뮬레이터는 Auto 모드에서 켜지지 않음 (아래 참조) |
-| 3 | NaviHelper ETA 주행 중 갱신 | ⬜ 미확인 | 샘플앱에 Navi 화면이 없어 allo 앱 구현 후 확인. 내비 서비스·지도 앱은 설치돼 있음 |
+| 3 | NaviHelper ETA 주행 중 갱신 | ⚠️ 조건부 | **ETA 읽기 ✅** (초 단위, 화면과 일치). **주행 중 갱신 ❌** — 에뮬레이터 GPS 고정이라 VC 로 달려도 그대로 (선례와 같음) → 시연은 거리 폴백 |
 | 4 | `Odometer` 해상도 1km 미만 | ⚠️ 조건부 | SDK 는 km 소수 그대로 전달(13.257 → 13.257). **단 에뮬레이터는 주행해도 Odometer 가 안 늘어난다** → 시연은 속도 적분 폴백 |
 | 5 | `INTERNET` 권한 외부 호출 | ⚠️ OS 레벨만 확인 | 에뮬레이터 네트워크 VALIDATED, 외부 ping 성공. 앱에서 Firebase 쓰기는 DB URL 받은 뒤 |
 | 6 | `CarUxRestrictions` 신호대기 판정 | ✅ 됨 | **기어 D + 0km/h = 제한(DO true)**. 제한 해제는 기어 P 에서만 → 설계(P 기준) 그대로 |
@@ -231,3 +231,25 @@ DriverVoice: tts done       ← 약 2.7초 뒤
 **Gleo 함수 (`GleoReceiver` + `assets/schema.json`)** — ⚠️ 부분
 - Gleo 를 흉내 낸 브로드캐스트 `REPORT_EGG_STATUS` → 앱이 `ai.pleos.playground.intent.action.APP_ACTION_RESPONSE` 로 응답하는 것을 `dumpsys activity broadcasts` 로 확인
 - Gleo 본체는 `ai.umos.ambientai`(ASSIST). 실제로 "알로, …" 라고 말해 Gleo 가 우리 `schema.json` 을 찾아 부르는 경로는 음성 입력이 필요해 확인 못 함. 선례(핸들온)는 같은 방식으로 동작
+
+### 2026-11-03 · #3 NaviHelper ETA 실측 (allo 차량 앱 `NaviEtaReader`)
+
+디버그 브로드캐스트로 목적지를 강릉역으로 설정 (`NaviHelper.requestRoute`):
+
+```
+adb shell am broadcast -a ai.allo.car.debug.ROUTE -n ai.allo.car/.debug.DebugRouteReceiver \
+  --ef lat 37.7644 --ef lng 128.8996 --es name "Gangneung Station"
+```
+
+| 시점 | 로그 | 내비 화면 |
+| --- | --- | --- |
+| 경로 설정 직후 | `status=ROUTE_DRIVE`, `drivingInfo destination duration=8580 distance=195000` | 2시간 23분 · 195km |
+| 10초 뒤 poll | `destination remainTime=8580 remainDistance=195000 → etaSec=8580` | |
+| VC D · 100km/h 45초 주행 | `remainTime=8580` **그대로** | 진행바 그대로 |
+| 안내 종료 | `route cancelled`, `status=FREE_DRIVE → etaSec=null` | |
+
+- **단위: `remainTime`·`duration` 은 초, `remainDistance`·`distance` 는 m.** 8580초 = 2시간 23분으로 화면과 일치
+- `DestinationInfo.remainTime` 과 `DrivingInfo.destination.duration` 이 같은 값. 리더는 `getDestinationInfo()` 를 10초마다 poll + 이벤트로 갱신
+- ❌ **에뮬레이터는 주행 중 ETA 가 줄지 않는다.** VC 는 속도만 바꾸고 GPS 는 판교에 고정이라 내비 기준으로는 차가 안 움직인다 (선례 SoftRide · Roadio 와 같음)
+- 영향 작음: 폰 `HatchTimer` 는 **세션 시작 시점 ETA 를 고정**하고 경과 시간으로 진행도를 계산하므로, ETA 가 실시간으로 줄지 않아도 ETA 모드 부화는 동작한다. 다만 시연 시간(2~3분)엔 ETA 50% 가 안 오므로 **시연은 거리 폴백**(설계대로)
+- 목적지 좌표는 `requestRoute` 로 내비에만 넘기고 Firebase 로 보내지 않는다 (규칙 2)

@@ -8,6 +8,7 @@ import ai.allo.car.model.*
 import ai.allo.car.vehicle.*
 import ai.allo.car.gleo.GleoFunctions
 import ai.allo.car.voice.DriverVoice
+import ai.allo.car.navi.NaviEtaReader
 import ai.allo.car.voice.HatchAnnouncement
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -42,8 +43,8 @@ class SessionManager(private val context: Context) {
     val game: StateFlow<GameState> = _game
     private val _vehicle = MutableStateFlow<VehicleSnapshot?>(null)
     val vehicle: StateFlow<VehicleSnapshot?> = _vehicle
-    /** 내비 ETA. NaviHelper 연동 후 NaviEtaReader 가 채운다. 없으면 null → 폰은 거리 폴백 */
-    val etaSec = MutableStateFlow<Long?>(null)
+    /** 내비 ETA. 경로 안내 중이 아니면 null → 폰은 거리 폴백 */
+    val naviEta = NaviEtaReader(context)
 
     val screen: StateFlow<CarScreen> = combine(_meta, aaos.state) { m, a ->
         when {
@@ -63,6 +64,7 @@ class SessionManager(private val context: Context) {
         if (!aaos.start()) caps.mark(Capability.SPEED, false) // 권한 허용 후 onSpeedPermissionGranted 에서 다시 true
         vehicleReader.start()
         voice.start()
+        naviEta.start()
         scope.launch { announceHatch() }
         scope.launch { createSession() }
         scope.launch { publishLoop() }
@@ -76,7 +78,7 @@ class SessionManager(private val context: Context) {
 
     fun stop() {
         scope.launch { runCatching { emitEvent("sessionEnd") } }
-        vehicleReader.stop(); aaos.stop(); voice.release()
+        vehicleReader.stop(); aaos.stop(); voice.release(); naviEta.stop()
         scope.cancel()
     }
 
@@ -98,8 +100,10 @@ class SessionManager(private val context: Context) {
 
     /** 1초 주기. 변화가 없어도 ts 는 갱신한다 (폰이 연결 상태를 알 수 있게). */
     private suspend fun publishLoop() {
+        var tick = 0L
         while (currentCoroutineContext().isActive) {
             val now = System.currentTimeMillis()
+            if (tick++ % 10 == 0L) naviEta.poll() // 남은 시간 이벤트가 뜸한 구간 보강 (10초)
             val a = aaos.state.value
             val r = vehicleReader.raw.value
             derivation.update(now, a.speedKph, r.steerDeg, r.odometerM)
@@ -113,7 +117,7 @@ class SessionManager(private val context: Context) {
                 wiperLevel = r.wiperLevel,
                 headlightOn = r.headlightOn,
                 seatRow2 = r.seatRow2Occupied,
-                etaSec = etaSec.value,
+                etaSec = naviEta.etaSec.value,
                 envTags = envTagger.tags(now, a.speedKph, r.wiperLevel, r.headlightOn, regionTagger.tag(null, null)),
                 capabilities = caps.snapshot(),
             )
