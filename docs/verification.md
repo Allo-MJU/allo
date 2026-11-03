@@ -24,7 +24,7 @@
 | 4 | `Odometer` 해상도 1km 미만 | ⚠️ 조건부 | SDK 는 km 소수 그대로 전달(13.257 → 13.257). **단 에뮬레이터는 주행해도 Odometer 가 안 늘어난다** → 시연은 속도 적분 폴백 |
 | 5 | `INTERNET` 권한 외부 호출 | ⚠️ OS 레벨만 확인 | 에뮬레이터 네트워크 VALIDATED, 외부 ping 성공. 앱에서 Firebase 쓰기는 DB URL 받은 뒤 |
 | 6 | `CarUxRestrictions` 신호대기 판정 | ✅ 됨 | **기어 D + 0km/h = 제한(DO true)**. 제한 해제는 기어 P 에서만 → 설계(P 기준) 그대로 |
-| 7 | Gleo Interface 함수 등록 | ⬜ 미확인 | Gleo · TTS 시스템 패키지는 있음. 함수 호출은 allo 앱 설치 후 |
+| 7 | Gleo Interface 함수 등록 | ⚠️ 부분 | **TTS 발화 ✅** (`TTS_SERVICE` 권한 필요). Gleo 수신·응답 브로드캐스트 ✅. 실제 음성 호출 → 우리 함수 연결은 미확인 |
 | 8 | `Seat` 2열 점유값 반전 | ✅ 반전 확인 | VC `occupied` 와 SDK `getCurrentSeatOccupancy` 가 모든 좌석에서 반대. `SDK_OCCUPIED = false` 유지 |
 
 > 표기: ✅ 됨 / ⚠️ 조건부 / ❌ 안 됨 / ⬜ 미확인
@@ -211,3 +211,23 @@ VC 로 신호를 넣고 `SessionManager` 디버그 로그(`adb logcat -s Session
 | capabilities | `gear, light, wiper, seat, steering, brake, odometer, speed` 전부 |
 
 - `night`/`tunnel` 은 에뮬레이터 시간대(America/Los_Angeles)가 아니라 `EnvTagger` 의 `Asia/Seoul` 기준이다. 시연을 한국 낮에 녹화하면 하향등 = `tunnel`
+
+### 2026-11-03 · #7 Gleo · TTS 실측 (allo 차량 앱)
+
+**TTS (`DriverVoice`, Pleos TextToSpeech 3.3.1 · `Mode.ON_DEVICE`)** — ✅ 발화됨
+
+```
+DriverVoice: tts initialized
+DriverVoice: tts start      ← speak("뒷자리에서 알을 품고 있어요")
+DriverVoice: tts done       ← 약 2.7초 뒤
+```
+
+- 권한 **`pleos.car.permission.TTS_SERVICE`**(normal, `ai.pleos.playground.caas` 가 정의)가 없으면 `SecurityException`. manifest 에 추가함
+- **`addEventListener` 는 `initialize` 성공 콜백 안에서** 불러야 한다. 먼저 부르면 SDK 내부 `lateinit property tts has not been initialized`
+- 콘솔의 "Coming Soon" 과 무관하게 에뮬레이터에선 신청 없이 동작한다. 실차·앱마켓 심사에서 별도 신청이 필요한지는 미확인
+- 디버그 빌드 전용 확인 방법:
+  `adb shell am broadcast -a ai.allo.car.debug.SPEAK -n ai.allo.car/.debug.DebugSpeakReceiver --es text "안녕"`
+
+**Gleo 함수 (`GleoReceiver` + `assets/schema.json`)** — ⚠️ 부분
+- Gleo 를 흉내 낸 브로드캐스트 `REPORT_EGG_STATUS` → 앱이 `ai.pleos.playground.intent.action.APP_ACTION_RESPONSE` 로 응답하는 것을 `dumpsys activity broadcasts` 로 확인
+- Gleo 본체는 `ai.umos.ambientai`(ASSIST). 실제로 "알로, …" 라고 말해 Gleo 가 우리 `schema.json` 을 찾아 부르는 경로는 음성 입력이 필요해 확인 못 함. 선례(핸들온)는 같은 방식으로 동작

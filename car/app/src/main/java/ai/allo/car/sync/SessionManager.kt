@@ -6,6 +6,9 @@ import android.os.Build
 import ai.allo.car.BuildConfig
 import ai.allo.car.model.*
 import ai.allo.car.vehicle.*
+import ai.allo.car.gleo.GleoFunctions
+import ai.allo.car.voice.DriverVoice
+import ai.allo.car.voice.HatchAnnouncement
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.encodeToString
@@ -27,6 +30,8 @@ class SessionManager(private val context: Context) {
     val regionTagger = RegionTagger()
     private val vehicleReader = VehicleSignalReader(context, caps)
     private val aaos = AaosPropertyReader(context)
+    /** 운전자 음성. 차 화면에 게임을 띄우지 않고 말로만 알린다. */
+    val voice = DriverVoice(context)
 
     val sessionId: String = UUID.randomUUID().toString()
     private val _meta = MutableStateFlow(
@@ -57,6 +62,8 @@ class SessionManager(private val context: Context) {
         caps.assumeAaos()
         if (!aaos.start()) caps.mark(Capability.SPEED, false) // 권한 허용 후 onSpeedPermissionGranted 에서 다시 true
         vehicleReader.start()
+        voice.start()
+        scope.launch { announceHatch() }
         scope.launch { createSession() }
         scope.launch { publishLoop() }
         scope.launch { subscribeGame() }
@@ -69,8 +76,19 @@ class SessionManager(private val context: Context) {
 
     fun stop() {
         scope.launch { runCatching { emitEvent("sessionEnd") } }
-        vehicleReader.stop(); aaos.stop()
+        vehicleReader.stop(); aaos.stop(); voice.release()
         scope.cancel()
+    }
+
+    /** 폰이 /game 을 hatched 로 바꾸는 순간 운전자에게 한 번 말한다 (시연 7단계). */
+    private suspend fun announceHatch() {
+        var prev: String? = null
+        _game.collect { g ->
+            if (HatchAnnouncement.shouldAnnounce(prev, g.stage)) {
+                voice.speak(GleoFunctions.respond(GleoFunctions.CELEBRATE_HATCH, g).message)
+            }
+            prev = g.stage
+        }
     }
 
     private suspend fun createSession() {
