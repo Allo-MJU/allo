@@ -20,8 +20,8 @@ class SignalDerivation(
     private var lastSpeedKph: Double? = null
     private var lastSteerDeg: Double? = null
     private var lastOdometerM: Double? = null
-    private var lastBrakeAt: Long = Long.MIN_VALUE
-    private var lastSteerAt: Long = Long.MIN_VALUE
+    private var lastBrakeAt: Long? = null   // null = 아직 이벤트 없음 (Long.MIN_VALUE 는 ts - x 에서 오버플로)
+    private var lastSteerAt: Long? = null
 
     /**
      * 1초마다 호출. odometerM 이 null 이거나 변하지 않으면 속도 적분으로 거리를 누적한다
@@ -34,14 +34,14 @@ class SignalDerivation(
 
             lastSpeedKph?.let { prev ->
                 val decel = (prev - speedKph) / dtSec
-                if (decel >= harshDecelKphPerSec && ts - lastBrakeAt >= cooldownMs) {
+                if (decel >= harshDecelKphPerSec && cooledDown(lastBrakeAt, ts)) {
                     harshBrakeCount++; lastBrakeAt = ts
                 }
             }
 
             if (steerDeg != null && lastSteerDeg != null && speedKph >= minSpeedForSteerKph) {
                 val rate = abs(steerDeg - lastSteerDeg!!) / dtSec
-                if (rate >= harshSteerDegPerSec && ts - lastSteerAt >= cooldownMs) {
+                if (rate >= harshSteerDegPerSec && cooledDown(lastSteerAt, ts)) {
                     harshSteerCount++; lastSteerAt = ts
                 }
             }
@@ -59,6 +59,8 @@ class SignalDerivation(
     fun reset() {
         harshBrakeCount = 0; harshSteerCount = 0; distanceM = 0.0
         lastTs = null; lastSpeedKph = null; lastSteerDeg = null; lastOdometerM = null
-        lastBrakeAt = Long.MIN_VALUE; lastSteerAt = Long.MIN_VALUE
+        lastBrakeAt = null; lastSteerAt = null
     }
+
+    private fun cooledDown(lastAt: Long?, ts: Long): Boolean = lastAt == null || ts - lastAt >= cooldownMs
 }
