@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:allo_core/allo_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -13,16 +14,17 @@ import 'screens/session_end_screen.dart';
 import 'storage/dex_store.dart';
 
 class AlloApp extends StatefulWidget {
-  const AlloApp({super.key, required this.feed});
+  const AlloApp({super.key, required this.feed, this.monotonicMs});
   final VehicleFeed feed;
+  final int Function()? monotonicMs;
 
   @override
   State<AlloApp> createState() => _AlloAppState();
 }
 
-class _AlloAppState extends State<AlloApp> {
-  late final GameController controller =
-      GameController(feed: widget.feed, dex: DexStore());
+class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
+  late final GameController controller = GameController(
+      feed: widget.feed, dex: DexStore(), monotonicMs: widget.monotonicMs);
 
   late final _router = GoRouter(
     initialLocation: '/pairing',
@@ -30,7 +32,12 @@ class _AlloAppState extends State<AlloApp> {
     redirect: (_, state) {
       final path = state.uri.path;
       if (!controller.sessionEnded) {
-        return path == '/session-end' ? '/pairing' : null;
+        if (path == '/session-end') return '/pairing';
+        if (const {'/hatching', '/companion'}.contains(path) &&
+            controller.game.stage != Stage.hatched) {
+          return '/incubating';
+        }
+        return null;
       }
       if (!controller.sessionSaved ||
           !const {'/session-end', '/pairing', '/dex'}.contains(path)) {
@@ -62,11 +69,18 @@ class _AlloAppState extends State<AlloApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     unawaited(controller.restorePairing());
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    unawaited(controller.setAppActive(state == AppLifecycleState.resumed));
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _router.dispose();
     controller.dispose();
     super.dispose();

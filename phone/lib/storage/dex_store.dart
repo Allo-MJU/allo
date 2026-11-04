@@ -35,6 +35,7 @@ class DexStore {
         carriedM: (data['carriedM'] as num).toDouble(),
         sessionDistances: (data['sessionDistances'] as Map<String, dynamic>)
             .map((key, value) => MapEntry(key, (value as num).toDouble())),
+        round: (data['round'] as Map?)?.cast<String, dynamic>(),
       );
     }
     return IncubationProgress(
@@ -50,6 +51,7 @@ class DexStore {
         jsonEncode({
           'carriedM': progress.carriedM,
           'sessionDistances': progress.sessionDistances,
+          if (progress.round != null) 'round': progress.round,
         }));
     if (!saved) throw StateError('Could not save incubation progress');
   }
@@ -64,7 +66,8 @@ class DexStore {
 /// 로컬 이어하기 기록. 각 세션의 반영 위치는 부화 후에도 보존한다.
 class IncubationProgress {
   const IncubationProgress(
-      {this.carriedM = 0, this.sessionDistances = const {}});
+      {this.carriedM = 0, this.sessionDistances = const {}, this.round});
+  final Map<String, dynamic>? round;
   final double carriedM;
   final Map<String, double> sessionDistances;
 }

@@ -20,8 +20,11 @@ void main() {
   testWidgets('ETA 가속·목표 필드·도감 저장', (tester) async {
     await tester.runAsync(() async {
       SharedPreferences.setMockInitialValues({});
+      // ETA policy now uses the phone active clock; scale that clock explicitly.
+      final clock = Stopwatch()..start();
       final c = GameController(
           feed: FakeVehicleFeed(scenario: FakeScenario.clear, timeScale: 100),
+          monotonicMs: () => clock.elapsedMilliseconds * 100,
           dex: DexStore());
       try {
         final hatched = Completer<void>();

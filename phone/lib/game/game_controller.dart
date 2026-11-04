@@ -17,9 +17,37 @@ class GameController extends ChangeNotifier {
       {required this.feed,
       required this.dex,
       RarityEngine? engine,
-      PairingStore? pairingStore})
+      PairingStore? pairingStore,
+      int Function()? monotonicMs})
       : engine = engine ?? const RarityEngine(),
-        pairingStore = pairingStore ?? PairingStore();
+        pairingStore = pairingStore ?? PairingStore(),
+        _monotonicMs = monotonicMs {
+    _stopwatch.start();
+  }
+
+  final Stopwatch _stopwatch = Stopwatch();
+  final int Function()? _monotonicMs;
+  int get activeClockMs =>
+      _monotonicMs?.call() ?? _stopwatch.elapsedMilliseconds;
+  bool _appActive = true;
+  int? _clockAt;
+  int _elapsedMs = 0;
+  int? _hatchSec;
+  int? _companionSec;
+  bool _repeats = false;
+  bool _modeSelected = false;
+  int _roundNumber = 0;
+  String? _eggId;
+  int _brakeOffset = 0;
+  int _steerOffset = 0;
+  int _brakeBaseline = 0;
+  int _steerBaseline = 0;
+  bool _needsCounterBaseline = true;
+  int? _lastVehicleTs;
+  DexEntry? _pendingEntry;
+  bool _savingHatch = false;
+  bool _lifecycleCheckpoint = false;
+  String? get eggId => _eggId;
 
   final VehicleFeed feed;
   final DexStore dex;
@@ -261,26 +289,22 @@ class GameController extends ChangeNotifier {
           !isFake && saved.sessionDistances.isEmpty && saved.carriedM > 0;
       _timer = HatchTimer(eggTier: tier, carriedM: saved.carriedM);
       vehicle = null;
-      seenTags.clear();
-      careCount = 0;
-      lookOutCount = 0;
-      feedCount = 0;
-      playCount = 0;
-      companionMessage = null;
-      hatched = null;
-      game = GameState(
-          ts: _now,
-          eggTier: tier,
-          stage: Stage.incubating,
-          progress: 0,
-          hatchAtM: _timer!.hatchAtM);
+      _lastVehicleTs = null;
+      _resetEgg(tier);
+      final round = saved.round;
+      if (round != null) _restoreRound(round, tier);
+      _clockAt = activeClockMs;
       await _sub?.cancel();
       if (_disposed || sessionEnded || (!isFake && !paired)) return false;
       if (isFake) {
         _eventsSub ??=
             feed.events().listen((event) => _onCarEvent(event, _connection));
       }
-      _sub = feed.watch().listen(_onVehicle, onError: (Object _) {
+      final connection = _connection;
+      _sub = feed.watch().listen((v) {
+        if (connection == _connection) _onVehicle(v);
+      }, onError: (Object _) {
+        if (connection != _connection || _disposed) return;
         error = '차량 신호를 받지 못했어요. 연결을 확인해 주세요.';
         notifyListeners();
       });
@@ -296,17 +320,77 @@ class GameController extends ChangeNotifier {
     }
   }
 
+  // A new egg never opens another vehicle subscription (Fake.watch resets a trip).
+  void _resetEgg(EggTier tier) {
+    _roundNumber++;
+    _eggId = '$_now-$_roundNumber';
+    _elapsedMs = 0;
+    _clockAt = activeClockMs;
+    _modeSelected = false;
+    _hatchSec = null;
+    _companionSec = null;
+    _repeats = false;
+    _needsCounterBaseline = true;
+    _brakeOffset = _steerOffset = 0;
+    seenTags.clear();
+    careCount = lookOutCount = feedCount = playCount = 0;
+    companionMessage = null;
+    hatched = null;
+    game = GameState(
+        ts: _now,
+        eggTier: tier,
+        stage: Stage.incubating,
+        progress: 0,
+        hatchAtM: _timer?.hatchAtM);
+  }
+
+  bool _selectMode(VehicleState v) {
+    if (_modeSelected) return true;
+    final eta = v.etaSec;
+    if (eta != null && eta < 120) {
+      game = GameState(
+          ts: _now, eggTier: game.eggTier, stage: Stage.idle, progress: 0);
+      return false;
+    }
+    _modeSelected = true;
+    _elapsedMs = 0;
+    _clockAt = activeClockMs;
+    if (eta != null) {
+      final round = incubationRound(eta);
+      _hatchSec = round.hatchEndSec;
+      _companionSec = round.companionEndSec;
+      _repeats = round.grantsNextEgg;
+    }
+    return true;
+  }
+
+  void _advanceClock() {
+    final now = activeClockMs;
+    final previous = _clockAt;
+    if (_appActive && previous != null && _modeSelected) {
+      _elapsedMs += (now - previous).clamp(0, 1 << 62);
+    }
+    _clockAt = now;
+  }
+
   void _onVehicle(VehicleState v, {bool finalSnapshot = false}) {
-    if (_disposed || (!finalSnapshot && sessionEnded)) {
+    if (_disposed || (!finalSnapshot && (sessionEnded || !_appActive))) return;
+    // Distance snapshots in older feeds may share a ts. Preserve their high-water
+    // distance handling, while ETA rounds reject duplicate/out-of-order samples.
+    if (_hatchSec != null &&
+        !finalSnapshot &&
+        _lastVehicleTs != null &&
+        v.ts <= _lastVehicleTs!) {
       return;
     }
+    _lastVehicleTs = v.ts;
     vehicle = v;
-    seenTags.addAll(v.envTags);
     final t = _timer;
-    if (t == null || game.stage != Stage.incubating) {
+    if (t == null) {
       notifyListeners();
       return;
     }
+    _advanceClock();
     if (_needsLegacyBaseline) {
       _distanceBaseline = v.distanceM;
       _needsLegacyBaseline = false;
@@ -315,8 +399,26 @@ class GameController extends ChangeNotifier {
     if (_activeSessionId != null) {
       _sessionDistances[_activeSessionId!] = _lastDistance;
     }
-    final p =
-        t.update(v.copyWith(distanceM: _lastDistance - _distanceBaseline));
+    if (game.stage == Stage.hatched) {
+      _grantNextEgg(v, finalSnapshot: finalSnapshot);
+      notifyListeners();
+      return;
+    }
+    if (!_selectMode(v)) {
+      notifyListeners();
+      _publish();
+      return;
+    }
+    if (_needsCounterBaseline) {
+      _brakeBaseline = v.harshBrake;
+      _steerBaseline = v.harshSteer;
+      _needsCounterBaseline = false;
+    }
+    seenTags.addAll(v.envTags);
+    final p = _hatchSec != null
+        ? (_elapsedMs / (_hatchSec! * 1000)).clamp(0.0, 1.0)
+        : _timer!.update(v.copyWith(
+            distanceM: _lastDistance - _distanceBaseline, clearEta: true));
     game = GameState(
         ts: _now,
         eggTier: game.eggTier,
@@ -324,18 +426,56 @@ class GameController extends ChangeNotifier {
         progress: p,
         careCount: careCount,
         lookOutCount: lookOutCount,
-        hatchAtM: t.hatchAtM,
-        hatchAtSec: t.hatchAtSec);
-    if (t.shouldHatch(p)) _hatch(v);
+        hatchAtM: _hatchSec == null ? _timer!.hatchAtM : null,
+        hatchAtSec: _hatchSec);
+    if (p >= 1) _hatch(v);
     notifyListeners();
-    unawaited(_send(() => feed.publishGame(game)));
+    _publish();
   }
+
+  bool _grantNextEgg(VehicleState v, {bool finalSnapshot = false}) {
+    if (_disposed ||
+        !_appActive ||
+        finalSnapshot ||
+        sessionEnded ||
+        endingSession ||
+        game.stage != Stage.hatched ||
+        _retrySave != null ||
+        _savingHatch ||
+        !_repeats ||
+        _elapsedMs < _companionSec! * 1000 ||
+        (v.etaSec != null && v.etaSec! < 120)) {
+      return false;
+    }
+    _distanceBaseline = _lastDistance;
+    _timer = HatchTimer(eggTier: game.eggTier);
+    _resetEgg(game.eggTier);
+    _selectMode(v);
+    _brakeBaseline = v.harshBrake;
+    _steerBaseline = v.harshSteer;
+    _needsCounterBaseline = false;
+    seenTags.addAll(v.envTags);
+    game = GameState(
+        ts: _now,
+        eggTier: game.eggTier,
+        stage: Stage.incubating,
+        progress: 0,
+        hatchAtM: _hatchSec == null ? _timer!.hatchAtM : null,
+        hatchAtSec: _hatchSec);
+    notifyListeners();
+    _publish();
+    return true;
+  }
+
+  void _publish() => unawaited(_send(() => feed.publishGame(game)));
 
   void _hatch(VehicleState v) {
     final r = engine.judge(
         seenTags: seenTags,
-        harshBrake: v.harshBrake,
-        harshSteer: v.harshSteer,
+        harshBrake:
+            _brakeOffset + (v.harshBrake - _brakeBaseline).clamp(0, 1 << 30),
+        harshSteer:
+            _steerOffset + (v.harshSteer - _steerBaseline).clamp(0, 1 << 30),
         careCount: careCount,
         capabilities: v.capabilities);
     final s = _table!.pick(r, seenTags);
@@ -358,27 +498,41 @@ class GameController extends ChangeNotifier {
       regionTag: region,
       tier: r.tier,
     );
+    _pendingEntry = entry;
     final eggTier = game.eggTier;
-    final checkpoint =
-        IncubationProgress(sessionDistances: Map.of(_sessionDistances));
-    _retrySave = () => _saveHatch(entry, eggTier, checkpoint);
+    _retrySave = () => _saveHatch(entry, eggTier, _checkpoint());
     _pendingSave = _trySave();
   }
 
   Future<void> _trySave() async {
+    if (_savingHatch) return;
+    _savingHatch = true;
     try {
       await _retrySave?.call();
       _retrySave = null;
+      _pendingEntry = null;
     } catch (_) {
       error = '도감을 저장하지 못했어요. 도착 버튼으로 다시 시도해 주세요.';
       notifyListeners();
+    } finally {
+      _savingHatch = false;
     }
+    // A delayed observation settles exactly one past egg. Once storage succeeds,
+    // grant one new egg at now with the latest ETA; never replay absent cycles.
+    final latest = vehicle;
+    if (_retrySave == null && latest != null) _grantNextEgg(latest);
   }
 
   Future<void> _saveHatch(
       DexEntry entry, EggTier tier, IncubationProgress checkpoint) async {
+    final connection = _connection;
     await dex.add(entry);
-    await dex.saveIncubationProgress(tier, checkpoint);
+    if (_disposed || connection != _connection) return;
+    await dex.saveIncubationProgress(
+        tier,
+        _hatchSec == null
+            ? IncubationProgress(sessionDistances: checkpoint.sessionDistances)
+            : checkpoint);
   }
 
   void care() {
@@ -435,13 +589,19 @@ class GameController extends ChangeNotifier {
         if (_disposed || connection != _connection) return false;
         if (_retrySave != null) return false;
         final t = _timer;
-        if (t != null && game.stage == Stage.incubating) {
+        if (t != null &&
+            (game.stage != Stage.hatched ||
+                _hatchSec != null ||
+                _lifecycleCheckpoint)) {
+          _advanceClock();
+          final checkpoint = _checkpoint();
           await dex.saveIncubationProgress(
               game.eggTier,
-              IncubationProgress(
-                carriedM: t.carryOver(hatched: false),
-                sessionDistances: Map.of(_sessionDistances),
-              ));
+              game.stage == Stage.hatched && _hatchSec == null
+                  ? IncubationProgress(
+                      sessionDistances: checkpoint.sessionDistances)
+                  : checkpoint);
+          _lifecycleCheckpoint = false;
         }
         if (_disposed || connection != _connection) return false;
         // 저장 성공 후에만 해제한다. 실패하면 기존 구독의 버퍼를 재개한다.
@@ -477,6 +637,123 @@ class GameController extends ChangeNotifier {
       if (!subscriptionClosed && !_disposed && connection == _connection) {
         subscription?.resume();
       }
+    }
+  }
+
+  Map<String, dynamic> _roundSnapshot() => {
+        'eggId': _eggId,
+        'number': _roundNumber,
+        'sessionId': _activeSessionId,
+        'elapsedMs': _elapsedMs,
+        'hatchSec': _hatchSec,
+        'companionSec': _companionSec,
+        'repeats': _repeats,
+        'modeSelected': _modeSelected,
+        'game': game.toJson(),
+        'tags': seenTags.toList(),
+        'brakeOffset': _brakeOffset,
+        'steerOffset': _steerOffset,
+        'brakeAccumulated': _brakeOffset +
+            ((vehicle?.harshBrake ?? _brakeBaseline) - _brakeBaseline)
+                .clamp(0, 1 << 30),
+        'steerAccumulated': _steerOffset +
+            ((vehicle?.harshSteer ?? _steerBaseline) - _steerBaseline)
+                .clamp(0, 1 << 30),
+        'brakeBaseline': _brakeBaseline,
+        'steerBaseline': _steerBaseline,
+        'needsCounterBaseline': _needsCounterBaseline,
+        'feedCount': feedCount,
+        'playCount': playCount,
+        if (_pendingEntry != null) 'pendingEntry': _pendingEntry!.toJson(),
+      };
+
+  IncubationProgress _checkpoint() => IncubationProgress(
+        carriedM: game.stage == Stage.hatched
+            ? 0
+            : (_timer?.carryOver(hatched: false) ?? 0),
+        sessionDistances: Map.of(_sessionDistances),
+        round: _roundSnapshot(),
+      );
+
+  void _restoreRound(Map<String, dynamic> round, EggTier tier) {
+    final g = Map<String, dynamic>.from(round['game'] as Map);
+    // A distance-mode arrival retains the existing manual new-egg behavior.
+    // Lifecycle snapshots restore distance companions; explicit endSession clears it.
+    _eggId = round['eggId'] as String?;
+    _roundNumber = (round['number'] as num).toInt();
+    _elapsedMs = (round['elapsedMs'] as num).toInt();
+    _hatchSec = (round['hatchSec'] as num?)?.toInt();
+    _companionSec = (round['companionSec'] as num?)?.toInt();
+    _repeats = round['repeats'] == true;
+    _modeSelected = round['modeSelected'] == true;
+    careCount = (g['careCount'] as num?)?.toInt() ?? 0;
+    lookOutCount = (g['lookOutCount'] as num?)?.toInt() ?? 0;
+    feedCount = (round['feedCount'] as num?)?.toInt() ?? 0;
+    playCount = (round['playCount'] as num?)?.toInt() ?? 0;
+    seenTags.addAll((round['tags'] as List).cast<String>());
+    _brakeBaseline = (round['brakeBaseline'] as num).toInt();
+    _steerBaseline = (round['steerBaseline'] as num).toInt();
+    final changedSession = round['sessionId'] != _activeSessionId;
+    _needsCounterBaseline =
+        round['needsCounterBaseline'] == true || changedSession;
+    _brakeOffset =
+        (round[changedSession ? 'brakeAccumulated' : 'brakeOffset'] as num?)
+                ?.toInt() ??
+            0;
+    _steerOffset =
+        (round[changedSession ? 'steerAccumulated' : 'steerOffset'] as num?)
+                ?.toInt() ??
+            0;
+    final stage = Stage.values.byName(g['stage'] as String);
+    final speciesId = g['speciesId'] as String?;
+    if (speciesId != null) {
+      hatched = _table!.byId(speciesId);
+    }
+    game = GameState(
+        ts: _now,
+        eggTier: tier,
+        stage: stage,
+        progress: (g['progress'] as num).toDouble(),
+        speciesId: speciesId,
+        attribute: g['attribute'] == null
+            ? null
+            : Attribute.values.byName(g['attribute'] as String),
+        tier: (g['tier'] as num?)?.toInt(),
+        careCount: careCount,
+        lookOutCount: lookOutCount,
+        hatchAtSec: _hatchSec,
+        hatchAtM:
+            _hatchSec == null && stage != Stage.idle ? _timer!.hatchAtM : null);
+    final entry = round['pendingEntry'];
+    if (entry != null) {
+      _pendingEntry =
+          DexEntry.fromJson(Map<String, dynamic>.from(entry as Map));
+      final pending = _pendingEntry!;
+      _retrySave = () => _saveHatch(pending, tier, _checkpoint());
+      _pendingSave = _trySave();
+    }
+  }
+
+  /// Checkpoints recognized active time, never credits wall-clock suspension.
+  /// OS termination before this future finishes can still lose the latest interval.
+  Future<bool> setAppActive(bool active) async {
+    if (_disposed) return false;
+    if (_appActive == active) return true;
+    _advanceClock();
+    _appActive = active;
+    _clockAt = activeClockMs;
+    if (active || _timer == null || sessionSaved) return true;
+    final connection = _connection;
+    try {
+      await _pendingSave;
+      if (_disposed || connection != _connection) return false;
+      await dex.saveIncubationProgress(game.eggTier, _checkpoint());
+      _lifecycleCheckpoint = true;
+      return true;
+    } catch (_) {
+      error = '진행을 저장하지 못했어요. 다시 시도해 주세요.';
+      notifyListeners();
+      return false;
     }
   }
 

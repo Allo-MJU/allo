@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:allo_core/allo_core.dart';
 import 'package:go_router/go_router.dart';
 
 import '../game/game_controller.dart';
@@ -62,7 +63,13 @@ class _HatchingScreenState extends State<HatchingScreen>
                     style: const TextStyle(color: Colors.white54)),
                 const SizedBox(height: 32),
                 FilledButton(
-                    onPressed: () => context.go('/companion'),
+                    onPressed: () {
+                      final c = widget.controller;
+                      if (c.sessionEnded) return;
+                      context.go(c.game.stage == Stage.hatched
+                          ? '/companion'
+                          : '/incubating');
+                    },
                     child: const Text('같이 가자')),
               ],
             );
