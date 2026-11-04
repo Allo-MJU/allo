@@ -14,12 +14,24 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-MAX_CHARS = 50
+MAX_CHARS = 50          # 폰 말풍선
+MAX_CHARS_CAR = 45      # 차 음성 (car_*). 운전자가 듣는 말. 약 9초
+MAX_CHARS_CAR_SUGGEST = 80  # 목적지 제안만 예외 (장소·거리가 들어간다)
 MAX_SENTENCES = 3   # 50자 안의 짧은 문장. '비! 영어로 rain이야. 세어 볼래?' 패턴이 3문장
 MIN_HANGUL_RATIO = 0.90
 
 QUESTION_IDS = {"ask_name", "ask_origin", "ask_like", "ask_mood", "ask_window", "ask_eta", "ask_want", "say_bored", "say_bye"}
-SITUATIONS = {"hatched", "incubating", "harsh", "rain", "tunnel", "highway", "coast", "city", "night", "none", "eta", "distance", "driving", "*"}
+# 아이의 질문이 아닌 상황 대사 (폰) + 차 음성 (car_*)
+SITUATION_IDS = {"hatch", "look_out", "look_out_done", "env_change", "care",
+                 "car_egg_status", "car_hatch", "car_suggest", "car_suggest_none", "car_accept", "car_unknown"}
+SITUATIONS = {"hatched", "incubating", "harsh", "rain", "tunnel", "highway", "coast", "city", "night", "none", "eta", "distance", "driving", "*",
+              "idle", "not_yet", "first", "unvisited", "alt", "all_visited", "none_nearby", "exhausted", "ok"}
+
+# 길이 계산용 예시값. 플레이스홀더를 이 값으로 바꿔서 잰다
+SAMPLES = {"{name}": "별부엉이", "{eta_min}": "15", "{progress}": "62", "{word_en}": "bridge", "{word_ko}": "다리",
+           "{tier_word}": "중간", "{attr_word}": "물 속성", "{region_word}": "바다", "{place}": "을왕리해수욕장", "{km}": " 직선으로 약 65km예요."}
+# 조사 플레이스홀더: {name:이/가} = 받침 있으면 앞, 없으면 뒤. 바로 앞에 같은 {name} 이 와야 한다
+JOSA = re.compile(r"\{([a-z_]+):([^/{}]+)/([^/{}]+)\}")
 ATTRIBUTES = {"normal", "water", "dark"}
 
 # 창밖 사물 영어 단어 (영어 팩). 한글 비율 계산에서 제외한다. 늘어나면 여기에 추가.
@@ -56,12 +68,35 @@ def sentences(text: str) -> int:
     return len(parts)
 
 
+def render_sample(line: str) -> str:
+    out = JOSA.sub(lambda m: m.group(2), line)
+    for k, v in SAMPLES.items():
+        out = out.replace(k, v)
+    return out
+
+
 def check_line(key: str, line: str, placeholders: set, english_ok: set) -> list:
     errs = []
-    if len(line) > MAX_CHARS:
-        errs.append(f"길이 {len(line)}자 > {MAX_CHARS}")
-    if sentences(line) > MAX_SENTENCES:
-        errs.append(f"문장 {sentences(line)}개 > {MAX_SENTENCES}")
+    q = key.split("|")[0]
+    car = q.startswith("car_")
+    limit = MAX_CHARS_CAR_SUGGEST if q == "car_suggest" else (MAX_CHARS_CAR if car else MAX_CHARS)
+    for m in JOSA.finditer(line):
+        if "{" + m.group(1) + "}" not in placeholders:
+            errs.append(f"모르는 조사 플레이스홀더 {m.group(0)}")
+        elif not line[:m.start()].endswith("{" + m.group(1) + "}"):
+            errs.append(f"조사 플레이스홀더 {m.group(0)} 앞에 {{{m.group(1)}}} 이 없다")
+    line_josa_free = JOSA.sub("", line)
+    sample = render_sample(line)
+    if len(sample) > limit:
+        errs.append(f"길이 {len(sample)}자 > {limit} (예시값 대입)")
+    max_sent = 4 if q == "car_suggest" else MAX_SENTENCES   # 제안은 지역·장소·거리·대안 안내가 들어가 가장 길다
+    if sentences(sample) > max_sent:
+        errs.append(f"문장 {sentences(sample)}개 > {max_sent}")
+    if car:
+        for sent in re.split(r"(?<=[.!?…])\s+", sample.strip()):
+            if sent and not re.search(r"(요|다)[.!?]?$", sent.strip()):
+                errs.append(f"차 음성은 존댓말: '{sent.strip()}'")
+    line = line_josa_free
     if EMOJI.search(line):
         errs.append("이모지")
     if URL.search(line):
@@ -114,7 +149,7 @@ def check_key(key: str, species_ids: set) -> list:
         return [f"키 형식 아님 (질문ID|대상|상황): {key}"]
     q, target, situation = parts
     errs = []
-    if q not in QUESTION_IDS:
+    if q not in QUESTION_IDS and q not in SITUATION_IDS:
         errs.append(f"모르는 질문 ID {q}")
     if target != "*" and not (target.startswith("@") and target[1:] in ATTRIBUTES) and target not in species_ids:
         errs.append(f"모르는 대상 {target} (species.json 에 없음)")
@@ -158,7 +193,7 @@ def main(argv):
                 failures += 1
 
     covered = {k.split("|")[0] for k in seen}
-    missing_q = QUESTION_IDS - covered
+    missing_q = (QUESTION_IDS | SITUATION_IDS) - covered
     print(f"\n{path.name}: 키 {len(seen)}개 · 문장 {lines_total}개 · 실패 {failures} · 미검수 {unreviewed}")
     if missing_q:
         print(f"주의: 대사 없는 질문 ID {sorted(missing_q)}")
