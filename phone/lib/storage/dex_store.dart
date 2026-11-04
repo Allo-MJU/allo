@@ -22,7 +22,8 @@ class DexStore {
     final raw = List<String>.from(p.getStringList(_kDex) ?? const []);
     final encoded = jsonEncode(e.toJson());
     if (!raw.contains(encoded)) raw.add(encoded);
-    await p.setStringList(_kDex, raw);
+    final saved = await p.setStringList(_kDex, raw);
+    if (!saved) throw StateError('Could not save dex entry');
   }
 
   Future<IncubationProgress> incubationProgress(EggTier tier) async {

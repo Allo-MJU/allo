@@ -98,6 +98,7 @@ void main() {
         expect(c.busy, isTrue);
         expect(c.paired, isFalse);
         await c.pair(sid, pairCode: code);
+        await feed.started.future;
         expect(feed.calls, 1);
         expect(await PairingStore().read(), isNull);
         feed.gate!.complete();
@@ -156,17 +157,21 @@ void main() {
 
 class _RecordingFeed implements VehicleFeed {
   int calls = 0;
+  final started = Completer<void>();
   bool fail = false;
   Completer<void>? gate;
   @override
   Future<void> pair(String sessionId, {String? pairCode}) async {
     calls++;
+    if (!started.isCompleted) started.complete();
     if (fail) throw StateError('offline');
     await gate?.future;
   }
 
   @override
   Stream<VehicleState> watch() => const Stream.empty();
+  @override
+  Future<VehicleState?> readLatestVehicle() async => null;
   @override
   Stream<Map<String, Object?>> events() => const Stream.empty();
   @override

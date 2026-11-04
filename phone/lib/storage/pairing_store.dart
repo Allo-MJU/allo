@@ -29,6 +29,7 @@ class PairingStore {
 
   Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_key);
+    final removed = await prefs.remove(_key);
+    if (!removed) throw StateError('pairing clear failed');
   }
 }

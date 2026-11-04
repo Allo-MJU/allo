@@ -30,6 +30,18 @@ class FirebaseVehicleFeed implements VehicleFeed {
         await session.child('meta').get().timeout(const Duration(seconds: 10));
     credentials.validateMeta(snap.exists ? _asMap(snap.value) : null,
         now: DateTime.now());
+    final events = await session
+        .child('events')
+        .get()
+        .timeout(const Duration(seconds: 10));
+    for (final child in events.children) {
+      final event = child.value;
+      if (event is Map &&
+          event['by'] == 'car' &&
+          event['type'] == 'sessionEnd') {
+        throw const PairingException('종료된 주행이에요. 차량의 새 QR을 확인해 주세요.');
+      }
+    }
     final eventKey = session.child('events').push().key!;
     // 페어링 표시와 이벤트를 한 번에 기록한 뒤에만 게임 발행을 허용한다.
     await session.update({
@@ -54,6 +66,18 @@ class FirebaseVehicleFeed implements VehicleFeed {
       );
 
   @override
+  Future<VehicleState?> readLatestVehicle() async {
+    final session = _session;
+    final snapshot = await session
+        .child('vehicle')
+        .get()
+        .timeout(const Duration(seconds: 10));
+    return snapshot.value == null
+        ? null
+        : VehicleState.fromJson(_asMap(snapshot.value));
+  }
+
+  @override
   Future<void> publishGame(GameState state) =>
       _session.child('game').set(state.toJson());
 
@@ -68,11 +92,14 @@ class FirebaseVehicleFeed implements VehicleFeed {
       });
 
   @override
-  Stream<Map<String, Object?>> events() => _session
-      .child('events')
-      .onChildAdded
-      .map((e) => _asMap(e.snapshot.value))
-      .where((m) => m['by'] == 'car');
+  Stream<Map<String, Object?>> events() {
+    final session = _session;
+    return session
+        .child('events')
+        .onChildAdded
+        .map((e) => _asMap(e.snapshot.value))
+        .where((m) => m['by'] == 'car');
+  }
 
   @override
   Future<void> dispose() async {}
