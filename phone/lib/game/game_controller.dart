@@ -229,10 +229,15 @@ class GameController extends ChangeNotifier {
   }
 
   /// 도착(기어 P) 또는 앱 종료. 부화 전이면 거리를 다음 주행으로 넘긴다.
-  Future<bool> endSession() async {
+  Future<bool>? _endingSession;
+  Future<bool> endSession() => _endingSession ??=
+      _finishSession().whenComplete(() => _endingSession = null);
+
+  Future<bool> _finishSession() async {
+    final subscription = _sub;
+    subscription?.pause();
+    var saved = false;
     try {
-      await _sub?.cancel();
-      _sub = null;
       await _pendingSave;
       if (_retrySave != null) await _trySave();
       if (_retrySave != null) return false;
@@ -245,12 +250,17 @@ class GameController extends ChangeNotifier {
               sessionDistances: Map.of(_sessionDistances),
             ));
       }
+      await subscription?.cancel();
+      _sub = null;
       _timer = null;
+      saved = true;
       return true;
     } catch (_) {
       error = '저장하지 못했어요. 다시 시도해 주세요.';
       notifyListeners();
       return false;
+    } finally {
+      if (!saved && !_disposed) subscription?.resume();
     }
   }
 
