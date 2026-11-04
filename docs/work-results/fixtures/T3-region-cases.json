@@ -1,0 +1,968 @@
+{
+  "fixtureVersion": 1,
+  "status": "proposal_not_product_implementation",
+  "units": "milliseconds",
+  "defaults": {
+    "maxHoldMs": 5000,
+    "sourceBaseMs": 100000,
+    "feedEpoch": "e1",
+    "sessionId": "s1",
+    "trustedFresh": true,
+    "eggId": "egg"
+  },
+  "aggregationCases": [
+    {
+      "id": "city25_mountain10_coast5_1s",
+      "beginAtMs": 0,
+      "finishAtMs": 2400000,
+      "segments": [
+        {
+          "fromMs": 0,
+          "toMs": 1500000,
+          "envTags": [
+            "city",
+            "rain"
+          ],
+          "stepMs": 1000
+        },
+        {
+          "fromMs": 1500000,
+          "toMs": 2100000,
+          "envTags": [
+            "mountain"
+          ],
+          "stepMs": 1000
+        },
+        {
+          "fromMs": 2100000,
+          "toMs": 2400000,
+          "envTags": [
+            "coast"
+          ],
+          "stepMs": 1000
+        }
+      ],
+      "afterFinish": [
+        {
+          "op": "observe",
+          "atMs": 2400000,
+          "envTags": [
+            "mountain"
+          ]
+        },
+        {
+          "op": "observe",
+          "atMs": 2500000,
+          "envTags": [
+            "mountain"
+          ]
+        }
+      ],
+      "expected": {
+        "durationMs": {
+          "coast": 300000,
+          "mountain": 600000,
+          "city": 1500000
+        },
+        "unknownMs": 0,
+        "activeMs": 2400000,
+        "regionTag": "city",
+        "reason": "uniqueWinner"
+      }
+    },
+    {
+      "id": "city25_mountain10_coast5_4s",
+      "beginAtMs": 0,
+      "finishAtMs": 2400000,
+      "segments": [
+        {
+          "fromMs": 0,
+          "toMs": 1500000,
+          "envTags": [
+            "city",
+            "rain"
+          ],
+          "stepMs": 4000
+        },
+        {
+          "fromMs": 1500000,
+          "toMs": 2100000,
+          "envTags": [
+            "mountain"
+          ],
+          "stepMs": 4000
+        },
+        {
+          "fromMs": 2100000,
+          "toMs": 2400000,
+          "envTags": [
+            "coast"
+          ],
+          "stepMs": 4000
+        }
+      ],
+      "afterFinish": [
+        {
+          "op": "observe",
+          "atMs": 2400000,
+          "envTags": [
+            "mountain"
+          ]
+        },
+        {
+          "op": "observe",
+          "atMs": 2500000,
+          "envTags": [
+            "mountain"
+          ]
+        }
+      ],
+      "expected": {
+        "durationMs": {
+          "coast": 300000,
+          "mountain": 600000,
+          "city": 1500000
+        },
+        "unknownMs": 0,
+        "activeMs": 2400000,
+        "regionTag": "city",
+        "reason": "uniqueWinner"
+      }
+    },
+    {
+      "id": "city25_mountain10_coast5_mixed",
+      "beginAtMs": 0,
+      "finishAtMs": 2400000,
+      "segments": [
+        {
+          "fromMs": 0,
+          "toMs": 1500000,
+          "envTags": [
+            "city",
+            "rain"
+          ],
+          "stepMs": 4000
+        },
+        {
+          "fromMs": 1500000,
+          "toMs": 2100000,
+          "envTags": [
+            "mountain"
+          ],
+          "stepMs": 1000
+        },
+        {
+          "fromMs": 2100000,
+          "toMs": 2400000,
+          "envTags": [
+            "coast"
+          ],
+          "stepMs": 2000
+        }
+      ],
+      "afterFinish": [
+        {
+          "op": "observe",
+          "atMs": 2400000,
+          "envTags": [
+            "mountain"
+          ]
+        },
+        {
+          "op": "observe",
+          "atMs": 2500000,
+          "envTags": [
+            "mountain"
+          ]
+        }
+      ],
+      "expected": {
+        "durationMs": {
+          "coast": 300000,
+          "mountain": 600000,
+          "city": 1500000
+        },
+        "unknownMs": 0,
+        "activeMs": 2400000,
+        "regionTag": "city",
+        "reason": "uniqueWinner"
+      }
+    },
+    {
+      "id": "no_region_40min",
+      "beginAtMs": 0,
+      "finishAtMs": 2400000,
+      "segments": [
+        {
+          "fromMs": 0,
+          "toMs": 2400000,
+          "envTags": [
+            "rain",
+            "water",
+            "dark",
+            "normal"
+          ],
+          "stepMs": 4000
+        }
+      ],
+      "expected": {
+        "durationMs": {
+          "coast": 0,
+          "mountain": 0,
+          "city": 0
+        },
+        "unknownMs": 2400000,
+        "activeMs": 2400000,
+        "regionTag": null,
+        "reason": "noRegion"
+      }
+    },
+    {
+      "id": "tie_city10_mountain10",
+      "beginAtMs": 0,
+      "finishAtMs": 1200000,
+      "segments": [
+        {
+          "fromMs": 0,
+          "toMs": 600000,
+          "envTags": [
+            "city"
+          ],
+          "stepMs": 4000
+        },
+        {
+          "fromMs": 600000,
+          "toMs": 1200000,
+          "envTags": [
+            "mountain"
+          ],
+          "stepMs": 4000
+        }
+      ],
+      "expected": {
+        "durationMs": {
+          "coast": 0,
+          "mountain": 600000,
+          "city": 600000
+        },
+        "unknownMs": 0,
+        "activeMs": 1200000,
+        "regionTag": null,
+        "reason": "tie"
+      }
+    },
+    {
+      "id": "unknown_can_reverse_winner",
+      "beginAtMs": 0,
+      "finishAtMs": 2400000,
+      "segments": [
+        {
+          "fromMs": 0,
+          "toMs": 600000,
+          "envTags": [
+            "city"
+          ],
+          "stepMs": 4000
+        },
+        {
+          "fromMs": 600000,
+          "toMs": 2400000,
+          "envTags": [],
+          "stepMs": 4000
+        }
+      ],
+      "expected": {
+        "durationMs": {
+          "coast": 0,
+          "mountain": 0,
+          "city": 600000
+        },
+        "unknownMs": 1800000,
+        "activeMs": 2400000,
+        "regionTag": null,
+        "reason": "insufficient"
+      }
+    },
+    {
+      "id": "gap_is_capped_not_backfilled",
+      "beginAtMs": 0,
+      "finishAtMs": 13000,
+      "operations": [
+        {
+          "op": "observe",
+          "atMs": 0,
+          "envTags": [
+            "city"
+          ]
+        },
+        {
+          "op": "observe",
+          "atMs": 1000,
+          "envTags": [
+            "city"
+          ]
+        },
+        {
+          "op": "observe",
+          "atMs": 11000,
+          "envTags": [
+            "mountain"
+          ]
+        }
+      ],
+      "expected": {
+        "durationMs": {
+          "coast": 0,
+          "mountain": 2000,
+          "city": 6000
+        },
+        "unknownMs": 5000,
+        "activeMs": 13000,
+        "regionTag": null,
+        "reason": "insufficient"
+      }
+    },
+    {
+      "id": "duplicate_reverse_and_source_clock_jump",
+      "beginAtMs": 0,
+      "finishAtMs": 6000,
+      "operations": [
+        {
+          "op": "observe",
+          "atMs": 0,
+          "envTags": [
+            "city"
+          ],
+          "sourceTsMs": 100000
+        },
+        {
+          "op": "observe",
+          "atMs": 1000,
+          "envTags": [
+            "city"
+          ],
+          "sourceTsMs": 101000
+        },
+        {
+          "op": "observe",
+          "atMs": 2000,
+          "envTags": [
+            "coast"
+          ],
+          "sourceTsMs": 101000
+        },
+        {
+          "op": "observe",
+          "atMs": 3000,
+          "envTags": [
+            "mountain"
+          ],
+          "sourceTsMs": 100500
+        },
+        {
+          "op": "observe",
+          "atMs": 4000,
+          "envTags": [
+            "city"
+          ],
+          "sourceTsMs": 990000000
+        }
+      ],
+      "expectedRejected": 2,
+      "expected": {
+        "durationMs": {
+          "coast": 0,
+          "mountain": 0,
+          "city": 6000
+        },
+        "unknownMs": 0,
+        "activeMs": 6000,
+        "regionTag": "city",
+        "reason": "uniqueWinner"
+      }
+    },
+    {
+      "id": "multiple_region_tags_are_unknown",
+      "beginAtMs": 0,
+      "finishAtMs": 6000,
+      "operations": [
+        {
+          "op": "observe",
+          "atMs": 0,
+          "envTags": [
+            "city",
+            "mountain"
+          ]
+        },
+        {
+          "op": "observe",
+          "atMs": 2000,
+          "envTags": [
+            "city",
+            "city",
+            "rain"
+          ]
+        }
+      ],
+      "expected": {
+        "durationMs": {
+          "coast": 0,
+          "mountain": 0,
+          "city": 4000
+        },
+        "unknownMs": 2000,
+        "activeMs": 6000,
+        "regionTag": "city",
+        "reason": "uniqueWinner"
+      }
+    },
+    {
+      "id": "initial_cached_snapshot_is_unknown",
+      "beginAtMs": 0,
+      "finishAtMs": 4000,
+      "operations": [
+        {
+          "op": "observe",
+          "atMs": 0,
+          "envTags": [
+            "coast"
+          ],
+          "sourceTsMs": 100000,
+          "trustedFresh": false
+        },
+        {
+          "op": "observe",
+          "atMs": 1000,
+          "envTags": [
+            "city"
+          ],
+          "sourceTsMs": 101000,
+          "trustedFresh": true
+        }
+      ],
+      "expected": {
+        "durationMs": {
+          "coast": 0,
+          "mountain": 0,
+          "city": 3000
+        },
+        "unknownMs": 1000,
+        "activeMs": 4000,
+        "regionTag": "city",
+        "reason": "uniqueWinner"
+      }
+    },
+    {
+      "id": "egg1_boundary_and_companion_excluded",
+      "eggId": "egg1",
+      "beginAtMs": 0,
+      "finishAtMs": 2400000,
+      "seedBeforeBegin": {
+        "op": "observe",
+        "atMs": -1000,
+        "envTags": [
+          "coast"
+        ],
+        "sourceTsMs": 99000
+      },
+      "segments": [
+        {
+          "fromMs": 0,
+          "toMs": 2400000,
+          "envTags": [
+            "city"
+          ],
+          "stepMs": 4000
+        }
+      ],
+      "afterFinish": [
+        {
+          "op": "observe",
+          "atMs": 2400000,
+          "envTags": [
+            "coast"
+          ]
+        },
+        {
+          "op": "observe",
+          "atMs": 4199000,
+          "envTags": [
+            "coast"
+          ]
+        }
+      ],
+      "expected": {
+        "durationMs": {
+          "coast": 0,
+          "mountain": 0,
+          "city": 2400000
+        },
+        "unknownMs": 0,
+        "activeMs": 2400000,
+        "regionTag": "city",
+        "reason": "uniqueWinner"
+      }
+    },
+    {
+      "id": "egg2_resets_at_70min",
+      "eggId": "egg2",
+      "beginAtMs": 4200000,
+      "finishAtMs": 4800000,
+      "seedBeforeBegin": {
+        "op": "observe",
+        "atMs": 4199000,
+        "envTags": [
+          "coast"
+        ]
+      },
+      "operations": [
+        {
+          "op": "observe",
+          "atMs": 4200000,
+          "envTags": [
+            "city"
+          ],
+          "eggId": "egg1"
+        }
+      ],
+      "segments": [
+        {
+          "fromMs": 4200000,
+          "toMs": 4800000,
+          "envTags": [
+            "mountain"
+          ],
+          "stepMs": 4000
+        }
+      ],
+      "expectedRejected": 1,
+      "expected": {
+        "durationMs": {
+          "coast": 0,
+          "mountain": 600000,
+          "city": 0
+        },
+        "unknownMs": 0,
+        "activeMs": 600000,
+        "regionTag": "mountain",
+        "reason": "uniqueWinner"
+      }
+    },
+    {
+      "id": "same_egg_checkpoint_restore_excludes_pause",
+      "beginAtMs": 0,
+      "finishAtMs": 17000,
+      "operations": [
+        {
+          "op": "observe",
+          "atMs": 0,
+          "envTags": [
+            "city"
+          ],
+          "sourceTsMs": 100000
+        },
+        {
+          "op": "observe",
+          "atMs": 2000,
+          "envTags": [
+            "city"
+          ],
+          "sourceTsMs": 102000
+        },
+        {
+          "op": "pause",
+          "atMs": 3000
+        },
+        {
+          "op": "restorePaused",
+          "atMs": 3000
+        },
+        {
+          "op": "resume",
+          "atMs": 13000
+        },
+        {
+          "op": "observe",
+          "atMs": 13000,
+          "envTags": [
+            "coast"
+          ],
+          "sourceTsMs": 102000
+        },
+        {
+          "op": "observe",
+          "atMs": 14000,
+          "envTags": [
+            "city"
+          ],
+          "sourceTsMs": 114000
+        }
+      ],
+      "expectedRejected": 1,
+      "expectedPausedMs": 10000,
+      "expected": {
+        "durationMs": {
+          "coast": 0,
+          "mountain": 0,
+          "city": 6000
+        },
+        "unknownMs": 1000,
+        "activeMs": 7000,
+        "regionTag": "city",
+        "reason": "uniqueWinner"
+      }
+    },
+    {
+      "id": "new_feed_epoch_rejects_old_callback",
+      "beginAtMs": 0,
+      "finishAtMs": 6000,
+      "operations": [
+        {
+          "op": "observe",
+          "atMs": 0,
+          "envTags": [
+            "city"
+          ],
+          "sourceTsMs": 100000
+        },
+        {
+          "op": "observe",
+          "atMs": 1000,
+          "envTags": [
+            "city"
+          ],
+          "sourceTsMs": 101000
+        },
+        {
+          "op": "break",
+          "atMs": 2000,
+          "feedEpoch": "e2",
+          "sessionId": "s2"
+        },
+        {
+          "op": "observe",
+          "atMs": 3000,
+          "envTags": [
+            "coast"
+          ],
+          "sourceTsMs": 102000,
+          "feedEpoch": "e1"
+        },
+        {
+          "op": "observe",
+          "atMs": 3000,
+          "envTags": [
+            "coast"
+          ],
+          "sourceTsMs": 900,
+          "feedEpoch": "e2",
+          "sessionId": "s2",
+          "trustedFresh": false
+        },
+        {
+          "op": "observe",
+          "atMs": 4000,
+          "envTags": [
+            "mountain"
+          ],
+          "sourceTsMs": 1000,
+          "feedEpoch": "e2",
+          "sessionId": "s2",
+          "trustedFresh": true
+        }
+      ],
+      "expectedRejected": 1,
+      "expected": {
+        "durationMs": {
+          "coast": 0,
+          "mountain": 2000,
+          "city": 2000
+        },
+        "unknownMs": 2000,
+        "activeMs": 6000,
+        "regionTag": null,
+        "reason": "tie"
+      }
+    }
+  ],
+  "wireCases": [
+    {
+      "id": "old_phone_missing",
+      "input": {},
+      "expected": {
+        "known": false,
+        "regions": null
+      }
+    },
+    {
+      "id": "false_ignores_list",
+      "input": {
+        "regionCollectionKnown": false,
+        "uncollectedRegions": [
+          "coast"
+        ]
+      },
+      "expected": {
+        "known": false,
+        "regions": null
+      }
+    },
+    {
+      "id": "known_all_uncollected",
+      "input": {
+        "regionCollectionKnown": true,
+        "uncollectedRegions": [
+          "coast",
+          "mountain",
+          "city"
+        ]
+      },
+      "expected": {
+        "known": true,
+        "regions": [
+          "coast",
+          "mountain",
+          "city"
+        ]
+      }
+    },
+    {
+      "id": "known_deduplicated",
+      "input": {
+        "regionCollectionKnown": true,
+        "uncollectedRegions": [
+          "coast",
+          "coast"
+        ]
+      },
+      "expected": {
+        "known": true,
+        "regions": [
+          "coast"
+        ]
+      }
+    },
+    {
+      "id": "known_empty_array",
+      "input": {
+        "regionCollectionKnown": true,
+        "uncollectedRegions": []
+      },
+      "expected": {
+        "known": true,
+        "regions": []
+      }
+    },
+    {
+      "id": "known_empty_rtdb_key_absent",
+      "input": {
+        "regionCollectionKnown": true
+      },
+      "expected": {
+        "known": true,
+        "regions": []
+      }
+    },
+    {
+      "id": "known_null_list",
+      "input": {
+        "regionCollectionKnown": true,
+        "uncollectedRegions": null
+      },
+      "expected": {
+        "known": true,
+        "regions": []
+      }
+    },
+    {
+      "id": "wrong_known_type",
+      "input": {
+        "regionCollectionKnown": "true",
+        "uncollectedRegions": []
+      },
+      "expected": {
+        "known": false,
+        "regions": null
+      }
+    },
+    {
+      "id": "null_known",
+      "input": {
+        "regionCollectionKnown": null
+      },
+      "expected": {
+        "known": false,
+        "regions": null
+      }
+    },
+    {
+      "id": "wrong_list_type",
+      "input": {
+        "regionCollectionKnown": true,
+        "uncollectedRegions": {
+          "0": "coast"
+        }
+      },
+      "expected": {
+        "known": false,
+        "regions": null
+      }
+    },
+    {
+      "id": "unknown_region_value",
+      "input": {
+        "regionCollectionKnown": true,
+        "uncollectedRegions": [
+          "coast",
+          "desert"
+        ]
+      },
+      "expected": {
+        "known": false,
+        "regions": null
+      }
+    },
+    {
+      "id": "null_element",
+      "input": {
+        "regionCollectionKnown": true,
+        "uncollectedRegions": [
+          "coast",
+          null
+        ]
+      },
+      "expected": {
+        "known": false,
+        "regions": null
+      }
+    },
+    {
+      "id": "sentinel_none_forbidden",
+      "input": {
+        "regionCollectionKnown": true,
+        "uncollectedRegions": [
+          "none"
+        ]
+      },
+      "expected": {
+        "known": false,
+        "regions": null
+      }
+    }
+  ],
+  "dexCases": [
+    {
+      "id": "unsupported_empty",
+      "compatibleStorageReady": false,
+      "loadAndValidationSucceeded": true,
+      "entries": [],
+      "expected": {
+        "known": false,
+        "regions": null
+      }
+    },
+    {
+      "id": "load_failure_not_empty",
+      "compatibleStorageReady": true,
+      "loadAndValidationSucceeded": false,
+      "entries": [],
+      "expected": {
+        "known": false,
+        "regions": null
+      }
+    },
+    {
+      "id": "verified_new_empty",
+      "compatibleStorageReady": true,
+      "loadAndValidationSucceeded": true,
+      "entries": [],
+      "expected": {
+        "known": true,
+        "regions": [
+          "coast",
+          "mountain",
+          "city"
+        ]
+      }
+    },
+    {
+      "id": "legacy_missing_and_null",
+      "compatibleStorageReady": true,
+      "loadAndValidationSucceeded": true,
+      "entries": [
+        {},
+        {
+          "regionTag": null
+        }
+      ],
+      "expected": {
+        "known": true,
+        "regions": [
+          "coast",
+          "mountain",
+          "city"
+        ]
+      }
+    },
+    {
+      "id": "legacy_valid_and_duplicate",
+      "compatibleStorageReady": true,
+      "loadAndValidationSucceeded": true,
+      "entries": [
+        {
+          "regionTag": "city"
+        },
+        {
+          "regionTag": "city"
+        },
+        {
+          "regionTag": null
+        }
+      ],
+      "expected": {
+        "known": true,
+        "regions": [
+          "coast",
+          "mountain"
+        ]
+      }
+    },
+    {
+      "id": "all_collected",
+      "compatibleStorageReady": true,
+      "loadAndValidationSucceeded": true,
+      "entries": [
+        {
+          "regionTag": "coast"
+        },
+        {
+          "regionTag": "mountain"
+        },
+        {
+          "regionTag": "city"
+        }
+      ],
+      "expected": {
+        "known": true,
+        "regions": []
+      }
+    },
+    {
+      "id": "corrupt_region_not_silently_dropped",
+      "compatibleStorageReady": true,
+      "loadAndValidationSucceeded": true,
+      "entries": [
+        {
+          "regionTag": "city"
+        },
+        {
+          "regionTag": "desert"
+        }
+      ],
+      "expected": {
+        "known": false,
+        "regions": null
+      }
+    }
+  ]
+}
