@@ -2,9 +2,7 @@
 
 작성일: 2026-11-04 (KST). 산출물은 설계안과 fixture이며 **스키마 승인이나 기능 구현 완료가 아니다.**
 
-- 작업 경로: `/Users/seokamoto/Documents/잡동 프로젝트/현대차/_workspace/c-region-20261104`
-- 브랜치: `codex/c-region-20261104`
-- 시작 커밋: `1f764d1c29d4179588b8b37ac3f45f0e905852a1`
+- 검토 코드 기준: `011751328d1918c3a7695e9468cb9449a6932547 (dev)`
 - 변경 범위: 이 문서와 `docs/work-results/fixtures/T3-region-cases.json`만. 제품 코드·공용 스키마는 수정하지 않았다.
 
 ## 1. 조정 담당이 채택할 수 있는 최소안
@@ -38,7 +36,9 @@
 | 차량 추천·JSON | 시작점 `SessionManager.kt:104–113`은 `unvisitedRegions=null` 고정. `DestinationSuggester.kt:66–82`는 null=기본, empty=후보 없음, 현재 지역 제외+120km 제한을 적용한다. `Models.kt:40–52`에는 두 필드가 없고 `FirebaseRest.kt:42`는 ignoreUnknownKeys=true다. |
 | [PR #24](https://github.com/Allo-MJU/allo/pull/24) 보정 확인 | `700ddb8778db84aea499edca9142f1391222f04c`의 `SessionManager.kt:121–128`, `DestinationSuggester.kt:138–143`, `NaviEtaReader.kt:102–107`은 SDK 호출 준비·실패를 확인한 뒤 accepted를 보낸다. 시작점의 무조건 accepted 문제를 새 미수정 이슈로 복제하지 않는다. 다만 성공은 SDK 요청이 예외 없이 반환됐다는 뜻이며 비동기 안내 시작까지 확인한 것은 아니다. 두 지역 필드와 GPS 만료는 여전히 없다. |
 
-경로가 짧게 표시된 차량 파일은 `car/app/src/main/java/ai/allo/car/` 아래다. 로컬 snapshot `c-run-20261104/source-snapshot/docs/schema.md` 0장의 확정/제안 구분도 읽기 대조했다. 공용 `docs/schema.md`에는 그 0장이 없다.
+게시 전 추가 확인: PR #25는 `9b7e18c07689b917cdba9360829b999b85086d6d`로 갱신됐다. 위 표의 #25 행은 최초 검토 snapshot을 가리킨다. 새 head의 저장 실패 시 구독 pause/resume 등 보완을 확인했으며, 첫 지역 선택과 지역 요약 미전송이라는 이 문서의 핵심 관찰은 유지된다. 구현 시에는 새 head 위에서 통합한다.
+
+경로가 짧게 표시된 차량 파일은 `car/app/src/main/java/ai/allo/car/` 아래다. 이 문서 1장의 확정/제안 구분을 기준으로 검토했다. 아래 권고는 공용 `docs/schema.md`에 반영된 확정 계약이 아니다.
 
 ## 3. 집계 접근 비교와 시간 입력 계약 — 권고, 미채택
 
