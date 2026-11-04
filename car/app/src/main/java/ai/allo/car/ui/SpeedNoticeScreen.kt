@@ -23,12 +23,14 @@ fun SpeedNoticeScreen(onContinue: () -> Unit) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(stringResource(R.string.speed_notice_title), style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(24.dp))
-        Text(stringResource(R.string.speed_notice_body), style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
+        EggMark(size = 140.dp, fill = 0.5f)
         Spacer(Modifier.height(40.dp))
-        Button(onClick = onContinue, modifier = Modifier.height(64.dp).widthIn(min = 240.dp)) {
-            Text(stringResource(R.string.speed_notice_continue), style = MaterialTheme.typography.titleLarge)
+        Text(stringResource(R.string.speed_notice_title), style = MaterialTheme.typography.displaySmall, textAlign = TextAlign.Center)
+        Spacer(Modifier.height(28.dp))
+        Text(stringResource(R.string.speed_notice_body), style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.height(56.dp))
+        Button(onClick = onContinue, modifier = Modifier.height(88.dp).widthIn(min = 360.dp)) {
+            Text(stringResource(R.string.speed_notice_continue), style = MaterialTheme.typography.labelLarge)
         }
     }
 }

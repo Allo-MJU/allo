@@ -2,6 +2,10 @@ package ai.allo.car.ui
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -26,16 +30,21 @@ fun PairingScreen(meta: SessionMeta, dbUrl: String, sessionId: String = "") {
     val payload = "allo://pair?sid=$sessionId&code=${meta.pairCode}"
     val qr = remember(payload) { qrBitmap(payload, 512) }
     Row(
-        modifier = Modifier.fillMaxSize().padding(48.dp),
+        modifier = Modifier.fillMaxSize().padding(64.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
-        Image(bitmap = qr.asImageBitmap(), contentDescription = "pairing QR", modifier = Modifier.size(360.dp))
-        Spacer(Modifier.width(48.dp))
+        // QR 은 흰 카드 위에. 어두운 배경에 바로 두면 폰 카메라 인식이 떨어진다
+        Box(Modifier.clip(RoundedCornerShape(28.dp)).background(Color.White).padding(24.dp)) {
+            Image(bitmap = qr.asImageBitmap(), contentDescription = "pairing QR", modifier = Modifier.size(380.dp))
+        }
+        Spacer(Modifier.width(80.dp))
         Column {
+            EggMark(size = 96.dp, fill = 0.35f)
+            Spacer(Modifier.height(32.dp))
             Text(stringResource(R.string.pairing_title), style = MaterialTheme.typography.headlineLarge)
-            Spacer(Modifier.height(16.dp))
-            Text(stringResource(R.string.pairing_code, meta.pairCode), style = MaterialTheme.typography.displayMedium)
+            Spacer(Modifier.height(24.dp))
+            Text(stringResource(R.string.pairing_code, meta.pairCode), style = MaterialTheme.typography.displayMedium, color = MaterialTheme.colorScheme.primary)
             if (dbUrl.isBlank()) {
                 Spacer(Modifier.height(24.dp))
                 Text("ALLO_DB_URL 이 비어 있어요 (car/local.properties)", style = MaterialTheme.typography.bodyLarge)

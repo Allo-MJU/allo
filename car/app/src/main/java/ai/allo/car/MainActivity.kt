@@ -7,15 +7,14 @@ import androidx.activity.result.contract.ActivityResultContracts
 import ai.allo.car.vehicle.AaosPropertyReader
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ai.allo.car.model.CarScreen
+import ai.allo.car.ui.AlloTheme
 import ai.allo.car.ui.DrivingScreen
 import ai.allo.car.ui.PairingScreen
 import ai.allo.car.ui.ParkedScreen
@@ -37,8 +36,8 @@ class MainActivity : ComponentActivity() {
             val screen by session.screen.collectAsStateWithLifecycle()
             val game by session.game.collectAsStateWithLifecycle()
             val meta by session.meta.collectAsStateWithLifecycle()
-            // 테마 없이 그리면 Text 가 기본 검정이 되어 DeviceDefault(어두운) 창 배경에 묻힌다
-            MaterialTheme(colorScheme = darkColorScheme()) {
+            // 테마 없이 그리면 Text 가 기본 검정이 되어 DeviceDefault(어두운) 창 배경에 묻힌다 (AlloTheme = 어두운 차량용 테마)
+            AlloTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     if (showSpeedNotice) SpeedNoticeScreen(onContinue = { speedPermission.launch(AaosPropertyReader.SPEED_PERMISSION) })
                     else when (screen) {

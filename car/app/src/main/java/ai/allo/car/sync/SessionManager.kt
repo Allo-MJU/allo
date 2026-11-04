@@ -6,6 +6,8 @@ import android.os.Build
 import ai.allo.car.BuildConfig
 import ai.allo.car.model.*
 import ai.allo.car.vehicle.*
+import ai.allo.car.gleo.Destination
+import ai.allo.car.gleo.DestinationFlow
 import ai.allo.car.gleo.GleoFunctions
 import ai.allo.car.voice.DriverVoice
 import ai.allo.car.navi.NaviEtaReader
@@ -45,6 +47,8 @@ class SessionManager(private val context: Context) {
     val vehicle: StateFlow<VehicleSnapshot?> = _vehicle
     /** 내비 ETA. 경로 안내 중이 아니면 null → 폰은 거리 폴백 */
     val naviEta = NaviEtaReader(context)
+    /** Gleo 목적지 제안 → 수락 */
+    val destinations = DestinationFlow()
 
     val screen: StateFlow<CarScreen> = combine(_meta, aaos.state) { m, a ->
         when {
@@ -81,6 +85,26 @@ class SessionManager(private val context: Context) {
     /** MainActivity 가 CAR_SPEED 런타임 권한을 받은 뒤 호출. */
     fun onSpeedPermissionGranted() {
         if (aaos.startSpeed()) caps.mark(Capability.SPEED, true)
+    }
+
+    /** Gleo 제안. 현재 위치에서 가까운 순. 폰에는 지역 태그만 알린다 (좌표 X). */
+    fun suggestDestination(): DestinationFlow.Offer {
+        val here = naviEta.position.value
+        // 방문 기록은 폰에만 있다. /game 에 미방문 지역 필드가 생기기 전까지는 null(폴백). 이슈 #9
+        val offer = destinations.offer(here, regionTagger.tag(here?.lat, here?.lng), unvisitedRegions = null)
+        if (offer is DestinationFlow.Offer.Made) {
+            val region = offer.suggestion.destination.region
+            scope.launch { runCatching { emitEvent("destinationSuggest", mapOf("region" to region, "status" to "offered")) } }
+        }
+        return offer
+    }
+
+    /** 운전자가 수락. 직전 제안이 유효할 때만 내비에 목적지를 넣는다. */
+    fun acceptDestination(): Destination? {
+        val d = destinations.accept() ?: return null
+        naviEta.requestRoute(d.latitude, d.longitude, d.name)
+        scope.launch { runCatching { emitEvent("destinationSuggest", mapOf("region" to d.region, "status" to "accepted")) } }
+        return d
     }
 
     fun stop() {
@@ -146,7 +170,7 @@ class SessionManager(private val context: Context) {
                 headlightOn = r.headlightOn,
                 seatRow2 = r.seatRow2Occupied,
                 etaSec = naviEta.etaSec.value,
-                envTags = envTagger.tags(now, a.speedKph, r.wiperLevel, r.headlightOn, regionTagger.tag(null, null)),
+                envTags = envTagger.tags(now, a.speedKph, r.wiperLevel, r.headlightOn, naviEta.position.value.let { regionTagger.tag(it?.lat, it?.lng) }),
                 capabilities = caps.snapshot(),
             )
             if (BuildConfig.DEBUG && snap.copy(ts = 0) != _vehicle.value?.copy(ts = 0)) {
