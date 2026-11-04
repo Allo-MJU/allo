@@ -379,3 +379,4 @@ Pleos 문서 확인 ([Examples](https://document.pleos.ai/en/docs/pleos-only/app
 | 앱 실행 후 제안 없이 수락 (위조) | `NoOffer` → fail, 내비 그대로 ✅ |
 | 제안(asking) → 수락 (`ACTION_PARAM` 따옴표 감싼 형식) | `Started` → 내비 경로 설정, 차량 앱이 직접 TTS ✅ |
 | 안내 중 제안 / 안내 중 수락 | fail "지금은 길 안내 중이에요…" / `NoOffer`, 경로 그대로 ✅ |
+| 앱을 켜기 **전에** 시작된 안내 | `getRouteStateInfo` → `naviMode=ROUTE_GUIDING` 로 안내 중 인식 → 제안 fail ✅. `isRouting` 은 안내 중에도 false 라 쓰지 않는다 |

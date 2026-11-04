@@ -4,10 +4,12 @@ import android.content.Context
 import android.util.Log
 import ai.pleos.playground.navi.constants.NaviErrorCode
 import ai.pleos.playground.navi.constants.NavigationStatus
+import ai.pleos.playground.navi.constants.NaviMode
 import ai.pleos.playground.navi.data.CurrentLocationInfo
 import ai.pleos.playground.navi.data.DestinationInfo
 import ai.pleos.playground.navi.data.DrivingInfo
 import ai.pleos.playground.navi.data.RouteInfo
+import ai.pleos.playground.navi.data.RouteStateInfo
 import ai.pleos.playground.navi.data.TripInfo
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
@@ -60,6 +62,18 @@ class NaviEtaReader(context: Context) {
         override fun onDestinationArrived(info: ai.pleos.playground.navi.data.DestinationArrivedInfo) {
             remainSec = null; _arrivedAt.value = System.currentTimeMillis(); publish("arrived")
         }
+        /**
+         * 앱이 켜지기 전에 시작된 안내는 onNavigationStatus 가 다시 오지 않는다 → poll 의 getRouteStateInfo 로 채운다.
+         * 에뮬레이터 실측: 안내 중에 isRouting=false · naviMode=ROUTE_GUIDING (isRouting 은 경로 탐색 중 여부로 보인다)
+         * → naviMode 로 판단한다. 안내 중인데 상태를 모르면 ROUTE_DRIVE 로 본다 (목적지 제안이 진행 중인 경로를 바꾸지 않게)
+         */
+        override fun onRouteStateInfo(info: RouteStateInfo) {
+            val guiding = info.naviMode == NaviMode.ROUTE_GUIDING || info.naviMode == NaviMode.SIMULATION_GUIDING
+            val before = status
+            if (guiding) { if (status == null) status = "ROUTE_DRIVE" }
+            else if (status == "ROUTE_DRIVE") { status = null; remainSec = null }
+            if (status != before) publish("routeState mode=${info.naviMode}")
+        }
         override fun onCurrentLocationInfo(info: CurrentLocationInfo) {
             _position.value = GeoPoint(info.latitude, info.longitude)
         }
@@ -79,6 +93,7 @@ class NaviEtaReader(context: Context) {
     /** 이벤트가 안 오는 구간을 메우려고 SessionManager 가 주기적으로 부른다. */
     fun poll() {
         if (!ready) return
+        runCatching { navi.getRouteStateInfo() }.onFailure { Log.w(TAG, "getRouteStateInfo failed", it) }
         runCatching { navi.getDestinationInfo() }.onFailure { Log.w(TAG, "getDestinationInfo failed", it) }
         runCatching { navi.getCurrentLocationInfo() }.onFailure { Log.w(TAG, "getCurrentLocationInfo failed", it) }
     }
