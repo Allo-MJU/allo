@@ -263,6 +263,22 @@ void main() {
     expect(c.game.tier, 1);
   });
 
+  test('최종 종료된 시간 모드 동행은 새 주행의 첫 알을 막지 않는다', () async {
+    await start();
+    at(0, eta: 600);
+    at(5, eta: 300);
+    await settle();
+    expect(c.game.stage, Stage.hatched);
+    feed.carEvents.add({'type': 'sessionEnd', 'by': 'car'});
+    expect(await c.endSession(), isTrue);
+    await c.pair(sessionB, pairCode: '123456');
+    expect(await c.startIncubating(EggTier.small), isTrue);
+    at(6, eta: 600);
+    expect(c.game.stage, Stage.incubating);
+    expect(c.game.progress, 0);
+    expect(feed.hatchEvents, 1);
+  });
+
   testWidgets('hatching와 companion 양쪽에서 다음 알 화면으로 돌아간다', (tester) async {
     await tester.runAsync(() => PairingStore()
         .save(PairingCredentials.parseFields(sessionA, '123456')));

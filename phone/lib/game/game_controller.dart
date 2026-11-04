@@ -696,7 +696,7 @@ class GameController extends ChangeNotifier {
           final checkpoint = _checkpoint();
           await dex.saveIncubationProgress(
               game.eggTier,
-              game.stage == Stage.hatched && _hatchSec == null
+              game.stage == Stage.hatched && (_hatchSec == null || sessionEnded)
                   ? IncubationProgress(
                       sessionDistances: checkpoint.sessionDistances)
                   : checkpoint);
