@@ -39,6 +39,37 @@ class GameController extends ChangeNotifier {
   final Set<String> seenTags = {};
   int careCount = 0;
   int lookOutCount = 0;
+  int feedCount = 0;
+  int playCount = 0;
+  String? companionMessage;
+
+  /// 실제 수신된 태그만 사용한다. 지역 정보가 없으면 풍경을 단정하지 않는다.
+  (String, String) get lookOutPrompt {
+    final tags = vehicle?.envTags ?? const <String>[];
+    if (tags.contains('coast')) return ('창밖에 바다가 보이나요?', 'sea');
+    if (tags.contains('mountain')) return ('창밖에 산이 보이나요?', 'mountain');
+    if (tags.contains('city')) return ('창밖에 건물이 보이나요?', 'building');
+    if (tags.contains('rain')) return ('창밖에 빗방울이 보이나요?', 'rain');
+    if (tags.contains('tunnel')) return ('터널의 불빛을 찾아볼까요?', 'light');
+    if (tags.contains('night')) return ('밤하늘을 살펴볼까요?', 'night');
+    return ('창밖에 무엇이 보이나요?', 'window');
+  }
+
+  // 동행 반응은 폰 안에서만 유지하며 부화 등급이나 서버 계약을 바꾸지 않는다.
+  void feedCompanion() {
+    if (game.stage != Stage.hatched) return;
+    feedCount++;
+    companionMessage = '${hatched?.nameKo ?? "친구"}가 맛있게 먹었어요!';
+    notifyListeners();
+  }
+
+  void playWithCompanion() {
+    if (game.stage != Stage.hatched) return;
+    playCount++;
+    companionMessage = '${hatched?.nameKo ?? "친구"}가 신나게 뛰어요!';
+    notifyListeners();
+  }
+
   bool paired = false;
   bool busy = false;
   bool _disposed = false;
@@ -144,6 +175,9 @@ class GameController extends ChangeNotifier {
       seenTags.clear();
       careCount = 0;
       lookOutCount = 0;
+      feedCount = 0;
+      playCount = 0;
+      companionMessage = null;
       hatched = null;
       game = GameState(
           ts: _now,

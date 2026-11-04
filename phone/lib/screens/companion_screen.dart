@@ -2,57 +2,81 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../game/game_controller.dart';
+import '../widgets/species_art.dart';
 
-/// 동행. 생물이 차 기울기에 따라 기울고, 가끔 창밖을 가리킨다 ("저기 봐! 산이야" + 영어 단어 1개).
 class CompanionScreen extends StatelessWidget {
   const CompanionScreen({super.key, required this.controller});
   final GameController controller;
 
   @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) {
-        final s = controller.hatched;
-        return Scaffold(
-          appBar: AppBar(title: Text(s?.nameKo ?? '동행')),
-          body: Column(
-            children: [
-              if (controller.error != null) Text(controller.error!),
-              const Spacer(),
-              // TODO(B): v.harshSteer 변화 → 기울기 애니메이션. 스프라이트 assets/species/{id}.png
-              const Icon(Icons.pets, size: 140),
-              const Spacer(),
-              Card(
-                margin: const EdgeInsets.all(16),
-                child: ListTile(
-                  leading: const Icon(Icons.visibility),
-                  title: const Text('저기 봐! 산이야'),
-                  subtitle: const Text('mountain'),
-                  trailing: FilledButton(
-                      onPressed: controller.lookOut, child: const Text('봤어!')),
-                ),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+  Widget build(BuildContext context) => ListenableBuilder(
+        listenable: controller,
+        builder: (context, _) {
+          final species = controller.hatched;
+          final prompt = controller.lookOutPrompt;
+          return Scaffold(
+            appBar: AppBar(title: Text(species?.nameKo ?? '동행')),
+            body: SafeArea(
+              child: ListView(
+                padding: const EdgeInsets.all(20),
                 children: [
-                  FilledButton.tonal(onPressed: () {}, child: const Text('먹이')),
-                  FilledButton.tonal(
-                      onPressed: () {}, child: const Text('놀아주기')),
-                  OutlinedButton(
-                    onPressed: () async {
-                      final saved = await controller.endSession();
-                      if (saved && context.mounted) context.go('/dex');
-                    },
-                    child: const Text('도착'),
+                  if (controller.error != null) Text(controller.error!),
+                  const SizedBox(height: 24),
+                  Center(
+                    child: AnimatedRotation(
+                      turns: controller.playCount.isOdd ? 0.04 : -0.04,
+                      duration: const Duration(milliseconds: 300),
+                      child: species == null
+                          ? const Icon(Icons.pets, size: 140)
+                          : SpeciesArt(species: species, size: 140),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Semantics(
+                    liveRegion: true,
+                    child: Text(controller.companionMessage ?? '도착할 때까지 함께 가요!',
+                        textAlign: TextAlign.center),
+                  ),
+                  Text(
+                      '먹이 ${controller.feedCount}회 · 놀이 ${controller.playCount}회',
+                      textAlign: TextAlign.center),
+                  const SizedBox(height: 20),
+                  Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.visibility),
+                      title: Text(prompt.$1),
+                      subtitle:
+                          Text('${prompt.$2} · 발견 ${controller.lookOutCount}회'),
+                      trailing: FilledButton(
+                          onPressed: controller.lookOut,
+                          child: const Text('봤어!')),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      FilledButton.tonal(
+                          onPressed: controller.feedCompanion,
+                          child: const Text('먹이')),
+                      FilledButton.tonal(
+                          onPressed: controller.playWithCompanion,
+                          child: const Text('놀아주기')),
+                      OutlinedButton(
+                        onPressed: () async {
+                          final saved = await controller.endSession();
+                          if (saved && context.mounted) context.go('/dex');
+                        },
+                        child: const Text('도착'),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
-            ],
-          ),
-        );
-      },
-    );
-  }
+            ),
+          );
+        },
+      );
 }

@@ -35,6 +35,13 @@ void main() {
     await tester.tap(find.text('같이 가자'));
     await tester.pumpAndSettle();
     expect(find.text('봤어!'), findsOneWidget);
+    await tester.tap(find.text('먹이'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('맛있게 먹었어요'), findsOneWidget);
+    await tester.tap(find.text('놀아주기'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('먹이 1회 · 놀이 1회'), findsOneWidget);
+    expect(find.textContaining('신나게 뛰어요'), findsOneWidget);
     await tester.tap(find.text('도착'));
     await tester.pumpAndSettle();
     for (var i = 0; i < 20 && find.text('도감').evaluate().isEmpty; i++) {
