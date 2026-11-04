@@ -26,8 +26,38 @@ void main() {
     }
   });
 
-  test('모든 종에 도달 가능한 조건이 있다', () {
-    expect(table.unreachable(), isEmpty);
+  test('실제 등급 판정과 종 선택을 거쳐 현재 12종에 모두 도달한다', () {
+    const engine = RarityEngine();
+    final cases = <({String id, Set<String> tags, int harsh})>[
+      (id: 'road_sprout', tags: {}, harsh: 7),
+      (id: 'bridge_hopper', tags: {}, harsh: 3),
+      (id: 'mountain_sprite', tags: {}, harsh: 0),
+      (id: 'puddle_pip', tags: {'rain'}, harsh: 7),
+      (id: 'river_glider', tags: {'rain'}, harsh: 3),
+      (id: 'tide_keeper', tags: {'rain'}, harsh: 0),
+      (id: 'lamp_moth', tags: {'night'}, harsh: 7),
+      (id: 'tunnel_moth', tags: {'tunnel'}, harsh: 3),
+      (id: 'star_owl', tags: {'night'}, harsh: 0),
+      (id: 'storm_lantern', tags: {'rain', 'tunnel'}, harsh: 0),
+      (id: 'highway_comet', tags: {'highway', 'night'}, harsh: 0),
+      (id: 'sea_mist', tags: {'coast', 'rain'}, harsh: 0),
+    ];
+    final reached = <String>{};
+
+    for (final c in cases) {
+      final result = engine.judge(
+        seenTags: c.tags,
+        harshBrake: c.harsh,
+        harshSteer: 0,
+        capabilities: ['wiper', 'light'],
+      );
+      final species = table.pick(result, c.tags, random: Random(1));
+
+      expect(species.id, c.id, reason: '태그 ${c.tags}, 급제동 ${c.harsh}');
+      reached.add(species.id);
+    }
+
+    expect(reached, table.all.map((s) => s.id).toSet());
   });
 
   test('rain + 부드러운 운전 → water tier 3', () {
