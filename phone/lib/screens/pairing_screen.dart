@@ -1,8 +1,11 @@
 import 'package:allo_core/allo_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../game/game_controller.dart';
+import '../pairing/pairing_credentials.dart';
+import 'qr_pairing_screen.dart';
 
 /// QR 스캔 또는 6자리 코드. 이름·생년월일·연락처 입력란은 만들지 않는다.
 class PairingScreen extends StatefulWidget {
@@ -41,19 +44,32 @@ class _PairingScreenState extends State<PairingScreen> {
               if (!c.isFake) ...[
                 const SizedBox(height: 12),
                 FilledButton.icon(
-                  onPressed: () {
-                    // TODO(B): mobile_scanner 로 "allo://pair?sid=...&code=..." 파싱 → c.pair(sid, pairCode: code)
-                  },
+                  onPressed: c.busy
+                      ? null
+                      : () async {
+                          final credentials = await Navigator.of(context)
+                              .push<PairingCredentials>(MaterialPageRoute(
+                                  builder: (_) => const QrPairingScreen()));
+                          if (!mounted || credentials == null) return;
+                          _sid.text = credentials.sessionId;
+                          _code.text = credentials.code;
+                          await c.pair(credentials.sessionId,
+                              pairCode: credentials.code);
+                        },
                   icon: const Icon(Icons.qr_code_scanner),
                   label: const Text('QR 스캔'),
                 ),
                 const Divider(height: 48),
-                const Text('QR이 안 되면 코드로'),
+                const Text('QR이 안 되면 연결 정보 직접 입력'),
                 TextField(
                     controller: _sid,
+                    enabled: !c.busy,
+                    autocorrect: false,
                     decoration: const InputDecoration(labelText: '세션 ID')),
                 TextField(
                     controller: _code,
+                    enabled: !c.busy,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     decoration: const InputDecoration(labelText: '6자리 코드'),
                     keyboardType: TextInputType.number,
                     maxLength: 6),
@@ -66,6 +82,7 @@ class _PairingScreenState extends State<PairingScreen> {
                 ),
               ],
               if (c.paired) const Text('차량과 연결됐어요'),
+              if (c.pairingNotice != null) Text(c.pairingNotice!),
               if (c.error != null)
                 Padding(
                     padding: const EdgeInsets.only(top: 8),

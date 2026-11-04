@@ -4,10 +4,12 @@ import 'package:allo_core/allo_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 import 'vehicle_feed.dart';
+import '../pairing/pairing_credentials.dart';
 
 /// Firebase Realtime Database 구현. 경로는 docs/schema.md 3장.
 class FirebaseVehicleFeed implements VehicleFeed {
-  FirebaseVehicleFeed({FirebaseDatabase? db}) : _db = db ?? FirebaseDatabase.instance;
+  FirebaseVehicleFeed({FirebaseDatabase? db})
+      : _db = db ?? FirebaseDatabase.instance;
 
   final FirebaseDatabase _db;
   String? _sid;
@@ -20,26 +22,45 @@ class FirebaseVehicleFeed implements VehicleFeed {
 
   @override
   Future<void> pair(String sessionId, {String? pairCode}) async {
-    final ref = _db.ref('sessions/$sessionId/meta');
-    final snap = await ref.get();
-    if (!snap.exists) throw StateError('세션이 없어요');
-    final meta = Map<String, dynamic>.from(snap.value as Map);
-    if (pairCode != null && meta['pairCode'] != pairCode) throw StateError('코드가 달라요');
-    _sid = sessionId;
-    await ref.update({'paired': true});
-    await emitEvent('paired');
+    _sid = null;
+    final credentials =
+        PairingCredentials.parseFields(sessionId, pairCode ?? '');
+    final session = _db.ref('sessions/${credentials.sessionId}');
+    final snap =
+        await session.child('meta').get().timeout(const Duration(seconds: 10));
+    credentials.validateMeta(snap.exists ? _asMap(snap.value) : null,
+        now: DateTime.now());
+    final eventKey = session.child('events').push().key!;
+    // 페어링 표시와 이벤트를 한 번에 기록한 뒤에만 게임 발행을 허용한다.
+    await session.update({
+      'meta/paired': true,
+      'events/$eventKey': {
+        'ts': ServerValue.timestamp,
+        'type': 'paired',
+        'by': 'phone',
+        'payload': <String, Object?>{},
+      },
+    }).timeout(const Duration(seconds: 10));
+    _sid = credentials.sessionId;
   }
 
   @override
-  Stream<VehicleState> watch() => _session.child('vehicle').onValue.where((e) => e.snapshot.value != null).map(
+  Stream<VehicleState> watch() => _session
+      .child('vehicle')
+      .onValue
+      .where((e) => e.snapshot.value != null)
+      .map(
         (e) => VehicleState.fromJson(_asMap(e.snapshot.value)),
       );
 
   @override
-  Future<void> publishGame(GameState state) => _session.child('game').set(state.toJson());
+  Future<void> publishGame(GameState state) =>
+      _session.child('game').set(state.toJson());
 
   @override
-  Future<void> emitEvent(String type, {Map<String, Object?> payload = const {}}) => _session.child('events').push().set({
+  Future<void> emitEvent(String type,
+          {Map<String, Object?> payload = const {}}) =>
+      _session.child('events').push().set({
         'ts': ServerValue.timestamp,
         'type': type,
         'by': 'phone',
@@ -47,10 +68,15 @@ class FirebaseVehicleFeed implements VehicleFeed {
       });
 
   @override
-  Stream<Map<String, Object?>> events() => _session.child('events').onChildAdded.map((e) => _asMap(e.snapshot.value)).where((m) => m['by'] == 'car');
+  Stream<Map<String, Object?>> events() => _session
+      .child('events')
+      .onChildAdded
+      .map((e) => _asMap(e.snapshot.value))
+      .where((m) => m['by'] == 'car');
 
   @override
   Future<void> dispose() async {}
 
-  static Map<String, dynamic> _asMap(Object? v) => Map<String, dynamic>.from(v as Map);
+  static Map<String, dynamic> _asMap(Object? v) =>
+      Map<String, dynamic>.from(v as Map);
 }

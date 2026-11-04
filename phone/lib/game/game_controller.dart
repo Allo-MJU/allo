@@ -8,14 +8,24 @@ import 'package:flutter/services.dart' show rootBundle;
 import '../feed/vehicle_feed.dart';
 import '../feed/fake_feed.dart';
 import '../storage/dex_store.dart';
+import '../storage/pairing_store.dart';
+import '../pairing/pairing_credentials.dart';
 
 /// 한 세션의 게임 상태 머신. 판정은 allo_core 에 위임하고, 결과를 feed.publishGame 으로 차 화면에 보낸다.
 class GameController extends ChangeNotifier {
-  GameController({required this.feed, required this.dex, RarityEngine? engine})
-      : engine = engine ?? const RarityEngine();
+  GameController(
+      {required this.feed,
+      required this.dex,
+      RarityEngine? engine,
+      PairingStore? pairingStore})
+      : engine = engine ?? const RarityEngine(),
+        pairingStore = pairingStore ?? PairingStore();
 
   final VehicleFeed feed;
   final DexStore dex;
+  final PairingStore pairingStore;
+  String? pairingNotice;
+  bool _restoredPairing = false;
   final RarityEngine engine;
 
   SpeciesTable? _table;
@@ -59,20 +69,64 @@ class GameController extends ChangeNotifier {
             as Map<String, dynamic>);
   }
 
+  Future<void> restorePairing() async {
+    if (isFake || _restoredPairing || busy || paired) return;
+    _restoredPairing = true;
+    busy = true;
+    notifyListeners();
+    try {
+      final saved = await pairingStore.read();
+      if (_disposed) return;
+      if (saved != null) {
+        await _connect(saved);
+      }
+    } on PairingException catch (e) {
+      error = e.message;
+      try {
+        await pairingStore.clear();
+      } catch (_) {/* 다음 연결에서 덮어쓴다. */}
+    } catch (_) {
+      error = '이전 차량에 연결하지 못했어요. 새 QR을 스캔하거나 다시 연결해 주세요.';
+    } finally {
+      busy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _connect(PairingCredentials credentials) async {
+    await feed.pair(credentials.sessionId, pairCode: credentials.code);
+    if (_disposed) return;
+    paired = true;
+    try {
+      await pairingStore.save(credentials);
+    } catch (_) {
+      pairingNotice = '연결됐지만 자동 재연결 정보를 저장하지 못했어요. 다음에는 QR을 다시 스캔해 주세요.';
+    }
+  }
+
   Future<void> pair(String sessionId, {String? pairCode}) async {
     if (busy) return;
     busy = true;
     paired = false;
     error = null;
+    pairingNotice = null;
     notifyListeners();
     try {
-      await feed.pair(sessionId, pairCode: pairCode);
-      paired = true;
-    } catch (e) {
-      error = '연결하지 못했어요. 세션과 코드를 확인해 주세요.';
+      if (isFake) {
+        await feed.pair(sessionId, pairCode: pairCode);
+        paired = true;
+      } else {
+        await _connect(
+            PairingCredentials.parseFields(sessionId, pairCode ?? ''));
+      }
+    } on PairingException catch (e) {
+      error = e.message;
+    } catch (_) {
+      error = '연결하지 못했어요. 네트워크와 차량의 새 QR을 확인해 주세요.';
+    } finally {
+      busy = false;
+      notifyListeners();
     }
-    busy = false;
-    notifyListeners();
   }
 
   /// 알 고르기 → 품기 시작. 이전 주행에서 넘어온 거리는 DexStore 에 있다.

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -41,6 +42,12 @@ class _AlloAppState extends State<AlloApp> {
           path: '/dex', builder: (_, __) => DexScreen(controller: controller)),
     ],
   );
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(controller.restorePairing());
+  }
 
   @override
   void dispose() {
