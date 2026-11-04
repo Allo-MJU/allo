@@ -4,15 +4,29 @@
 #   기본은 도착 후 세션을 바로 끝낸다 (debug 명령). --wait 를 주면 실제 기준(P 3분)을 기다린다.
 # 전제: 디버그 빌드 설치, 차 화면에서 페어링 완료(폰 또는 콘솔에서 meta.paired=true)
 # 지역은 DebugDemoReceiver 로 덮어쓴다 (에뮬레이터 내비 위치가 판교로 고정이라). 좌표는 쓰지 않는다.
-set -u
+# 실패하면 바로 멈추고(set -e), 끝나거나 멈추면 차를 P·0km/h 로 되돌린다 (PT 중 D·고속 상태로 남지 않게. #33 리뷰)
+set -eu
 cd "$(dirname "$0")" && source ./vc.sh
-HWY=${1:-90}
-WAIT=0; for a in "$@"; do [ "$a" = "--wait" ] && WAIT=1; done
+HWY=90; WAIT=0
+for a in "$@"; do
+  case "$a" in
+    --wait) WAIT=1 ;;
+    *) if [[ "$a" =~ ^[1-9][0-9]{0,4}$ ]]; then HWY=$a; else echo "쓰는 법: $0 [고속도로 초 1~99999] [--wait]" >&2; exit 2; fi ;;
+  esac
+done
 demo() { adb shell am broadcast -a ai.allo.car.debug.DEMO -n ai.allo.car/.debug.DebugDemoReceiver "$@" >/dev/null; }
 step() { echo "[sea_trip] $*"; }
+cleanup() {
+  local rc=$?
+  set +e
+  drive 0 0 0 0; gear Park; demo --es region off; vc_close
+  [ $rc -ne 0 ] && echo "[sea_trip] 실패(exit $rc) — 차를 P·0km/h 로 되돌렸습니다" >&2
+  return $rc
+}
 
 vc_setup
-trap 'demo --es region off; vc_close' EXIT
+trap cleanup EXIT
+trap 'exit 130' INT TERM   # Ctrl+C 로 멈춰도 cleanup 이 돈다
 
 step "출발 준비: 뒷좌석 탑승, 지역 = 도심(판교)"
 demo --es region city
