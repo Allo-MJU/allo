@@ -47,6 +47,14 @@ class GameController extends ChangeNotifier {
   DexEntry? _pendingEntry;
   bool _savingHatch = false;
   bool _lifecycleCheckpoint = false;
+  bool _needsResumeBaseline = false;
+  int _resumeBrake = 0;
+  int _resumeSteer = 0;
+  RegionCollection _collection = const RegionCollection.unknown();
+  int _collectionVersion = 0;
+  RegionDurationAccumulator _regions = RegionDurationAccumulator();
+  int? _regionSourceTs;
+  Future<void> _publishTail = Future.value();
   String? get eggId => _eggId;
 
   final VehicleFeed feed;
@@ -219,6 +227,8 @@ class GameController extends ChangeNotifier {
     } catch (_) {
       pairingNotice = '연결됐지만 자동 재연결 정보를 저장하지 못했어요. 다음에는 QR을 다시 스캔해 주세요.';
     }
+    await _refreshCollection();
+    if (!_disposed && connection == _connection) _publish();
   }
 
   void _onCarEvent(Map<String, Object?> event, int connection) {
@@ -247,6 +257,8 @@ class GameController extends ChangeNotifier {
       if (isFake) {
         await feed.pair(sessionId, pairCode: pairCode);
         paired = true;
+        await _refreshCollection();
+        _publish();
       } else {
         await _connect(
             PairingCredentials.parseFields(sessionId, pairCode ?? ''));
@@ -277,6 +289,7 @@ class GameController extends ChangeNotifier {
     try {
       if (!await endSession()) return false;
       await loadSpecies();
+      await _refreshCollection();
       final saved = await dex.incubationProgress(tier);
       if (_disposed || sessionEnded || (!isFake && !paired)) return false;
       _activeSessionId = isFake ? null : _sessionId;
@@ -309,7 +322,7 @@ class GameController extends ChangeNotifier {
         notifyListeners();
       });
       notifyListeners();
-      unawaited(_send(() => feed.publishGame(game)));
+      _publish();
       return true;
     } catch (_) {
       error = '시작하지 못했어요. 다시 시도해 주세요.';
@@ -325,12 +338,15 @@ class GameController extends ChangeNotifier {
     _roundNumber++;
     _eggId = '$_now-$_roundNumber';
     _elapsedMs = 0;
+    _regions = RegionDurationAccumulator();
+    _regionSourceTs = null;
     _clockAt = activeClockMs;
     _modeSelected = false;
     _hatchSec = null;
     _companionSec = null;
     _repeats = false;
     _needsCounterBaseline = true;
+    _needsResumeBaseline = false;
     _brakeOffset = _steerOffset = 0;
     seenTags.clear();
     careCount = lookOutCount = feedCount = playCount = 0;
@@ -351,6 +367,12 @@ class GameController extends ChangeNotifier {
       game = GameState(
           ts: _now, eggTier: game.eggTier, stage: Stage.idle, progress: 0);
       return false;
+    }
+    if (game.stage == Stage.idle) {
+      // No egg existed during the deferred interval, so its distance is not care.
+      _distanceBaseline = v.distanceM;
+      _timer =
+          HatchTimer(eggTier: game.eggTier, carriedM: _timer?.carriedM ?? 0);
     }
     _modeSelected = true;
     _elapsedMs = 0;
@@ -391,6 +413,13 @@ class GameController extends ChangeNotifier {
       return;
     }
     _advanceClock();
+    if (_needsResumeBaseline) {
+      _distanceBaseline +=
+          (v.distanceM - _lastDistance).clamp(0, double.infinity);
+      _brakeBaseline += (v.harshBrake - _resumeBrake).clamp(0, 1 << 30);
+      _steerBaseline += (v.harshSteer - _resumeSteer).clamp(0, 1 << 30);
+      _needsResumeBaseline = false;
+    }
     if (_needsLegacyBaseline) {
       _distanceBaseline = v.distanceM;
       _needsLegacyBaseline = false;
@@ -414,6 +443,7 @@ class GameController extends ChangeNotifier {
       _steerBaseline = v.harshSteer;
       _needsCounterBaseline = false;
     }
+    _observeRegion(v);
     seenTags.addAll(v.envTags);
     final p = _hatchSec != null
         ? (_elapsedMs / (_hatchSec! * 1000)).clamp(0.0, 1.0)
@@ -454,6 +484,7 @@ class GameController extends ChangeNotifier {
     _brakeBaseline = v.harshBrake;
     _steerBaseline = v.harshSteer;
     _needsCounterBaseline = false;
+    _observeRegion(v);
     seenTags.addAll(v.envTags);
     game = GameState(
         ts: _now,
@@ -467,7 +498,57 @@ class GameController extends ChangeNotifier {
     return true;
   }
 
-  void _publish() => unawaited(_send(() => feed.publishGame(game)));
+  void _applyCollection() {
+    game = game.copyWith(
+        regionCollectionKnown: _collection.known,
+        uncollectedRegions: _collection.uncollectedRegions);
+  }
+
+  Future<void> _refreshCollection() async {
+    final version = ++_collectionVersion;
+    try {
+      final entries = await dex.all();
+      if (_disposed || version != _collectionVersion) return;
+      _collection = RegionCollection.fromEntries(entries);
+    } catch (_) {
+      if (_disposed || version != _collectionVersion) return;
+      _collection = const RegionCollection.unknown();
+    }
+    _applyCollection();
+  }
+
+  void _invalidateCollection() {
+    _collectionVersion++;
+    _collection = const RegionCollection.unknown();
+    _applyCollection();
+  }
+
+  // Serialize full game writes and discard queued work for an old connection.
+  void _publish() {
+    _applyCollection();
+    final snapshot = game;
+    final connection = _connection;
+    final sessionId = _sessionId;
+    _publishTail = _publishTail.then((_) async {
+      if (_disposed || connection != _connection || sessionId != _sessionId)
+        return;
+      await _send(() => feed.publishGame(snapshot));
+    });
+  }
+
+  int get _regionAtMs =>
+      _hatchSec == null ? _elapsedMs : _elapsedMs.clamp(0, _hatchSec! * 1000);
+
+  void _observeRegion(VehicleState v) {
+    if (game.stage != Stage.incubating) return;
+    if (_hatchSec != null && _elapsedMs >= _hatchSec! * 1000) {
+      _regions.finish(_regionAtMs);
+      return;
+    }
+    if (_regionSourceTs != null && v.ts <= _regionSourceTs!) return;
+    _regionSourceTs = v.ts;
+    _regions.observe(atMs: _regionAtMs, envTags: v.envTags);
+  }
 
   void _hatch(VehicleState v) {
     final r = engine.judge(
@@ -488,9 +569,7 @@ class GameController extends ChangeNotifier {
         tier: r.tier);
     unawaited(_send(() => feed
         .emitEvent('hatched', payload: {'speciesId': s.id, 'tier': r.tier})));
-    final region = seenTags
-        .where((t) => const {'coast', 'mountain', 'city'}.contains(t))
-        .firstOrNull;
+    final region = _regions.finish(_regionAtMs);
     final entry = DexEntry(
       speciesId: s.id,
       obtainedAt: DateTime.now(),
@@ -512,6 +591,8 @@ class GameController extends ChangeNotifier {
       _retrySave = null;
       _pendingEntry = null;
     } catch (_) {
+      _invalidateCollection();
+      _publish();
       error = '도감을 저장하지 못했어요. 도착 버튼으로 다시 시도해 주세요.';
       notifyListeners();
     } finally {
@@ -532,14 +613,23 @@ class GameController extends ChangeNotifier {
         tier,
         _hatchSec == null
             ? IncubationProgress(sessionDistances: checkpoint.sessionDistances)
-            : checkpoint);
+            : IncubationProgress(
+                carriedM: checkpoint.carriedM,
+                sessionDistances: checkpoint.sessionDistances,
+                round: checkpoint.round == null
+                    ? null
+                    : (Map<String, dynamic>.of(checkpoint.round!)
+                      ..remove('pendingEntry'))));
+    if (_disposed || connection != _connection) return;
+    await _refreshCollection();
+    if (!_disposed && connection == _connection) _publish();
   }
 
   void care() {
     if (game.stage != Stage.incubating || sessionEnded || endingSession) return;
     careCount++;
     game = game.copyWith(ts: _now, careCount: careCount);
-    unawaited(_send(() => feed.publishGame(game)));
+    _publish();
     notifyListeners();
   }
 
@@ -548,7 +638,7 @@ class GameController extends ChangeNotifier {
     lookOutCount++;
     game = game.copyWith(lookOutCount: lookOutCount);
     unawaited(_send(() => feed.emitEvent('lookOutPrompt')));
-    unawaited(_send(() => feed.publishGame(game)));
+    _publish();
     notifyListeners();
   }
 
@@ -662,6 +752,11 @@ class GameController extends ChangeNotifier {
         'brakeBaseline': _brakeBaseline,
         'steerBaseline': _steerBaseline,
         'needsCounterBaseline': _needsCounterBaseline,
+        'needsResumeBaseline': _needsResumeBaseline,
+        'region': _regions.checkpoint(_regionAtMs),
+        'regionSourceTs': _regionSourceTs,
+        'resumeBrake': _resumeBrake,
+        'resumeSteer': _resumeSteer,
         'feedCount': feedCount,
         'playCount': playCount,
         if (_pendingEntry != null) 'pendingEntry': _pendingEntry!.toJson(),
@@ -686,6 +781,17 @@ class GameController extends ChangeNotifier {
     _companionSec = (round['companionSec'] as num?)?.toInt();
     _repeats = round['repeats'] == true;
     _modeSelected = round['modeSelected'] == true;
+    final region = round['region'];
+    if (region is Map) {
+      _regions = RegionDurationAccumulator.restore(
+          Map<String, dynamic>.from(region),
+          atMs: _regionAtMs);
+    } else {
+      _regions = RegionDurationAccumulator()..breakContinuity(_regionAtMs);
+    }
+    _regionSourceTs = !isFake && round['sessionId'] == _activeSessionId
+        ? (round['regionSourceTs'] as num?)?.toInt()
+        : null;
     careCount = (g['careCount'] as num?)?.toInt() ?? 0;
     lookOutCount = (g['lookOutCount'] as num?)?.toInt() ?? 0;
     feedCount = (round['feedCount'] as num?)?.toInt() ?? 0;
@@ -693,7 +799,11 @@ class GameController extends ChangeNotifier {
     seenTags.addAll((round['tags'] as List).cast<String>());
     _brakeBaseline = (round['brakeBaseline'] as num).toInt();
     _steerBaseline = (round['steerBaseline'] as num).toInt();
-    final changedSession = round['sessionId'] != _activeSessionId;
+    final changedSession = isFake || round['sessionId'] != _activeSessionId;
+    _needsResumeBaseline =
+        !changedSession && round['needsResumeBaseline'] == true;
+    _resumeBrake = (round['resumeBrake'] as num?)?.toInt() ?? _brakeBaseline;
+    _resumeSteer = (round['resumeSteer'] as num?)?.toInt() ?? _steerBaseline;
     _needsCounterBaseline =
         round['needsCounterBaseline'] == true || changedSession;
     _brakeOffset =
@@ -743,6 +853,10 @@ class GameController extends ChangeNotifier {
     _appActive = active;
     _clockAt = activeClockMs;
     if (active || _timer == null || sessionSaved) return true;
+    _regions.breakContinuity(_regionAtMs);
+    _needsResumeBaseline = true;
+    _resumeBrake = vehicle?.harshBrake ?? _brakeBaseline;
+    _resumeSteer = vehicle?.harshSteer ?? _steerBaseline;
     final connection = _connection;
     try {
       await _pendingSave;
