@@ -24,6 +24,62 @@ void main() {
     expect(t.shouldHatch(t.update(v(ts: 2000, distanceM: 5000))), isTrue);
   });
 
+  for (final c in [
+    (tier: EggTier.small, beforeM: 4999.0, atM: 5000.0, afterM: 5001.0),
+    (tier: EggTier.mid, beforeM: 24999.0, atM: 25000.0, afterM: 25001.0),
+    (tier: EggTier.large, beforeM: 74999.0, atM: 75000.0, afterM: 75001.0),
+  ]) {
+    test('${c.tier.name} 알은 목표거리 50% 직전에는 미부화, 정확히 도달하면 부화하고 초과 진행도는 1', () {
+      final t = HatchTimer(eggTier: c.tier);
+      t.update(v(ts: 0));
+      final before = t.update(v(ts: 1000, distanceM: c.beforeM));
+      expect(before, lessThan(1.0));
+      expect(t.shouldHatch(before), isFalse);
+      expect(t.hatchAtM, c.atM);
+      final at = t.update(v(ts: 2000, distanceM: c.atM));
+      expect(at, 1.0);
+      expect(t.shouldHatch(at), isTrue);
+      expect(t.update(v(ts: 3000, distanceM: c.afterM)), 1.0);
+    });
+  }
+
+  test('ETA 4초의 부화 경계는 첫 epoch 시각으로부터 정확히 2000밀리초', () {
+    final t = HatchTimer(eggTier: EggTier.large);
+    expect(t.update(v(ts: 1793620000000, etaSec: 4)), 0.0);
+    expect(t.hatchAtSec, 2);
+    expect(t.hatchAtM, isNull);
+    final before = t.update(v(ts: 1793620001999, etaSec: 4));
+    expect(before, closeTo(0.9995, 1e-9));
+    expect(t.shouldHatch(before), isFalse);
+    final at = t.update(v(ts: 1793620002000, etaSec: 4));
+    expect(at, 1.0);
+    expect(t.shouldHatch(at), isTrue);
+    expect(t.update(v(ts: 1793620002001, etaSec: 4)), 1.0);
+  });
+
+  test('이월 거리에는 각 틱의 세션 누적 거리를 중복 합산하지 않는다', () {
+    final t = HatchTimer(eggTier: EggTier.small, carriedM: 1000);
+    t.update(v(ts: 0));
+    expect(t.update(v(ts: 1000, distanceM: 1000)), closeTo(0.4, 1e-9));
+    expect(t.update(v(ts: 2000, distanceM: 1500)), closeTo(0.5, 1e-9));
+    expect(t.carryOver(hatched: false), 2500);
+    final before = t.update(v(ts: 3000, distanceM: 3999));
+    expect(t.shouldHatch(before), isFalse);
+    expect(t.shouldHatch(t.update(v(ts: 4000, distanceM: 4000))), isTrue);
+  });
+
+  test('거리 또는 ETA로 부화한 알의 다음 주행 이월 거리는 0', () {
+    final distance = HatchTimer(eggTier: EggTier.small, carriedM: 1000);
+    distance.update(v(ts: 0));
+    expect(distance.shouldHatch(distance.update(v(ts: 1000, distanceM: 4000))), isTrue);
+    expect(distance.carryOver(hatched: true), 0);
+
+    final eta = HatchTimer(eggTier: EggTier.large, carriedM: 1000);
+    eta.update(v(ts: 0, etaSec: 4));
+    expect(eta.shouldHatch(eta.update(v(ts: 2000, distanceM: 500, etaSec: 4))), isTrue);
+    expect(eta.carryOver(hatched: true), 0);
+  });
+
   test('3km 에서 세션 종료 → 다음 주행 2km 에서 부화', () {
     final first = HatchTimer(eggTier: EggTier.small);
     first.update(v(ts: 0));
@@ -41,12 +97,12 @@ void main() {
   test('주행 중 ETA 가 null → 값으로 바뀌면 ETA 모드로 전환된다', () {
     final t = HatchTimer(eggTier: EggTier.mid);
     t.update(v(ts: 0));
-    t.update(v(ts: 60_000, distanceM: 1000)); // 거리 진행 4%
-    final p = t.update(v(ts: 61_000, distanceM: 1010, etaSec: 1200));
+    t.update(v(ts: 60000, distanceM: 1000)); // 거리 진행 4%
+    final p = t.update(v(ts: 61000, distanceM: 1010, etaSec: 1200));
     expect(t.usesEta, isTrue);
     expect(t.hatchAtSec, 600);
     expect(p, closeTo(0, 1e-9)); // 전환 직후 0 에서 다시 시작
-    expect(t.shouldHatch(t.update(v(ts: 61_000 + 600_000, distanceM: 20000, etaSec: 600))), isTrue);
+    expect(t.shouldHatch(t.update(v(ts: 61000 + 600000, distanceM: 20000, etaSec: 600))), isTrue);
   });
 
   test('거리 진행이 이미 절반을 넘었으면 늦게 들어온 ETA 를 무시한다', () {
