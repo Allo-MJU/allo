@@ -38,7 +38,18 @@ class FirebaseRest(
         .writeTimeout(5, TimeUnit.SECONDS)
         .readTimeout(0, TimeUnit.MILLISECONDS)   // SSE 는 무기한
         .build(),
+    /** 일반 REST(PUT/PATCH/POST) 한 번의 전체 limit. 응답이 멈추면 IOException (PR #27 리뷰) */
+    restCallTimeoutMs: Long = 10_000,
 ) {
+    /**
+     * SSE 와 같은 연결 풀을 쓰되 응답 대기를 제한한 클라이언트. readTimeout(0) 을 그대로 쓰면
+     * 서버가 요청을 받고 응답하지 않을 때 PUT 이 끝나지 않아 1초 발행 루프와 sessionEnd 전송이 멈춘다.
+     */
+    private val restClient: OkHttpClient = client.newBuilder()
+        .readTimeout(restCallTimeoutMs, TimeUnit.MILLISECONDS)
+        .callTimeout(restCallTimeoutMs, TimeUnit.MILLISECONDS)
+        .build()
+
     val json = Json { ignoreUnknownKeys = true; encodeDefaults = true; explicitNulls = true }
     val isConfigured: Boolean get() = dbUrl.isNotBlank()
 
@@ -51,7 +62,7 @@ class FirebaseRest(
     private suspend fun send(method: String, path: String, body: String): String =
         suspendCancellableCoroutine { cont ->
             val req = Request.Builder().url(url(path)).method(method, body.toRequestBody(JSON)).build()
-            val call = client.newCall(req)
+            val call = restClient.newCall(req)
             cont.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) { cont.resumeWithException(e) }
