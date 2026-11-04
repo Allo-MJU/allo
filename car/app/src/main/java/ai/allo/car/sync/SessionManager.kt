@@ -6,6 +6,7 @@ import android.os.Build
 import ai.allo.car.BuildConfig
 import ai.allo.car.model.*
 import ai.allo.car.vehicle.*
+import ai.allo.car.dialogue.DialogueBank
 import ai.allo.car.gleo.Destination
 import ai.allo.car.gleo.DestinationFlow
 import ai.allo.car.gleo.GleoFunctions
@@ -35,6 +36,9 @@ class SessionManager(private val context: Context) {
     private val aaos = AaosPropertyReader(context)
     /** 운전자 음성. 차 화면에 게임을 띄우지 않고 말로만 알린다. */
     val voice = DriverVoice(context)
+    /** 대사 뱅크 (data/dialogue.json). 디버그 빌드는 검수 전 문장도 쓴다, release 는 reviewedBy 가 있는 것만 */
+    val dialogue: DialogueBank = DialogueBank.load(context.assets, includeUnreviewed = BuildConfig.DEBUG)
+        .also { if (BuildConfig.DEBUG) android.util.Log.d("SessionManager", "dialogue bank keys=${it.size}") }
 
     val sessionId: String = UUID.randomUUID().toString()
     private val _meta = MutableStateFlow(
@@ -118,7 +122,7 @@ class SessionManager(private val context: Context) {
         var prev: String? = null
         _game.collect { g ->
             if (HatchAnnouncement.shouldAnnounce(prev, g.stage)) {
-                voice.speak(GleoFunctions.respond(GleoFunctions.CELEBRATE_HATCH, g).message)
+                voice.speak(GleoFunctions.respond(GleoFunctions.CELEBRATE_HATCH, g, bank = dialogue).message)
             }
             prev = g.stage
         }

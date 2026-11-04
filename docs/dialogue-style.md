@@ -48,6 +48,30 @@
 - 한 키에 2~4문장. 최근에 쓴 문장은 다음에 제외 (폰이 세션 안에서 기억)
 - `reviewedBy` 가 채워진 문장만 빌드에 포함. 검증은 `scripts/validate_dialogue.py` (stdlib 만, 빌드 전 1회)
 
+## 3-1. 차 음성 (`car_*` 키)
+
+운전자가 듣는 말. 차량 앱 `GleoFunctions` 가 뱅크에서 먼저 고르고, 없으면 코드의 고정 문장을 쓴다.
+
+| 규칙 | 내용 |
+| --- | --- |
+| 말투 | **존댓말**. 문장마다 "~요/~다"로 끝난다 (검증기 검사) |
+| 길이 | 45자 (예시값 대입 기준, 약 9초). 목적지 제안(`car_suggest`)만 80자·4문장 — 지역·장소·거리·대안 안내가 들어간다 |
+| 키 | `car_egg_status` (`incubating`/`hatched`/`idle`) · `car_hatch` (`hatched`/`not_yet`, 대상은 `@속성`) · `car_suggest` (`first`/`unvisited`/`alt`) · `car_suggest_none` (`all_visited`/`none_nearby`/`exhausted`) · `car_accept` (`ok`/`none`) · `car_unknown` |
+| 값 | `{tier_word}` 작은/중간/긴 · `{progress}` · `{name}` 종 한글 이름 · `{region_word}` 바다/산/도심 · `{place}` 목적지 이름 · `{km}` " 직선으로 약 N km예요." 또는 빈 값 |
+
+**조사 플레이스홀더**: `{name}{name:이/가}` — 바로 앞 값에 받침이 있으면 앞(이), 없으면 뒤(가). `{place}{place:으로/로}` 는 ㄹ 받침도 "로"(서울로). 바로 앞에 같은 플레이스홀더가 없으면 검증기가 실패시킨다.
+
+**빌드 포함**: 디버그 빌드는 검수 전 문장도 쓴다. release 빌드는 `reviewedBy` 가 있는 문장만 쓴다 → 검수 전에는 release 가 고정 문장으로 동작한다.
+
+## 3-2. 폰 상황 대사 (아이의 질문이 아닌 것)
+
+| 키 | 언제 | 대상 |
+| --- | --- | --- |
+| `hatch` | 부화 순간 첫마디 | 종별 12종 |
+| `look_out` / `look_out_done` | 창밖 보기 미션 / 미션 완료 | 환경 태그별 / `*` |
+| `env_change` | 환경 태그가 처음 붙을 때 (비·터널·고속도로·바다·밤) | 환경 태그별 |
+| `care` | 감싸주기를 눌렀을 때 | `incubating` / `hatched` |
+
 ## 4. 탈락 예시 (검수 기준 통일용 · 계속 추가)
 
 | 문장 | 탈락 이유 |

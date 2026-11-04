@@ -15,7 +15,7 @@ class DebugSpeakReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val session = (context.applicationContext as AlloApp).session
         val text = intent.getStringExtra("text")
-            ?: intent.getStringExtra("fn")?.let { GleoFunctions.respond(it, session.game.value).message }
+            ?: intent.getStringExtra("fn")?.let { GleoFunctions.respond(it, session.game.value, bank = session.dialogue).message }
             ?: return
         session.voice.speak(text)
     }
