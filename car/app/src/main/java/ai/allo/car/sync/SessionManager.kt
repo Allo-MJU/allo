@@ -84,7 +84,6 @@ class SessionManager(private val context: Context) {
     fun ensureStarted() {
         if (started) return
         started = true
-        context.startForegroundService(Intent(context, SessionService::class.java))
         caps.assumeAaos()
         if (!aaos.start()) caps.mark(Capability.SPEED, false) // 권한 허용 후 onSpeedPermissionGranted 에서 다시 true
         vehicleReader.start()
@@ -94,6 +93,16 @@ class SessionManager(private val context: Context) {
         beginSession()
         scope.launch { publishLoop() }
         if (BuildConfig.DEBUG) scope.launch { screen.collect { debugLog("screen $it gear=${aaos.state.value.gear}") } } // P↔D 전환 시간 측정용
+    }
+
+    /**
+     * 포그라운드 서비스 시작. MainActivity.onStart(화면에 보일 때)에서 부른다.
+     * 백그라운드에서 부르면 Android 12+ 가 막으므로 실패는 삼키고, 다음에 화면이 보일 때 다시 시도한다.
+     * 이미 돌고 있으면 onStartCommand 만 다시 불린다 (startForeground 재호출, 부작용 없음).
+     */
+    fun ensureForeground() {
+        runCatching { context.startForegroundService(Intent(context, SessionService::class.java)) }
+            .onFailure { android.util.Log.w("SessionManager", "foreground service not started: ${it.javaClass.simpleName}") }
     }
 
     /** MainActivity 가 CAR_SPEED 런타임 권한을 받은 뒤 호출. */
