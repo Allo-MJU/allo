@@ -89,6 +89,8 @@ class GameState {
   final int lookOutCount;
   final double? hatchAtM;
   final int? hatchAtSec;
+  final bool regionCollectionKnown;
+  final List<String> uncollectedRegions;
 
   const GameState({
     required this.ts,
@@ -102,6 +104,8 @@ class GameState {
     this.lookOutCount = 0,
     this.hatchAtM,
     this.hatchAtSec,
+    this.regionCollectionKnown = false,
+    this.uncollectedRegions = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -116,11 +120,14 @@ class GameState {
         'lookOutCount': lookOutCount,
         'hatchAtM': hatchAtM,
         'hatchAtSec': hatchAtSec,
+        'regionCollectionKnown': regionCollectionKnown,
+        if (regionCollectionKnown) 'uncollectedRegions': List<String>.of(uncollectedRegions),
       };
 
   GameState copyWith({
     int? ts, EggTier? eggTier, Stage? stage, double? progress, String? speciesId, Attribute? attribute,
     int? tier, int? careCount, int? lookOutCount, double? hatchAtM, int? hatchAtSec,
+    bool? regionCollectionKnown, List<String>? uncollectedRegions,
   }) =>
       GameState(
         ts: ts ?? this.ts, eggTier: eggTier ?? this.eggTier, stage: stage ?? this.stage,
@@ -128,6 +135,8 @@ class GameState {
         attribute: attribute ?? this.attribute, tier: tier ?? this.tier,
         careCount: careCount ?? this.careCount, lookOutCount: lookOutCount ?? this.lookOutCount,
         hatchAtM: hatchAtM ?? this.hatchAtM, hatchAtSec: hatchAtSec ?? this.hatchAtSec,
+        regionCollectionKnown: regionCollectionKnown ?? this.regionCollectionKnown,
+        uncollectedRegions: uncollectedRegions ?? this.uncollectedRegions,
       );
 }
 
