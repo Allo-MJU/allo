@@ -114,6 +114,12 @@ class NaviEtaReader(context: Context) {
         }.onFailure { Log.w(TAG, "requestRoute failed", it) }.isSuccess
     }
 
+    /** 진행 중인 경로 안내 취소. 디버그·시연 초기화용 (DebugRouteReceiver) */
+    fun cancelRoute() {
+        if (!ready) return
+        runCatching { navi.cancelRoute() }.onFailure { Log.w(TAG, "cancelRoute failed", it) }
+    }
+
     fun stop() {
         runCatching { navi.removeListener(listener); navi.release() }
         ready = false
