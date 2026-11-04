@@ -35,7 +35,10 @@ class _DexScreenState extends State<DexScreen> {
           leading: IconButton(
               tooltip: '돌아가기',
               icon: const Icon(Icons.arrow_back),
-              onPressed: () => context.go('/pairing')),
+              onPressed: () {
+                widget.controller.prepareNextFakeTrip();
+                context.go('/pairing');
+              }),
         ),
         body: FutureBuilder<(List<Species>, List<DexEntry>)>(
           future: _contents,
