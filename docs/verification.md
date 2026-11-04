@@ -332,3 +332,35 @@ adb shell am broadcast -a SUGGEST_DESTINATION -n ai.allo.car/.gleo.GleoReceiver 
 - 디버그 전용 확인 코드: `DebugLlmReceiver` (`adb shell am broadcast -a ai.allo.car.debug.LLM -n ai.allo.car/.debug.DebugLlmReceiver --es prompt "…"`). release 빌드엔 안 들어간다
 - **영향**: 런타임 대사 생성(설계 8절)은 보류. 공모전·PT 는 사람이 검수한 대사 뱅크로 간다. 실차에서 켜져 있는지, 또는 Pleos 에 활성화 문의가 필요한지는 미확인
 
+
+### 2026-11-04 · 세션 종료(`sessionEnd`) · 시연용 지역 override (allo 차량 앱)
+
+**종료 기준** (`SessionEndDetector`, 페어링된 세션만)
+
+| 조건 | 종료 |
+| --- | --- |
+| 목적지 도착 이벤트 뒤 기어 P | 바로 (`arrived`) |
+| 경로 안내 없이 기어 P 3분 | `parked` |
+| 경로 안내 중 기어 P (휴게소 등) | 30분까지 기다림 |
+| 누적 거리 100m 미만 (출발 전) | 끝내지 않음 |
+
+종료하면 `events` 에 `sessionEnd` 를 쓰고 `vehicle` 쓰기를 멈춘다. 차 화면은 마지막 `/game` 을 계속 보여 준다. 기어가 P 를 벗어나면 **새 세션**(새 sessionId·페어링 코드)을 만들고 페어링 화면으로 돌아간다.
+
+| 확인 (에뮬레이터, 폰 없이 콘솔 `meta.paired=true`) | 결과 |
+| --- | --- |
+| 50kph 20초 주행 → P → 대기 | P 14:07:35 → `session end reason=parked` 14:10:37 (3분) ✅ |
+| debug 명령으로 종료 | `events` 에 `sessionEnd` 1건, 이후 `vehicle.ts` 갱신 멈춤 ✅ |
+| 종료 뒤 D | `new session` → 페어링 화면 → 새 sid 로 meta 생성 ✅ |
+| 도착 이벤트(`onDestinationArrived`) 경로 | ❓ 에뮬레이터 내비 위치가 고정이라 도착을 만들 수 없음. 단위 테스트로만 확인 |
+
+> 폰(B) 참고: `sessionEnd` 는 payload 가 비어 있어 Firebase 에 `payload` 키가 없다. 종료 뒤 차는 새 세션을 만들므로 폰은 다시 페어링해야 한다.
+
+**시연용 지역 override** — 에뮬레이터 내비 위치가 판교로 고정이라 지역 태그가 늘 `city` 다. 디버그 빌드의 `DebugDemoReceiver` 로 태그만 덮어쓴다 (좌표는 만들지 않는다).
+
+```bash
+adb shell am broadcast -a ai.allo.car.debug.DEMO -n ai.allo.car/.debug.DebugDemoReceiver --es region coast   # coast|mountain|city|off
+adb shell am broadcast -a ai.allo.car.debug.DEMO -n ai.allo.car/.debug.DebugDemoReceiver --es end now
+scripts/demo_sea_trip.sh [고속도로 초=90] [--wait]   # 도심 출발 → 고속도로 → 바다 → P → 종료
+```
+
+`demo_sea_trip.sh 5` 실행: `envTags` 가 `[city]` 39회 → `[coast]` 22회 → 종료 ✅

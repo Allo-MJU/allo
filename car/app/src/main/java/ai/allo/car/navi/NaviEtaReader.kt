@@ -31,6 +31,10 @@ class NaviEtaReader(context: Context) {
     private val _position = MutableStateFlow<GeoPoint?>(null)
     val position: StateFlow<GeoPoint?> = _position
 
+    /** 마지막 목적지 도착 시각 (세션 종료 판단용). 도착 이벤트가 없었으면 null */
+    private val _arrivedAt = MutableStateFlow<Long?>(null)
+    val arrivedAt: StateFlow<Long?> = _arrivedAt
+
     @Volatile private var status: String? = null
     @Volatile private var remainSec: Int? = null
     @Volatile private var ready = false
@@ -54,7 +58,7 @@ class NaviEtaReader(context: Context) {
         override fun onRouteEnded() { status = null; remainSec = null; publish("route ended") }
         override fun onRouteCancelled() { status = null; remainSec = null; publish("route cancelled") }
         override fun onDestinationArrived(info: ai.pleos.playground.navi.data.DestinationArrivedInfo) {
-            remainSec = null; publish("arrived")
+            remainSec = null; _arrivedAt.value = System.currentTimeMillis(); publish("arrived")
         }
         override fun onCurrentLocationInfo(info: CurrentLocationInfo) {
             _position.value = GeoPoint(info.latitude, info.longitude)
