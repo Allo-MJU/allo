@@ -114,6 +114,10 @@ class DestinationFlow(
         return Offer.Made(ranked[index].copy(alternative = index > 0))
     }
 
+    /** 새 세션. 진행 중이던 제안을 버린다 */
+    @Synchronized
+    fun reset() { ranked = emptyList(); index = -1 }
+
     /** 유효한 제안이 있으면 그 목적지를 돌려주고 대화를 끝낸다. 없거나 만료됐으면 null. */
     @Synchronized
     fun accept(): Destination? {

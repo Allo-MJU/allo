@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 디버그 빌드에만 합쳐진다. 에뮬레이터 확인용 브로드캐스트 (TTS 발화, 내비 목적지). -->
+<!-- 디버그 빌드에만 합쳐진다. 에뮬레이터 확인용 브로드캐스트 (TTS 발화, 내비 목적지, 시연 조작). -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- 온디바이스 LLM (ai.pleos.playground.caas LLMService). normal 권한. 디버그 빌드에만 -->
     <uses-permission android:name="pleos.car.permission.LLM_SERVICE" />
@@ -17,6 +17,11 @@
         <receiver android:name=".debug.DebugRouteReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="ai.allo.car.debug.ROUTE" />
+            </intent-filter>
+        </receiver>
+        <receiver android:name=".debug.DebugDemoReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="ai.allo.car.debug.DEMO" />
             </intent-filter>
         </receiver>
     </application>
