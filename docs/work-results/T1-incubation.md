@@ -1,6 +1,6 @@
 # T1 시간 모드 반복 품기 결과
 
-- 시작 커밋: `1f764d1c29d4179588b8b37ac3f45f0e905852a1`
+- 검토 코드 기준: `19e17b07592a80bf971b21ac22adc7aec6ac08ff (PR #21)`
 - 범위: ETA가 경과 시간만큼만 줄어드는 고정 일정의 순수 계산. 앱 연결은 포함하지 않는다.
 - `incubationRound(int remainingEtaSec)`는 한 회차를, `incubationSchedule(int initialEtaSec)`는 전체 회차의 변경 불가능한 목록을 반환한다. 입력은 정수 초, 120초 미만은 `RangeError`로 지원하지 않는다.
 - `IncubationRound.remainingEtaSec`는 지급 당시 남은 초, `eggGrantedSec`, `hatchEndSec`, `companionEndSec`는 최초 지급부터의 경과 초, `grantsNextEgg`는 동행 종료 시 다음 알 지급 여부다. 한 회차 API의 최초 지급 시각은 0이다.
@@ -8,10 +8,10 @@
 
 ## 검증
 
-- 변경 전 `bash scripts/check_c.sh core`: 테스트 28개 통과, 기존 분석 info 2건.
+- 변경 전 `phone/packages/allo_core`에서 `dart pub get`, `dart analyze`, `dart test`: 테스트 28개 통과, 기존 분석 info 2건.
 - 구현 전 신규 테스트 실행: 해당 모듈과 함수 부재로 실패 확인.
 - 신규 테스트: 요청된 11/80/81/90/150/151/300분과 300분 지급 시각, 4799/4800/4801초, 초 보존, 120초 미만 거부, 결과 목록 불변성을 확인.
-- 변경 후 `bash scripts/check_c.sh core`: 테스트 33개 통과, 기존과 동일한 분석 info 2건 (`allo_core.dart` library 이름, `models.dart` 주석).
+- 변경 후 `phone/packages/allo_core`에서 `dart pub get`, `dart analyze`, `dart test`: 테스트 33개 통과, 기존과 동일한 분석 info 2건 (`allo_core.dart` library 이름, `models.dart` 주석).
 
 ## 조정 담당 연결 제안과 결정 필요 사항
 
