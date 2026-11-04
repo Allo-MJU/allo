@@ -83,6 +83,7 @@ dependencies {
     implementation(libs.zxing.core)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.pleos.llm)   // 온디바이스 LLM 스모크 테스트 (docs/ai-dialogue-design.md 8절). release 엔 안 들어간다
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     testImplementation(libs.junit)
