@@ -7,6 +7,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import ai.allo.car.sync.SessionManager
 import ai.allo.car.vehicle.AaosPropertyReader
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.ui.Modifier
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ai.allo.car.model.CarScreen
@@ -25,10 +30,15 @@ class MainActivity : ComponentActivity() {
             val screen by session.screen.collectAsStateWithLifecycle()
             val game by session.game.collectAsStateWithLifecycle()
             val meta by session.meta.collectAsStateWithLifecycle()
-            when (screen) {
-                CarScreen.Pairing -> PairingScreen(meta = meta, dbUrl = BuildConfig.ALLO_DB_URL, sessionId = session.sessionId)
-                CarScreen.Driving -> DrivingScreen(game = game)
-                CarScreen.Parked -> ParkedScreen(game = game)
+            // 테마 없이 그리면 Text 가 기본 검정이 되어 DeviceDefault(어두운) 창 배경에 묻힌다
+            MaterialTheme(colorScheme = darkColorScheme()) {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    when (screen) {
+                        CarScreen.Pairing -> PairingScreen(meta = meta, dbUrl = BuildConfig.ALLO_DB_URL, sessionId = session.sessionId)
+                        CarScreen.Driving -> DrivingScreen(game = game)
+                        CarScreen.Parked -> ParkedScreen(game = game)
+                    }
+                }
             }
         }
     }

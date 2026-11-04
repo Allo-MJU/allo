@@ -56,6 +56,12 @@ class SessionManager(private val context: Context) {
 
     private var started = false
 
+    /**
+     * meta 가 먼저 써져야 규칙의 `meta/createdAt` 조건이 성립한다.
+     * vehicle 이 먼저 써지면 이후 meta·vehicle 쓰기가 전부 401 이 되므로, 완료 전에는 원격에 쓰지 않는다.
+     */
+    private val sessionReady = CompletableDeferred<Unit>()
+
     fun ensureStarted() {
         if (started) return
         started = true
@@ -69,6 +75,7 @@ class SessionManager(private val context: Context) {
         scope.launch { createSession() }
         scope.launch { publishLoop() }
         scope.launch { subscribeGame() }
+        if (BuildConfig.DEBUG) scope.launch { screen.collect { debugLog("screen $it gear=${aaos.state.value.gear}") } } // P↔D 전환 시간 측정용
     }
 
     /** MainActivity 가 CAR_SPEED 런타임 권한을 받은 뒤 호출. */
@@ -95,7 +102,28 @@ class SessionManager(private val context: Context) {
 
     private suspend fun createSession() {
         if (!rest.isConfigured) return
-        runCatching { rest.put("sessions/$sessionId/meta", rest.json.encodeToString(_meta.value)) }
+        while (currentCoroutineContext().isActive) {
+            val r = runCatching { rest.put("sessions/$sessionId/meta", rest.json.encodeToString(_meta.value)) }
+            if (r.isSuccess) {
+                debugLog("session created sid=$sessionId")
+                sessionReady.complete(Unit)
+                return
+            }
+            debugLog("session create failed sid=$sessionId: ${r.exceptionOrNull()?.message}")
+            delay(2_000)   // 네트워크가 늦게 붙는 경우 재시도
+        }
+    }
+
+    /** 쓰기 성공/실패가 바뀔 때만 남긴다. 1초마다 같은 줄이 쌓이지 않게. */
+    private var lastWriteOk: Boolean? = null
+    private fun reportWrite(ok: Boolean, err: Throwable? = null) {
+        if (ok == lastWriteOk) return
+        lastWriteOk = ok
+        debugLog(if (ok) "vehicle write ok sid=$sessionId" else "vehicle write failed sid=$sessionId: ${err?.message}")
+    }
+
+    private fun debugLog(msg: String) {
+        if (BuildConfig.DEBUG) android.util.Log.d("SessionManager", msg)
     }
 
     /** 1초 주기. 변화가 없어도 ts 는 갱신한다 (폰이 연결 상태를 알 수 있게). */
@@ -125,13 +153,16 @@ class SessionManager(private val context: Context) {
                 android.util.Log.d("SessionManager", "vehicle $snap") // 디버그 빌드만. 값이 바뀔 때만
             }
             _vehicle.value = snap
-            if (rest.isConfigured) runCatching { rest.put("sessions/$sessionId/vehicle", rest.json.encodeToString(snap)) }
+            if (rest.isConfigured && sessionReady.isCompleted) runCatching { rest.put("sessions/$sessionId/vehicle", rest.json.encodeToString(snap)) }
+                .onSuccess { reportWrite(true) }
+                .onFailure { reportWrite(false, it) }
             delay(1_000)
         }
     }
 
     private suspend fun subscribeGame() {
         if (!rest.isConfigured) return
+        sessionReady.await()
         var current: JsonObject = JsonObject(emptyMap())
         while (currentCoroutineContext().isActive) {
             runCatching {
@@ -148,6 +179,7 @@ class SessionManager(private val context: Context) {
     init {
         scope.launch {
             if (!rest.isConfigured) return@launch
+            sessionReady.await()
             while (isActive) {
                 runCatching {
                     rest.stream("sessions/$sessionId/meta").collect { ev ->
@@ -163,7 +195,7 @@ class SessionManager(private val context: Context) {
     }
 
     suspend fun emitEvent(type: String, payload: Map<String, String> = emptyMap()) {
-        if (!rest.isConfigured) return
+        if (!rest.isConfigured || !sessionReady.isCompleted) return
         val ev = GameEvent(ts = System.currentTimeMillis(), type = type, by = "car", payload = payload)
         rest.post("sessions/$sessionId/events", rest.json.encodeToString(ev))
     }
