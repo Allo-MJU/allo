@@ -16,6 +16,8 @@ val localProps = Properties().apply {
 fun quoted(v: String) = "\"" + v.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 android {
+    // 레포 루트 data/ (dialogue.json · species.json) 를 assets 로 넣는다. 폰과 같은 파일을 쓰기 위해 복사하지 않는다
+    sourceSets["main"].assets.srcDir("../../data")
     namespace = "ai.allo.car"
     compileSdk = 35
     // AAOS car-lib: CarPropertyManager(속도·기어), CarUxRestrictionsManager
@@ -83,6 +85,7 @@ dependencies {
     implementation(libs.zxing.core)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.pleos.llm)   // 온디바이스 LLM 스모크 테스트 (docs/ai-dialogue-design.md 8절). release 엔 안 들어간다
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     testImplementation(libs.junit)

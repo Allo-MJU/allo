@@ -20,9 +20,9 @@ class GleoReceiver : BroadcastReceiver() {
         val app = context.applicationContext as AlloApp
         val session = app.session
         val callback = when {
-            function != GleoFunctions.SUGGEST_DESTINATION -> GleoFunctions.respond(function, session.game.value)
-            isConfirm(intent) -> GleoFunctions.respondAccept(session.acceptDestination())
-            else -> GleoFunctions.respond(function, session.game.value, session.suggestDestination())
+            function != GleoFunctions.SUGGEST_DESTINATION -> GleoFunctions.respond(function, session.game.value, bank = session.dialogue)
+            isConfirm(intent) -> GleoFunctions.respondAccept(session.acceptDestination(), session.dialogue)
+            else -> GleoFunctions.respond(function, session.game.value, session.suggestDestination(), session.dialogue)
         }
         if (BuildConfig.DEBUG) android.util.Log.d("GleoReceiver", "$function → ${callback.status}: ${callback.message}")
         context.sendBroadcast(Intent(RESPONSE_ACTION).apply {
