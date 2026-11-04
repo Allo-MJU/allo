@@ -25,6 +25,15 @@ class _AlloAppState extends State<AlloApp> {
 
   late final _router = GoRouter(
     initialLocation: '/pairing',
+    refreshListenable: controller,
+    redirect: (_, state) {
+      if (controller.needsNewPairing &&
+          state.uri.path != '/pairing' &&
+          state.uri.path != '/dex') {
+        return '/pairing';
+      }
+      return null;
+    },
     routes: [
       GoRoute(
           path: '/pairing',

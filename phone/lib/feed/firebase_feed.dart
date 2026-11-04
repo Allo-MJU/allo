@@ -30,6 +30,18 @@ class FirebaseVehicleFeed implements VehicleFeed {
         await session.child('meta').get().timeout(const Duration(seconds: 10));
     credentials.validateMeta(snap.exists ? _asMap(snap.value) : null,
         now: DateTime.now());
+    final events = await session
+        .child('events')
+        .get()
+        .timeout(const Duration(seconds: 10));
+    // payload는 빈 객체일 때 Firebase에서 생략된다. 발신자와 타입만 확인한다.
+    final ended = events.children.any((snapshot) {
+      final event = snapshot.value;
+      return event is Map &&
+          event['by'] == 'car' &&
+          event['type'] == 'sessionEnd';
+    });
+    if (ended) throw const SessionEndedException();
     final eventKey = session.child('events').push().key!;
     // 페어링 표시와 이벤트를 한 번에 기록한 뒤에만 게임 발행을 허용한다.
     await session.update({
