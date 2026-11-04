@@ -7,7 +7,7 @@
 | 구분 | ref / SHA | 확인 내용 |
 | --- | --- | --- |
 | 작업 위치 | `_workspace/c-dialogue-20261104`, `codex/c-dialogue-20261104` | 기존 독립 worktree 사용. 소유 산출물은 이 파일뿐 |
-| 시작점 S | `1f764d1c29d4179588b8b37ac3f45f0e905852a1` | dev + #21 회귀 테스트 + 공통 하네스 |
+| 시작점 S | `19e17b07592a80bf971b21ac22adc7aec6ac08ff` | dev + #21 회귀 테스트; 이 보고서의 제품 코드 관찰은 D/P 기준 |
 | dev D | `011751328d1918c3a7695e9468cb9449a6932547` | `gh api repos/Allo-MJU/allo/commits/dev --jq .sha`로 확인 |
 | PR P | [#24](https://github.com/Allo-MJU/allo/pull/24), `fix/car-gleo-accept` | OPEN, base `dev` D, 최신 조회 head `700ddb8778db84aea499edca9142f1391222f04c`, `updatedAt=2026-11-04T06:10:19Z` |
 | 분담 근거 | [이슈 #19](https://github.com/Allo-MJU/allo/issues/19) | C 담당 `car_*` 24문장. 애착 경계는 미결정. 댓글 없음(조회 시점) |
