@@ -7,7 +7,10 @@
 #   PUT /vehicle/turn-signal?mode=BlinkLeft|BlinkRight|Off
 #   PUT /vehicle/hvac?power=1 ...
 #   POST /browser/session?client=<id>   ← 하트비트. 없으면 콘솔이 emulator_inactive 로 차를 안 움직인다
-# TODO(A): 와이퍼·전조등 엔드포인트는 브라우저 http://127.0.0.1:8088 에서 조작하며 Network 탭으로 확인해 아래 wiper()/light() 에 채운다.
+#   PUT /vehicle/body?front_wiper=Off|Auto|Low|High
+#   PUT /vehicle/lights?feature=headlamp_mode&value=Off|Auto|Position|LowBeam
+#   PUT /vehicle/odometer?traveled_distance_km=<km 소수>
+#   (docs/verification.md #1 · #2 · #4 실측. 전체 목록은 GET /vehicle/catalog)
 set -u
 VC=${VC:-http://127.0.0.1:8088}
 CLIENT=${CLIENT:-allo-scripts}
@@ -26,6 +29,19 @@ put()   { beat; curl -s -o /dev/null -X PUT "$VC/$1"; }
 gear()  { put "vehicle/gear?gear=$1"; }
 drive() { put "vehicle/controls?speed=${1:-0}&accelerator=${2:-0}&brake=${3:-0}&steering=${4:-0}"; }
 seat()  { put "vehicle/seat?area=${1:-rear_right}&kind=occupied&value=${2:-true}"; }
-wiper() { echo "TODO wiper level=$1 (엔드포인트 미확인)"; }
-light() { echo "TODO headlight on=$1 (엔드포인트 미확인)"; }
+# wiper <0-3> : wiperLevel 기준. VC 에는 간헐(1)이 없어 1·2 → Low(CONTINUOUS_LEVEL_1), 3 → High(CONTINUOUS_LEVEL_3)
+wiper() {
+  case "${1:-0}" in
+    0) v=Off ;; 1|2) v=Low ;; 3) v=High ;; auto) v=Auto ;;
+    *) echo "wiper: 0-3 | auto" >&2; return 1 ;;
+  esac
+  put "vehicle/body?front_wiper=$v"
+}
+# light on|off : 하향등. 에뮬레이터는 Auto 에서 켜지지 않으므로 LowBeam 으로 직접 켠다
+light() {
+  case "${1:-off}" in on) v=LowBeam ;; off) v=Off ;; *) echo "light: on | off" >&2; return 1 ;; esac
+  put "vehicle/lights?feature=headlamp_mode&value=$v"
+}
+# odo <km> : 에뮬레이터는 주행으로 Odometer 를 올리지 않는다. 거리 시나리오는 이걸로 직접 올린다
+odo() { put "vehicle/odometer?traveled_distance_km=${1:?km}"; }
 vc_close() { curl -s -o /dev/null -X POST "$VC/browser/session?client=$CLIENT&closing=1"; }
