@@ -37,6 +37,25 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  test('품기 저장 실패 뒤에도 신호를 받아 성장하고 저장 재시도가 가능하다', () async {
+    final feed = SnapshotFeed();
+    final store = FailingProgressStore();
+    final c = GameController(feed: feed, dex: store);
+    addTearDown(c.dispose);
+    await c.pair(sessionA, pairCode: '123456');
+    await c.startIncubating(EggTier.small);
+    feed.send(2000);
+    store.fail = true;
+    expect(await c.endSession(), isFalse);
+    feed.send(3000);
+    expect(c.game.progress, .6);
+    store.fail = false;
+    expect(await c.endSession(), isTrue);
+    expect(await store.carriedDistance(EggTier.small), 3000);
+    feed.send(4000);
+    expect(c.game.progress, .6);
+  });
+
   test('같은 세션을 반복 재개해도 2km는 40%이며 새 주행분만 더한다', () async {
     final feed = SnapshotFeed();
     final c = GameController(feed: feed, dex: DexStore());
@@ -157,4 +176,14 @@ void main() {
     expect(c.game.progress, .2);
     await c.endSession();
   });
+}
+
+class FailingProgressStore extends DexStore {
+  bool fail = false;
+  @override
+  Future<void> saveIncubationProgress(
+      EggTier tier, IncubationProgress progress) async {
+    if (fail) throw StateError('storage unavailable');
+    await super.saveIncubationProgress(tier, progress);
+  }
 }

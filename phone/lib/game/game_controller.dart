@@ -102,6 +102,7 @@ class GameController extends ChangeNotifier {
   }
 
   Future<void> _send(Future<void> Function() operation) async {
+    if (_disposed) return;
     try {
       await operation();
     } catch (_) {
@@ -144,7 +145,7 @@ class GameController extends ChangeNotifier {
 
   Future<void> _connect(PairingCredentials credentials) async {
     if (credentials.sessionId == _endedSessionId) {
-      throw const PairingException('끝난 주행이에요. 차량의 새 QR을 확인해 주세요.');
+      throw const SessionEndedException();
     }
     if (!await endSession()) {
       throw const PairingException('이전 주행을 먼저 저장해 주세요.');
@@ -205,6 +206,13 @@ class GameController extends ChangeNotifier {
         await _connect(
             PairingCredentials.parseFields(sessionId, pairCode ?? ''));
       }
+    } on SessionEndedException catch (e) {
+      error = e.message;
+      try {
+        await pairingStore.clear();
+      } catch (_) {
+        error = '${e.message} 이전 연결 정보를 지우지 못했어요. 다시 시도해 주세요.';
+      }
     } on PairingException catch (e) {
       error = e.message;
     } catch (_) {
@@ -225,7 +233,7 @@ class GameController extends ChangeNotifier {
       if (!await endSession()) return false;
       await loadSpecies();
       final saved = await dex.incubationProgress(tier);
-      if (_disposed || sessionEnded) return false;
+      if (_disposed || sessionEnded || (!isFake && !paired)) return false;
       _activeSessionId = isFake ? null : _sessionId;
       _sessionDistances = Map.of(saved.sessionDistances);
       _distanceBaseline = _sessionDistances[_activeSessionId] ?? 0;
@@ -250,7 +258,7 @@ class GameController extends ChangeNotifier {
           progress: 0,
           hatchAtM: _timer!.hatchAtM);
       await _sub?.cancel();
-      if (_disposed || sessionEnded) return false;
+      if (_disposed || sessionEnded || (!isFake && !paired)) return false;
       _sub = feed.watch().listen(_onVehicle, onError: (Object _) {
         error = '차량 신호를 받지 못했어요. 연결을 확인해 주세요.';
         notifyListeners();
@@ -268,7 +276,7 @@ class GameController extends ChangeNotifier {
   }
 
   void _onVehicle(VehicleState v, {bool finalSnapshot = false}) {
-    if (_disposed || (!finalSnapshot && (sessionEnded || endingSession))) {
+    if (_disposed || (!finalSnapshot && sessionEnded)) {
       return;
     }
     vehicle = v;
@@ -384,9 +392,10 @@ class GameController extends ChangeNotifier {
   }
 
   Future<bool> _finishSession(int connection) async {
+    final subscription = _sub;
+    subscription?.pause();
+    var subscriptionClosed = false;
     try {
-      await _sub?.cancel();
-      _sub = null;
       bool closingRemote;
       do {
         closingRemote = sessionEnded;
@@ -413,7 +422,14 @@ class GameController extends ChangeNotifier {
                 sessionDistances: Map.of(_sessionDistances),
               ));
         }
-        // 수동 저장 중 차량 종료가 도착했다면 최종 신호도 반영한다.
+        if (_disposed || connection != _connection) return false;
+        // 저장 성공 후에만 해제한다. 실패하면 기존 구독의 버퍼를 재개한다.
+        if (!subscriptionClosed) {
+          await subscription?.cancel();
+          subscriptionClosed = true;
+          _sub = null;
+        }
+        // 저장 또는 구독 해제 중 차량 종료가 도착하면 최종 신호도 반영한다.
       } while (sessionEnded && !closingRemote);
       if (_disposed || connection != _connection) return false;
       if (sessionEnded) {
@@ -436,6 +452,10 @@ class GameController extends ChangeNotifier {
       error = '저장하지 못했어요. 다시 시도해 주세요.';
       notifyListeners();
       return false;
+    } finally {
+      if (!subscriptionClosed && !_disposed && connection == _connection) {
+        subscription?.resume();
+      }
     }
   }
 

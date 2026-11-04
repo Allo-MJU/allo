@@ -122,3 +122,15 @@ Android APK 밖으로 파일이 배치되므로 앱은 `assets/data/species.json
 원본 변경 후 저장소 루트에서 `cp data/species.json phone/assets/data/species.json`으로 동기화한다.
 `species_asset_test.dart`가 원본과 사본의 일치를 검사한다.
 Android debug 빌드 후 `python3 tool/verify_apk_assets.py`로 APK 안의 실제 데이터도 검사한다.
+
+## 종료된 차량 세션
+
+연결 전에 차량의 `sessionEnd` 이벤트를 확인해 종료된 세션은 연결하지 않는다.
+자동 재연결 시 종료가 확인되면 이전 연결 정보를 지우고 새 QR을 안내한다.
+연결 중 종료 이벤트를 받으면 새 품기와 후속 주행 반영을 막고 진행·도감을 저장한다.
+차량 종료 시 전용 종료 화면에서 저장 중·실패·완료 상태를 표시한다.
+저장과 연결 정보 삭제가 성공하면 새 연결 또는 도감으로 이동할 수 있다.
+실패하면 기록을 유지하며 종료 화면의 다시 저장 버튼으로 재시도한다.
+종료 전에 서버의 마지막 차량 값을 읽어 이벤트보다 늦게 전달된 신호를 보완한다.
+`sessionEnd`의 payload가 없는 Firebase 데이터도 처리한다.
+일반적인 품기 저장 실패에서는 신호 구독을 재개해 알이 계속 자라도록 한다.

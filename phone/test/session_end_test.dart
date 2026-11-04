@@ -82,6 +82,38 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
+  test('수동 저장 실패 중 버퍼에 쌓인 주행 신호도 재개 후 반영한다', () async {
+    final feed = EndFeed();
+    final store = SavingStore()
+      ..gate = Completer<void>()
+      ..fail = true;
+    final c = await _start(feed, dex: store);
+    addTearDown(c.dispose);
+    feed.send(2000);
+    final saving = c.endSession();
+    await Future<void>.delayed(Duration.zero);
+    feed.send(3000);
+    store.gate!.complete();
+    expect(await saving, isFalse);
+    await Future<void>.delayed(Duration.zero);
+    expect(c.game.progress, .6);
+    store.fail = false;
+    expect(await c.endSession(), isTrue);
+    expect(await store.carriedDistance(EggTier.small), 3000);
+  });
+
+  test('수동 저장 뒤 구독 해제 중 종료가 도착해도 최종 신호를 저장한다', () async {
+    final feed = EndFeed();
+    final c = await _start(feed);
+    addTearDown(c.dispose);
+    feed.send(2000);
+    feed.send(3000, deliver: false);
+    feed.signals.onCancel = () => feed.carEvents.add(_end);
+    expect(await c.endSession(), isTrue);
+    expect(c.sessionSaved, isTrue);
+    expect(await DexStore().carriedDistance(EggTier.small), 3000);
+  });
+
   test('차량 종료는 즉시 새 품기를 막고 2km를 자동 저장한다', () async {
     final feed = EndFeed();
     final c = await _start(feed);
