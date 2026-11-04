@@ -5,7 +5,6 @@
 ## 시작
 
 ```bash
-flutter create . --platforms=android,ios --org ai.allo   # 최초 1회. 플랫폼 폴더 생성
 flutter pub get
 flutter run --dart-define=FEED=fake --dart-define=SCENARIO=rainy_highway   # 차 없이
 ```
@@ -36,7 +35,33 @@ lib/
 | `clear` | 없음, ETA 600초 | 부드러움 | normal tier 3, ETA 모드 |
 | `rough` | 없음 | 급제동 반복 | normal tier 1 |
 
-`timeScale` 기본 20 이라 10km 알이 약 25초 만에 부화한다.
+기본 실행은 Fake 모드다. `체험 시작`으로 품기 → 부화 → 동행 → 도감을 확인한다.
+`timeScale` 기본 20에서 작은 알은 rainy_highway 약 10초, clear(ETA) 약 16초에 부화한다.
+감싸기는 탭, 노래는 길게 누르기로 돌봄 횟수를 올린다. `품기 저장하고 나가기`는 거리를 기기에 저장한다.
+Android/iOS 플랫폼 폴더는 저장소에 포함되어 있다. APK 검증은 `flutter build apk --debug --dart-define=FEED=fake`로 실행한다.
+
+## 연동 시 주의
+
+[PR #8](https://github.com/Allo-MJU/allo/pull/8)에 따라 Firebase에서 `etaSec`와 `envTags` 키가 빠질 수 있다.
+기존 `VehicleState.fromJson`의 null/빈 목록 기본값을 유지하고 회귀 테스트로 확인한다.
+`/game`의 `hatchAtM`과 `hatchAtSec` 중 하나만 채운다.
+
+Firebase 실연결, QR 스캔, 6자리 코드만으로 세션 찾기, 자동 재연결은 아직 미완료다.
+Firebase 모드는 초기화 설정 후 실행하며, 연결 완료 후에만 품기를 시작할 수 있다.
+6자리 코드 조회는 현재 스키마에 조회 경로가 없어 C와 계약 협의가 필요하다.
+[이슈 #9](https://github.com/Allo-MJU/allo/issues/9)의 `unvisitedRegions`와
+`destinationSuggest` payload는 C 승인 대기 중이다. 승인 전 필드는 보내지 않는다.
+누락(모름)과 전 지역 방문 완료의 표현을 확정한 후, 로컬 도감에서 지역 태그만 계산해
+전송하고 `offered`/`accepted`를 폰 화면에 표시한다. 좌표·도감 원문은 전송하지 않는다.
+아트는 임시 아이콘이며, 도감 상세와 동행의 먹이/놀이 동작은 후속 작업이다.
+
+## 검증
+
+```bash
+(cd packages/allo_core && dart pub get && dart test)
+flutter test
+flutter analyze
+```
 
 ## 개인정보
 

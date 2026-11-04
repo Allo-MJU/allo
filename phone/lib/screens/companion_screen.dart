@@ -18,6 +18,7 @@ class CompanionScreen extends StatelessWidget {
           appBar: AppBar(title: Text(s?.nameKo ?? '동행')),
           body: Column(
             children: [
+              if (controller.error != null) Text(controller.error!),
               const Spacer(),
               // TODO(B): v.harshSteer 변화 → 기울기 애니메이션. 스프라이트 assets/species/{id}.png
               const Icon(Icons.pets, size: 140),
@@ -28,18 +29,20 @@ class CompanionScreen extends StatelessWidget {
                   leading: const Icon(Icons.visibility),
                   title: const Text('저기 봐! 산이야'),
                   subtitle: const Text('mountain'),
-                  trailing: FilledButton(onPressed: controller.lookOut, child: const Text('봤어!')),
+                  trailing: FilledButton(
+                      onPressed: controller.lookOut, child: const Text('봤어!')),
                 ),
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   FilledButton.tonal(onPressed: () {}, child: const Text('먹이')),
-                  FilledButton.tonal(onPressed: () {}, child: const Text('놀아주기')),
+                  FilledButton.tonal(
+                      onPressed: () {}, child: const Text('놀아주기')),
                   OutlinedButton(
                     onPressed: () async {
-                      await controller.endSession();
-                      if (context.mounted) context.go('/dex');
+                      final saved = await controller.endSession();
+                      if (saved && context.mounted) context.go('/dex');
                     },
                     child: const Text('도착'),
                   ),

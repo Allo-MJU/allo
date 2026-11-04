@@ -11,13 +11,16 @@ class DexStore {
   Future<List<DexEntry>> all() async {
     final p = await SharedPreferences.getInstance();
     final raw = p.getStringList(_kDex) ?? const [];
-    return raw.map((s) => DexEntry.fromJson(jsonDecode(s) as Map<String, dynamic>)).toList();
+    return raw
+        .map((s) => DexEntry.fromJson(jsonDecode(s) as Map<String, dynamic>))
+        .toList();
   }
 
   Future<void> add(DexEntry e) async {
     final p = await SharedPreferences.getInstance();
     final raw = List<String>.from(p.getStringList(_kDex) ?? const []);
-    raw.add(jsonEncode(e.toJson()));
+    final encoded = jsonEncode(e.toJson());
+    if (!raw.contains(encoded)) raw.add(encoded);
     await p.setStringList(_kDex, raw);
   }
 
