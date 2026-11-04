@@ -19,7 +19,7 @@ object GleoFunctions {
     const val CELEBRATE_HATCH = "CELEBRATE_HATCH"
     val FUNCTIONS = setOf(REPORT_EGG_STATUS, SUGGEST_DESTINATION, CELEBRATE_HATCH)
 
-    fun respond(function: String, game: GameState, unvisitedRegion: String? = null): GleoCallback = when (function) {
+    fun respond(function: String, game: GameState, suggestion: Suggestion? = null): GleoCallback = when (function) {
         REPORT_EGG_STATUS -> when (game.stage) {
             "incubating" -> GleoCallback(function, "success",
                 "뒷자리에서 ${tierWord(game.eggTier)} 알을 품고 있어요. ${(game.progress * 100).toInt()}퍼센트 자랐어요. 조금만 더 부드럽게 가면 좋은 아이가 나와요.")
@@ -28,11 +28,26 @@ object GleoFunctions {
         }
         CELEBRATE_HATCH -> GleoCallback(function, "success",
             if (game.stage == "hatched") "${attrWord(game.attribute)} 아이가 깨어났어요! 뒷자리에 물어보세요." else "아직 깨어나지 않았어요.")
-        SUGGEST_DESTINATION -> GleoCallback(function, "success",
-            unvisitedRegion?.let { "${regionWord(it)} 쪽은 아직 안 가보셨네요. 거기서만 나오는 아이가 있어요. 목적지로 설정할까요?" }
-                ?: "가까운 곳은 다 가보셨어요. 다음 계절에 새 아이가 나와요.")
+        SUGGEST_DESTINATION -> GleoCallback(function, "success", suggestMessage(suggestion))
         else -> GleoCallback(function, "fail", "모르는 요청이에요.")
     }
+
+    /**
+     * 방문 기록을 모르는 폴백(unvisited=false)에서는 "아직 안 가보셨네요"라고 말하지 않는다. 사실이 아닐 수 있다.
+     * 장소 이름 뒤에는 받침과 무관한 "까지" 를 쓴다.
+     */
+    private fun suggestMessage(s: Suggestion?): String {
+        if (s == null) return "가까운 곳은 다 가보셨어요. 다음 계절에 새 아이가 나와요."
+        val d = s.destination
+        val lead = if (s.unvisited) "${regionWord(d.region)} 쪽은 아직 안 가보셨네요. 거기서만 나오는 아이가 있어요."
+                   else "${regionWord(d.region)} 쪽에서만 나오는 아이가 있어요."
+        return "$lead ${d.name}까지 안내할까요?"
+    }
+
+    /** confirm=true 로 다시 불렸을 때. [destination] 이 null 이면 유효한 제안이 없었던 것. */
+    fun respondAccept(destination: Destination?): GleoCallback =
+        if (destination != null) GleoCallback(SUGGEST_DESTINATION, "success", "${destination.name}까지 안내를 시작할게요.")
+        else GleoCallback(SUGGEST_DESTINATION, "fail", "먼저 어디로 갈지 물어봐 주세요.")
 
     private fun tierWord(t: String) = when (t) { "large" -> "긴"; "mid" -> "중간"; else -> "작은" }
     private fun attrWord(a: String?) = when (a) { "water" -> "물 속성"; "dark" -> "어둠 속성"; else -> "" }

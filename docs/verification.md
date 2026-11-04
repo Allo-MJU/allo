@@ -253,3 +253,25 @@ adb shell am broadcast -a ai.allo.car.debug.ROUTE -n ai.allo.car/.debug.DebugRou
 - ❌ **에뮬레이터는 주행 중 ETA 가 줄지 않는다.** VC 는 속도만 바꾸고 GPS 는 판교에 고정이라 내비 기준으로는 차가 안 움직인다 (선례 SoftRide · Roadio 와 같음)
 - 영향 작음: 폰 `HatchTimer` 는 **세션 시작 시점 ETA 를 고정**하고 경과 시간으로 진행도를 계산하므로, ETA 가 실시간으로 줄지 않아도 ETA 모드 부화는 동작한다. 다만 시연 시간(2~3분)엔 ETA 50% 가 안 오므로 **시연은 거리 폴백**(설계대로)
 - 목적지 좌표는 `requestRoute` 로 내비에만 넘기고 Firebase 로 보내지 않는다 (규칙 2)
+
+### 2026-11-04 · Gleo `SUGGEST_DESTINATION` → NaviHelper 목적지 설정
+
+Gleo 를 흉내 낸 브로드캐스트로 2단계 흐름 확인 (실제 음성 호출은 #7 과 같은 이유로 미확인):
+
+```
+adb shell am broadcast -a SUGGEST_DESTINATION -n ai.allo.car/.gleo.GleoReceiver                     # 제안
+adb shell am broadcast -a SUGGEST_DESTINATION -n ai.allo.car/.gleo.GleoReceiver --es confirm true    # 수락
+```
+
+| 순서 | `GleoReceiver` 응답 | 내비 |
+| --- | --- | --- |
+| 제안 없이 수락 | `fail` 먼저 어디로 갈지 물어봐 주세요. | 변화 없음 |
+| 제안 | `success` 바다 쪽에서만 나오는 아이가 있어요. 경포해변까지 안내할까요? | — |
+| 수락 | `success` 경포해변까지 안내를 시작할게요. | **경포해변 · 2시간 57분 · 200km** 경로 안내 시작 |
+
+- 미방문 지역은 폰에만 있어 지금은 **현재 지역과 다른 지역** 폴백 (판교 → 바다). 실제 미방문 지역 연동은 이슈 #9
+- 폴백에서는 "아직 안 가보셨네요"라고 말하지 않는다 (사실이 아닐 수 있음)
+- 수락은 **제안 후 2분 안**, **직전에 제안한 고정 목적지**만 설정된다. `GleoReceiver` 는 보낸 쪽을 확인할 수 없어서 임의 좌표를 받지 않는다
+- ⚠️ Gleo 가 파라미터(`confirm`)를 extras 로 넘기는 실제 형식은 미확인. boolean·문자열 `"true"` 둘 다 받는다
+- 좌표는 내비로만 가고 Firebase 에는 `destinationSuggest` 이벤트로 지역 태그(`region`)와 `status`(offered/accepted)만 간다
+
