@@ -27,6 +27,8 @@ class _IncubatingScreenState extends State<IncubatingScreen>
     final v = widget.controller.vehicle;
     _harsh = (v?.harshBrake ?? 0) + (v?.harshSteer ?? 0);
     widget.controller.addListener(_onSignal);
+    // 구독 직후 받은 신호로 화면이 열리기 전에 부화했을 수도 있다.
+    _onSignal();
   }
 
   void _onSignal() {

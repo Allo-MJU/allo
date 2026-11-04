@@ -8,10 +8,36 @@ import 'package:allo_phone/storage/pairing_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'session_resume_test.dart' show SnapshotFeed;
+
 const sid = 'b0c260a8-e807-42e9-a119-26119837113b';
 const code = '004829';
 
 void main() {
+  testWidgets('자동 재연결도 저장된 세션의 거리 위치를 복원한다', (tester) async {
+    await tester.runAsync(() async {
+      SharedPreferences.setMockInitialValues({});
+      await PairingStore().save(PairingCredentials.parseFields(sid, code));
+      await DexStore().saveIncubationProgress(
+          EggTier.small,
+          const IncubationProgress(
+              carriedM: 2000, sessionDistances: {sid: 2000}));
+      final feed = SnapshotFeed();
+      final c = GameController(feed: feed, dex: DexStore());
+      try {
+        await c.restorePairing();
+        expect(await c.startIncubating(EggTier.small), isTrue);
+        feed.send(2000);
+        expect(c.game.progress, .4);
+        feed.send(2500);
+        expect(c.game.progress, .5);
+        await c.endSession();
+      } finally {
+        c.dispose();
+      }
+    });
+  });
+
   test('차량 QR에서 앞자리 0을 포함한 코드를 보존한다', () {
     final credentials =
         PairingCredentials.fromQr('allo://pair?sid=$sid&code=$code');

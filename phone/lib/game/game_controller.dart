@@ -31,6 +31,12 @@ class GameController extends ChangeNotifier {
   SpeciesTable? _table;
   StreamSubscription<VehicleState>? _sub;
   HatchTimer? _timer;
+  String? _sessionId;
+  String? _activeSessionId;
+  Map<String, double> _sessionDistances = {};
+  double _distanceBaseline = 0;
+  double _lastDistance = 0;
+  bool _needsLegacyBaseline = false;
 
   VehicleState? vehicle;
   GameState game =
@@ -96,6 +102,7 @@ class GameController extends ChangeNotifier {
   Future<void> _connect(PairingCredentials credentials) async {
     await feed.pair(credentials.sessionId, pairCode: credentials.code);
     if (_disposed) return;
+    _sessionId = credentials.sessionId;
     paired = true;
     try {
       await pairingStore.save(credentials);
@@ -138,8 +145,16 @@ class GameController extends ChangeNotifier {
     try {
       if (!await endSession()) return false;
       await loadSpecies();
-      final carried = await dex.carriedDistance(tier);
-      _timer = HatchTimer(eggTier: tier, carriedM: carried);
+      final saved = await dex.incubationProgress(tier);
+      _activeSessionId = isFake ? null : _sessionId;
+      _sessionDistances = Map.of(saved.sessionDistances);
+      _distanceBaseline = _sessionDistances[_activeSessionId] ?? 0;
+      _lastDistance = _distanceBaseline;
+      // 구버전 기록은 어느 세션의 거리인지 모른다. 첫 신호를 기준점으로
+      // 삼아 저장분을 보존하되 같은 거리를 다시 계산하지 않는다.
+      _needsLegacyBaseline =
+          !isFake && saved.sessionDistances.isEmpty && saved.carriedM > 0;
+      _timer = HatchTimer(eggTier: tier, carriedM: saved.carriedM);
       vehicle = null;
       seenTags.clear();
       careCount = 0;
@@ -176,7 +191,16 @@ class GameController extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    final p = t.update(v);
+    if (_needsLegacyBaseline) {
+      _distanceBaseline = v.distanceM;
+      _needsLegacyBaseline = false;
+    }
+    if (v.distanceM > _lastDistance) _lastDistance = v.distanceM;
+    if (_activeSessionId != null) {
+      _sessionDistances[_activeSessionId!] = _lastDistance;
+    }
+    final p =
+        t.update(v.copyWith(distanceM: _lastDistance - _distanceBaseline));
     game = GameState(
         ts: _now,
         eggTier: game.eggTier,
@@ -219,7 +243,9 @@ class GameController extends ChangeNotifier {
       tier: r.tier,
     );
     final eggTier = game.eggTier;
-    _retrySave = () => _saveHatch(entry, eggTier);
+    final checkpoint =
+        IncubationProgress(sessionDistances: Map.of(_sessionDistances));
+    _retrySave = () => _saveHatch(entry, eggTier, checkpoint);
     _pendingSave = _trySave();
   }
 
@@ -233,9 +259,10 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  Future<void> _saveHatch(DexEntry entry, EggTier tier) async {
+  Future<void> _saveHatch(
+      DexEntry entry, EggTier tier, IncubationProgress checkpoint) async {
     await dex.add(entry);
-    await dex.setCarriedDistance(tier, 0);
+    await dex.saveIncubationProgress(tier, checkpoint);
   }
 
   void care() {
@@ -265,7 +292,12 @@ class GameController extends ChangeNotifier {
       if (_retrySave != null) return false;
       final t = _timer;
       if (t != null && game.stage == Stage.incubating) {
-        await dex.setCarriedDistance(game.eggTier, t.carryOver(hatched: false));
+        await dex.saveIncubationProgress(
+            game.eggTier,
+            IncubationProgress(
+              carriedM: t.carryOver(hatched: false),
+              sessionDistances: Map.of(_sessionDistances),
+            ));
       }
       _timer = null;
       return true;
