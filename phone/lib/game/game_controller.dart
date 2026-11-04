@@ -102,7 +102,7 @@ class GameController extends ChangeNotifier {
 
   Future<void> loadSpecies() async {
     _table ??= SpeciesTable.fromJson(
-        jsonDecode(await rootBundle.loadString('../data/species.json'))
+        jsonDecode(await rootBundle.loadString('assets/data/species.json'))
             as Map<String, dynamic>);
   }
 

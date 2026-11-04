@@ -90,7 +90,8 @@ Firebase 초기화·QR·로컬 세션 재연결 코드는 구현했지만 실제
 6. 카메라 권한 거부 시 직접 입력, 만료 시 새 QR 안내, 오프라인 실패 후 재시도를 확인한다.
    Firebase timeout은 쓰기를 취소하지 않으므로 네트워크 복구 후 늦게 도착하는 paired 이벤트도 확인한다.
 
-현재 실제 Firebase 설정과 연결된 Android/iOS 기기가 없어 위 항목은 미검증이다.
+실제 Firebase 설정과 차량 연결이 없어 위 통합 항목은 미검증이다.
+Android API 36 에뮬레이터에서 Fake 체험 시작→부화→동행 먹이/놀이→도감 상세는 직접 확인했다.
 
 ## 검증
 
@@ -113,3 +114,11 @@ Fake는 구독마다 새 가상 주행이므로 이전 품기 거리와 새 주�
 구버전 저장에는 세션 정보가 없어 저장 거리는 보존하되 첫 신호를 기준점으로 잡는다.
 이 경우 저장 후 첫 연결 전까지 달린 거리는 정확히 복원할 수 없다.
 서버 스키마와 코어 부화 판정은 바꾸지 않고 폰 로컬 기록만 확장한다.
+
+## 생물 데이터 패키징
+
+원본은 저장소 루트 `data/species.json`이다. Flutter 에셋에 `../` 경로를 쓰면
+Android APK 밖으로 파일이 배치되므로 앱은 `assets/data/species.json` 사본을 읽는다.
+원본 변경 후 저장소 루트에서 `cp data/species.json phone/assets/data/species.json`으로 동기화한다.
+`species_asset_test.dart`가 원본과 사본의 일치를 검사한다.
+Android debug 빌드 후 `python3 tool/verify_apk_assets.py`로 APK 안의 실제 데이터도 검사한다.

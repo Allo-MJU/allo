@@ -21,7 +21,7 @@ class _DexScreenState extends State<DexScreen> {
   late Future<(List<Species>, List<DexEntry>)> _contents = _load();
 
   Future<(List<Species>, List<DexEntry>)> _load() async {
-    final json = await rootBundle.loadString('../data/species.json');
+    final json = await rootBundle.loadString('assets/data/species.json');
     final species =
         SpeciesTable.fromJson(jsonDecode(json) as Map<String, dynamic>);
     final entries = await widget.controller.dex.all();

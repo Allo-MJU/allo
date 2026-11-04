@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   Future<GameController> openDex(WidgetTester tester, DexStore store) async {
-    await tester.runAsync(() => rootBundle.loadString('../data/species.json'));
+    await tester.runAsync(() => rootBundle.loadString('assets/data/species.json'));
     final controller = GameController(
         feed: FakeVehicleFeed(scenario: FakeScenario.clear), dex: store);
     addTearDown(controller.dispose);
