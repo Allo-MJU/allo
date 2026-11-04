@@ -4,6 +4,7 @@ import ai.allo.car.model.GameState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class GleoFunctionsTest {
@@ -19,7 +20,8 @@ class GleoFunctionsTest {
 
     @Test fun `destination suggestion without region is graceful`() {
         val cb = GleoFunctions.respond(GleoFunctions.SUGGEST_DESTINATION, GameState(), null)
-        assertEquals("success", cb.status)
+        assertEquals("fail", cb.status)   // 제안할 곳이 없으면 fail (Pleos Callback Schema)
+        assertTrue(cb.message.isNotBlank())
     }
 
     private fun made(region: String, name: String, unvisited: Boolean, km: Double? = null, alt: Boolean = false) =
@@ -54,9 +56,39 @@ class GleoFunctionsTest {
         assertEquals(65, GleoFunctions.roundKm(66.0))
     }
 
-    @Test fun `accept without suggestion fails`() {
-        assertEquals("fail", GleoFunctions.respondAccept(null).status)
-        assertEquals("success", GleoFunctions.respondAccept(DestinationSuggester.CANDIDATES.first()).status)
+    @Test fun `accept results map to callback status and only success is silent`() {
+        val ok = GleoFunctions.respondAccept(AcceptResult.Started(DestinationSuggester.CANDIDATES.first()))
+        assertEquals("success", ok.status)
+        assertNull(ok.mode)   // 기본은 Gleo 가 말한다
+        // 차량 앱 TTS 가 말했으면 silent, 못 했으면(미준비·실패) Gleo 음성 유지 — 경로는 설정됐는데 아무도 안 알리는 일이 없게
+        assertEquals("silent", GleoFunctions.selfVoiced(ok, spoke = true).mode)
+        assertEquals(ok, GleoFunctions.selfVoiced(ok, spoke = false))
+        for (r in listOf(AcceptResult.NoOffer, AcceptResult.RouteActive, AcceptResult.NaviNotReady)) {
+            val cb = GleoFunctions.respondAccept(r)
+            assertEquals("fail", cb.status, r.toString())
+            assertNull(cb.mode)
+        }
+    }
+
+    @Test fun `suggestion asks for confirmation, no suggestion fails`() {
+        val d = DestinationSuggester.CANDIDATES.first()
+        assertEquals("asking", GleoFunctions.respond(GleoFunctions.SUGGEST_DESTINATION, GameState(),
+            DestinationFlow.Offer.Made(Suggestion(d, false, 30.0))).status)
+        for (why in NoSuggestion.values()) {
+            val cb = GleoFunctions.respond(GleoFunctions.SUGGEST_DESTINATION, GameState(), DestinationFlow.Offer.None(why))
+            assertEquals("fail", cb.status)
+            assertTrue(cb.message.isNotBlank())
+        }
+    }
+
+    @Test fun `ACTION_PARAM parses plain, quoted and string-wrapped json`() {
+        assertEquals(true, GleoReceiver.parseParams("""{"confirm":true}""")?.get("confirm")?.let { GleoReceiver.parseConfirm(it) })
+        assertEquals(true, GleoReceiver.parseParams(""""{"confirm":"true"}"""")?.get("confirm")?.let { GleoReceiver.parseConfirm(it) })   // 문서 예시 형태
+        assertEquals(true, GleoReceiver.parseParams(""""{\"confirm\":true}"""")?.get("confirm")?.let { GleoReceiver.parseConfirm(it) }) // JSON 문자열 안의 JSON
+        assertEquals(0, GleoReceiver.parseParams("{}")?.size)
+        assertNull(GleoReceiver.parseParams(null))
+        assertNull(GleoReceiver.parseParams("not json"))
+        assertNull(GleoReceiver.parseParams("[1,2]"))
     }
 
     @Test fun `confirm extra accepts boolean and string`() {
@@ -64,5 +96,7 @@ class GleoFunctionsTest {
         assertTrue(GleoReceiver.parseConfirm("TRUE"))
         assertFalse(GleoReceiver.parseConfirm("yes"))
         assertFalse(GleoReceiver.parseConfirm(null))
+        assertTrue(GleoReceiver.parseConfirm(kotlinx.serialization.json.JsonPrimitive(true)))
+        assertFalse(GleoReceiver.parseConfirm(kotlinx.serialization.json.JsonPrimitive(false)))
     }
 }

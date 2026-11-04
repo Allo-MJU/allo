@@ -49,6 +49,16 @@ class DriverVoice(context: Context) {
         runCatching { tts.speak(text, true) }.onFailure { Log.w(TAG, "speak failed", it) }
     }
 
+    /**
+     * 지금 바로 말할 수 있으면 말하고 true. 준비 전이면 기억하지 않고 false.
+     * Gleo 응답을 silent 로 바꿀지 정할 때 쓴다: false 면 Gleo 가 대신 말해야 한다.
+     * (엔진에 넘긴 뒤 비동기로 나는 오류는 여기서 알 수 없다)
+     */
+    fun speakNow(text: String): Boolean {
+        if (!ready) return false
+        return runCatching { tts.speak(text, true) }.onFailure { Log.w(TAG, "speak failed", it) }.isSuccess
+    }
+
     fun release() {
         runCatching { tts.removeEventListener(events); tts.release() }
         ready = false

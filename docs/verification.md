@@ -364,3 +364,29 @@ scripts/demo_sea_trip.sh [고속도로 초=90] [--wait]   # 도심 출발 → �
 ```
 
 `demo_sea_trip.sh 5` 실행: `envTags` 가 `[city]` 39회 → `[coast]` 22회 → 종료 ✅
+
+### 2026-11-04 · Gleo 수락 경로 수정 (PR #10 리뷰 반영)
+
+Pleos 문서 확인 ([Examples](https://document.pleos.ai/en/docs/pleos-only/app-integration-guide/guide/examples) · [App Capability](https://document.pleos.ai/en/docs/pleos-only/app-integration-guide/guide/app-capability) · [Callback Schema](https://document.pleos.ai/en/docs/pleos-only/app-integration-guide/guide/action_callback)):
+- 파라미터는 `confirm` extra 가 아니라 **`ACTION_PARAM` extra 의 JSON 문자열**로 온다 (예시는 따옴표로 한 번 더 감싼 형태) → 이전 코드는 실제 Gleo 의 수락을 못 읽었다
+- `component: service` = `sendBroadcast` (지금 구조 맞음)
+- 응답 status 는 `success` · `asking`(확인 필요) · `fail`. `mode: "silent"` 면 Gleo 가 말하지 않는다
+- **보낸 쪽을 확인하는 방법(권한·서명·토큰)은 문서에 없다** → P1 은 완화만 가능. Pleos 문의 필요
+
+| 확인 (에뮬레이터, adb 브로드캐스트) | 결과 |
+| --- | --- |
+| 앱을 열기 전 제안 → 수락 (Gleo 가 프로세스를 깨운 경우) | `NaviNotReady` → fail "내비가 아직 준비되지 않았어요…", accepted 이벤트 없음 ✅ |
+| 앱 실행 후 제안 없이 수락 (위조) | `NoOffer` → fail, 내비 그대로 ✅ |
+| 제안(asking) → 수락 (`ACTION_PARAM` 따옴표 감싼 형식) | `Started` → 내비 경로 설정, 차량 앱이 직접 TTS ✅ |
+| 안내 중 제안 / 안내 중 수락 | fail "지금은 길 안내 중이에요…" / `NoOffer`, 경로 그대로 ✅ |
+| 앱을 켜기 **전에** 시작된 안내 | `getRouteStateInfo` → `naviMode=ROUTE_GUIDING` 로 안내 중 인식 → 제안 fail ✅. `isRouting` 은 안내 중에도 false 라 쓰지 않는다 |
+
+**PR #24 2차 리뷰 반영 (같은 날)** — 안내 상태를 ETA 와 따로 둔다 (`Guidance`: UNKNOWN / IDLE / GUIDING). 수락은 IDLE 일 때만. 차량 앱 TTS 가 말했을 때만 Gleo 응답을 silent 로 한다. 에뮬레이터 재부팅 후:
+
+| 확인 | 결과 |
+| --- | --- |
+| 앱을 열기 전 제안 → 수락 (상태 UNKNOWN) | `NaviNotReady`, 내비 그대로 ✅ |
+| 앱 실행 2초 뒤 `guidance UNKNOWN → IDLE`, 제안 → 수락 | `Started`, 차량 앱 TTS 발화 → 응답 `success (silent)` ✅ |
+| 경로 시작 후 `GUIDING`, 제안 / 위조 수락 | fail "지금은 길 안내 중이에요…" / `NoOffer` ✅ |
+| TTS 를 쓸 수 없을 때 Gleo 음성 유지 | ❓ 에뮬레이터에서 TTS 실패를 만들 수 없어 단위 테스트로만 확인 |
+
