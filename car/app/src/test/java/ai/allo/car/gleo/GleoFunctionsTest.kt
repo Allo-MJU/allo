@@ -59,7 +59,10 @@ class GleoFunctionsTest {
     @Test fun `accept results map to callback status and only success is silent`() {
         val ok = GleoFunctions.respondAccept(AcceptResult.Started(DestinationSuggester.CANDIDATES.first()))
         assertEquals("success", ok.status)
-        assertEquals("silent", ok.mode)   // 앱이 직접 말한다
+        assertNull(ok.mode)   // 기본은 Gleo 가 말한다
+        // 차량 앱 TTS 가 말했으면 silent, 못 했으면(미준비·실패) Gleo 음성 유지 — 경로는 설정됐는데 아무도 안 알리는 일이 없게
+        assertEquals("silent", GleoFunctions.selfVoiced(ok, spoke = true).mode)
+        assertEquals(ok, GleoFunctions.selfVoiced(ok, spoke = false))
         for (r in listOf(AcceptResult.NoOffer, AcceptResult.RouteActive, AcceptResult.NaviNotReady)) {
             val cb = GleoFunctions.respondAccept(r)
             assertEquals("fail", cb.status, r.toString())

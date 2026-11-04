@@ -19,8 +19,8 @@ import kotlinx.serialization.json.booleanOrNull
  * ⚠️ 보낸 쪽 신원을 확인할 방법이 Pleos 문서에 없다 (권한·서명·토큰 모두 언급 없음, 2026-11-04 확인).
  * 그래서 같은 기기의 다른 앱도 제안 → 수락을 보낼 수 있다 (PR #10 리뷰 P1). 완화:
  *  - 목적지는 직전에 우리가 제안한 고정 목록 중 하나만, 제안 후 2분 안에만 (DestinationFlow)
- *  - 이미 내비 안내 중이면 제안·수락 모두 거절 — 진행 중인 경로를 바꾸지 않는다
- *  - 목적지가 바뀌면 차량 앱이 직접 소리 내어 알린다 (응답은 silent). Gleo 를 거치지 않은 호출도 운전자가 듣는다
+ *  - 내비 안내 중이면 제안·수락 모두 거절, 안내 상태를 아직 모르면 수락 거절 — 진행 중인 경로를 바꾸지 않는다 ([ai.allo.car.navi.Guidance])
+ *  - 목적지가 바뀌면 차량 앱이 직접 소리 내어 알린다 (말했으면 응답은 silent, 못 했으면 Gleo 가 말한다)
  */
 class GleoReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -30,10 +30,10 @@ class GleoReceiver : BroadcastReceiver() {
         val callback = when {
             function != GleoFunctions.SUGGEST_DESTINATION -> GleoFunctions.respond(function, session.game.value, bank = session.dialogue)
             isConfirm(intent) -> GleoFunctions.respondAccept(session.acceptDestination(), session.dialogue)
-                .also { if (it.status == "success") session.voice.speak(it.message) }
+                .let { cb -> if (cb.status == "success") GleoFunctions.selfVoiced(cb, session.voice.speakNow(cb.message)) else cb }
             else -> GleoFunctions.respond(function, session.game.value, session.suggestDestination(), session.dialogue)
         }
-        if (BuildConfig.DEBUG) android.util.Log.d("GleoReceiver", "$function → ${callback.status}: ${callback.message}")
+        if (BuildConfig.DEBUG) android.util.Log.d("GleoReceiver", "$function → ${callback.status}${callback.mode?.let { " ($it)" } ?: ""}: ${callback.message}")
         context.sendBroadcast(Intent(RESPONSE_ACTION).apply {
             putExtra("result", callback.status)
             putExtra("packageName", context.packageName)

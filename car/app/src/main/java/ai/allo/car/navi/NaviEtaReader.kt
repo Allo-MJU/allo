@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import ai.pleos.playground.navi.constants.NaviErrorCode
 import ai.pleos.playground.navi.constants.NavigationStatus
-import ai.pleos.playground.navi.constants.NaviMode
 import ai.pleos.playground.navi.data.CurrentLocationInfo
 import ai.pleos.playground.navi.data.DestinationInfo
 import ai.pleos.playground.navi.data.DrivingInfo
@@ -37,6 +36,10 @@ class NaviEtaReader(context: Context) {
     private val _arrivedAt = MutableStateFlow<Long?>(null)
     val arrivedAt: StateFlow<Long?> = _arrivedAt
 
+    /** 경로 안내 상태. ETA 와 독립 ([Guidance]). 처음과 내비 연결 전에는 UNKNOWN */
+    private val _guidance = MutableStateFlow(Guidance.UNKNOWN)
+    val guidance: StateFlow<Guidance> = _guidance
+
     @Volatile private var status: String? = null
     @Volatile private var remainSec: Int? = null
     @Volatile private var ready = false
@@ -44,6 +47,7 @@ class NaviEtaReader(context: Context) {
     private val listener = object : NaviHelperEventListener {
         override fun onNavigationStatus(s: NavigationStatus) {
             status = s.name
+            setGuidance(Guidance.fromStatus(s.name))
             if (s != NavigationStatus.ROUTE_DRIVE) remainSec = null
             publish("status=${s.name}")
         }
@@ -57,8 +61,9 @@ class NaviEtaReader(context: Context) {
         override fun onTripInfo(info: TripInfo) {
             Log.d(TAG, "tripInfo eta=${info.eta} distance=${info.distance}")
         }
-        override fun onRouteEnded() { status = null; remainSec = null; publish("route ended") }
-        override fun onRouteCancelled() { status = null; remainSec = null; publish("route cancelled") }
+        override fun onRouteStarted(info: ai.pleos.playground.navi.data.RouteStartInfo) { setGuidance(Guidance.GUIDING); Log.d(TAG, "route started") }
+        override fun onRouteEnded() { status = null; remainSec = null; setGuidance(Guidance.IDLE); publish("route ended") }
+        override fun onRouteCancelled() { status = null; remainSec = null; setGuidance(Guidance.IDLE); publish("route cancelled") }
         override fun onDestinationArrived(info: ai.pleos.playground.navi.data.DestinationArrivedInfo) {
             remainSec = null; _arrivedAt.value = System.currentTimeMillis(); publish("arrived")
         }
@@ -68,7 +73,9 @@ class NaviEtaReader(context: Context) {
          * → naviMode 로 판단한다. 안내 중인데 상태를 모르면 ROUTE_DRIVE 로 본다 (목적지 제안이 진행 중인 경로를 바꾸지 않게)
          */
         override fun onRouteStateInfo(info: RouteStateInfo) {
-            val guiding = info.naviMode == NaviMode.ROUTE_GUIDING || info.naviMode == NaviMode.SIMULATION_GUIDING
+            val g = Guidance.fromNaviMode(info.naviMode?.name)
+            if (g != Guidance.UNKNOWN) setGuidance(g)
+            val guiding = g == Guidance.GUIDING
             val before = status
             if (guiding) { if (status == null) status = "ROUTE_DRIVE" }
             else if (status == "ROUTE_DRIVE") { status = null; remainSec = null }
@@ -110,6 +117,12 @@ class NaviEtaReader(context: Context) {
     fun stop() {
         runCatching { navi.removeListener(listener); navi.release() }
         ready = false
+        setGuidance(Guidance.UNKNOWN)
+    }
+
+    private fun setGuidance(g: Guidance) {
+        if (_guidance.value != g) Log.d(TAG, "guidance ${_guidance.value} → $g")
+        _guidance.value = g
     }
 
     private fun publish(why: String) {

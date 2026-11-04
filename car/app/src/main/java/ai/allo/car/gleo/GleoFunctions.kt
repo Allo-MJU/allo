@@ -103,20 +103,25 @@ object GleoFunctions {
     internal fun roundKm(km: Double): Int = maxOf(5, (Math.round(km / 5.0) * 5).toInt())
 
     /**
-     * confirm=true 로 다시 불렸을 때.
-     * 성공하면 mode="silent" 로 돌려주고 차량 앱이 같은 문장을 직접 말한다 ([GleoReceiver]).
-     * 그래서 목적지가 바뀔 때는 누가 호출했든 운전자가 항상 듣는다 (PR #10 리뷰 P1 완화).
+     * confirm=true 로 다시 불렸을 때. 성공 응답은 기본(voice) 모드다.
+     * 차량 앱이 직접 말하는 데 성공했을 때만 [selfVoiced] 로 silent 로 바꾼다 ([GleoReceiver]).
      */
     fun respondAccept(result: AcceptResult, bank: DialogueBank = DialogueBank.EMPTY): GleoCallback {
         fun line(situation: String, vars: Map<String, String> = emptyMap()) = bank.line("car_accept", null, null, situation, vars)
         return when (result) {
             is AcceptResult.Started -> GleoCallback(SUGGEST_DESTINATION, "success",
-                line("ok", mapOf("place" to result.destination.name)) ?: "${result.destination.name}까지 안내를 시작할게요.", mode = "silent")
+                line("ok", mapOf("place" to result.destination.name)) ?: "${result.destination.name}까지 안내를 시작할게요.")
             AcceptResult.NoOffer -> GleoCallback(SUGGEST_DESTINATION, "fail", line("none") ?: "먼저 어디로 갈지 물어봐 주세요.")
             AcceptResult.RouteActive -> GleoCallback(SUGGEST_DESTINATION, "fail", line("route_active") ?: "지금은 길 안내 중이라 목적지를 바꾸지 않을게요.")
             AcceptResult.NaviNotReady -> GleoCallback(SUGGEST_DESTINATION, "fail", line("not_ready") ?: "내비가 아직 준비되지 않았어요. 잠시 뒤에 다시 말해 주세요.")
         }
     }
+
+    /**
+     * 목적지가 바뀌면 차량 앱이 직접 말한다. 그래서 Gleo 를 거치지 않은 호출도 운전자가 듣는다 (PR #10 P1 완화).
+     * 직접 말했으면 Gleo 는 silent (두 번 듣지 않게), 못 했으면(TTS 미준비·실패) Gleo 음성을 그대로 둔다 (PR #24 리뷰).
+     */
+    fun selfVoiced(callback: GleoCallback, spoke: Boolean): GleoCallback = if (spoke) callback.copy(mode = "silent") else callback
 
     private fun tierWord(t: String) = when (t) { "large" -> "긴"; "mid" -> "중간"; else -> "작은" }
     private fun attrWord(a: String?) = when (a) { "water" -> "물 속성"; "dark" -> "어둠 속성"; else -> "" }

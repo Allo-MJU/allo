@@ -1,5 +1,7 @@
 package ai.allo.car.gleo
 
+import ai.allo.car.navi.Guidance
+
 import ai.allo.car.vehicle.GeoPoint
 
 /**
@@ -131,13 +133,17 @@ class DestinationFlow(
     fun accept(): Destination? = pending().also { index = -1 }
 
     /**
-     * 수락 처리. 내비 요청([request])이 성공했을 때만 제안을 소비한다.
-     * 안내 중이거나 요청이 실패하면 제안을 남겨 두어 다시 수락할 수 있다 (PR #10 리뷰 P2).
+     * 수락 처리. 안내 상태가 [Guidance.IDLE] 로 확인됐고 내비 요청([request])이 성공했을 때만 제안을 소비한다.
+     * 안내 중·상태 미확인·요청 실패면 제안을 남겨 두어 다시 수락할 수 있다 (PR #10·#24 리뷰).
      */
     @Synchronized
-    fun accept(routeActive: Boolean, request: (Destination) -> Boolean): AcceptResult {
+    fun accept(guidance: Guidance, request: (Destination) -> Boolean): AcceptResult {
         val d = pending() ?: return AcceptResult.NoOffer
-        if (routeActive) return AcceptResult.RouteActive
+        when (guidance) {
+            Guidance.GUIDING -> return AcceptResult.RouteActive
+            Guidance.UNKNOWN -> return AcceptResult.NaviNotReady
+            Guidance.IDLE -> {}
+        }
         if (!request(d)) return AcceptResult.NaviNotReady
         index = -1
         return AcceptResult.Started(d)

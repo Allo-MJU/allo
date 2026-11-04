@@ -103,7 +103,7 @@ class SessionManager(private val context: Context) {
 
     /** Gleo 제안. 현재 위치에서 가까운 순. 폰에는 지역 태그만 알린다 (좌표 X). */
     fun suggestDestination(): DestinationFlow.Offer {
-        if (naviEta.etaSec.value != null) return DestinationFlow.Offer.None(ai.allo.car.gleo.NoSuggestion.ROUTE_ACTIVE)
+        if (naviEta.guidance.value == ai.allo.car.navi.Guidance.GUIDING) return DestinationFlow.Offer.None(ai.allo.car.gleo.NoSuggestion.ROUTE_ACTIVE)
         val here = naviEta.position.value
         // 방문 기록은 폰에만 있다. /game 에 미방문 지역 필드가 생기기 전까지는 null(폴백). 이슈 #9
         val offer = destinations.offer(here, regionTagger.tag(here?.lat, here?.lng), unvisitedRegions = null)
@@ -119,7 +119,7 @@ class SessionManager(private val context: Context) {
      * accepted 이벤트도 성공했을 때만 보낸다.
      */
     fun acceptDestination(): AcceptResult {
-        val r = destinations.accept(routeActive = naviEta.etaSec.value != null) { d -> naviEta.requestRoute(d.latitude, d.longitude, d.name) }
+        val r = destinations.accept(naviEta.guidance.value) { d -> naviEta.requestRoute(d.latitude, d.longitude, d.name) }
         if (r is AcceptResult.Started) {
             val d = r.destination
             scope.launch { runCatching { emitEvent("destinationSuggest", mapOf("region" to d.region, "status" to "accepted")) } }
@@ -249,7 +249,7 @@ class SessionManager(private val context: Context) {
         }
         if (!_meta.value.paired) return
         val arrived = naviEta.arrivedAt.value?.let { it >= sessionStartedAt } == true
-        endDetector.update(now, gear, derivation.distanceM, routeActive = naviEta.etaSec.value != null, arrived = arrived)
+        endDetector.update(now, gear, derivation.distanceM, routeActive = naviEta.guidance.value == ai.allo.car.navi.Guidance.GUIDING, arrived = arrived)
             ?.let { endSession(it.name.lowercase()) }
     }
 

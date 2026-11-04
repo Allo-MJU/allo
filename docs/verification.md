@@ -380,3 +380,13 @@ Pleos 문서 확인 ([Examples](https://document.pleos.ai/en/docs/pleos-only/app
 | 제안(asking) → 수락 (`ACTION_PARAM` 따옴표 감싼 형식) | `Started` → 내비 경로 설정, 차량 앱이 직접 TTS ✅ |
 | 안내 중 제안 / 안내 중 수락 | fail "지금은 길 안내 중이에요…" / `NoOffer`, 경로 그대로 ✅ |
 | 앱을 켜기 **전에** 시작된 안내 | `getRouteStateInfo` → `naviMode=ROUTE_GUIDING` 로 안내 중 인식 → 제안 fail ✅. `isRouting` 은 안내 중에도 false 라 쓰지 않는다 |
+
+**PR #24 2차 리뷰 반영 (같은 날)** — 안내 상태를 ETA 와 따로 둔다 (`Guidance`: UNKNOWN / IDLE / GUIDING). 수락은 IDLE 일 때만. 차량 앱 TTS 가 말했을 때만 Gleo 응답을 silent 로 한다. 에뮬레이터 재부팅 후:
+
+| 확인 | 결과 |
+| --- | --- |
+| 앱을 열기 전 제안 → 수락 (상태 UNKNOWN) | `NaviNotReady`, 내비 그대로 ✅ |
+| 앱 실행 2초 뒤 `guidance UNKNOWN → IDLE`, 제안 → 수락 | `Started`, 차량 앱 TTS 발화 → 응답 `success (silent)` ✅ |
+| 경로 시작 후 `GUIDING`, 제안 / 위조 수락 | fail "지금은 길 안내 중이에요…" / `NoOffer` ✅ |
+| TTS 를 쓸 수 없을 때 Gleo 음성 유지 | ❓ 에뮬레이터에서 TTS 실패를 만들 수 없어 단위 테스트로만 확인 |
+
