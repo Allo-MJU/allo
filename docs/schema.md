@@ -1,111 +1,57 @@
-# 알로(ALLO) 레포 구조 · 데이터 스키마
+# 알로(ALLO) 차량·폰 데이터 계약
 
-> 이 문서가 **팀 전체의 계약서**입니다. 변경은 C 승인 + 전원 공지.
+> **2026-11-04 C 구현 기준.** 이 문서 하나를 기준으로 A(차량), B(폰), C(로직)가 구현한다. C가 기준을 관리하고, 실제 연동에서 문제가 확인되면 이 문서를 수정해 공유한다. 과거 검토안보다 본문이 우선한다. 구현 기준 확정과 각 앱의 반영·실기 검증 완료는 구분한다.
 
----
+## 1. 책임과 공통 원칙
 
-## 1. 큰 그림 — 누가 무엇을 쓰고 읽는가
+| 영역 | 쓰는 쪽 | 읽는 쪽 | 책임 |
+| --- | --- | --- | --- |
+| `/meta` | 차량 생성, 폰은 `paired`만 갱신 | 차량·폰 | 세션과 페어링 정보 |
+| `/vehicle` | 차량 | 폰, 차량 자체 표시 | 신호 수집, 단위 변환, 누적 거리·급격 조작·환경 태그 계산 |
+| `/game` | 폰 | 차량 | 품기·부화·생물 선택·지역 수집 요약 |
+| `/events` | 이벤트별 지정 발신자 | 해당 소비자 | 개별 알림·세션 종료 |
 
-```
-[차량 앱]  --write-->  /vehicle   --read-->  [폰 앱]
-                                                |
-                                             판정·계산
-                                                |
-[차량 앱]  <--read--   /game     <--write--  [폰 앱]
-```
+- 통신은 Firebase Realtime Database를 사용한다. 차량은 REST/SSE, 폰은 FlutterFire를 사용한다.
+- 차량은 게임 등급·생물을 판정하지 않는다. 폰의 `allo_core`가 판정하고 차량은 결과를 표시·발화한다.
+- 시각 `createdAt`·`ts`는 epoch **밀리초**, `etaSec`·`hatchAtSec`는 **초**, `distanceM`·`hatchAtM`은 **미터**, `speedKph`는 **km/h**다.
+- 전송 필드명은 본문의 이름만 쓴다. `etaSeconds`, `harshBrakeCount`, `seatRow2Occupied` 같은 별칭을 전송하지 않는다.
+- Firebase에서 null이나 빈 배열/객체의 키가 없어질 수 있다. 아래에서 허용한 누락값은 null/빈 값으로 읽는다. 타입 오류를 유효한 값으로 추측해서 바꾸지 않는다.
+- 좌표·아이 개인정보·주행 경로·도감 원문은 Firebase에 보내지 않는다. 도감과 이어하기 checkpoint는 폰 로컬에 저장한다.
 
-**원칙 — 판정은 폰에서만 합니다.**
+## 2. 코드 위치
 
-- 차량 앱은 **센서 그 자체**. 신호를 raw로 올리고 판정하지 않습니다
-- 폰 앱이 희귀도·부화를 계산해 `/game`에 씁니다
-- 차 화면은 `/game`을 읽어 표시만 합니다
+| 경로 | 소유·역할 |
+| --- | --- |
+| `car/app/src/main/java/ai/allo/car/model/Models.kt` | A — 차량 전송/수신 모델 |
+| `car/.../vehicle/`, `car/.../navi/` | A — 신호 정규화·환경/지역 태그·내비 |
+| `car/.../sync/`, `car/.../gleo/` | A — 세션·발행·SSE·목적지 제안·음성 |
+| `phone/lib/feed/` | B — 페어링·차량 신호/이벤트 수신·game 발행 |
+| `phone/lib/game/`, `phone/lib/storage/` | B/C — 게임 상태·로컬 도감·이어하기 |
+| `phone/packages/allo_core/` | C — 순수 Dart 판정·시간/지역 계산·공용 모델 |
+| `data/species.json`, `data/dialogue.json` | 종 데이터, 차량·폰 대사 뱅크 원본 |
+| `phone/assets/data/species.json` | 폰 패키징용 종 데이터. 원본과 일치해야 함 |
+| `firebase/database.rules.json` | 실제 적용할 DB 규칙의 저장소 원본 |
+| `art/`, `phone/assets/{species,egg,ui}/` | D 원본·앱 에셋 |
 
-이렇게 나누면 차량 앱의 CPU 5% 제약을 쉽게 지키고, 게임 로직이 한 곳에만 존재합니다.
+`car/.../`는 `car/app/src/main/java/ai/allo/car/` 아래를 뜻한다. 대사 검수는 `docs/dialogue-style.md`를 따른다. 스키마 결정이나 자동 검사 통과만으로 `reviewedBy`를 채우지 않는다.
 
----
+## 3. Firebase Realtime Database
 
-## 2. 레포 구조 — 모노레포
+### 3.1 구조와 세션 수명
 
-GitHub 링크 하나로 제출하므로 모노레포가 유리합니다.
-
-```
-allo/
-├── README.md                  # 심사용. ⚠️ 소속·연락처 금지
-├── CLAUDE.md                  # 작업 규칙 (Claude Code)
-├── .gitignore
-├── docs/
-│   ├── schema.md              # 이 문서 (계약)
-│   ├── architecture.md        # 스택 결정·근거
-│   ├── verification.md        # A의 검증 8개 결과 기록
-│   └── demo-scenario.md       # 시연 9단계
-│
-├── car/                       # A — Kotlin · Compose · Pleos SDK
-│   ├── app/src/main/
-│   │   ├── java/ai/allo/car/
-│   │   │   ├── AlloApp.kt · MainActivity.kt
-│   │   │   ├── model/Models.kt               # 3장 스키마와 1:1
-│   │   │   ├── vehicle/
-│   │   │   │   ├── VehicleSignalReader.kt    # Pleos 도메인별 구독
-│   │   │   │   ├── AaosPropertyReader.kt     # 속도·기어 (CarPropertyManager)
-│   │   │   │   ├── CapabilityChecker.kt      # 지원 신호 판별
-│   │   │   │   ├── SignalDerivation.kt       # 급제동·급조향·거리
-│   │   │   │   ├── EnvTagger.kt              # envTags 변환
-│   │   │   │   ├── RegionTagger.kt           # 좌표 → 지역 태그 (좌표는 여기서 끝)
-│   │   │   │   └── SeatPolarity.kt           # 좌석 반전 상수
-│   │   │   ├── sync/
-│   │   │   │   ├── FirebaseRest.kt           # REST + SSE
-│   │   │   │   ├── SessionManager.kt         # 세션·페어코드·1초 발행·/game 구독
-│   │   │   │   └── SessionService.kt         # 포그라운드 서비스
-│   │   │   ├── ui/                           # PairingScreen · DrivingScreen · ParkedScreen
-│   │   │   └── gleo/                         # GleoFunctions · GleoReceiver
-│   │   ├── assets/schema.json                # Gleo 함수 정의
-│   │   └── AndroidManifest.xml               # ⚠️ 읽기 권한만
-│   ├── app/src/test/                         # 순수 Kotlin 단위 테스트
-│   ├── build.gradle.kts · settings.gradle.kts · gradle/libs.versions.toml
-│   └── local.properties.example              # ALLO_DB_URL
-│
-├── phone/                     # B — Flutter
-│   ├── lib/
-│   │   ├── main.dart                         # FEED=fake|firebase
-│   │   ├── app.dart                          # 라우팅
-│   │   ├── feed/                             # vehicle_feed(추상) · fake_feed ⭐ · firebase_feed
-│   │   ├── game/game_controller.dart         # 세션 상태 머신
-│   │   ├── screens/                          # pairing · incubating · hatching · companion · dex
-│   │   └── storage/dex_store.dart            # 로컬 저장 (서버 X)
-│   ├── packages/allo_core/    # C — 순수 Dart
-│   │   ├── lib/src/                          # models · rarity_engine · hatch_timer · species_table
-│   │   └── test/
-│   ├── assets/{species,egg,ui}/              # D의 에셋 배치
-│   └── pubspec.yaml
-│
-├── data/species.json          # C — 생물 12종
-├── firebase/database.rules.json
-├── art/{src,export}/          # D — 원본·png
-├── scripts/                   # vc.sh · scenario_*.sh · seed_firebase.sh · fake_vehicle_feed.sh
-└── apk/
+```text
+/sessions/{sessionId}/meta
+/sessions/{sessionId}/vehicle
+/sessions/{sessionId}/game
+/sessions/{sessionId}/events/{pushId}
 ```
 
-> `allo_core`를 `phone/packages/` 안에 두면 C가 **Flutter 설치 없이** `dart test`로 개발할 수 있습니다.
+- `sessionId`는 차량이 생성한 UUID다. 차량이 먼저 meta 생성을 완료한 뒤 해당 세션 데이터를 발행한다.
+- 최종 종료된 세션을 다음 주행에 재사용하지 않는다. 차량은 새 세션·페어링 코드를 만들고 폰은 새 QR 또는 세션 ID+코드로 연결한다.
+- 기어 P나 통신 끊김만으로 폰이 최종 종료를 추측하지 않는다. 최종 종료는 `sessionEnd` 계약을 따른다.
+- 차량의 현재 종료 판정 기준은 페어링 완료된 세션에서 누적 100m 이상 주행 후 기어 P이며, 도착 이벤트가 있으면 즉시, 그렇지 않으면 안내 없음 상태에서 P 3분·안내 있음 상태에서 P 30분 유지다. 이 판정은 `SessionEndDetector`가 소유한다. 안내 상태 감지의 실측 정확도와 이벤트 전달 보장은 별개다.
 
----
-
-## 3. Firebase Realtime Database 스키마
-
-### 3.1 전체 구조
-
-```
-/sessions/{sessionId}
-  ├── meta      ← car write, phone read
-  ├── vehicle   ← car write, phone + car read
-  ├── game      ← phone write, car read
-  └── events    ← 양쪽 write/read (일회성)
-```
-
-`sessionId` — 차량 앱이 생성하는 UUID. 주행 1회당 1개.
-
-### 3.2 `meta`
-
-차량 앱이 세션을 만들 때 1회 기록.
+### 3.2 `meta` — 차량 생성, 폰 페어링
 
 ```json
 {
@@ -116,14 +62,18 @@ allo/
 }
 ```
 
-| 필드 | 타입 | 설명 |
+| 필드 | 타입 | 의미 |
 | --- | --- | --- |
-| `createdAt` | number | epoch ms |
-| `pairCode` | string | 6자리. QR이 안 될 때 수동 입력용 |
-| `paired` | boolean | 폰이 붙으면 폰이 true로 변경 |
-| `carAppVersion` | string | 호환성 확인 |
+| `createdAt` | number | 차량 세션 생성 시각(epoch ms). 생성 후 앱에서 바꾸지 않음 |
+| `pairCode` | string | 숫자 6자리. 앞자리 0을 보존 |
+| `paired` | boolean | 기본 false. 폰의 연결 기록 성공 시 true |
+| `carAppVersion` | string | 차량 앱 버전 |
 
-### 3.3 `vehicle` — 차량 앱이 1초마다 씀
+QR은 `allo://pair?sid={UUID}&code={6자리}`다. 수동 연결도 세션 ID와 코드가 필요하며, 코드만으로 세션을 검색하는 경로는 이번 계약에 없다. 폰은 meta·코드·24시간 만료 여부와 기존 `sessionEnd`를 확인하고 `paired=true`와 `paired` 이벤트를 함께 기록한 뒤 game 발행을 시작한다. 저장한 연결 정보도 재사용 전에 다시 확인한다.
+
+### 3.3 `vehicle` — 차량의 현재 스냅샷
+
+차량은 쓰기가 끝난 뒤 약 1초 간격으로 다음 스냅샷을 발행한다. 정확한 1Hz나 모든 중간 신호의 전달을 보장하는 기록 스트림은 아니다. 값이 같아도 `ts`를 갱신한다.
 
 ```json
 {
@@ -138,40 +88,43 @@ allo/
   "seatRow2": true,
   "etaSec": 2280,
   "envTags": ["rain", "highway"],
-  "capabilities": ["wiper", "light", "seat", "odometer", "eta"]
+  "capabilities": ["wiper", "light", "seat", "odometer", "speed", "gear", "eta"]
 }
 ```
 
-| 필드 | 타입 | 비고 |
+| 필드 | 타입 | 의미 |
 | --- | --- | --- |
-| `ts` | number | 전송 시각 |
-| `gear` | `"P"\|"R"\|"N"\|"D"` | 정차 판정의 기준. AAOS `GEAR_SELECTION` |
-| `speedKph` | number | AAOS `CarPropertyManager` |
-| `distanceM` | number | **세션 누적**. Odometer 델타 또는 속도 적분 |
-| `harshBrake` | number | **세션 누적 횟수** |
-| `harshSteer` | number | 동일 |
-| `wiperLevel` | 0\|1\|2\|3 | 0=off |
-| `headlightOn` | boolean | |
-| `seatRow2` | boolean | ⚠️ SDK 값 반전 처리 후 |
-| `etaSec` | number \| **null** | **내비 미사용 시 null** |
-| `envTags` | string[] | 아래 표 |
-| `capabilities` | string[] | **이 차에서 실제 읽히는 신호 목록** |
+| `ts` | number | 스냅샷 생성 시각(epoch ms). GPS 관측 시각이 아님 |
+| `gear` | string | `P`, `D`, `R`, `N` |
+| `speedKph` | number | AAOS 속도를 km/h로 변환한 값 |
+| `distanceM` | number | 차량 세션 누적 거리(m). 알마다 0으로 만들지 않음 |
+| `harshBrake`, `harshSteer` | number | 차량 세션 누적 횟수. 알별 평가는 폰이 기준점을 분리 |
+| `wiperLevel` | number | 정규화한 0/1/2/3. 0은 꺼짐 |
+| `headlightOn` | boolean | 하향등 켜짐 |
+| `seatRow2` | boolean | SDK 극성 보정 후 2열 점유 |
+| `etaSec` | number 또는 null/누락 | 사용할 수 있는 양수 ETA(초). 안내/ETA가 없으면 null |
+| `envTags` | string[] | 관측 환경 태그. 누락은 빈 목록 |
+| `capabilities` | string[] | 실제 지원하는 신호 목록 |
 
-**`envTags` 값**
+지원 이름은 `wiper`, `light`, `seat`, `odometer`, `brake`, `steering`, `speed`, `gear`, `eta`다. 차량 앱 내부의 `steerDeg`, `brakePressed`, `odometerM`를 별도 전송 필드로 추가하지 않는다.
 
-| 태그 | 조건 |
+현재 파생 기준을 유지한다. 급제동은 속도 감소율 12km/h/s 이상, 급조향은 속도 15km/h 이상에서 조향각 변화율 90도/s 이상이며 각각 2초 쿨다운을 둔다. 거리는 Odometer의 양수 증가분을 사용하고, 없거나 정체/감소하면 이전 속도를 적분한다. SDK 거리 km→m 변환은 차량 안에서 한다.
+
+| 태그 | 현재 차량 산출 기준 |
 | --- | --- |
 | `rain` | `wiperLevel > 0` |
-| `tunnel` | `headlightOn` && 주간 시간대 |
-| `night` | 일몰 이후 |
-| `highway` | `speedKph > 80` 이 60초 이상 지속 |
-| `coast` / `mountain` / `city` | 차량 앱이 위치로 판정 후 **태그만** 전송 |
+| `night` | Asia/Seoul 19:00 이상~06:00 미만 |
+| `tunnel` | `headlightOn && !night` |
+| `highway` | 속도 80km/h 초과가 60초 이상 지속. 80 이하에서 지속시간 초기화 |
+| `coast`, `mountain`, `city` | 차량의 기준점·반경 lookup. 겹치면 coast→mountain→city 순, 미분류면 지역 태그 없음 |
 
-> ⚠️ **위도·경도는 절대 올리지 않습니다.** 지역 판정도 차량 앱 안에서 끝내고 태그만 보냅니다. 아동 개인정보 요건이자 심사 가점 포인트입니다.
+위 태그는 센서 기반 추정이다. 실제 비·터널·고속도로·일몰을 확인한 사실로 확대하지 않는다. 현재 GPS는 최근 SDK 좌표 캐시를 사용하며 **새로운 GPS 30초 TTL은 채택하지 않는다.** SDK 관측 시각/정차 중 갱신 주기는 A의 실측 대상으로 남기되, 이 때문에 나머지 wire 계약을 보류하지 않는다.
 
-**`capabilities`가 중요한 이유** — 차종마다 읽히는 신호가 다릅니다. 폰 앱은 이 목록을 보고 "이 차에선 비 속성을 못 쓴다"를 알아야 합니다.
+Debug 지역 override는 좌표 미수신·lookup을 우회하는 시연 기능이다. debug 빌드에서 활성화한 지역 태그도 정상 `envTags`로 전송되고 폰 로컬 도감에 저장된다. 그 기록을 실측 위치 증거로 사용하지 않는다.
 
-### 3.4 `game` — 폰 앱이 계산해서 씀
+### 3.4 `game` — 폰의 전체 상태
+
+**폰은 `/game` 전체를 `set()`으로 교체한다.** `/game/uncollectedRegions/0` 같은 원소별 쓰기와 깊은 경로 patch는 사용하지 않는다. 차량에 깊은 patch merge 구현을 필수로 요구하지 않는다.
 
 ```json
 {
@@ -185,172 +138,135 @@ allo/
   "careCount": 3,
   "lookOutCount": 1,
   "hatchAtM": 25000,
-  "hatchAtSec": null
+  "hatchAtSec": null,
+  "regionCollectionKnown": true,
+  "uncollectedRegions": ["coast", "mountain"]
 }
 ```
 
-| 필드 | 타입 | 설명 |
+| 필드 | 타입 | 의미 |
 | --- | --- | --- |
-| `eggTier` | `"small"\|"mid"\|"large"` | 알 등급 |
-| `stage` | `"idle"\|"incubating"\|"hatched"` | |
-| `progress` | 0.0~1.0 | 차 화면 진행바에 사용 |
-| `speciesId` | string \| null | 부화 후에만 |
-| `attribute` | `"water"\|"dark"\|"normal"` \| null | |
-| `tier` | 1\|2\|3 \| null | |
-| `careCount` | number | 감싸기·노래 횟수 |
-| `lookOutCount` | number | 창밖 보기 성공 횟수 |
-| `hatchAtM` | number \| null | 거리 기준 부화 지점 |
-| `hatchAtSec` | number \| null | ETA 기준 부화 지점 |
-| `regionCollectionKnown` | boolean | 폰의 지역 수집 기록 요약을 사용할 수 있는지. 기본 false |
-| `uncollectedRegions` | string[] | 현재 기기 도감에 수집 기록이 없는 coast/mountain/city |
+| `ts` | number | 폰 상태 작성 시각(epoch ms) |
+| `eggTier` | string | `small`, `mid`, `large` |
+| `stage` | string | `idle`, `incubating`, `hatched`. 동행은 hatched이며 별도 DB stage 없음 |
+| `progress` | number | 0~1 |
+| `speciesId` | string 또는 null/누락 | 부화한 종 ID |
+| `attribute` | string 또는 null/누락 | `water`, `dark`, `normal` |
+| `tier` | number 또는 null/누락 | 개체 판정 등급 1/2/3 |
+| `careCount`, `lookOutCount` | number | 해당 알의 돌봄·창밖 보기 횟수 |
+| `hatchAtM` | number 또는 null/누락 | 거리 모드의 해당 알 목표(m) |
+| `hatchAtSec` | number 또는 null/누락 | 시간 모드의 해당 알 품기 목표(초). 세션 절대 시각이 아님 |
+| `regionCollectionKnown` | boolean | 폰 도감 요약을 사용할 수 있는지. 기본 false |
+| `uncollectedRegions` | string[] | 도감에 수집 기록이 없는 `coast`, `mountain`, `city` |
 
-> `hatchAtM`과 `hatchAtSec`는 최대 하나만 유효합니다. `hatchAtSec`는 해당 알의 인정된 품기 시간(초)이며 차량 세션의 절대 시각이 아닙니다. 지급 보류/idle에서는 둘 다 null일 수 있습니다.
+두 hatch 기준은 최대 하나만 유효하다. idle/지급 보류에서는 둘 다 null일 수 있다. 새 알은 이전 종·등급·돌봄·판정 구간을 초기화하지만 기존 도감과 연결 정보는 보존한다.
 
-#### 지역 수집 추천 요약 — C 작업 기준 확정, 2026-11-04
+#### 지역 추천 요약
 
-추천 기준은 **현재 기기 도감의 지역 수집 기록**이며 실제 방문 이력이 아니다. A가 이슈 #9에서 필드명과 아래 네 상태에 동의했고, C 사용자가 이번 구현 진행을 승인했다. 이 문서의 확정은 차량 앱 구현·팀 전체 적용·실기 검증 완료를 뜻하지 않는다.
+추천 기준은 **현재 폰 도감의 수집 기록**이다. 실제 방문 이력이 아니다.
 
-| 수신 값 | 의미 |
+| 수신 상태 | 차량의 해석 |
 | --- | --- |
-| known 누락/false | 미확인. 목록을 사용하지 않고 기본 추천 |
-| true + 유효한 목록 | 해당 미수집 지역에서 추천 |
-| true + 빈 배열/목록 누락/null | 확인 결과 미수집 후보 없음. 기본 추천으로 되돌리지 않음 |
-| known 자료형 오류 또는 true + 잘못된 목록/원소 | 미확인. 잘못된 원소를 제거해 후보 없음으로 만들지 않음 |
+| known 누락 또는 false | 미확인 → 기본 추천. 목록이 있어도 사용하지 않음 |
+| true + 유효한 비어 있지 않은 목록 | 그 미수집 지역에서 추천. 중복 지역은 한 번만 취급 |
+| true + 빈 배열, 목록 키 없음 또는 null | 확인 결과 미수집 지역 없음 → 후보 없음. 기본 추천으로 되돌리지 않음 |
+| known 타입 오류, true + 잘못된 목록 타입/원소/알 수 없는 지역 | 미확인 → 기본 추천. 오류 원소를 지워 빈 목록으로 만들지 않음 |
 
-RTDB는 빈 배열 키를 지울 수 있으므로 폰은 모든 `/game.set()`에 known을 포함한다. 허용 지역은 coast/mountain/city뿐이며 none/unknown 같은 값을 목록에 넣지 않는다. 좌표·도감 원문·지역별 시간은 Firebase에 보내지 않는다.
+`["none"]`, `["unknown"]`은 쓰지 않는다. RTDB가 빈 배열 키를 지워도 true를 함께 보내면 후보 없음과 모름을 구분할 수 있다. `/game` root null·세션 교체·손상 snapshot에서는 이전 지역 요약을 버린다. 차량은 두 필드를 raw JSON에서 위 표대로 정규화할 수 있으며, 구버전 폰의 누락 필드는 unknown으로 처리한다.
 
-폰이 도감 전체를 정상적으로 읽고 형식을 확인한 경우 요약을 만든다. 정상 빈 도감은 known=true이고 세 지역 모두 미수집이다. 과거 유효한 regionTag는 기존 수집 기록으로 유지하고, null/누락은 어느 지역에도 더하지 않는다. 손상 기록·알 수 없는 지역 값·읽기/저장 실패는 known=false로 처리한다. 저장 성공 후 요약을 갱신하며 새 알 지급 때 기존 도감 요약을 보존한다. 이 known 조건은 관측의 정확성이나 실제 미방문을 보장하지 않는다.
+**과거 기록 처리:** 정상적인 과거 `regionTag`가 coast/mountain/city이면 수집 기록으로 인정한다. 첫 태그 방식으로 만든 기록도 버리지 않으며 새 시간 집계 결과로 소급 설명하지 않는다. null/누락은 어느 지역에도 더하지 않는다. 전체 도감의 읽기·형식 확인 성공 후 known=true로 만들고, 정상 빈 도감은 세 지역 모두 미수집이다. 손상 기록·알 수 없는 지역 값·읽기/저장 실패는 known=false다.
 
-#### 알별 지역 집계 — 사용자 확인, 2026-11-04
+폰은 도감 저장 성공 후 요약을 갱신하고, idle·품기·부화·상호작용·새 알·복구를 포함한 모든 전체 set에 요약을 유지한다. 늦은 이전 연결의 발행이 새 연결에 섞이지 않도록 한다.
 
-- 알 지급부터 부화까지 관측한 지역의 시간을 합산한다. 동행 시간은 제외하고 새 알은 새 집계를 시작한다.
-- 시간은 폰의 단조 증가 시계로 측정하며 앱 중단 시간은 제외한다. 패킷 수를 체류 시간으로 사용하지 않는다.
-- 최근 수신한 지역은 **최대 5초**만 유지한다. 20초간 새 신호가 없으면 최대 5초는 이전 지역, 나머지 15초는 미확인이다. 신호가 정상적으로 계속 오면 지역 시간도 계속 누적된다.
-- 지역 태그가 없거나 여러 지역이 충돌하면 미확인이다. 중복/역순 신호는 같은 시간을 다시 더하거나 태그 유효기간을 연장하지 않는다.
-- 최장 지역 W가 유일하고, 그 시간 W가 두 번째 지역 S와 미확인 U의 합보다 큰 경우(W > S + U)에만 그 지역을 기록한다. 동률·충분한 근거 없음은 regionTag=null이다.
-- 앱 중단·복구에서는 누적 시간을 유지하되 오래된 지역 태그를 열린 구간으로 복구하지 않는다. 차량에서 새로운 ts로 재발행하는 오래된 GPS 정보까지 이 5초 규칙이 검증하지는 못한다. 차량 위치 신선도는 A의 별도 확인 사항이다.
+**차량 추천:** 현재 지역 제외·근거리 후보 정렬은 현행 추천기를 유지한다. 다음 상태를 구분한다: 모든 지역 수집 완료 / 미수집 지역은 있지만 현재 지역 제외 등으로 후보 없음 / 주변 목록에 후보 없음 / 대안 소진. 모두를 “모두 방문했다”로 표현하지 않는다. 세션이나 수집 요약이 바뀌면 제안 캐시를 비우고 수락 직전에 후보 유효성을 확인한다. 지역 추천만으로 특정 생물 획득을 보장하지 않는다. 현 카탈로그에서 지역 조건이 있는 종은 `sea_mist`이며 coast 외 조건도 필요하다.
 
-#### 반복 부화와 이어하기 — 사용자 확인, 2026-11-04
+#### 알별 지역 시간
 
-- 각 알 지급 시 사용할 수 있는 ETA로 그 알의 일정을 고정한다. 그 알 도중 ETA가 바뀌거나 사라져도 이미 정한 품기 시간을 되돌리지 않는다. 다음 알을 지급할 때 ETA를 다시 확인한다.
-- ETA가 2분 이상 80분 이하이면 절반을 분 단위로 내린 시간 동안 품고, 나머지는 동행한다. 11분은 품기5+동행6, 정확히80분은40+40이다.
-- ETA가 80분을 초과하면 품기40+동행30 뒤 같은 크기의 다음 알을 지급한다. 81분은40+30+5+6, 150분은40+30+40+40, 300분은5개 알이다.
-- ETA가 없으면 기존 거리 모드(알 목표 거리의 절반)를 사용한다. 유효 ETA가 2분 미만이면 새 알 지급을 보류하고 기존 동행 상태를 유지한다. 첫 알이 없으면 idle로 대기한다.
-- 앱 중단 시간은 진행에서 제외한다. 같은 알의 인정된 경과시간·단계·돌봄·판정 태그와 필요한 세션 기준점을 로컬에 저장해 복구한다. 새 알은 기존 주행 구독을 다시 시작하지 않는다.
-- 새 알마다 돌봄·태그·급제동·급조향 평가 구간을 새로 시작한다. 차량 세션 누적 카운터를 새 알의 카운터로 그대로 사용하지 않는다. 기존 도감과 거리 중복 방지 기록은 보존한다.
-- 부화 결과 저장이 실패하면 재시도할 결과를 보존하고 다음 알 지급으로 덮어쓰지 않는다. 종료 화면과 최종 저장은 반복 지급보다 우선한다.
-- 앱 일시중단은 동행 회차도 복구하지만, 차량의 최종 종료까지 마친 부화 회차는 다음 차량 주행에서 새 알을 시작할 수 있도록 정리한다. 도감과 거리 중복 방지 기록은 유지한다.
+- 알 지급부터 부화까지 폰의 단조 증가 시계로 관측 시간을 누적한다. 동행·앱 중단 시간은 제외한다.
+- 가장 최근 지역은 최대 **5초**만 인정한다. 20초간 새 신호가 없으면 최대 5초는 이전 지역, 15초는 미확인이다. 정상 신호가 계속 오면 계속 누적된다.
+- 지역 없음·복수 지역 충돌은 미확인이다. 중복/역순 신호는 같은 시간을 더하거나 태그 유효기간을 연장하지 않는다.
+- 최장 지역 W가 유일하고 그 시간이 두 번째 지역 S와 미확인 U의 합보다 클 때(**W > S + U**)만 그 지역을 기록한다. 동률·부족한 근거는 `regionTag=null`이다.
+- 새 알은 새 집계를 시작한다. 중단 복구는 합계를 유지하되 오래된 열린 태그를 복구하지 않는다. 수신 공백 5초는 GPS 관측 정보 자체의 신선도를 보증하지 않는다.
 
-희귀도 최소 수정도 사용자 확인으로 적용한다. rain은 wiper, tunnel/night는 light 지원 여부를 속성 판정과 생물 선택 양쪽에 동일하게 적용한다. 지원 목록이 없는 기존 직접 호출의 호환성은 유지한다. 기존 희귀종 우선·종/개체 등급 차이·돌봄 공식은 바꾸지 않는다.
+#### 부화·이어하기
 
-이 계약은 운영 Firebase 삭제 활성화나 사람의 대사 검수 표시를 승인하지 않는다.
+- 각 알은 지급 시 사용할 수 있는 ETA로 계획을 고정한다. 도중 ETA 변경·소실로 현재 알을 되감지 않는다. 다음 알 지급 때 다시 확인한다.
+- ETA 2분 이상~80분 이하: 절반을 분 단위로 내려 품고 나머지는 동행한다. 11분=5+6, 80분=40+40.
+- ETA 80분 초과: 품기40분+동행30분 후 같은 크기 새 알을 지급한다. 81분=40+30+5+6, 150분=40+30+40+40, 300분은 5개 알.
+- ETA 없음: 기존 거리 모드. 목표는 small 5km, mid 25km, large 75km다. ETA가 나중에 나타나도 해당 알의 모드는 유지한다.
+- ETA 2분 미만: 새 알 지급 보류. 기존 동행은 유지하고 첫 알이 없으면 idle로 대기한다. 보류 구간의 거리를 새 알에 합산하지 않는다.
+- 앱 중단 중 경과 시간·추가 거리·급격 조작을 진행에 합산하지 않는다. 같은 알의 인정된 시간·거리·지역·돌봄·판정 횟수를 로컬 checkpoint에서 복구한다. 새 알마다 평가 구간을 새로 잡는다.
+- 앱 일시중단은 동행도 복구한다. 차량 최종 종료를 마친 부화 회차는 다음 주행에서 새 알을 시작할 수 있도록 정리한다. 도감과 거리 중복 방지 기록은 유지한다.
+- 부화 저장 실패 시 같은 결과를 재시도하고 다음 알로 덮어쓰지 않는다. 종료 처리가 새 알 지급보다 우선한다. 강제 종료가 checkpoint 저장 완료보다 빠르면 미저장 진행은 잃을 수 있다.
+- 신호 공백으로 경계를 놓치면 재수신한 현재 알 한 개의 부화 저장을 마친 뒤 현재 ETA로 다음 알 한 개를 시작한다. 관측하지 못한 과거 알을 여러 개 소급 생성하지 않는다.
 
-### 3.5 `events` — 일회성 신호
-
-상태 폴링만으로는 "방금 부화했다"를 차 화면이 놓칠 수 있습니다. 이벤트 큐로 확실하게.
-
-```
-/sessions/{sessionId}/events/{pushId}
-```
+### 3.5 `events` — 개별 알림
 
 ```json
 {
   "ts": 1793620030000,
   "type": "hatched",
   "by": "phone",
-  "payload": { "speciesId": "tide_keeper", "tier": 3 }
+  "payload": {"speciesId": "tide_keeper", "tier": 3}
 }
 ```
 
-| `type` | 보내는 쪽 | 받는 쪽이 할 일 |
-| --- | --- | --- |
-| `paired` | phone | 차 화면이 페어링 완료 표시 |
-| `hatched` | phone | 차 화면 부화 연출 + Gleo 발화 |
-| `lookOutPrompt` | phone | — (기록용) |
-| `gleoSpeak` | phone | 차량 앱이 Gleo로 발화 |
-| `destinationSuggest` | car | 폰에 제안 표시 |
-| `sessionEnd` | car | 폰이 도감 저장 후 정리 |
+`ts`는 epoch ms, `type`은 아래 이름, `by`는 car/phone이다. `payload`는 **키별 타입을 가진 JSON 객체**이며 빈 객체가 생략되면 `{}`로 읽는다. 전부 문자열인 map으로 가정하지 않는다.
 
-#### `sessionEnd` 소비 계약 — 2026-11-04 로컬 검토안
-
-이 변경은 로컬 구현·검토를 위한 계약안이다. 팀 전체 공지, 원격 반영, Firebase 배포를 완료했다는 뜻이 아니다. 기존 경로·이벤트 필드·`stage` 값은 추가하거나 변경하지 않는다.
-
-- 차량의 `sessionEnd`는 **해당 세션의 최종 종료**다. 폰은 수신 즉시 그 세션의 새 품기와 상호작용을 막고, 진행 중인 알의 거리·세션별 반영 위치 또는 이미 부화한 생물의 도감 저장을 마친다. 마지막 `/game` 결과는 유지한다.
-- 폰의 기존 `endSession()`은 화면 이탈·품기 시작 전에 진행을 저장하는 **체크포인트**에도 사용한다. 체크포인트만으로 차량 세션을 최종 종료하거나 같은 세션의 재개를 금지하지 않는다. 원격 종료와 저장 동작을 구분한다.
-- 이벤트 구독은 페어링한 세션에 고정한다. 같은 세션의 기존 `sessionEnd`가 구독 시 다시 전달돼도 최종 종료로 처리하며, `ts`가 현재 연결 시각보다 과거라는 이유로 무시하지 않는다. 다른 세션으로 바뀐 뒤 도착한 이전 구독·읽기 응답은 새 세션에 적용하지 않는다.
-- Firebase 페어링은 메타 검증 후 해당 세션의 기존 이벤트에서 `by=car`, `type=sessionEnd`가 확인되면 거부한다. 확인과 연결 사이에 발생한 종료도 이벤트 구독에서 처리한다. 종료된 세션을 다시 사용하지 않고 차량의 **새 QR·세션 코드**로 연결한다.
-- 정상 차량 루프는 마지막 `/vehicle` 쓰기를 시도한 뒤 종료 이벤트를 보낸다. 폰은 종료 저장 전에 해당 세션의 최신 저장 스냅샷을 한 번 읽어 마지막 신호 콜백이 늦게 도착하는 경우를 보완한다. Fake 읽기는 마지막으로 발행한 값을 반환하며 시간·거리를 진행시키지 않는다.
-- 중복 종료와 수동 저장이 겹쳐도 종료 저장 작업을 공유한다. 읽기·도감 저장·진행 저장·페어링 정보 삭제가 실패하면 완료로 표시하지 않고 재시도를 제공한다. 실패 중에는 보관한 진행과 부화 결과를 유지하고 새 연결·새 품기를 막는다. 저장소 API가 `false`를 반환한 경우도 실패로 처리한다.
-- 부화 전 진행은 기존 거리 이어하기 기록을 보존한다. 부화 후에는 도감 저장과 소비한 세션 거리의 체크포인트를 보존해 같은 거리를 다시 사용하지 않는다. 새 시간 정책이나 ETA 진행의 영구 복원은 이 변경 범위에 포함하지 않는다.
-
-**현재 차량 송신의 한계:** `sessionEnd`에는 종료 이유·최종 스냅샷·최종 신호 번호가 없다. 마지막 `/vehicle` 쓰기가 실패해도 종료할 수 있고, 종료 이벤트 전송 실패를 재시도하지 않으며 앱 정지 직전 전송도 유실될 수 있다. 폰의 한 번 읽기는 서버에 성공적으로 저장된 값까지만 보완한다. 통신 끊김이나 오래된 신호만으로 종료를 단정하거나 유실된 거리·종료 이벤트를 복원하지 않는다. 차량 송신 보장은 A의 별도 변경·검증이 필요하다.
-
-### 3.6 저장하지 않는 것
-
-- ❌ 위도·경도
-- ❌ 아이 이름·생년월일·연락처
-- ❌ 도감 (→ **폰 로컬 저장**)
-- ❌ 주행 경로
-
-서버에는 **주행 1회 동안의 임시 상태만** 남습니다.
-
-### 3.7 보안 규칙 (초안)
-
-```json
-{
-  "rules": {
-    "sessions": {
-      "$sid": {
-        ".read": "now - data.child('meta/createdAt').val() < 86400000",
-        ".write": "now - data.child('meta/createdAt').val() < 86400000 || !data.exists()",
-        "vehicle": { ".validate": "newData.hasChildren(['ts','gear'])" },
-        "game":    { ".validate": "newData.hasChildren(['ts','stage'])" }
-      }
-    }
-  }
-}
-```
-
-> 24시간 조건은 접근을 제한할 뿐 데이터를 삭제하지 않는다. 사용자가 선택한 매일 정리는 별도 준비 코드로 제공하며, 운영 활성화 전에는 동작하지 않는다. 유효한 생성 시각이 24시간 이상 지난 세션만 조건부 삭제 대상으로 삼고, meta 없는 고아와 손상 시각은 검토 대상으로 남긴다. 매일 실행은 정확히 24시간째 삭제를 보장하지 않으며 실행 지연·실패 시 더 오래 남을 수 있다. 운영 인증·활성화·실제 삭제는 별도 검증 단계다.
-
----
-
-## 4. `data/species.json` — 생물 테이블
-
-```json
-{
-  "version": 1,
-  "species": [
-    {
-      "id": "tide_keeper",
-      "nameEn": "Tide Keeper",
-      "nameKo": "물결지기",
-      "attribute": "water",
-      "tier": 3,
-      "requires": { "envTags": ["rain"], "maxHarsh": 2 },
-      "hint": "비 오는 날 부드럽게 달리면",
-      "sprite": "species/tide_keeper.png"
-    }
-  ]
-}
-```
-
-**12종 구성**
-
-| | normal | water | dark |
+| type | by | payload | 의미·소비 |
 | --- | --- | --- | --- |
-| tier 1 | 1종 | 1종 | 1종 |
-| tier 2 | 1종 | 1종 | 1종 |
-| tier 3 | 1종 | 1종 | 1종 |
-| 희귀 | 3종 (조건 복합: rain+tunnel 등) |
+| `paired` | phone | `{}` | 연결 기록. 현재 차 화면은 meta.paired로 연결 표시 |
+| `hatched` | phone | speciesId:string, tier:number | 부화 발생. 현재 차량 발화는 game.stage 변화로 동작 |
+| `lookOutPrompt` | phone | `{}` | 창밖 보기 기록 |
+| `gleoSpeak` | phone | 이번 계약에서 payload/수신 기능 미사용 | 이름만 예약. 자유 텍스트 발화 기능을 추가하지 않음 |
+| `destinationSuggest` | car | region:string, status:string | 아래 제안·수락 계약 |
+| `sessionEnd` | car | `{}` | 해당 차량 세션의 최종 종료 |
 
----
+현재 Kotlin `GameEvent`의 문자열 payload map은 차량의 기존 송신 이벤트에만 맞는다. 폰의 숫자 tier 이벤트를 새로 소비할 때는 JSON 타입을 유지하는 모델을 사용해야 한다. 현재 폰은 차량 이벤트 중 sessionEnd만 처리하며, destinationSuggest를 폰 화면에 표시하는 기능까지 구현됐다는 뜻은 아니다.
 
-## 5. Day 1에 확인할 것
+#### `destinationSuggest`
 
-- [ ] C — Firebase 프로젝트 생성, 위 스키마로 샘플 1건 수동 삽입
-- [ ] B — 그 샘플을 읽어서 콘솔에 출력
-- [ ] A — 빈 앱에서 `/vehicle`에 1건 쓰기 성공
-- [ ] 전원 — `docs/schema.md`에 이 문서 커밋
+```json
+{"region":"coast","status":"offered"}
+```
 
-이 넷이 되면 **그날부터 완전 병렬**입니다.
+```json
+{"region":"coast","status":"accepted"}
+```
+
+- region은 coast/mountain/city다. 좌표·목적지 이름은 이벤트에 넣지 않는다.
+- offered는 차량이 목적지를 제안했다는 뜻이다.
+- **accepted는 운전자의 수락 후 SDK 목적지 요청을 예외 없이 전달한 성공**이다. 실제 경로 안내 시작까지 확인한 이벤트로 해석하지 않는다.
+- SDK 미준비·요청 실패·안내 중 또는 안내 상태 미확인일 때 accepted를 보내지 않는다. 실제 안내 시작 확인이 필요해지면 별도 확인 신호를 먼저 정의하고 이 의미를 바꾼다.
+
+#### `sessionEnd`
+
+- 차량은 마지막 vehicle 쓰기를 시도한 뒤 종료 이벤트를 보낸다. 재시도/재연결로 중복될 수 있으며 프로세스 종료·네트워크 실패에서 무손실 전달을 보장하지 않는다. 최종 쓰기가 실패했다면 폰은 서버에 저장된 마지막 값까지만 읽을 수 있다.
+- 폰은 이벤트 수신 즉시 새 품기·상호작용을 막고 저장한다. 품기 중 필요한 마지막 vehicle을 다시 읽어 늦은 콜백을 보완한다. 이미 부화한 상태까지 항상 재조회하는 계약은 아니다.
+- 이벤트의 timestamp가 연결 시각보다 오래됐다는 이유로 종료를 무시하지 않는다. 종료된 세션 재연결은 거부한다. 같은 pushId/같은 세션 종료의 중복 처리로 저장·화면 이동을 반복하지 않는다.
+- 읽기·도감/진행 저장·페어링 정보 삭제가 실패하면 완료로 표시하지 않고 재시도를 제공한다. 저장 완료 전에 새 연결로 넘어가지 않는다.
+- 폰의 체크포인트용 `endSession()` 호출 자체는 차량의 최종 종료를 뜻하지 않는다. 앱 중단/화면 이탈 저장과 차량 종료를 구분한다.
+
+### 3.6 저장 범위
+
+Firebase에는 세션 연결용 meta, 현재 vehicle/game, 이벤트만 보낸다. 좌표·아이 이름/생년월일/연락처·주행 경로·도감 원문·지역 시간 합·이어하기 checkpoint를 보내지 않는다. 지역 요약 두 필드만 차량과 공유한다.
+
+### 3.7 접근 만료와 데이터 정리
+
+DB 규칙의 원본은 [`firebase/database.rules.json`](../firebase/database.rules.json)이다. 이 문서에 별도 규칙 사본을 두지 않는다. 정상적인 생성 시각 기준 24시간 조건은 **접근 제한**이며 자동 삭제가 아니다.
+
+매일 정리 준비는 #37을 따른다. 유효한 createdAt이 24시간 이상 지난 세션만 조건부 삭제 후보로 하고, meta 없는 고아·잘못된/미래 시각은 보존해 검토한다. READY와 삭제 opt-in을 명시적으로 설정하기 전에는 운영 정리를 활성화하지 않는다. 일일 실행은 정확히 생성 후 24시간에 삭제를 보장하지 않는다. 이 계약 확정은 IAM·Secrets·활성화·실제 삭제 승인이 아니다.
+
+## 4. 생물 데이터와 판정
+
+`data/species.json`의 종 ID, 속성, 카탈로그 tier, requires.envTags(AND 조건), maxHarsh, hint, sprite를 원본으로 사용한다. 폰 패키징 복사본과 일치시킨다. 기본 9종(속성3×등급3)+복합 조건 희귀3종을 유지한다.
+
+지원 정보는 속성 판정과 생물 선택 양쪽에 같은 기준으로 적용한다: rain은 wiper, tunnel/night는 light가 필요하다. 빈 capabilities는 해당 지원 없음이며 기존 코어 직접 호출에서 지원 인자 생략(null)은 호환을 위해 제한 없음으로 둔다. 현재 카탈로그의 희귀종 우선, 종 tier와 개체 판정 tier의 차이, 돌봄 보정과 원시 maxHarsh 조건은 유지한다. 다른 밸런스 변경은 이 계약에 포함하지 않는다.
+
+## 5. 적용과 확인
+
+- **A:** 지역 요약 네 상태 정규화, root null/손상 값 초기화, 수집 기준 문구·키 명칭, 후보 없음 사유 구분, 요약/세션 변경 시 캐시 초기화와 수락 전 확인을 이 기준으로 맞춘다. 최종 vehicle 쓰기→sessionEnd 순서와 재시도(#27)는 후속 수정 반영 후 중복·실패 경로를 확인한다. GPS 갱신 실측 결과가 나오면 C에게 알려 본문을 수정한다.
+- **B/C:** #36에서 전체 game set·지역 요약·반복 부화·로컬 복구를 이 기준으로 구현한다. 스키마 문서와 모순되는 별도 규칙을 만들지 않는다.
+- **통합 확인:** 정상/미확인/빈 후보/손상 요약, 새 알 전후 필드 유지, 반복 경계·저장 실패·중단 복구, 최종 종료·새 세션, 실제 차량/Firebase 왕복을 확인한다. 로컬 테스트 통과를 실기 검증으로 표시하지 않는다.
+
+현재 기준의 측정 한계는 GPS 캐시 신선도, 종료 이벤트 배달, 실제 내비 안내 시작 확인이다. 미측정 값을 임의의 TTL이나 성공 보장으로 바꾸지 않고 현재 의미로 구현한다. 문제가 확인되면 C가 이 문서를 갱신하고 A/B가 따라 수정한다.
