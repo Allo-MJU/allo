@@ -17,7 +17,7 @@
       "type": "function",
       "function": {
         "name": "SUGGEST_DESTINATION",
-        "description": "Suggest a nearby region (coast, mountain, city) the family has not visited where an unseen species appears, and offer to set it as the navigation destination.",
+        "description": "Suggest a nearby place in a region (coast, mountain, city) where an unseen species appears, nearest first, and offer to set it as the navigation destination. Call again without confirm when the driver wants a different place.",
         "parameters": {
           "type": "object",
           "properties": {

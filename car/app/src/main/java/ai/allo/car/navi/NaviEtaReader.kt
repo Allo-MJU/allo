@@ -4,18 +4,21 @@ import android.content.Context
 import android.util.Log
 import ai.pleos.playground.navi.constants.NaviErrorCode
 import ai.pleos.playground.navi.constants.NavigationStatus
+import ai.pleos.playground.navi.data.CurrentLocationInfo
 import ai.pleos.playground.navi.data.DestinationInfo
 import ai.pleos.playground.navi.data.DrivingInfo
 import ai.pleos.playground.navi.data.RouteInfo
 import ai.pleos.playground.navi.data.TripInfo
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
+import ai.allo.car.vehicle.GeoPoint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * NaviHelper → 남은 시간(etaSec). 판정하지 않는다 — 폰의 HatchTimer 가 ETA 50% 지점을 계산한다.
- * ⚠️ 좌표(DestinationInfo.latitude 등)는 읽어도 밖으로 내보내지 않는다 (CLAUDE.md 규칙 2).
+ * NaviHelper → 남은 시간(etaSec) + 현재 위치(차 안 전용). 판정하지 않는다 — 폰의 HatchTimer 가 ETA 50% 지점을 계산한다.
+ * ⚠️ 좌표(현재 위치·DestinationInfo.latitude 등)는 읽어도 밖으로 내보내지 않는다 (CLAUDE.md 규칙 2).
+ *    현재 위치는 RegionTagger(지역 태그)와 DestinationSuggester(가까운 목적지)에만 쓴다. 로그에도 찍지 않는다.
  * 남은 시간 출처는 DestinationInfo.remainTime. 단위·갱신 주기는 docs/verification.md #3 실측 기준.
  */
 class NaviEtaReader(context: Context) {
@@ -23,6 +26,10 @@ class NaviEtaReader(context: Context) {
 
     private val _etaSec = MutableStateFlow<Long?>(null)
     val etaSec: StateFlow<Long?> = _etaSec
+
+    /** 현재 위치. 메모리에만 둔다. 내비가 아직 안 알려줬으면 null */
+    private val _position = MutableStateFlow<GeoPoint?>(null)
+    val position: StateFlow<GeoPoint?> = _position
 
     @Volatile private var status: String? = null
     @Volatile private var remainSec: Int? = null
@@ -49,6 +56,9 @@ class NaviEtaReader(context: Context) {
         override fun onDestinationArrived(info: ai.pleos.playground.navi.data.DestinationArrivedInfo) {
             remainSec = null; publish("arrived")
         }
+        override fun onCurrentLocationInfo(info: CurrentLocationInfo) {
+            _position.value = GeoPoint(info.latitude, info.longitude)
+        }
         override fun onError(code: NaviErrorCode) { Log.w(TAG, "navi error $code") }
     }
 
@@ -66,6 +76,7 @@ class NaviEtaReader(context: Context) {
     fun poll() {
         if (!ready) return
         runCatching { navi.getDestinationInfo() }.onFailure { Log.w(TAG, "getDestinationInfo failed", it) }
+        runCatching { navi.getCurrentLocationInfo() }.onFailure { Log.w(TAG, "getCurrentLocationInfo failed", it) }
     }
 
     /** 목적지 설정. 목적지 제안(A-5)과 디버그 확인에 쓴다. 좌표는 내비에만 넘기고 Firebase 로 보내지 않는다. */

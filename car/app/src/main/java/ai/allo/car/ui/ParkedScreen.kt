@@ -15,24 +15,38 @@ import ai.allo.car.model.GameState
  */
 @Composable
 fun ParkedScreen(game: GameState) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(48.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
+    val dim = MaterialTheme.colorScheme.onSurfaceVariant
+    Row(
+        modifier = Modifier.fillMaxSize().padding(64.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
     ) {
         when (game.stage) {
             "hatched" -> {
-                Text("깨어났어요!", style = MaterialTheme.typography.displayMedium)
-                Spacer(Modifier.height(16.dp))
-                Text("${game.speciesId ?: "?"} · ${game.attribute ?: "-"} · tier ${game.tier ?: "-"}", style = MaterialTheme.typography.headlineMedium)
-                // TODO(B/D): 종 스프라이트, 속성 이펙트
+                EggMark(size = 260.dp, fill = 1f)   // TODO(B/D): 종 스프라이트, 속성 이펙트
+                Spacer(Modifier.width(72.dp))
+                Column {
+                    Text("깨어났어요!", style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.height(16.dp))
+                    Text("${game.speciesId ?: "?"} · ${game.attribute ?: "-"} · tier ${game.tier ?: "-"}", style = MaterialTheme.typography.headlineMedium, color = dim)
+                }
             }
             "incubating" -> {
-                Text("알을 품는 중 · ${(game.progress * 100).toInt()}%", style = MaterialTheme.typography.displaySmall)
-                Spacer(Modifier.height(16.dp))
-                Text("감싸주기 ${game.careCount}회 · 창밖 보기 ${game.lookOutCount}회", style = MaterialTheme.typography.titleLarge)
+                EggMark(size = 260.dp, fill = game.progress.toFloat())
+                Spacer(Modifier.width(72.dp))
+                Column(Modifier.widthIn(max = 900.dp)) {
+                    Text("알을 품는 중 · ${(game.progress * 100).toInt()}%", style = MaterialTheme.typography.displaySmall)
+                    Spacer(Modifier.height(24.dp))
+                    ThickProgress(game.progress.toFloat(), Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(24.dp))
+                    Text("감싸주기 ${game.careCount}회 · 창밖 보기 ${game.lookOutCount}회", style = MaterialTheme.typography.titleLarge, color = dim)
+                }
             }
-            else -> Text("뒷자리 폰에서 알을 골라 주세요", style = MaterialTheme.typography.displaySmall)
+            else -> {
+                EggMark(size = 200.dp, fill = 0f)
+                Spacer(Modifier.width(64.dp))
+                Text("뒷자리 폰에서 알을 골라 주세요", style = MaterialTheme.typography.displaySmall)
+            }
         }
     }
 }

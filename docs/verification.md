@@ -301,3 +301,22 @@ adb shell am broadcast -a SUGGEST_DESTINATION -n ai.allo.car/.gleo.GleoReceiver 
 - ⚠️ Gleo 가 파라미터(`confirm`)를 extras 로 넘기는 실제 형식은 미확인. boolean·문자열 `"true"` 둘 다 받는다
 - 좌표는 내비로만 가고 Firebase 에는 `destinationSuggest` 이벤트로 지역 태그(`region`)와 `status`(offered/accepted)만 간다
 
+
+### 2026-11-04 · 지역 판정 · 가까운 목적지 후보 (allo 차량 앱)
+
+**현재 위치**: `NaviHelper.getCurrentLocationInfo()` → `onCurrentLocationInfo` 로 받는다. 별도 위치 권한 없이 내비가 알려준다. 좌표는 메모리에만 두고 로그·Firebase 로 내보내지 않는다 (`GeoPoint.toString()` 도 좌표를 숨김)
+
+**지역 판정 (`RegionTagger.classify`)**: 기준점과의 거리. 우선순위 coast > mountain > city. 해안은 대표 해변·항구 반경 6km, 산은 국립공원 중심 반경 5~18km, 도시는 시청 부근 반경 6~14km (모두 근사)
+- 에뮬레이터(판교 고정): `envTags=[city]` 확인
+
+**목적지 제안**: 지역마다 후보 6~7곳, 현재 위치에서 가까운 순, 직선 120km 이내만. 같은 지역(지금 있는 곳)은 제안하지 않는다. 2분 안에 다시 물으면 다음 후보
+
+| 순서 | 응답 (판교) |
+| --- | --- |
+| 1번째 | 산 쪽에서만 나오는 아이가 있어요. 북한산 국립공원까지 안내할까요? 직선으로 약 30km예요. 같은 산이라면 다른 곳도 괜찮아요. |
+| 2번째 | 바다 쪽 을왕리해수욕장도 있어요. 직선으로 약 65km예요. 안내할까요? |
+| 3번째 | 바다 쪽 만리포해수욕장도 있어요. 직선으로 약 110km예요. 안내할까요? |
+| 수락 | 만리포해수욕장까지 안내를 시작할게요. |
+
+- Firebase `events`: `destinationSuggest` 4건 (`offered` ×3, `accepted`), payload 는 `region`·`status` 만. 좌표 없음
+- 후보 좌표가 `RegionTagger` 로도 같은 지역으로 판정되는지 단위 테스트로 확인 (지리산 화엄사가 빠져 노고단 구역 추가)
