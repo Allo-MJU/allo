@@ -96,6 +96,23 @@ class GameController extends ChangeNotifier {
   bool get canStart =>
       !busy && !sessionEnded && !endingSession && (isFake || paired);
 
+  void endFakeTrip() {
+    final fake = feed;
+    if (fake is FakeVehicleFeed && !sessionEnded && !endingSession) {
+      fake.endTrip();
+    }
+  }
+
+  void prepareNextFakeTrip() {
+    if (!isFake || !sessionSaved || endingSession) return;
+    _remoteEnded = false;
+    _remoteSaved = false;
+    _finalSnapshotRead = false;
+    pairingNotice = null;
+    error = null;
+    notifyListeners();
+  }
+
   @override
   void notifyListeners() {
     if (!_disposed) super.notifyListeners();
@@ -259,6 +276,10 @@ class GameController extends ChangeNotifier {
           hatchAtM: _timer!.hatchAtM);
       await _sub?.cancel();
       if (_disposed || sessionEnded || (!isFake && !paired)) return false;
+      if (isFake) {
+        _eventsSub ??=
+            feed.events().listen((event) => _onCarEvent(event, _connection));
+      }
       _sub = feed.watch().listen(_onVehicle, onError: (Object _) {
         error = '차량 신호를 받지 못했어요. 연결을 확인해 주세요.';
         notifyListeners();

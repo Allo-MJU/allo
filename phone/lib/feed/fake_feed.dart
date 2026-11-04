@@ -59,6 +59,7 @@ class FakeVehicleFeed implements VehicleFeed {
   final _events = StreamController<Map<String, Object?>>.broadcast();
   Timer? _timer;
   VehicleState? _latest;
+  bool _ended = false;
   double _dist = 0;
   int _harshBrake = 0;
   int _harshSteer = 0;
@@ -76,6 +77,7 @@ class FakeVehicleFeed implements VehicleFeed {
     _harshBrake = 0;
     _harshSteer = 0;
     _latest = null;
+    _ended = false;
     final startedAt = DateTime.now().millisecondsSinceEpoch;
     final timer = Timer.periodic(const Duration(seconds: 1), (_) {
       _elapsed++;
@@ -116,6 +118,19 @@ class FakeVehicleFeed implements VehicleFeed {
     _timer = timer;
     ctrl.onCancel = timer.cancel;
     return ctrl.stream;
+  }
+
+  /// 체험에서도 실제 차량과 같은 종료 이벤트를 보낸다.
+  void endTrip() {
+    if (_ended || _events.isClosed) return;
+    _ended = true;
+    _timer?.cancel();
+    _latest = _latest?.copyWith(gear: 'P', speedKph: 0);
+    _events.add({
+      'ts': _latest?.ts ?? DateTime.now().millisecondsSinceEpoch,
+      'type': 'sessionEnd',
+      'by': 'car',
+    });
   }
 
   @override

@@ -15,7 +15,12 @@ class CompanionScreen extends StatelessWidget {
           final species = controller.hatched;
           final prompt = controller.lookOutPrompt;
           return Scaffold(
-            appBar: AppBar(title: Text(species?.nameKo ?? '동행')),
+            appBar: AppBar(title: Text(species?.nameKo ?? '동행'), actions: [
+              if (controller.isFake)
+                TextButton(
+                    onPressed: controller.endFakeTrip,
+                    child: const Text('주행 종료')),
+            ]),
             body: SafeArea(
               child: ListView(
                 padding: const EdgeInsets.all(20),

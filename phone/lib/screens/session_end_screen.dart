@@ -54,15 +54,23 @@ class SessionEndScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 12),
                           Text(saved
-                              ? '다음 주행은 차량의 새 QR로 연결해 주세요.'
+                              ? controller.isFake
+                                  ? '새 체험을 시작하거나 도감을 확인해 보세요.'
+                                  : '다음 주행은 차량의 새 QR로 연결해 주세요.'
                               : saving
                                   ? '이번 주행의 기록을 저장하고 있어요. 잠시 기다려 주세요.'
                                   : '저장 중 문제가 생겼어요. 다시 저장해 주세요.'),
                           const SizedBox(height: 24),
                           if (saved) ...[
                             FilledButton(
-                              onPressed: () => context.go('/pairing'),
-                              child: const Text('새 차량 연결'),
+                              onPressed: () {
+                                if (controller.isFake) {
+                                  controller.prepareNextFakeTrip();
+                                }
+                                context.go('/pairing');
+                              },
+                              child: Text(
+                                  controller.isFake ? '체험 다시 시작' : '새 차량 연결'),
                             ),
                             const SizedBox(height: 12),
                             OutlinedButton(
