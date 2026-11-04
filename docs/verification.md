@@ -12,7 +12,7 @@
 | Vehicle SDK | `ai.pleos.playground:Vehicle:2.3.2` |
 | NaviHelper SDK | 3.0.5 |
 | Android Studio | Homebrew cask, JDK 17 로 Gradle 실행 |
-| 검증일 | 2026-11-03 (#1 · #2 · #3 · #4 · #6 · #8 실측, #5 · #7 부분) |
+| 검증일 | 2026-11-03 (#1 · #2 · #3 · #4 · #6 · #8 실측, #7 부분) · 2026-11-04 (#5 실측) |
 
 ## 결과
 
@@ -22,7 +22,7 @@
 | 2 | `Light`(전조등) 값 갱신 | ⚠️ 조건부 | 하향등 ON/OFF 는 갱신됨. 단 에뮬레이터는 Auto 모드에서 켜지지 않음 (아래 참조) |
 | 3 | NaviHelper ETA 주행 중 갱신 | ⚠️ 조건부 | **ETA 읽기 ✅** (초 단위, 화면과 일치). **주행 중 갱신 ❌** — 에뮬레이터 GPS 고정이라 VC 로 달려도 그대로 (선례와 같음) → 시연은 거리 폴백 |
 | 4 | `Odometer` 해상도 1km 미만 | ⚠️ 조건부 | SDK 는 km 소수 그대로 전달(13.257 → 13.257). **단 에뮬레이터는 주행해도 Odometer 가 안 늘어난다** → 시연은 속도 적분 폴백 |
-| 5 | `INTERNET` 권한 외부 호출 | ⚠️ OS 레벨만 확인 | 에뮬레이터 네트워크 VALIDATED, 외부 ping 성공. 앱에서 Firebase 쓰기는 DB URL 받은 뒤 |
+| 5 | `INTERNET` 권한 외부 호출 | ✅ 됨 | 앱 → Firebase REST `meta`·`vehicle` 쓰기, `/game`·`/meta` SSE 구독 모두 동작. 세션 생성 순서 버그 수정 (아래 참조) |
 | 6 | `CarUxRestrictions` 신호대기 판정 | ✅ 됨 | **기어 D + 0km/h = 제한(DO true)**. 제한 해제는 기어 P 에서만 → 설계(P 기준) 그대로 |
 | 7 | Gleo Interface 함수 등록 | ⚠️ 부분 | **TTS 발화 ✅** (`TTS_SERVICE` 권한 필요). Gleo 수신·응답 브로드캐스트 ✅. 실제 음성 호출 → 우리 함수 연결은 미확인 |
 | 8 | `Seat` 2열 점유값 반전 | ✅ 반전 확인 | VC `occupied` 와 SDK `getCurrentSeatOccupancy` 가 모든 좌석에서 반대. `SDK_OCCUPIED = false` 유지 |
@@ -253,3 +253,28 @@ adb shell am broadcast -a ai.allo.car.debug.ROUTE -n ai.allo.car/.debug.DebugRou
 - ❌ **에뮬레이터는 주행 중 ETA 가 줄지 않는다.** VC 는 속도만 바꾸고 GPS 는 판교에 고정이라 내비 기준으로는 차가 안 움직인다 (선례 SoftRide · Roadio 와 같음)
 - 영향 작음: 폰 `HatchTimer` 는 **세션 시작 시점 ETA 를 고정**하고 경과 시간으로 진행도를 계산하므로, ETA 가 실시간으로 줄지 않아도 ETA 모드 부화는 동작한다. 다만 시연 시간(2~3분)엔 ETA 50% 가 안 오므로 **시연은 거리 폴백**(설계대로)
 - 목적지 좌표는 `requestRoute` 로 내비에만 넘기고 Firebase 로 보내지 않는다 (규칙 2)
+
+### 2026-11-04 · #5 앱 → Firebase 실측 · 차 화면 P↔D 전환
+
+**#5 앱에서 Firebase 쓰기** (`firebase/database.rules.json` 이 콘솔에 적용된 상태)
+
+- 처음엔 `meta` PUT 이 **401**. 원인은 앱의 순서 문제다: `publishLoop` 가 `createSession` 보다 먼저 `vehicle` 을 써서, 노드가 생긴 뒤 `meta/createdAt` 이 없는 상태가 된다 → 규칙 `.write` 조건(`now - createdAt < 24h`)이 거짓 → 이후 쓰기가 전부 401
+- 수정: `meta` 쓰기가 성공하기 전에는 원격에 쓰지 않는다 (`SessionManager.sessionReady`). `meta` 실패 시 2초 간격 재시도
+- 수정 후: `session created` → `vehicle write ok`. REST 로 다시 읽으면 `meta`·`vehicle` 이 그대로 있고 `ts` 가 1초마다 갱신됨. `lat`/`lng` 없음
+- `etaSec: null`·빈 `envTags` 는 Firebase 가 키를 저장하지 않는다 → 폰은 **키 없음 = null/빈 배열**로 읽어야 한다
+- 401 상태에서 만들어진 고아 세션(`vehicle` 만 있고 `meta` 없음)은 규칙상 REST 로 지울 수 없다 → 콘솔에서 수동 삭제
+- 디버그 빌드에만 로그: `adb logcat -s SessionManager` 에 `session created sid=…`, `vehicle write ok/failed`, `screen …`
+
+**차 화면 P↔D 전환** (콘솔에서 `meta.paired=true` 로 바꿔 폰 없이 페어링)
+
+| 동작 | 화면 상태 변경까지 |
+| --- | --- |
+| `meta.paired` PATCH | 약 1초 (SSE) → Pairing → Parked |
+| VC `gear=Drive` | 474 · 386ms → Driving |
+| VC `gear=Park` | 386 · 386ms → Parked |
+
+- VC 요청 시각 ~ `screen` 로그 시각 기준 (하트비트 curl 포함, Compose 렌더 제외). PT 에서 체감 지연 없음
+- `/game` 에 `stage=incubating, progress=0.42` 를 쓰면 정차 화면에 `알을 품는 중 · 42%` 가 즉시 표시됨
+- ⚠️ 수정 전엔 차 화면 글자가 안 보였다: `setContent` 에 테마가 없어 `Text` 가 검정, 창 배경도 검정. `MaterialTheme(darkColorScheme())` + `Surface` 로 감쌈
+
+**`scripts/vc.sh` 추가**: `wiper 0-3|auto` · `light on|off` · `odo <km>`. `wiper 3; light on; odo 20.5` → 스냅샷 `wiperLevel=3, headlightOn=true, distanceM=20500, envTags=[rain, tunnel]` 확인
