@@ -3,6 +3,10 @@ class PairingException implements Exception {
   final String message;
 }
 
+class SessionEndedException extends PairingException {
+  const SessionEndedException() : super('주행이 끝났어요. 차량의 새 QR을 스캔해 주세요.');
+}
+
 /// 차량 QR 계약: allo://pair?sid={UUID}&code={6자리}.
 class PairingCredentials {
   const PairingCredentials._(this.sessionId, this.code);

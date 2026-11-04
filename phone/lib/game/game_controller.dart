@@ -26,6 +26,10 @@ class GameController extends ChangeNotifier {
   final PairingStore pairingStore;
   String? pairingNotice;
   bool _restoredPairing = false;
+  StreamSubscription<Map<String, Object?>>? _eventSub;
+  bool _sessionEnded = false;
+  bool _sessionEndSaved = false;
+  bool get needsNewPairing => _sessionEnded && _sessionEndSaved;
   final RarityEngine engine;
 
   SpeciesTable? _table;
@@ -51,7 +55,7 @@ class GameController extends ChangeNotifier {
   Future<void> _pendingSave = Future.value();
   Future<void> Function()? _retrySave;
   bool get isFake => feed is FakeVehicleFeed;
-  bool get canStart => !busy && (isFake || paired);
+  bool get canStart => !busy && !_sessionEnded && (isFake || paired);
 
   @override
   void notifyListeners() {
@@ -59,6 +63,7 @@ class GameController extends ChangeNotifier {
   }
 
   Future<void> _send(Future<void> Function() operation) async {
+    if (_sessionEnded || _disposed) return;
     try {
       await operation();
     } catch (_) {
@@ -100,15 +105,37 @@ class GameController extends ChangeNotifier {
   }
 
   Future<void> _connect(PairingCredentials credentials) async {
+    await _eventSub?.cancel();
+    _eventSub = null;
     await feed.pair(credentials.sessionId, pairCode: credentials.code);
     if (_disposed) return;
     _sessionId = credentials.sessionId;
+    _sessionEnded = false;
+    _sessionEndSaved = false;
     paired = true;
     try {
       await pairingStore.save(credentials);
     } catch (_) {
       pairingNotice = '연결됐지만 자동 재연결 정보를 저장하지 못했어요. 다음에는 QR을 다시 스캔해 주세요.';
     }
+    if (_disposed) return;
+    _eventSub = feed.events().listen((event) {
+      if (event['by'] == 'car' && event['type'] == 'sessionEnd') {
+        unawaited(_handleSessionEnd());
+      }
+    }, onError: (Object _) {
+      error = '차량 연결 상태를 확인하지 못했어요. 연결을 확인해 주세요.';
+      notifyListeners();
+    });
+  }
+
+  Future<void> _handleSessionEnd() async {
+    if (_sessionEnded || _disposed) return;
+    _sessionEnded = true;
+    paired = false;
+    pairingNotice = '주행이 끝났어요. 차량의 새 QR을 스캔해 주세요.';
+    notifyListeners();
+    await endSession();
   }
 
   Future<void> pair(String sessionId, {String? pairCode}) async {
@@ -119,12 +146,20 @@ class GameController extends ChangeNotifier {
     pairingNotice = null;
     notifyListeners();
     try {
+      if (_sessionEnded && !_sessionEndSaved && !await endSession()) return;
       if (isFake) {
         await feed.pair(sessionId, pairCode: pairCode);
         paired = true;
       } else {
         await _connect(
             PairingCredentials.parseFields(sessionId, pairCode ?? ''));
+      }
+    } on SessionEndedException catch (e) {
+      error = e.message;
+      try {
+        await pairingStore.clear();
+      } catch (_) {
+        error = '${e.message} 이전 연결 정보를 지우지 못했어요. 다시 시도해 주세요.';
       }
     } on PairingException catch (e) {
       error = e.message;
@@ -146,6 +181,7 @@ class GameController extends ChangeNotifier {
       if (!await endSession()) return false;
       await loadSpecies();
       final saved = await dex.incubationProgress(tier);
+      if (_disposed || _sessionEnded || (!isFake && !paired)) return false;
       _activeSessionId = isFake ? null : _sessionId;
       _sessionDistances = Map.of(saved.sessionDistances);
       _distanceBaseline = _sessionDistances[_activeSessionId] ?? 0;
@@ -184,6 +220,7 @@ class GameController extends ChangeNotifier {
   }
 
   void _onVehicle(VehicleState v) {
+    if (_sessionEnded || _disposed) return;
     vehicle = v;
     seenTags.addAll(v.envTags);
     final t = _timer;
@@ -266,7 +303,7 @@ class GameController extends ChangeNotifier {
   }
 
   void care() {
-    if (game.stage != Stage.incubating) return;
+    if (_sessionEnded || game.stage != Stage.incubating) return;
     careCount++;
     game = game.copyWith(ts: _now, careCount: careCount);
     unawaited(_send(() => feed.publishGame(game)));
@@ -274,7 +311,7 @@ class GameController extends ChangeNotifier {
   }
 
   void lookOut() {
-    if (game.stage != Stage.hatched) return;
+    if (_sessionEnded || game.stage != Stage.hatched) return;
     lookOutCount++;
     game = game.copyWith(lookOutCount: lookOutCount);
     unawaited(_send(() => feed.emitEvent('lookOutPrompt')));
@@ -283,10 +320,15 @@ class GameController extends ChangeNotifier {
   }
 
   /// 도착(기어 P) 또는 앱 종료. 부화 전이면 거리를 다음 주행으로 넘긴다.
-  Future<bool> endSession() async {
+  Future<bool>? _endingSession;
+  Future<bool> endSession() => _endingSession ??=
+      _finishSession().whenComplete(() => _endingSession = null);
+
+  Future<bool> _finishSession() async {
+    final subscription = _sub;
+    subscription?.pause();
+    var saved = false;
     try {
-      await _sub?.cancel();
-      _sub = null;
       await _pendingSave;
       if (_retrySave != null) await _trySave();
       if (_retrySave != null) return false;
@@ -299,12 +341,25 @@ class GameController extends ChangeNotifier {
               sessionDistances: Map.of(_sessionDistances),
             ));
       }
+      await subscription?.cancel();
+      _sub = null;
+      if (_sessionEnded) {
+        await pairingStore.clear();
+        await _eventSub?.cancel();
+        _eventSub = null;
+        _sessionEndSaved = true;
+        error = null;
+      }
       _timer = null;
+      saved = true;
+      if (_sessionEnded) notifyListeners();
       return true;
     } catch (_) {
       error = '저장하지 못했어요. 다시 시도해 주세요.';
       notifyListeners();
       return false;
+    } finally {
+      if (!saved && !_disposed) subscription?.resume();
     }
   }
 
@@ -314,6 +369,7 @@ class GameController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _sub?.cancel();
+    _eventSub?.cancel();
     feed.dispose();
     super.dispose();
   }
