@@ -7,7 +7,7 @@ import ai.allo.car.BuildConfig
 import ai.allo.car.model.*
 import ai.allo.car.vehicle.*
 import ai.allo.car.dialogue.DialogueBank
-import ai.allo.car.gleo.Destination
+import ai.allo.car.gleo.AcceptResult
 import ai.allo.car.gleo.DestinationFlow
 import ai.allo.car.gleo.GleoFunctions
 import ai.allo.car.voice.DriverVoice
@@ -103,6 +103,7 @@ class SessionManager(private val context: Context) {
 
     /** Gleo 제안. 현재 위치에서 가까운 순. 폰에는 지역 태그만 알린다 (좌표 X). */
     fun suggestDestination(): DestinationFlow.Offer {
+        if (naviEta.etaSec.value != null) return DestinationFlow.Offer.None(ai.allo.car.gleo.NoSuggestion.ROUTE_ACTIVE)
         val here = naviEta.position.value
         // 방문 기록은 폰에만 있다. /game 에 미방문 지역 필드가 생기기 전까지는 null(폴백). 이슈 #9
         val offer = destinations.offer(here, regionTagger.tag(here?.lat, here?.lng), unvisitedRegions = null)
@@ -113,12 +114,18 @@ class SessionManager(private val context: Context) {
         return offer
     }
 
-    /** 운전자가 수락. 직전 제안이 유효할 때만 내비에 목적지를 넣는다. */
-    fun acceptDestination(): Destination? {
-        val d = destinations.accept() ?: return null
-        naviEta.requestRoute(d.latitude, d.longitude, d.name)
-        scope.launch { runCatching { emitEvent("destinationSuggest", mapOf("region" to d.region, "status" to "accepted")) } }
-        return d
+    /**
+     * 운전자가 수락. 직전 제안이 유효하고, 안내 중이 아니고, 내비 요청이 성공했을 때만 목적지가 바뀐다.
+     * accepted 이벤트도 성공했을 때만 보낸다.
+     */
+    fun acceptDestination(): AcceptResult {
+        val r = destinations.accept(routeActive = naviEta.etaSec.value != null) { d -> naviEta.requestRoute(d.latitude, d.longitude, d.name) }
+        if (r is AcceptResult.Started) {
+            val d = r.destination
+            scope.launch { runCatching { emitEvent("destinationSuggest", mapOf("region" to d.region, "status" to "accepted")) } }
+        }
+        debugLog("accept → ${r::class.simpleName}")
+        return r
     }
 
     /** 새 세션: 새 id·페어링 코드, 누적값 초기화, 구독 다시 시작. 폰은 다시 페어링해야 한다 */

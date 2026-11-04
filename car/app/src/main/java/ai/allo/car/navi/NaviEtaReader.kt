@@ -84,11 +84,12 @@ class NaviEtaReader(context: Context) {
     }
 
     /** 목적지 설정. 목적지 제안(A-5)과 디버그 확인에 쓴다. 좌표는 내비에만 넘기고 Firebase 로 보내지 않는다. */
-    fun requestRoute(latitude: Double, longitude: Double, name: String) {
-        if (!ready) { Log.w(TAG, "requestRoute before init"); return }
-        runCatching {
+    /** @return 내비에 요청을 넘겼으면 true. 초기화 전이거나 SDK 예외면 false */
+    fun requestRoute(latitude: Double, longitude: Double, name: String): Boolean {
+        if (!ready) { Log.w(TAG, "requestRoute before init"); return false }
+        return runCatching {
             navi.requestRoute(RouteInfo(latitude = latitude, longitude = longitude, poiName = name, poiId = "", address = "", poiSubId = ""))
-        }.onFailure { Log.w(TAG, "requestRoute failed", it) }
+        }.onFailure { Log.w(TAG, "requestRoute failed", it) }.isSuccess
     }
 
     fun stop() {

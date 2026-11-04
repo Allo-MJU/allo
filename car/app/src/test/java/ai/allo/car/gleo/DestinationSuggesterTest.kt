@@ -66,6 +66,20 @@ class DestinationSuggesterTest {
         assertNull(flow.accept())
     }
 
+    @Test fun `accept keeps the offer when navi fails or a route is active`() {
+        val flow = DestinationFlow(now = { 0L })
+        val offered = (flow.offer(pangyo, "city") as DestinationFlow.Offer.Made).suggestion.destination
+        assertEquals(AcceptResult.NaviNotReady, flow.accept(routeActive = false) { false })
+        assertEquals(AcceptResult.RouteActive, flow.accept(routeActive = true) { error("내비를 부르면 안 된다") })
+        assertEquals(AcceptResult.Started(offered), flow.accept(routeActive = false) { true })   // 남아 있던 제안
+        assertEquals(AcceptResult.NoOffer, flow.accept(routeActive = false) { true })            // 한 번만
+    }
+
+    @Test fun `forged accept without a prior offer never reaches navi`() {
+        val flow = DestinationFlow(now = { 0L })
+        assertEquals(AcceptResult.NoOffer, flow.accept(routeActive = false) { error("내비를 부르면 안 된다") })
+    }
+
     @Test fun `accept without offer or after ttl is rejected and ttl restarts ranking`() {
         assertNull(DestinationFlow().accept())
         var t = 0L

@@ -8,9 +8,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class GleoCallback(
     val functionName: String,
-    val status: String,          // "success" | "fail" | "error"
+    val status: String,          // "success" | "asking"(확인이 더 필요) | "fail" — Pleos Callback Schema 가이드
     val message: String,         // Gleo 가 운전자에게 읽어줄 문장
     val data: String? = null,
+    val mode: String? = null,    // null = 기본("voice"). "silent" 면 Gleo 는 말하지 않는다 (앱이 직접 말할 때)
 )
 
 /**
@@ -37,7 +38,9 @@ object GleoFunctions {
             CELEBRATE_HATCH -> GleoCallback(function, "success",
                 if (game.stage == "hatched") pick("car_hatch", "hatched") ?: "${attrWord(game.attribute)} 아이가 깨어났어요! 뒷자리에 물어보세요."
                 else pick("car_hatch", "not_yet") ?: "아직 깨어나지 않았어요.")
-            SUGGEST_DESTINATION -> GleoCallback(function, "success", suggestFromBank(offer, bank) ?: suggestMessage(offer))
+            // 제안은 운전자 확인이 필요하므로 asking, 제안할 곳이 없으면 fail
+            SUGGEST_DESTINATION -> GleoCallback(function, if (offer is DestinationFlow.Offer.Made) "asking" else "fail",
+                suggestFromBank(offer, bank) ?: suggestMessage(offer))
             else -> GleoCallback(function, "fail", bank.line("car_unknown", null, null, "*") ?: "모르는 요청이에요.")
         }
     }
@@ -75,6 +78,7 @@ object GleoFunctions {
             NoSuggestion.ALL_VISITED -> "가까운 곳은 다 가보셨어요. 다음 계절에 새 아이가 나와요."
             NoSuggestion.NONE_NEARBY -> "가까운 곳에는 새 아이가 나오는 곳이 없어요."
             NoSuggestion.EXHAUSTED -> "근처에서 추천할 곳은 여기까지예요. 내비에서 원하는 곳을 직접 고르셔도 돼요."
+            NoSuggestion.ROUTE_ACTIVE -> "지금은 길 안내 중이에요. 안내가 끝나면 다시 물어봐 주세요."
         }
         is DestinationFlow.Offer.Made -> {
             val s = offer.suggestion; val d = s.destination
@@ -98,11 +102,21 @@ object GleoFunctions {
     /** 5km 단위 반올림, 최소 5 */
     internal fun roundKm(km: Double): Int = maxOf(5, (Math.round(km / 5.0) * 5).toInt())
 
-    /** confirm=true 로 다시 불렸을 때. [destination] 이 null 이면 유효한 제안이 없었던 것. */
-    fun respondAccept(destination: Destination?, bank: DialogueBank = DialogueBank.EMPTY): GleoCallback =
-        if (destination != null) GleoCallback(SUGGEST_DESTINATION, "success",
-            bank.line("car_accept", null, null, "ok", mapOf("place" to destination.name)) ?: "${destination.name}까지 안내를 시작할게요.")
-        else GleoCallback(SUGGEST_DESTINATION, "fail", bank.line("car_accept", null, null, "none") ?: "먼저 어디로 갈지 물어봐 주세요.")
+    /**
+     * confirm=true 로 다시 불렸을 때.
+     * 성공하면 mode="silent" 로 돌려주고 차량 앱이 같은 문장을 직접 말한다 ([GleoReceiver]).
+     * 그래서 목적지가 바뀔 때는 누가 호출했든 운전자가 항상 듣는다 (PR #10 리뷰 P1 완화).
+     */
+    fun respondAccept(result: AcceptResult, bank: DialogueBank = DialogueBank.EMPTY): GleoCallback {
+        fun line(situation: String, vars: Map<String, String> = emptyMap()) = bank.line("car_accept", null, null, situation, vars)
+        return when (result) {
+            is AcceptResult.Started -> GleoCallback(SUGGEST_DESTINATION, "success",
+                line("ok", mapOf("place" to result.destination.name)) ?: "${result.destination.name}까지 안내를 시작할게요.", mode = "silent")
+            AcceptResult.NoOffer -> GleoCallback(SUGGEST_DESTINATION, "fail", line("none") ?: "먼저 어디로 갈지 물어봐 주세요.")
+            AcceptResult.RouteActive -> GleoCallback(SUGGEST_DESTINATION, "fail", line("route_active") ?: "지금은 길 안내 중이라 목적지를 바꾸지 않을게요.")
+            AcceptResult.NaviNotReady -> GleoCallback(SUGGEST_DESTINATION, "fail", line("not_ready") ?: "내비가 아직 준비되지 않았어요. 잠시 뒤에 다시 말해 주세요.")
+        }
+    }
 
     private fun tierWord(t: String) = when (t) { "large" -> "긴"; "mid" -> "중간"; else -> "작은" }
     private fun attrWord(a: String?) = when (a) { "water" -> "물 속성"; "dark" -> "어둠 속성"; else -> "" }

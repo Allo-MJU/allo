@@ -56,7 +56,7 @@
 | --- | --- |
 | 말투 | **존댓말**. 문장마다 "~요/~다"로 끝난다 (검증기 검사) |
 | 길이 | 45자 (예시값 대입 기준, 약 9초). 목적지 제안(`car_suggest`)만 80자·4문장 — 지역·장소·거리·대안 안내가 들어간다 |
-| 키 | `car_egg_status` (`incubating`/`hatched`/`idle`) · `car_hatch` (`hatched`/`not_yet`, 대상은 `@속성`) · `car_suggest` (`first`/`unvisited`/`alt`) · `car_suggest_none` (`all_visited`/`none_nearby`/`exhausted`) · `car_accept` (`ok`/`none`) · `car_unknown` |
+| 키 | `car_egg_status` (`incubating`/`hatched`/`idle`) · `car_hatch` (`hatched`/`not_yet`, 대상은 `@속성`) · `car_suggest` (`first`/`unvisited`/`alt`) · `car_suggest_none` (`all_visited`/`none_nearby`/`exhausted`/`route_active`) · `car_accept` (`ok`/`none`/`route_active`/`not_ready`) · `car_unknown` |
 | 값 | `{tier_word}` 작은/중간/긴 · `{progress}` · `{name}` 종 한글 이름 · `{region_word}` 바다/산/도심 · `{place}` 목적지 이름 · `{km}` " 직선으로 약 N km예요." 또는 빈 값 |
 
 **조사 플레이스홀더**: `{name}{name:이/가}` — 바로 앞 값에 받침이 있으면 앞(이), 없으면 뒤(가). `{place}{place:으로/로}` 는 ㄹ 받침도 "로"(서울로). 바로 앞에 같은 플레이스홀더가 없으면 검증기가 실패시킨다.
