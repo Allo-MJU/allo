@@ -41,30 +41,34 @@
 
 ```
 /sessions/{sessionId}
-  pairedAt: timestamp
+  meta:                          # createdAt, pairCode, paired, carAppVersion
   vehicle:
+    ts: number                    # epoch ms
     gear: "P" | "D" | "R" | "N"
     speedKph: number
-    harshBrakeCount: number        # 누적
-    harshSteerCount: number        # 누적
+    harshBrake: number             # 세션 누적
+    harshSteer: number             # 세션 누적
     distanceM: number              # 누적 주행거리
     wiperLevel: 0 | 1 | 2 | 3
     headlightOn: boolean
-    seatRow2Occupied: boolean
-    etaSeconds: number | null      # 내비 미사용 시 null
+    seatRow2: boolean
+    etaSec: number | null          # 사용할 수 있는 ETA 없음이면 null
     envTags: ["rain" | "tunnel" | "highway" | "coast" | ...]
   game:
+    ts: number                    # epoch ms
     eggTier: "small" | "mid" | "large"
-    stage: "incubating" | "hatched"
+    stage: "idle" | "incubating" | "hatched"
     progress: 0..1
     speciesId: string | null
+    regionCollectionKnown: boolean
+    uncollectedRegions: string[]   # coast / mountain / city; 미수집 지역
 ```
 
 **원칙**
 
 - 위치 좌표는 올리지 않습니다. 차량 앱이 `envTags`로 변환해서 보냅니다 (아동 개인정보 요건)
-- 전송 주기 1초. 변화 없으면 생략
-- `etaSeconds`가 null이면 폰 앱은 `distanceM` 기준 폴백으로 전환
+- 차량은 약 1초 주기로 ts를 갱신해 전송한다.
+- 알 지급 시 ETA가 없으면 거리 폴백을 선택하며, 해당 알 도중 모드를 바꾸지 않는다. 반복 지급·복구·지역 요약의 확정 계약은 `docs/schema.md` 3.4를 따른다.
 
 ## 5. 일정
 

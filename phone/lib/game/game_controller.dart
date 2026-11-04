@@ -28,7 +28,12 @@ class GameController extends ChangeNotifier {
   final Stopwatch _stopwatch = Stopwatch();
   final int Function()? _monotonicMs;
   int get activeClockMs =>
-      _monotonicMs?.call() ?? _stopwatch.elapsedMilliseconds;
+      _monotonicMs?.call() ??
+      (_stopwatch.elapsedMilliseconds *
+              (feed is FakeVehicleFeed
+                  ? (feed as FakeVehicleFeed).timeScale
+                  : 1))
+          .round();
   bool _appActive = true;
   int? _clockAt;
   int _elapsedMs = 0;
@@ -375,6 +380,7 @@ class GameController extends ChangeNotifier {
           HatchTimer(eggTier: game.eggTier, carriedM: _timer?.carriedM ?? 0);
     }
     _modeSelected = true;
+    game = game.copyWith(stage: Stage.incubating);
     _elapsedMs = 0;
     _clockAt = activeClockMs;
     if (eta != null) {
@@ -416,8 +422,10 @@ class GameController extends ChangeNotifier {
     if (_needsResumeBaseline) {
       _distanceBaseline +=
           (v.distanceM - _lastDistance).clamp(0, double.infinity);
-      _brakeBaseline += (v.harshBrake - _resumeBrake).clamp(0, 1 << 30);
-      _steerBaseline += (v.harshSteer - _resumeSteer).clamp(0, 1 << 30);
+      _brakeOffset += (_resumeBrake - _brakeBaseline).clamp(0, 1 << 30);
+      _steerOffset += (_resumeSteer - _steerBaseline).clamp(0, 1 << 30);
+      _brakeBaseline = v.harshBrake;
+      _steerBaseline = v.harshSteer;
       _needsResumeBaseline = false;
     }
     if (_needsLegacyBaseline) {
@@ -530,8 +538,9 @@ class GameController extends ChangeNotifier {
     final connection = _connection;
     final sessionId = _sessionId;
     _publishTail = _publishTail.then((_) async {
-      if (_disposed || connection != _connection || sessionId != _sessionId)
+      if (_disposed || connection != _connection || sessionId != _sessionId) {
         return;
+      }
       await _send(() => feed.publishGame(snapshot));
     });
   }

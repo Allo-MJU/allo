@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:allo_core/allo_core.dart';
-import 'package:allo_core/src/region_collection.dart';
 import 'package:test/test.dart';
 
 GameState state() => const GameState(
