@@ -69,8 +69,10 @@ class DialogueBankTest {
             GleoFunctions.respond(GleoFunctions.REPORT_EGG_STATUS, GameState(), bank = real),
             GleoFunctions.respond(GleoFunctions.CELEBRATE_HATCH, hatched, bank = real),
             GleoFunctions.respond(GleoFunctions.CELEBRATE_HATCH, incubating, bank = real),
-            GleoFunctions.respondAccept(DestinationSuggester.CANDIDATES.first(), real),
-            GleoFunctions.respondAccept(null, real),
+            GleoFunctions.respondAccept(ai.allo.car.gleo.AcceptResult.Started(DestinationSuggester.CANDIDATES.first()), real),
+            GleoFunctions.respondAccept(ai.allo.car.gleo.AcceptResult.NoOffer, real),
+            GleoFunctions.respondAccept(ai.allo.car.gleo.AcceptResult.RouteActive, real),
+            GleoFunctions.respondAccept(ai.allo.car.gleo.AcceptResult.NaviNotReady, real),
         ) + NoSuggestion.values().map { GleoFunctions.respond(GleoFunctions.SUGGEST_DESTINATION, GameState(), DestinationFlow.Offer.None(it), real) } +
             listOf(false to false, true to false, false to true).map { (unvisited, alt) ->
                 val d = DestinationSuggester.CANDIDATES.first { it.region == "mountain" }

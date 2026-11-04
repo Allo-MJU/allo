@@ -1,5 +1,7 @@
 package ai.allo.car.gleo
 
+import ai.allo.car.navi.Guidance
+
 import ai.allo.car.vehicle.GeoPoint
 
 /**
@@ -23,7 +25,8 @@ data class Suggestion(
 )
 
 /** 제안할 곳이 없는 이유. 운전자에게 들려줄 문장이 다르다. */
-enum class NoSuggestion { ALL_VISITED, NONE_NEARBY, EXHAUSTED }
+/** ROUTE_ACTIVE: 이미 내비 안내 중. 진행 중인 안내를 바꾸지 않는다 (PR #10 리뷰 P1 완화) */
+enum class NoSuggestion { ALL_VISITED, NONE_NEARBY, EXHAUSTED, ROUTE_ACTIVE }
 
 object DestinationSuggester {
     /** 위치를 모를 때의 지역 우선순위. */
@@ -118,12 +121,41 @@ class DestinationFlow(
     @Synchronized
     fun reset() { ranked = emptyList(); index = -1 }
 
+    /** 유효한(2분 안) 제안의 목적지. 소비하지 않는다 */
+    @Synchronized
+    fun pending(): Destination? {
+        if (index < 0 || index >= ranked.size) return null
+        return ranked[index].destination.takeIf { now() - at <= ttlMs }
+    }
+
     /** 유효한 제안이 있으면 그 목적지를 돌려주고 대화를 끝낸다. 없거나 만료됐으면 null. */
     @Synchronized
-    fun accept(): Destination? {
-        if (index < 0 || index >= ranked.size) return null
-        val d = ranked[index].destination.takeIf { now() - at <= ttlMs }
+    fun accept(): Destination? = pending().also { index = -1 }
+
+    /**
+     * 수락 처리. 안내 상태가 [Guidance.IDLE] 로 확인됐고 내비 요청([request])이 성공했을 때만 제안을 소비한다.
+     * 안내 중·상태 미확인·요청 실패면 제안을 남겨 두어 다시 수락할 수 있다 (PR #10·#24 리뷰).
+     */
+    @Synchronized
+    fun accept(guidance: Guidance, request: (Destination) -> Boolean): AcceptResult {
+        val d = pending() ?: return AcceptResult.NoOffer
+        when (guidance) {
+            Guidance.GUIDING -> return AcceptResult.RouteActive
+            Guidance.UNKNOWN -> return AcceptResult.NaviNotReady
+            Guidance.IDLE -> {}
+        }
+        if (!request(d)) return AcceptResult.NaviNotReady
         index = -1
-        return d
+        return AcceptResult.Started(d)
     }
+}
+
+sealed interface AcceptResult {
+    data class Started(val destination: Destination) : AcceptResult
+    /** 유효한 제안이 없음 (안 했거나 2분 지남) */
+    data object NoOffer : AcceptResult
+    /** 이미 내비 안내 중 → 바꾸지 않는다 */
+    data object RouteActive : AcceptResult
+    /** 내비 초기화 전이거나 요청 실패. 제안은 남아 있다 */
+    data object NaviNotReady : AcceptResult
 }
