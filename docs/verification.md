@@ -390,3 +390,18 @@ Pleos 문서 확인 ([Examples](https://document.pleos.ai/en/docs/pleos-only/app
 | 경로 시작 후 `GUIDING`, 제안 / 위조 수락 | fail "지금은 길 안내 중이에요…" / `NoOffer` ✅ |
 | TTS 를 쓸 수 없을 때 Gleo 음성 유지 | ❓ 에뮬레이터에서 TTS 실패를 만들 수 없어 단위 테스트로만 확인 |
 
+
+### 2026-11-04 · 포그라운드 서비스 크래시 · 좀비 서비스 (allo 차량 앱)
+
+- **크래시**: 에뮬레이터 SystemUI 가 재시작을 반복하는 동안 앱이 `ForegroundServiceStartNotAllowedException` 으로 종료됨 (`SessionService.onCreate` 의 `startForeground`). 앱이 앞에 보이지 않는 순간에 서비스가 만들어진 것으로 보인다. 같은 조건을 다시 만들지는 못했다
+- **좀비 서비스**: `am crash` 로 백그라운드에서 앱을 죽이면 `START_STICKY` 때문에 서비스만 되살아나 "실행 중" 알림이 뜨지만 `SessionManager` 는 시작되지 않아 아무것도 수집하지 않았다
+
+수정: 서비스 시작을 `MainActivity.onStart`(화면에 보일 때)로 옮기고, 시작·`startForeground` 실패는 삼켜 서비스만 접는다(다음 onStart 에서 재시도). `START_NOT_STICKY`. Android 15 의 dataSync 6시간 limit 에 대비해 `onTimeout` 에서 서비스를 접는다.
+
+| 확인 | 결과 |
+| --- | --- |
+| 실행 → 홈으로 나가 20초 | 서비스 `isForeground=true`, `vehicle.ts` 계속 갱신 ✅ |
+| 백그라운드에서 `am crash` | 서비스가 되살아나지 않음 (좀비 없음) ✅ |
+| 다시 열기 | 새 프로세스에서 `isForeground=true` ✅ |
+| `startForeground` 거부 경로 | ❓ 재현 조건을 못 만들어 실기 확인 못 함. 예외를 잡는 코드만 추가 |
+||||||| 0117513
