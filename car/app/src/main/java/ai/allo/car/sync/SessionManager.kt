@@ -6,7 +6,10 @@ import android.os.Build
 import ai.allo.car.BuildConfig
 import ai.allo.car.model.*
 import ai.allo.car.vehicle.*
+import ai.allo.car.gleo.Destination
+import ai.allo.car.gleo.DestinationFlow
 import ai.allo.car.gleo.GleoFunctions
+import ai.allo.car.gleo.Suggestion
 import ai.allo.car.voice.DriverVoice
 import ai.allo.car.navi.NaviEtaReader
 import ai.allo.car.voice.HatchAnnouncement
@@ -45,6 +48,8 @@ class SessionManager(private val context: Context) {
     val vehicle: StateFlow<VehicleSnapshot?> = _vehicle
     /** 내비 ETA. 경로 안내 중이 아니면 null → 폰은 거리 폴백 */
     val naviEta = NaviEtaReader(context)
+    /** Gleo 목적지 제안 → 수락 */
+    val destinations = DestinationFlow()
 
     val screen: StateFlow<CarScreen> = combine(_meta, aaos.state) { m, a ->
         when {
@@ -81,6 +86,22 @@ class SessionManager(private val context: Context) {
     /** MainActivity 가 CAR_SPEED 런타임 권한을 받은 뒤 호출. */
     fun onSpeedPermissionGranted() {
         if (aaos.startSpeed()) caps.mark(Capability.SPEED, true)
+    }
+
+    /** Gleo 제안. 폰에는 지역 태그만 알린다 (좌표 X). */
+    fun suggestDestination(): Suggestion? {
+        // 방문 기록은 폰에만 있다. /game 에 미방문 지역 필드가 생기기 전까지는 null(폴백). 이슈 #9
+        val s = destinations.offer(regionTagger.tag(null, null), unvisitedRegions = null)
+        if (s != null) scope.launch { runCatching { emitEvent("destinationSuggest", mapOf("region" to s.destination.region, "status" to "offered")) } }
+        return s
+    }
+
+    /** 운전자가 수락. 직전 제안이 유효할 때만 내비에 목적지를 넣는다. */
+    fun acceptDestination(): Destination? {
+        val d = destinations.accept() ?: return null
+        naviEta.requestRoute(d.latitude, d.longitude, d.name)
+        scope.launch { runCatching { emitEvent("destinationSuggest", mapOf("region" to d.region, "status" to "accepted")) } }
+        return d
     }
 
     fun stop() {
