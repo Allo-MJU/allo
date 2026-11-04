@@ -2,9 +2,7 @@
 
 검토일: 2026-11-04 (KST). 상태: **로컬 준비 완료, 정리 정책·운영 실행 미승인/미실행**.
 
-- Worktree: `/Users/seokamoto/Documents/잡동 프로젝트/현대차/_workspace/c-cleanup-20261104`
-- 브랜치: `codex/c-cleanup-20261104`
-- 시작 SHA: `1f764d1c29d4179588b8b37ac3f45f0e905852a1`
+- 검토 코드 기준: `011751328d1918c3a7695e9468cb9449a6932547 (dev)`
 - 근거: [이슈 #23](https://github.com/Allo-MJU/allo/issues/23) 본문·댓글(조회 당시 OPEN, 댓글 없음), 현행 `firebase/database.rules.json`, `firebase/README.md`, `docs/schema.md` 3.2/3.6/3.7, `docs/verification.md`의 11/4 고아 세션 기록, `SessionManager.kt`의 생성·발행 순서.
 - 변경 파일은 이 문서, `scripts/cleanup_sessions_dry_run.py`, `scripts/tests/test_cleanup_sessions.py`, `scripts/tests/fixtures/cleanup_sessions.json`뿐이다. 규칙·workflow·공용 문서는 수정하지 않았다.
 
