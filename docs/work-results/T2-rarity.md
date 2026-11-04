@@ -1,16 +1,13 @@
 # T2 — 희귀도 판정과 생물 선택 검토
 
 - 작업일: 2026-11-04
-- worktree: `/Users/seokamoto/Documents/잡동 프로젝트/현대차/_workspace/c-rarity-20261104`
-- 브랜치: `codex/c-rarity-20261104`
-- 시작 커밋: `1f764d1c29d4179588b8b37ac3f45f0e905852a1`
-- 산출 커밋: 이 문서와 probe를 포함하는 로컬 `docs(logic): document rarity policy gaps and add probe` 커밋. 정확한 SHA는 최종 보고에 기록한다.
+- 검토 코드 기준: `19e17b07592a80bf971b21ac22adc7aec6ac08ff (PR #21)`
 
 ## 결론과 이번 변경 범위
 
 요청된 세 불일치와 희귀종 우선·지원 신호 누락을 재현했다. 제품 코드, 카탈로그, 기존 테스트 기대값은 변경하지 않았다. 신규 산출물은 관측용 `phone/packages/allo_core/tool/rarity_policy_probe.dart`와 이 문서다. probe는 실제 엔진·테이블을 호출하며, 미지원 태그를 선택 직전에 제외하는 **비교 실험**도 출력한다. 실험이 채택된 정책을 뜻하지 않는다.
 
-현행 `docs/schema.md:172`는 미지원 비 속성을 제외해야 한다고 설명한다. 그러나 배정서가 최신 판단 근거로 지정한 보존본 `../c-run-20261104/source-snapshot/docs/schema.md:75,86–87`는 **종 등급 대 개체 등급, 희귀종 우선과 지원 신호 제한**을 명시적으로 C/D 미결정 항목으로 남겼다. 이를 근거로 지원 필터 누락도 추천 최소 패치로만 제시한다. 지금 확정 계약만으로 안전하게 바꿀 수 있는 제품 동작은 발견하지 못했다. 기대 동작을 임의로 정한 실패 테스트를 기본 suite에 추가하지 않았다.
+현행 `docs/schema.md:172`는 미지원 비 속성을 제외해야 한다고 설명한다. 이번 C 검토 범위에서는 **종 등급 대 개체 등급, 희귀종 우선과 지원 신호 제한**을 C/D의 별도 결정 대상으로 유지한다. 따라서 지원 필터 누락도 추천 최소 패치로만 제시한다. 지금 확정 계약만으로 안전하게 바꿀 수 있는 제품 동작은 발견하지 못했다. 기대 동작을 임의로 정한 실패 테스트를 기본 suite에 추가하지 않았다.
 
 ## 원인과 실제 호출 경로
 
@@ -90,8 +87,8 @@
 
 ## 실행한 검증과 한계
 
-- `bash scripts/check_c.sh core`: exit 0, 기존 코어 테스트 **28개 전부 통과**. 실제 엔진→pick 12종 테스트 포함. analyzer 오류·경고 없음; 기존 info 2건(`unnecessary_library_name`, `dangling_library_doc_comments`) 유지. pub의 lints 새 버전 알림이 있었고 의존성 선언/lock은 수정하지 않았다.
-- `dart run phone/packages/allo_core/tool/rarity_policy_probe.dart`: exit 0, 위 9개 사례와 비교 실험 JSON 출력 확인. Dart가 PATH에 없으면 `/Users/seokamoto/.cache/allo-tools/flutter/bin/dart` 사용.
+- `phone/packages/allo_core`에서 `dart pub get`, `dart analyze`, `dart test`: exit 0, 기존 코어 테스트 **28개 전부 통과**. 실제 엔진→pick 12종 테스트 포함. analyzer 오류·경고 없음; 기존 info 2건(`unnecessary_library_name`, `dangling_library_doc_comments`) 유지. pub의 lints 새 버전 알림이 있었고 의존성 선언/lock은 수정하지 않았다.
+- `dart run phone/packages/allo_core/tool/rarity_policy_probe.dart`: exit 0, 위 9개 사례와 비교 실험 JSON 출력 확인. 설치된 Dart 또는 Flutter SDK의 `bin` 디렉터리를 PATH에 추가한 환경에서 실행한다.
 - `dart format --output=none --set-exit-if-changed phone/packages/allo_core/tool/rarity_policy_probe.dart`: 형식 확인.
 - `git diff --check`: 공백 오류 확인.
 - 읽기 전용 서브에이전트가 정책 권위·호출 경로·도달성 대안을 독립 검토했고, 메인에서 실제 probe와 suite 결과를 확인했다.
