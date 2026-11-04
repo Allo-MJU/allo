@@ -253,3 +253,15 @@ adb shell am broadcast -a ai.allo.car.debug.ROUTE -n ai.allo.car/.debug.DebugRou
 - ❌ **에뮬레이터는 주행 중 ETA 가 줄지 않는다.** VC 는 속도만 바꾸고 GPS 는 판교에 고정이라 내비 기준으로는 차가 안 움직인다 (선례 SoftRide · Roadio 와 같음)
 - 영향 작음: 폰 `HatchTimer` 는 **세션 시작 시점 ETA 를 고정**하고 경과 시간으로 진행도를 계산하므로, ETA 가 실시간으로 줄지 않아도 ETA 모드 부화는 동작한다. 다만 시연 시간(2~3분)엔 ETA 50% 가 안 오므로 **시연은 거리 폴백**(설계대로)
 - 목적지 좌표는 `requestRoute` 로 내비에만 넘기고 Firebase 로 보내지 않는다 (규칙 2)
+
+### 2026-11-04 · Pleos 온디바이스 LLM (`ai.pleos.playground:LLM:2.1.3.2`)
+
+**결과: ❌ 에뮬레이터에서 비활성.** 서비스 바인딩은 되지만 Pleos 쪽이 요청을 무시한다.
+
+- SDK: Pleos Maven `LLM 2.1.3.2`. `LLM(context, Mode.ON_DEVICE).initialize()` → `generateContent(prompt, listener)`. 권한 `pleos.car.permission.LLM_SERVICE`(normal)
+- 에뮬레이터 구성: `ai.pleos.playground.caas` 의 `LLMService` 존재, 모델 패키지 `ai.pleos.gleoai.model.provider`(`/system_ext/app/LLMModelProviderSerivce`, **1.4GB**) 존재
+- 호출하면 Pleos 서비스 로그: `[GAAS]OnDeviceLLMManagerImpl: startLLM ignored: on-device LLM is disabled` / `initialize(ai.allo.car) ignored`. 앱 쪽 콜백(`onResponse`/`onError`)은 **아무것도 오지 않는다** (40초 대기)
+- `getprop`·`settings` 에 켜는 스위치 없음. `Mode.SERVER` 는 `registerApp(key, secret, …)` 자격 정보가 필요해 시도 못 함
+- 디버그 전용 확인 코드: `DebugLlmReceiver` (`adb shell am broadcast -a ai.allo.car.debug.LLM -n ai.allo.car/.debug.DebugLlmReceiver --es prompt "…"`). release 빌드엔 안 들어간다
+- **영향**: 런타임 대사 생성(설계 8절)은 보류. 공모전·PT 는 사람이 검수한 대사 뱅크로 간다. 실차에서 켜져 있는지, 또는 Pleos 에 활성화 문의가 필요한지는 미확인
+
