@@ -9,7 +9,8 @@ void main() {
   late SpeciesTable table;
   setUpAll(() {
     final file = File('../../../data/species.json');
-    table = SpeciesTable.fromJson(jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
+    table = SpeciesTable.fromJson(
+        jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
   });
 
   test('12종이고 id 가 유일하다', () {
@@ -20,7 +21,10 @@ void main() {
   test('속성 3 × tier 3 기본 9종이 모두 있다', () {
     for (final a in Attribute.values) {
       for (var t = 1; t <= 3; t++) {
-        expect(table.all.where((s) => s.attribute == a && s.tier == t && s.requiredTags.length < 2), isNotEmpty,
+        expect(
+            table.all.where((s) =>
+                s.attribute == a && s.tier == t && s.requiredTags.length < 2),
+            isNotEmpty,
             reason: '${a.name} tier $t 없음');
       }
     }
@@ -70,8 +74,54 @@ void main() {
 
   test('rain + tunnel 복합 조건이면 희귀종이 우선한다', () {
     const e = RarityEngine();
-    final r = e.judge(seenTags: {'rain', 'tunnel'}, harshBrake: 0, harshSteer: 0);
+    final r =
+        e.judge(seenTags: {'rain', 'tunnel'}, harshBrake: 0, harshSteer: 0);
     final s = table.pick(r, {'rain', 'tunnel'}, random: Random(1));
     expect(s.requiredTags.length, greaterThanOrEqualTo(2));
+  });
+  test('지원하지 않는 태그는 희귀종과 일반종 선택에서 제외한다', () {
+    const engine = RarityEngine();
+    final cases = <({Set<String> tags, List<String> caps, String id})>[
+      (tags: {'rain', 'tunnel'}, caps: ['light'], id: 'tunnel_moth'),
+      (tags: {'rain', 'tunnel'}, caps: ['wiper'], id: 'tide_keeper'),
+      (tags: {'rain', 'tunnel'}, caps: [], id: 'mountain_sprite'),
+      (tags: {'highway', 'night'}, caps: ['wiper'], id: 'mountain_sprite'),
+    ];
+    for (final c in cases) {
+      final result = engine.judge(
+          seenTags: c.tags, harshBrake: 0, harshSteer: 0, capabilities: c.caps);
+      expect(table.pick(result, c.tags, random: Random(1)).id, c.id);
+    }
+  });
+
+  test('전체 지원 또는 지원 정보 생략 시 기존 희귀종 우선 정책을 유지한다', () {
+    const engine = RarityEngine();
+    final tags = {'rain', 'highway', 'night'};
+    for (final caps in <List<String>?>[
+      null,
+      ['wiper', 'light']
+    ]) {
+      final result = engine.judge(
+          seenTags: tags, harshBrake: 0, harshSteer: 0, capabilities: caps);
+      expect(result.attribute, Attribute.water);
+      expect(table.pick(result, tags, random: Random(1)).id, 'highway_comet');
+    }
+    const legacy =
+        RarityResult(attribute: Attribute.water, tier: 3, harshTotal: 0);
+    expect(table.pick(legacy, tags, random: Random(1)).id, 'highway_comet');
+  });
+
+  test('돌봄으로 보정한 등급과 종의 원시 급격 조작 조건은 별개다', () {
+    const engine = RarityEngine();
+    final tags = {'rain'};
+    final result = engine.judge(
+        seenTags: tags,
+        harshBrake: 3,
+        harshSteer: 0,
+        careCount: 3,
+        capabilities: ['wiper']);
+    expect(result.tier, 3);
+    expect(result.harshTotal, 3);
+    expect(table.pick(result, tags, random: Random(1)).id, 'river_glider');
   });
 }

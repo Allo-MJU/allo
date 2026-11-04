@@ -13,21 +13,34 @@ class RarityEngine {
   /// 케어(감싸기·노래) 몇 회가 급제동 1회를 상쇄하는가.
   final int carePerHarsh;
 
-  const RarityEngine({this.tier3MaxHarsh = 2, this.tier2MaxHarsh = 6, this.carePerHarsh = 3});
+  const RarityEngine(
+      {this.tier3MaxHarsh = 2, this.tier2MaxHarsh = 6, this.carePerHarsh = 3});
 
   /// 태그가 여러 개면 우선순위: rain > tunnel > night.
-  Attribute attributeFor(Iterable<String> envTags, {Iterable<String>? capabilities}) {
-    final tags = envTags.toSet();
-    final caps = capabilities?.toSet();
-    bool can(String cap) => caps == null || caps.contains(cap);
-
-    if (tags.contains('rain') && can('wiper')) return Attribute.water;
-    if ((tags.contains('tunnel') || tags.contains('night')) && can('light')) return Attribute.dark;
+  Attribute attributeFor(Iterable<String> envTags,
+      {Iterable<String>? capabilities}) {
+    final tags = _supportedTags(envTags, capabilities);
+    if (tags.contains('rain')) return Attribute.water;
+    if (tags.contains('tunnel') || tags.contains('night')) {
+      return Attribute.dark;
+    }
     return Attribute.normal;
   }
 
+  Set<String> _supportedTags(
+      Iterable<String> envTags, Iterable<String>? capabilities) {
+    final caps = capabilities?.toSet();
+    return envTags.where((tag) {
+      if (caps == null) return true;
+      if (tag == 'rain') return caps.contains('wiper');
+      if (tag == 'tunnel' || tag == 'night') return caps.contains('light');
+      return true;
+    }).toSet();
+  }
+
   /// 급제동+급조향 합에서 케어로 상쇄한 뒤 tier 를 정한다.
-  int tierFor({required int harshBrake, required int harshSteer, int careCount = 0}) {
+  int tierFor(
+      {required int harshBrake, required int harshSteer, int careCount = 0}) {
     final offset = carePerHarsh > 0 ? careCount ~/ carePerHarsh : 0;
     final harsh = (harshBrake + harshSteer - offset).clamp(0, 1 << 30);
     if (harsh <= tier3MaxHarsh) return 3;
@@ -42,20 +55,31 @@ class RarityEngine {
     required int harshSteer,
     int careCount = 0,
     Iterable<String>? capabilities,
-  }) =>
-      RarityResult(
-        attribute: attributeFor(seenTags, capabilities: capabilities),
-        tier: tierFor(harshBrake: harshBrake, harshSteer: harshSteer, careCount: careCount),
-        harshTotal: harshBrake + harshSteer,
-      );
+  }) {
+    final supportedTags =
+        Set<String>.unmodifiable(_supportedTags(seenTags, capabilities));
+    return RarityResult(
+      attribute: attributeFor(supportedTags),
+      tier: tierFor(
+          harshBrake: harshBrake, harshSteer: harshSteer, careCount: careCount),
+      harshTotal: harshBrake + harshSteer,
+      supportedTags: supportedTags,
+    );
+  }
 }
 
 class RarityResult {
   final Attribute attribute;
   final int tier;
   final int harshTotal;
-  const RarityResult({required this.attribute, required this.tier, required this.harshTotal});
+  final Set<String>? supportedTags;
+  const RarityResult(
+      {required this.attribute,
+      required this.tier,
+      required this.harshTotal,
+      this.supportedTags});
 
   @override
-  String toString() => 'RarityResult(${attribute.name}, tier $tier, harsh $harshTotal)';
+  String toString() =>
+      'RarityResult(${attribute.name}, tier $tier, harsh $harshTotal)';
 }
