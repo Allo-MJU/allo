@@ -18,9 +18,10 @@ class IncubationRound {
 
 /// Calculates one cycle with its egg granted at second zero.
 ///
-/// [remainingEtaSec] must be at least 120 seconds. Shorter ETAs have no
-/// established product policy and cause a [RangeError]. For a final cycle,
-/// half the exact ETA is rounded down to whole minutes for incubation; all
+/// [remainingEtaSec] must be at least 120 seconds; smaller inputs cause a
+/// [RangeError]. Callers must defer new egg grants for shorter ETAs, as required
+/// by the product policy. For a final cycle, half the exact ETA is rounded down
+/// to whole minutes for incubation; all
 /// remaining seconds belong to companionship.
 IncubationRound incubationRound(int remainingEtaSec) =>
     _round(remainingEtaSec, 0);
