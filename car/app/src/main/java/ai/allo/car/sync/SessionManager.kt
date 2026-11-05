@@ -9,7 +9,9 @@ import ai.allo.car.vehicle.*
 import ai.allo.car.dialogue.DialogueBank
 import ai.allo.car.gleo.AcceptResult
 import ai.allo.car.gleo.DestinationFlow
+import ai.allo.car.gleo.DestinationSuggester
 import ai.allo.car.gleo.GleoFunctions
+import ai.allo.car.gleo.RegionSummary
 import ai.allo.car.voice.DriverVoice
 import ai.allo.car.navi.NaviEtaReader
 import ai.allo.car.voice.HatchAnnouncement
@@ -56,6 +58,9 @@ class SessionManager(private val context: Context) {
     val naviEta = NaviEtaReader(context)
     /** Gleo 목적지 제안 → 수락 */
     val destinations = DestinationFlow()
+    /** 폰 도감의 지역 수집 요약. /game raw JSON 에서 정규화한다. 바뀌면 제안 캐시를 비운다 */
+    private val _regions = MutableStateFlow<RegionSummary>(RegionSummary.Unknown)
+    val regions: StateFlow<RegionSummary> = _regions
 
     val screen: StateFlow<CarScreen> = combine(_meta, aaos.state) { m, a ->
         when {
@@ -88,7 +93,7 @@ class SessionManager(private val context: Context) {
         if (!aaos.start()) caps.mark(Capability.SPEED, false) // 권한 허용 후 onSpeedPermissionGranted 에서 다시 true
         vehicleReader.start()
         voice.start()
-        naviEta.start()
+        naviEta.start { ok -> caps.mark(Capability.ETA, ok) }
         scope.launch { announceHatch() }
         beginSession()
         scope.launch { publishLoop() }
@@ -114,8 +119,8 @@ class SessionManager(private val context: Context) {
     fun suggestDestination(): DestinationFlow.Offer {
         if (naviEta.guidance.value == ai.allo.car.navi.Guidance.GUIDING) return DestinationFlow.Offer.None(ai.allo.car.gleo.NoSuggestion.ROUTE_ACTIVE)
         val here = naviEta.position.value
-        // 방문 기록은 폰에만 있다. /game 에 미방문 지역 필드가 생기기 전까지는 null(폴백). 이슈 #9
-        val offer = destinations.offer(here, regionTagger.tag(here?.lat, here?.lng), unvisitedRegions = null)
+        // 수집 기록은 폰에만 있다. 폰이 /game 에 올린 요약을 쓰고, 모르면 기본 추천 (docs/schema.md "지역 추천 요약")
+        val offer = destinations.offer(here, regionTagger.tag(here?.lat, here?.lng), _regions.value)
         if (offer is DestinationFlow.Offer.Made) {
             val region = offer.suggestion.destination.region
             scope.launch { runCatching { emitEvent("destinationSuggest", mapOf("region" to region, "status" to "offered")) } }
@@ -128,7 +133,10 @@ class SessionManager(private val context: Context) {
      * accepted 이벤트도 성공했을 때만 보낸다.
      */
     fun acceptDestination(): AcceptResult {
-        val r = destinations.accept(naviEta.guidance.value) { d -> naviEta.requestRoute(d.latitude, d.longitude, d.name) }
+        // 수락 직전 확인: 제안 뒤에 그 지역을 수집했으면 그 제안은 더 유효하지 않다
+        val r = destinations.accept(naviEta.guidance.value,
+            stillValid = { d -> d.region in DestinationSuggester.allowedRegions(_regions.value) },
+        ) { d -> naviEta.requestRoute(d.latitude, d.longitude, d.name) }
         if (r is AcceptResult.Started) {
             val d = r.destination
             scope.launch { runCatching { emitEvent("destinationSuggest", mapOf("region" to d.region, "status" to "accepted")) } }
@@ -148,6 +156,7 @@ class SessionManager(private val context: Context) {
         sessionReady = ready
         _sessionId.value = id
         _game.value = GameState()
+        _regions.value = RegionSummary.Unknown
         _meta.value = SessionMeta(createdAt = sessionStartedAt, pairCode = newPairCode(), carAppVersion = BuildConfig.CAR_APP_VERSION)
         _ended.value = false
         sessionJob = scope.launch {
@@ -270,7 +279,8 @@ class SessionManager(private val context: Context) {
             runCatching {
                 rest.stream("sessions/$id/game").collect { ev ->
                     if (id != sessionId) return@collect   // 이미 다음 세션
-                    current = merge(current, ev.path, ev.data)
+                    current = GameMerge.apply(current, ev.type, ev.path, ev.data)
+                    updateRegions(RegionSummary.parse(current))
                     runCatching { rest.json.decodeFromJsonElement<GameState>(current) }.onSuccess { _game.value = it }
                 }
             }
@@ -302,10 +312,12 @@ class SessionManager(private val context: Context) {
         rest.post("sessions/$id/events", rest.json.encodeToString(ev))
     }
 
-    private fun merge(base: JsonObject, path: String, data: JsonElement): JsonObject {
-        if (path == "/" || path.isEmpty()) return data as? JsonObject ?: base
-        val key = path.trim('/').substringBefore('/')   // 한 단계 깊이만 (game 노드는 평평하다)
-        return JsonObject(base.toMutableMap().apply { if (data is JsonNull) remove(key) else put(key, data) })
+    /** 요약이 바뀌면 진행 중인 제안을 버린다. 같은 값이면 그대로 둔다 ("다른 데는?" 이어가기) */
+    private fun updateRegions(next: RegionSummary) {
+        if (_regions.value == next) return
+        _regions.value = next
+        destinations.reset()
+        debugLog("regions → $next")
     }
 
     private fun newPairCode(): String = "%06d".format(SecureRandom().nextInt(1_000_000))

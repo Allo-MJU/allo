@@ -13,20 +13,26 @@ data class Destination(val region: String, val name: String, val latitude: Doubl
 }
 
 /**
- * @param unvisited true 면 폰이 알려준 실제 미방문 지역, false 면 방문 기록 없이 고른 폴백
+ * @param uncollected true 면 폰 도감에서 확인한 미수집 지역의 후보, false 면 요약 없이 고른 기본 추천 (방문 이력이 아님)
  * @param distanceKm 현재 위치에서의 직선 거리. 위치를 모르면 null
  * @param alternative 같은 대화에서 "다른 곳"으로 두 번째 이후에 제안한 것
  */
 data class Suggestion(
     val destination: Destination,
-    val unvisited: Boolean,
+    val uncollected: Boolean,
     val distanceKm: Double? = null,
     val alternative: Boolean = false,
 )
 
-/** 제안할 곳이 없는 이유. 운전자에게 들려줄 문장이 다르다. */
-/** ROUTE_ACTIVE: 이미 내비 안내 중. 진행 중인 안내를 바꾸지 않는다 (PR #10 리뷰 P1 완화) */
-enum class NoSuggestion { ALL_VISITED, NONE_NEARBY, EXHAUSTED, ROUTE_ACTIVE }
+/**
+ * 제안할 곳이 없는 이유. 운전자에게 들려줄 문장이 다르다 (docs/schema.md "차량 추천").
+ * - ALL_COLLECTED: 폰 도감에 세 지역 수집 기록이 모두 있음
+ * - ONLY_CURRENT_REGION: 미수집 지역은 있지만 지금 있는 지역뿐이라 제외됨
+ * - NONE_NEARBY: 고를 지역은 있지만 거리 limit 안에 후보가 없음
+ * - EXHAUSTED: "다른 데는?" 으로 후보를 다 냄
+ * - ROUTE_ACTIVE: 이미 내비 안내 중. 진행 중인 안내를 바꾸지 않는다 (PR #10 리뷰 P1 완화)
+ */
+enum class NoSuggestion { ALL_COLLECTED, ONLY_CURRENT_REGION, NONE_NEARBY, EXHAUSTED, ROUTE_ACTIVE }
 
 object DestinationSuggester {
     /** 위치를 모를 때의 지역 우선순위. */
@@ -64,25 +70,31 @@ object DestinationSuggester {
      * 제안 순서대로 정렬한 후보. 빈 목록이면 [why] 로 이유를 알 수 있다.
      * @param here 현재 위치. null 이면 거리 없이 [ORDER] 순서
      * @param currentRegion 지금 있는 지역 태그. 같은 지역은 제안하지 않는다
-     * @param unvisitedRegions 폰이 알려준 미방문 지역. **null = 방문 기록을 모름** → 폴백. 빈 목록 = 다 가 봄
+     * @param summary 폰 도감의 지역 수집 요약. Unknown 이면 세 지역 모두에서 기본 추천
      */
-    fun rank(here: GeoPoint?, currentRegion: String?, unvisitedRegions: List<String>? = null): List<Suggestion> {
-        val regions = (unvisitedRegions ?: ORDER).filter { it in ORDER && it != currentRegion }
-        val unvisited = unvisitedRegions != null
+    fun rank(here: GeoPoint?, currentRegion: String?, summary: RegionSummary = RegionSummary.Unknown): List<Suggestion> {
+        val regions = allowedRegions(summary).filter { it != currentRegion }
+        val uncollected = summary is RegionSummary.Known
         val pool = CANDIDATES.filter { it.region in regions }
-        if (here == null) {
-            // TODO(A): /game 에 미방문 지역 필드가 생기면 (이슈 #9) 그 값을 unvisitedRegions 로 넘긴다
-            return pool.sortedBy { ORDER.indexOf(it.region) }.map { Suggestion(it, unvisited) }
-        }
+        if (here == null) return pool.sortedBy { ORDER.indexOf(it.region) }.map { Suggestion(it, uncollected) }
         return pool.map { it to here.kmTo(it.point) }
             .filter { (_, km) -> km <= MAX_KM }
             .sortedBy { (_, km) -> km }
-            .map { (d, km) -> Suggestion(d, unvisited, km) }
+            .map { (d, km) -> Suggestion(d, uncollected, km) }
     }
 
-    fun why(here: GeoPoint?, currentRegion: String?, unvisitedRegions: List<String>?): NoSuggestion =
-        if (unvisitedRegions != null && unvisitedRegions.none { it in ORDER && it != currentRegion }) NoSuggestion.ALL_VISITED
-        else NoSuggestion.NONE_NEARBY
+    /** [rank] 가 빈 목록일 때의 이유 */
+    fun why(currentRegion: String?, summary: RegionSummary): NoSuggestion = when {
+        summary is RegionSummary.Known && summary.uncollected.isEmpty() -> NoSuggestion.ALL_COLLECTED
+        allowedRegions(summary).none { it != currentRegion } -> NoSuggestion.ONLY_CURRENT_REGION
+        else -> NoSuggestion.NONE_NEARBY
+    }
+
+    /** 요약이 허용하는 지역 (현재 지역 제외 전) */
+    fun allowedRegions(summary: RegionSummary): List<String> = when (summary) {
+        RegionSummary.Unknown -> ORDER
+        is RegionSummary.Known -> ORDER.filter { it in summary.uncollected }
+    }
 }
 
 /**
@@ -104,12 +116,12 @@ class DestinationFlow(
     }
 
     @Synchronized
-    fun offer(here: GeoPoint?, currentRegion: String?, unvisitedRegions: List<String>? = null): Offer {
+    fun offer(here: GeoPoint?, currentRegion: String?, summary: RegionSummary = RegionSummary.Unknown): Offer {
         val continuing = index >= 0 && now() - at <= ttlMs
         if (!continuing) {
-            ranked = DestinationSuggester.rank(here, currentRegion, unvisitedRegions)
+            ranked = DestinationSuggester.rank(here, currentRegion, summary)
             index = -1
-            if (ranked.isEmpty()) return Offer.None(DestinationSuggester.why(here, currentRegion, unvisitedRegions))
+            if (ranked.isEmpty()) return Offer.None(DestinationSuggester.why(currentRegion, summary))
         }
         index++
         at = now()
@@ -117,7 +129,7 @@ class DestinationFlow(
         return Offer.Made(ranked[index].copy(alternative = index > 0))
     }
 
-    /** 새 세션. 진행 중이던 제안을 버린다 */
+    /** 새 세션·수집 요약 변경. 진행 중이던 제안을 버린다 (docs/schema.md "차량 추천") */
     @Synchronized
     fun reset() { ranked = emptyList(); index = -1 }
 
@@ -135,10 +147,12 @@ class DestinationFlow(
     /**
      * 수락 처리. 안내 상태가 [Guidance.IDLE] 로 확인됐고 내비 요청([request])이 성공했을 때만 제안을 소비한다.
      * 안내 중·상태 미확인·요청 실패면 제안을 남겨 두어 다시 수락할 수 있다 (PR #10·#24 리뷰).
+     * [stillValid] 가 false 면(수락 직전 확인: 그 지역을 이미 수집함 등) 제안을 버리고 NoOffer 다.
      */
     @Synchronized
-    fun accept(guidance: Guidance, request: (Destination) -> Boolean): AcceptResult {
+    fun accept(guidance: Guidance, stillValid: (Destination) -> Boolean = { true }, request: (Destination) -> Boolean): AcceptResult {
         val d = pending() ?: return AcceptResult.NoOffer
+        if (!stillValid(d)) { index = -1; return AcceptResult.NoOffer }
         when (guidance) {
             Guidance.GUIDING -> return AcceptResult.RouteActive
             Guidance.UNKNOWN -> return AcceptResult.NaviNotReady

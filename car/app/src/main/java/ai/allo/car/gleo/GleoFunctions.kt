@@ -31,12 +31,12 @@ object GleoFunctions {
         return when (function) {
             REPORT_EGG_STATUS -> when (game.stage) {
                 "incubating" -> GleoCallback(function, "success", pick("car_egg_status", "incubating")
-                    ?: "뒷자리에서 ${tierWord(game.eggTier)} 알을 품고 있어요. ${(game.progress * 100).toInt()}퍼센트 자랐어요. 조금만 더 부드럽게 가면 좋은 아이가 나와요.")
+                    ?: "지금 ${tierWord(game.eggTier)} 알을 품고 있어요. ${(game.progress * 100).toInt()}퍼센트 자랐어요.")
                 "hatched" -> GleoCallback(function, "success", pick("car_egg_status", "hatched") ?: "이미 깨어났어요. 도착까지 같이 가고 있어요.")
                 else -> GleoCallback(function, "success", pick("car_egg_status", "idle") ?: "아직 품고 있는 알이 없어요.")
             }
             CELEBRATE_HATCH -> GleoCallback(function, "success",
-                if (game.stage == "hatched") pick("car_hatch", "hatched") ?: "${attrWord(game.attribute)} 아이가 깨어났어요! 뒷자리에 물어보세요."
+                if (game.stage == "hatched") pick("car_hatch", "hatched") ?: hatchMessage(game, bank)
                 else pick("car_hatch", "not_yet") ?: "아직 깨어나지 않았어요.")
             // 제안은 운전자 확인이 필요하므로 asking, 제안할 곳이 없으면 fail
             SUGGEST_DESTINATION -> GleoCallback(function, if (offer is DestinationFlow.Offer.Made) "asking" else "fail",
@@ -63,20 +63,22 @@ object GleoFunctions {
                 "place" to d.name,
                 "km" to (s.distanceKm?.let { " 직선으로 약 ${roundKm(it)}km예요." } ?: ""),
             )
-            val situation = when { s.alternative -> "alt"; s.unvisited -> "unvisited"; else -> "first" }
+            val situation = when { s.alternative -> "alt"; s.uncollected -> "uncollected"; else -> "first" }
             bank.line("car_suggest", null, null, situation, vars)
         }
     }
 
     /**
      * 방문 여부·지역 전용 생물·계절 해금·생물 부재를 단정하지 않는다 (#32 C 사전 검토).
-     * 산·도심 전용 종이 아직 없어서 "그 지역에서만 나오는 아이" 같은 말은 사실이 아니다 (팀 결정 대기).
+     * 추천 기준은 폰 도감의 **수집 기록**이다 (docs/schema.md "지역 추천 요약"). 그 지역에서 만난 아이가 없다는 것까지만 말하고,
+     * 가면 특정 아이가 나온다고 약속하지 않는다.
      * 장소 이름 뒤에는 받침과 무관한 "까지"·"도" 를 쓴다. 거리는 직선 거리라 "직선으로" 를 붙인다.
      */
     private fun suggestMessage(offer: DestinationFlow.Offer?): String = when (offer) {
         null -> "지금은 추가로 제안할 곳이 없어요."
         is DestinationFlow.Offer.None -> when (offer.why) {
-            NoSuggestion.ALL_VISITED -> "지금은 추가로 제안할 곳이 없어요."
+            NoSuggestion.ALL_COLLECTED -> "바다·산·도심에서 모두 아이를 만났어요. 지금은 따로 추천할 곳이 없어요."
+            NoSuggestion.ONLY_CURRENT_REGION -> "아직 아이를 못 만난 곳이 지금 계신 지역이에요. 다른 지역은 추천할 곳이 없어요."
             NoSuggestion.NONE_NEARBY -> "가까운 곳에서 추천할 장소를 찾지 못했어요."
             NoSuggestion.EXHAUSTED -> "지금 추천할 장소는 여기까지예요."
             NoSuggestion.ROUTE_ACTIVE -> "지금은 길 안내 중이에요. 안내가 끝나면 다시 물어봐 주세요."
@@ -85,7 +87,7 @@ object GleoFunctions {
             val s = offer.suggestion; val d = s.destination
             val far = s.distanceKm?.let { " 직선으로 약 ${roundKm(it)}km예요." } ?: ""
             if (s.alternative) "${regionWord(d.region)} 쪽 ${d.name}도 있어요.$far 안내할까요?"
-            else if (s.unvisited) "${regionWord(d.region)} 쪽 ${d.name}까지 안내할까요?$far"
+            else if (s.uncollected) "아직 ${regionWord(d.region)}에서 만난 아이가 없어요. ${d.name}까지 안내할까요?$far"
             else "${regionWord(d.region)} 쪽 ${d.name}까지 안내할까요?$far 같은 ${withIra(regionWord(d.region))} 다른 곳도 괜찮아요."
         }
     }
@@ -121,6 +123,13 @@ object GleoFunctions {
      * 직접 말했으면 Gleo 는 silent (두 번 듣지 않게), 못 했으면(TTS 미준비·실패) Gleo 음성을 그대로 둔다 (PR #24 리뷰).
      */
     fun selfVoiced(callback: GleoCallback, spoke: Boolean): GleoCallback = if (spoke) callback.copy(mode = "silent") else callback
+
+    /** 부화 고정 문장. 뒷자리 대화를 운전자에게 권하지 않는다 (#39 C 검수와 같은 방향) */
+    private fun hatchMessage(game: GameState, bank: DialogueBank): String {
+        val who = bank.speciesName(game.speciesId)?.let { it + DialogueBank.josa(it, "이", "가") }
+            ?: listOf(attrWord(game.attribute), "아이가").filter { it.isNotEmpty() }.joinToString(" ")
+        return "$who 알에서 깨어났어요."
+    }
 
     private fun tierWord(t: String) = when (t) { "large" -> "긴"; "mid" -> "중간"; else -> "작은" }
     private fun attrWord(a: String?) = when (a) { "water" -> "물 속성"; "dark" -> "어둠 속성"; else -> "" }

@@ -32,19 +32,37 @@ class DestinationSuggesterTest {
         val r = DestinationSuggester.rank(null, "city")
         assertEquals("coast", r.first().destination.region)
         assertNull(r.first().distanceKm)
-        assertFalse(r.first().unvisited)
+        assertFalse(r.first().uncollected)
     }
 
-    @Test fun `unvisited list limits regions`() {
-        val r = DestinationSuggester.rank(pangyo, "city", listOf("coast"))
-        assertTrue(r.all { it.destination.region == "coast" && it.unvisited })
-        assertEquals(NoSuggestion.ALL_VISITED, DestinationSuggester.why(pangyo, "city", emptyList()))
+    private fun known(vararg r: String) = RegionSummary.Known(r.toSet())
+
+    @Test fun `uncollected summary limits regions`() {
+        val r = DestinationSuggester.rank(pangyo, "city", known("coast"))
+        assertTrue(r.isNotEmpty() && r.all { it.destination.region == "coast" && it.uncollected })
     }
 
-    @Test fun `far from everything means none nearby`() {
-        val dokdo = GeoPoint(37.24, 131.86)
+    @Test fun `no suggestion reasons are distinguished`() {
+        assertEquals(NoSuggestion.ALL_COLLECTED, DestinationSuggester.why("city", known()))
+        assertTrue(DestinationSuggester.rank(pangyo, "city", known()).isEmpty())
+        assertTrue(DestinationSuggester.rank(pangyo, "city", known("city")).isEmpty())
+        assertEquals(NoSuggestion.ONLY_CURRENT_REGION, DestinationSuggester.why("city", known("city")))
+        val dokdo = GeoPoint(37.2426, 131.8669)
         assertTrue(DestinationSuggester.rank(dokdo, null).isEmpty())
-        assertEquals(NoSuggestion.NONE_NEARBY, DestinationSuggester.why(dokdo, null, null))
+        assertEquals(NoSuggestion.NONE_NEARBY, DestinationSuggester.why(null, RegionSummary.Unknown))
+        assertEquals(NoSuggestion.NONE_NEARBY, DestinationSuggester.why(null, known("coast")))
+    }
+
+    @Test fun `all collected is not turned back into a default suggestion`() {
+        val flow = DestinationFlow()
+        assertEquals(DestinationFlow.Offer.None(NoSuggestion.ALL_COLLECTED), flow.offer(pangyo, "city", known()))
+    }
+
+    @Test fun `accept rechecks the offer right before navi`() {
+        val flow = DestinationFlow()
+        flow.offer(pangyo, "city", known("coast"))
+        assertEquals(AcceptResult.NoOffer, flow.accept(Guidance.IDLE, stillValid = { false }) { error("내비를 부르면 안 된다") })
+        assertEquals(AcceptResult.NoOffer, flow.accept(Guidance.IDLE) { true })   // 무효가 된 제안은 버려진다
     }
 
     @Test fun `asking again offers next candidate then exhausts`() {
