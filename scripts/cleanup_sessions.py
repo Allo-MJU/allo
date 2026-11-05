@@ -90,6 +90,7 @@ def request_json(base, token, deadline, path="sessions", method="GET", etag=None
                 raise CleanupError()
             return value, response.headers.get("ETag")
     except HTTPError as error:
+        error.close()
         # 412 is expected only for an individual conditional DELETE.
         if method == "DELETE" and error.code == 412:
             return None, "changed"

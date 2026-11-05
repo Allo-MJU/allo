@@ -1,11 +1,13 @@
 """Offline execution contract: HTTP is replaced before the runner starts."""
 
 from contextlib import redirect_stderr, redirect_stdout
+import gc
 import io
 import json
 from pathlib import Path
 import sys
 import unittest
+import warnings
 from unittest.mock import patch
 from urllib.error import HTTPError, URLError
 
@@ -50,6 +52,9 @@ class ExecutionTests(unittest.TestCase):
         output = stdout.getvalue() + stderr.getvalue()
         for secret in ("private-id", "private-payload", "synthetic-private-token"):
             self.assertNotIn(secret, output)
+        for response in responses[:len(calls)]:
+            if isinstance(response, (Response, HTTPError)):
+                self.assertTrue(response.closed, "consumed response must be closed")
         return code, json.loads(stdout.getvalue()) if stdout.getvalue() else None, calls
 
     def test_default_dry_run_preserves_every_session(self):
@@ -90,12 +95,37 @@ class ExecutionTests(unittest.TestCase):
                 self.assertNotIn("DELETE", [r.method for r in calls])
 
     def test_etag_conflict_is_skip_without_retry(self):
-        conflict = HTTPError("private-id", 412, "private-payload", {}, None)
+        conflict = HTTPError("private-id", 412, "private-payload", {},
+                             io.BytesIO(b"private-payload synthetic-private-token"))
         code, report, calls = self.run_cleanup([
             Response({"private-id": EXPIRED}), Response(EXPIRED, '"v1"'), conflict], apply=True)
         self.assertEqual(code, 0)
         self.assertEqual(report["skipped_changed"], 1)
         self.assertEqual(len(calls), 3)
+
+    def test_http_errors_do_not_emit_resource_warnings(self):
+        for method in ("GET", "DELETE"):
+            for status in (403, 412, 500):
+                with self.subTest(method=method, status=status):
+                    def open_request(request, timeout):
+                        raise HTTPError("private-id", status,
+                                        "private-payload synthetic-private-token", {},
+                                        io.BytesIO(b"private-payload synthetic-private-token"))
+
+                    with warnings.catch_warnings(record=True) as caught:
+                        warnings.simplefilter("always", ResourceWarning)
+                        with patch.object(cleanup, "urlopen", open_request):
+                            args = (ENV["ALLO_DB_URL"], ENV["ALLO_FIREBASE_ACCESS_TOKEN"],
+                                    cleanup.time.monotonic() + 10, "sessions/private-id",
+                                    method, '"v1"')
+                            if method == "DELETE" and status == 412:
+                                self.assertEqual(cleanup.request_json(*args), (None, "changed"))
+                            else:
+                                with self.assertRaises(cleanup.CleanupError):
+                                    cleanup.request_json(*args)
+                        # HTTPError tracebacks can keep the response alive until cyclic GC.
+                        gc.collect()
+                    self.assertEqual(caught, [], [str(item.message) for item in caught])
 
     def test_missing_etag_fails_without_delete(self):
         code, report, calls = self.run_cleanup([
@@ -112,8 +142,9 @@ class ExecutionTests(unittest.TestCase):
         self.assertEqual(self.run_cleanup([Response(raw=b"")])[0], 1)
 
     def test_http_and_timeout_read_failures_are_nonzero(self):
-        failures = [HTTPError("private-id", status, "private-payload", {}, None)
-                    for status in (401, 403, 429, 500, 503)]
+        failures = [HTTPError("private-id", status, "private-payload", {},
+                              io.BytesIO(b"private-payload synthetic-private-token"))
+                    for status in (401, 403, 412, 429, 500, 503)]
         failures += [TimeoutError("private-payload"), URLError("private-payload")]
         for error in failures:
             with self.subTest(error=type(error).__name__):
@@ -122,7 +153,8 @@ class ExecutionTests(unittest.TestCase):
                 self.assertEqual(len(calls), 1)
 
     def test_partial_failure_reports_failure_and_other_deletions(self):
-        denied = HTTPError("private-id", 403, "private-payload", {}, None)
+        denied = HTTPError("private-id", 403, "private-payload", {},
+                           io.BytesIO(b"private-payload synthetic-private-token"))
         code, report, calls = self.run_cleanup([
             Response({"one": EXPIRED, "two": EXPIRED}), Response(EXPIRED, '"v1"'), denied,
             Response(EXPIRED, '"v2"'), Response(None)], apply=True)
