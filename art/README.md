@@ -24,13 +24,14 @@ phone/assets/ui/...                           버튼, 진행바, 도감 프레�
 - 앉은 3/4 정면, 12종 같은 카메라·크기. 발끝이 캔버스 아래에서 8% 위인 같은 기준선. 그림자는 별도 레이어 권장
 - 눈은 크고 둥근 짙은 브라운에 흰 하이라이트 2점. 머리·등 돌기는 둥글고 뭉툭하게
 - 속성별 색 계열: water Sky `#A9D4F1` / dark Lavender `#C9B9E8` / normal Sage `#B9D0B9`
-- 등급이 높을수록 장식·재질·이펙트 밀도를 높인다 (색만 바꾸면 티가 안 남). 규칙은 art-direction 5절
+- 등급이 높을수록 장식·재질·이펙트 밀도를 높인다 (색만 바꾸면 티가 안 남). 규칙은 art-direction 6절. 같은 속성끼리는 색이 아니라 실루엣으로 구분 (4-2절)
 
 ## 폴더
 
 - `src/` — 원본 (.psd, .blend, 생성 프롬프트 기록 등)
 - `export/` — png. B 가 `phone/assets/` 로 복사
 - `design/` — 시안 HTML (`characters.html`, `wireframes.html`). 브라우저로 연다. 레퍼런스 시트 이미지(`ref/`)는 IP 확인 후 추가
+- `design/icon/` — 앱 아이콘 SVG 시안 4종 + 정사각(`-full`) + Android adaptive 전경(`-adaptive-fg`). 배경 색 `#FFF0D8`
 
 ## 라이선스
 

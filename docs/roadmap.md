@@ -286,9 +286,11 @@ D와 함께 12종 확정. JSON으로 관리.
 - [x] 스타일 — 소프트 3D 파스텔 (2026-11-05 도트에서 변경, 팀 검토 전)
 - [x] 팔레트 — Cream / Sage / Sky / Lavender / Peach / Butter Yellow / Warm Brown
 - [x] 속성별 색 계열 — water Sky, dark Lavender, normal Sage
-- [x] 12종 캐릭터 바이블 · 등급별 시각 규칙 · 알 무늬 규칙 (`art-direction.md` 4~6절)
-- [x] 시안 — `art/design/characters.html`, `art/design/wireframes.html`, AI 레퍼런스 시트(이미지는 IP 확인 후 업로드)
-- [ ] 레퍼런스 시트 남은 수정 — 산정령·다리뛰기·알 무늬·투명 배경 (`art-direction.md` 1-2절)
+- [x] 디자인 원칙(실루엣·색각·터치·멀미·진행 끝·벌칙 없음·차 한눈에)과 근거 (`art-direction.md` 1절)
+- [x] 12종 캐릭터 바이블 · 실루엣 포인트 · 등급별 시각 규칙 · 알 무늬 규칙 (`art-direction.md` 4~7절)
+- [x] UI 토큰(터치·글자·배지) · 화면 13종 와이어프레임 · 앱 아이콘 SVG 시안 (`art-direction.md` 9~11절)
+- [x] 시안 — `art/design/characters.html`, `art/design/wireframes.html`, `art/design/icon/`, AI 레퍼런스 시트(이미지는 IP 확인 후 업로드)
+- [ ] 레퍼런스 시트 남은 수정 — 산정령·다리뛰기·알 무늬·투명 배경 (`art-direction.md` 2-2절)
 - [ ] 11/5 회의에서 스타일·12종 외형 확정
 
 ## D-2. 알 + 생물 (Day 3~9)
@@ -299,15 +301,18 @@ D와 함께 12종 확정. JSON으로 관리.
 | 11/9 | 12종 idle + 시연 종 3마리 6상태 (idle·happy·sleepy·look·surprise·signature) + 부화 프레임 5장 |
 | 11/11 | 12종 × 6상태 완료 (72장) |
 
-**등급 차별화** — 등급이 오를수록 장식, 재질, 이펙트 밀도를 높입니다. 색만 바꾸면 티가 안 납니다 (`art-direction.md` 5절).
+**등급 차별화** — 등급이 오를수록 장식, 재질, 이펙트 밀도를 높입니다. 색만 바꾸면 티가 안 납니다 (`art-direction.md` 6절).
 
 ## D-3. UI 에셋 (Day 4~9)
 
-- [ ] 버튼, 진행바
+- [ ] 버튼, 진행 링(끝 = 부화 지점), 희소도 배지(색 + 별 개수 + 글자)
 - [ ] 도감 프레임 (획득/미획득 실루엣)
-- [ ] 배경 — 주행 중 느낌의 단순 패럴랙스
+- [ ] 배경 — **정적** 층 배경. 패럴랙스 금지 (멀미, `art-direction.md` 8-2절)
 - [ ] **부화 연출 프레임** — 금 가기 3컷, 빛 2컷. B와 협의
 - [ ] 알 환경 무늬 레이어 7종 — B가 범위에 넣으면
+- [ ] 앱 아이콘 PNG — 폰·차 공통 + Android adaptive 전경 (SVG 시안 `art/design/icon/`)
+- [ ] 검수 — 실루엣·색각·터치·모션 (`art-direction.md` 12절)
+- [ ] 대사 56문장 검수 (#19) — 11/11
 
 ## D-4. 시연 영상 (Day 11~13)
 

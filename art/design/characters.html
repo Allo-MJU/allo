@@ -74,7 +74,7 @@
       <span class="st ok">확정 후보</span> 물결지기 · 바다안개 · 터널나방<br>
       <span class="st fix">조정 필요</span> 산정령(눈썹·뾰족한 뿔) · 다리뛰기(Sage색·아치 무늬) · 알 무늬(투명 레이어·라벨)</figcaption></figure>
   </div>
-  <div class="note" style="margin-top:14px">남은 수정: 실제 알파 채널 PNG(시트의 체크무늬는 그림에 구워진 것으로 보임) · 알 성장 2·3단계 · look 포즈 방향 통일 · 전 종 6상태(idle·happy·sleepy·look·surprise·signature) 개별 출력. 자세한 내용은 <code>docs/art-direction.md</code> 1-2절.</div>
+  <div class="note" style="margin-top:14px">남은 수정: 실제 알파 채널 PNG(시트의 체크무늬는 그림에 구워진 것으로 보임) · 알 성장 2·3단계 · look 포즈 방향 통일 · 전 종 6상태(idle·happy·sleepy·look·surprise·signature) 개별 출력. 자세한 내용은 <code>docs/art-direction.md</code> 2-2절.</div>
 
   <h2><span class="num">1</span> 생물 12종 — 설계표 <span class="pill" style="background:#EEE">SVG 플레이스홀더</span></h2>
   <p class="sub">같은 몸(2.5등신)에 얼굴·머리 장식·꼬리 끝·무늬만 바꿨습니다. 움직이는 리듬도 성격대로 다릅니다 (산정령은 거의 안 움직이고, 다리뛰기는 깡총거림).</p>
@@ -135,7 +135,7 @@
 const A = window.ALLO, $ = id => document.getElementById(id);
 const tint = c => c + '33';
 
-$('legend').innerHTML = Object.values(A.RANK).map(r => `<span><i style="background:${r.color}"></i>${r.ko}</span>`).join('');
+$('legend').innerHTML = Object.keys(A.RANK).map(r => A.badge(r)).join('');
 
 const groups = [
   ['normal · Sage · 땅과 길', ['road_sprout', 'bridge_hopper', 'mountain_sprite'], A.C.sage],
@@ -150,7 +150,7 @@ $('species').innerHTML = groups.map(([t, ids, c]) => `
 function card(id) {
   const s = A.SPECIES[id], r = A.RANK[s.rank], a = A.ATTR[s.attr];
   return `<div class="card sp">
-    <span class="pill rank" style="background:${r.color}">${r.ko}</span>
+    <span class="rank">${A.badge(s.rank)}</span>
     <div class="art" style="background:radial-gradient(circle at 50% 60%, ${tint(a.color)}, transparent 70%);--p:${s.idle}s;--move:${s.move}">${A.renderSpecies(id)}</div>
     <div>
       <h3>${s.ko}</h3>
@@ -175,7 +175,7 @@ const tierInfo = [
   ['storm_lantern', ['두 속성 재료 조합 (비 + 등불)', '반투명 날개 + 은은한 발광', '오라 링 (선택, 회의에서 결정)', '전용 등장 연출 (4초 이내)']],
 ];
 $('tiers').innerHTML = tierInfo.map(([id, li]) => { const s = A.SPECIES[id], r = A.RANK[s.rank]; return `
-  <div class="card" style="--p:${s.idle}s;--move:${s.move}"><span class="pill" style="background:${r.color}">${r.ko}</span>
+  <div class="card" style="--p:${s.idle}s;--move:${s.move}">${A.badge(s.rank)}
   <div>${A.renderSpecies(id)}</div><b>${s.ko}</b><ul>${li.map(x => `<li>${x}</li>`).join('')}</ul></div>`; }).join('');
 
 const exprs = [['', 'Idle · 기본'], ['happy', 'Happy · 쓰다듬기·먹이'], ['sleepy', 'Sleepy · 긴 동행'], ['look', 'Look · 창밖 보기'], ['surprise', 'Surprise · 급제동'], ['signature', 'Signature · 도감 상세']];

@@ -2,89 +2,144 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<title>ALLO — UI/UX 와이어프레임 (시안)</title>
+<title>ALLO — UI/UX 와이어프레임 v2 (시안)</title>
 <link rel="stylesheet" href="allo.css">
 <style>
-  .flow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; font-weight: 700; }
-  .flow span { background: #fff; border-radius: 999px; padding: 6px 14px; box-shadow: 0 2px 8px rgba(102,88,77,.08); }
+  /* 폰 프레임 안은 1px = 1dp (360dp 폭 기준) */
+  .tools { position: sticky; top: 0; z-index: 20; background: rgba(255,248,239,.92); backdrop-filter: blur(6px); padding: 10px 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .tools button { font: inherit; font-size: 13px; font-weight: 700; border: 0; border-radius: 999px; padding: 7px 14px; background: #fff; color: var(--brown); box-shadow: 0 2px 8px rgba(102,88,77,.1); cursor: pointer; }
+  .tools button[aria-pressed="true"] { background: var(--brown); color: #fff; }
+  .flow { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 12.5px; font-weight: 700; }
+  .flow span { background: #fff; border-radius: 999px; padding: 5px 12px; }
   .flow i { color: var(--brown-2); font-style: normal; }
-  .screens { display: grid; grid-template-columns: repeat(auto-fill, 340px); gap: 34px 26px; }
-  .scr h4 { margin: 0 0 8px; font-size: 15px; display: flex; gap: 6px; align-items: center; }
+  .tag-drive { background: #DDEBDD; } .tag-park { background: #F6E3C6; } .tag-none { background: #E7E1F3; } .tag-new { background: #FFD9CF; }
+
+  .tokens { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 16px; }
+  .tokens .card { padding: 16px 18px; font-size: 13px; }
+  .tokens h4 { margin: 0 0 8px; font-size: 14px; }
+  .tk { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+  .tk .box { background: var(--sky); border-radius: 12px; flex: none; }
+  .type div { margin: 3px 0; }
+
+  .screens { display: grid; grid-template-columns: repeat(auto-fill, 384px); gap: 40px 26px; }
+  .scr h4 { margin: 0 0 8px; font-size: 15px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
   .scr ol { margin: 10px 0 0; padding-left: 18px; font-size: 12.5px; color: #7A6B5F; }
-  .scr ol li { margin-bottom: 2px; }
-  .tag-drive { background: #DDEBDD; } .tag-park { background: #F6E3C6; } .tag-none { background: #E7E1F3; }
-
-  .phone { width: 340px; height: 700px; border-radius: 44px; background: #fff; padding: 12px; box-shadow: 0 10px 30px rgba(102,88,77,.15), inset 0 0 0 2px #F1E6D6; position: relative; }
-  .ph { width: 100%; height: 100%; border-radius: 34px; overflow: hidden; position: relative; background: linear-gradient(#E6F2FB 0%, #FFF8EF 55%); display: flex; flex-direction: column; }
-  .status { display: flex; justify-content: space-between; padding: 12px 22px 0; font-size: 12px; font-weight: 700; }
-  .topbar { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; }
-  .chip { display: inline-flex; gap: 4px; align-items: center; background: #fff; border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 700; box-shadow: 0 2px 6px rgba(102,88,77,.08); }
-  .title { text-align: center; font-weight: 800; font-size: 21px; margin: 6px 16px 0; }
-  .desc { text-align: center; font-size: 13px; color: var(--brown-2); margin: 4px 16px; }
+  .scr ol li { margin-bottom: 3px; }
+  .phone { width: 384px; height: 784px; border-radius: 48px; background: #fff; padding: 12px; box-shadow: 0 10px 30px rgba(102,88,77,.15), inset 0 0 0 2px #F1E6D6; }
+  .ph { width: 360px; height: 760px; border-radius: 38px; overflow: hidden; position: relative; background: linear-gradient(#E6F2FB 0%, #FFF8EF 50%); display: flex; flex-direction: column; }
+  .status { display: flex; justify-content: space-between; padding: 14px 26px 0; height: 44px; font-size: 13px; font-weight: 700; flex: none; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; padding: 6px 16px; min-height: 48px; flex: none; }
+  .chip { display: inline-flex; gap: 4px; align-items: center; background: #fff; border-radius: 999px; padding: 6px 12px; font-size: 14px; font-weight: 700; box-shadow: 0 2px 6px rgba(102,88,77,.08); }
+  .t1 { font-family: "Jua", "Pretendard", system-ui, sans-serif; text-align: center; font-size: 26px; line-height: 1.25; margin: 4px 16px 0; }
+  .t2 { text-align: center; font-size: 16px; color: var(--brown-2); margin: 4px 16px; }
   .center { flex: 1; display: grid; place-items: center; position: relative; overflow: hidden; }
-  .btn { display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 22px; font-weight: 800; font-size: 17px; height: 60px; margin: 0 16px; box-shadow: 0 4px 0 rgba(102,88,77,.12); }
-  .btn.big { height: 76px; font-size: 19px; }
-  .b-sky { background: var(--sky); } .b-sage { background: var(--sage); } .b-butter { background: var(--butter); } .b-white { background: #fff; }
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 16px 0; }
-  .row2 .btn { margin: 0; }
-  .foot { padding: 10px 0 22px; }
-  .hill { position: absolute; left: -10%; right: -10%; bottom: -60px; height: 140px; background: #D9E8CF; border-radius: 50% 50% 0 0; z-index: 0; }
   .center > * { z-index: 1; }
-  .bubble { background: #fff; border-radius: 18px; padding: 10px 14px; font-weight: 800; font-size: 15px; box-shadow: 0 4px 12px rgba(102,88,77,.1); position: absolute; }
-  .word { background: var(--butter); border-radius: 12px; padding: 6px 12px; font-weight: 800; font-size: 14px; display: inline-block; }
-  .anno { position: absolute; width: 22px; height: 22px; border-radius: 50%; background: #E26D5A; color: #fff; font-size: 12px; font-weight: 800; display: grid; place-items: center; z-index: 5; box-shadow: 0 0 0 3px #fff; }
-  .dex { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 0 14px; overflow: hidden; }
-  .dex .c { background: #fff; border-radius: 16px; padding: 4px 4px 6px; text-align: center; font-size: 11px; font-weight: 700; position: relative; }
-  .dex .c svg { width: 74px; height: 74px; }
-  .dex .c .dot { position: absolute; top: 6px; right: 6px; width: 9px; height: 9px; border-radius: 50%; }
+  .ground { position: absolute; left: -10%; right: -10%; bottom: -70px; height: 150px; background: #D9E8CF; border-radius: 50% 50% 0 0; z-index: 0; }
+  .btn { display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 28px; font-weight: 800; font-size: 20px; height: 64px; margin: 0 16px; box-shadow: 0 5px 0 rgba(102,88,77,.14); position: relative; }
+  .btn.xl { height: 128px; font-size: 22px; flex-direction: column; gap: 2px; border-radius: 32px; }
+  .btn.xl .ico { font-size: 36px; line-height: 1; }
+  .btn.lg { height: 96px; font-size: 20px; }
+  .btn small { font-size: 14px; font-weight: 600; opacity: .8; }
+  .b-sky { background: var(--sky); } .b-sage { background: var(--sage); } .b-butter { background: var(--butter); } .b-peach { background: var(--peach); } .b-white { background: #fff; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 0 16px; }
+  .row2 .btn { margin: 0; }
+  .foot { padding: 12px 0 26px; display: flex; flex-direction: column; gap: 12px; flex: none; }
+  .bubble { background: #fff; border-radius: 20px; padding: 12px 16px; font-weight: 800; font-size: 18px; box-shadow: 0 4px 12px rgba(102,88,77,.1); position: absolute; line-height: 1.35; }
+  .word { background: var(--butter); border-radius: 12px; padding: 5px 12px; font-weight: 800; font-size: 17px; display: inline-block; margin-top: 6px; }
+  .anno { position: absolute; width: 24px; height: 24px; border-radius: 50%; background: #E26D5A; color: #fff; font-size: 12px; font-weight: 800; display: grid; place-items: center; z-index: 8; box-shadow: 0 0 0 3px #fff; }
+  .dex { display: grid; grid-template-columns: repeat(3, 104px); gap: 8px; padding: 0 16px; justify-content: center; }
+  .dex .c { background: #fff; border-radius: 18px; height: 120px; text-align: center; font-size: 14px; font-weight: 700; position: relative; padding-top: 4px; }
+  .dex .c svg.allo-char { width: 76px; height: 76px; }
+  .dex .c .badge { position: absolute; top: 4px; left: 4px; padding: 1px 5px; font-size: 0; gap: 0; }
   .dex .c.lock { color: var(--brown-2); font-weight: 500; }
-  .filters { display: flex; gap: 6px; padding: 0 14px 10px; }
-  .filters .chip { box-shadow: none; background: #F4EBDD; }
+  .filters { display: flex; gap: 6px; padding: 0 16px 10px; }
+  .filters .chip { box-shadow: none; background: #F4EBDD; height: 40px; }
   .filters .chip.on { background: var(--brown); color: #fff; }
-  .info { background: #fff; border-radius: 22px; margin: 0 14px; padding: 12px 14px; font-size: 12.5px; }
-  .info dl { display: grid; grid-template-columns: 64px 1fr; gap: 4px 6px; margin: 6px 0 0; }
+  .info { background: #fff; border-radius: 22px; margin: 0 16px; padding: 14px 16px; font-size: 15px; }
+  .info dl { display: grid; grid-template-columns: 82px 1fr; gap: 6px 8px; margin: 8px 0 0; }
   .info dt { color: var(--brown-2); } .info dd { margin: 0; font-weight: 700; }
-  .qr { width: 210px; height: 210px; border-radius: 28px; border: 4px dashed var(--sky); display: grid; place-items: center; background: rgba(255,255,255,.6); }
-  .ring { position: absolute; width: 250px; height: 250px; }
+  .cards { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ecard { width: 60px; height: 76px; border-radius: 14px; background: #F4EBDD; display: grid; place-items: center; font-size: 12px; font-weight: 700; text-align: center; line-height: 1.2; padding: 4px; }
+  .ecard.got { background: #fff; box-shadow: 0 0 0 2px var(--butter) inset; }
+  .ecard .e { font-size: 24px; }
+  .qr { width: 220px; height: 220px; border-radius: 30px; border: 4px dashed var(--sky); display: grid; place-items: center; background: rgba(255,255,255,.6); }
+  .toggle { display: flex; justify-content: space-between; align-items: center; padding: 0 16px; min-height: 64px; border-bottom: 1px solid #F1E6D6; font-size: 17px; font-weight: 700; }
+  .toggle small { display: block; font-size: 14px; font-weight: 500; color: var(--brown-2); }
+  .sw { width: 56px; height: 32px; border-radius: 999px; background: #E6DED2; position: relative; flex: none; }
+  .sw::after { content: ""; position: absolute; top: 4px; left: 4px; width: 24px; height: 24px; border-radius: 50%; background: #fff; }
+  .sw.on { background: var(--sage); } .sw.on::after { left: 28px; }
 
-  .car { width: 1000px; height: 375px; border-radius: 26px; background: #12142B; padding: 14px; box-shadow: 0 12px 30px rgba(18,20,43,.25); }
-  .car .in { width: 100%; height: 100%; border-radius: 16px; overflow: hidden; position: relative; color: #FFF0D8; }
-  .car-row { display: flex; gap: 30px; flex-wrap: wrap; }
-  .legend { display: flex; gap: 14px; font-size: 13px; margin: 10px 0 24px; }
+  .car { width: 1080px; height: 405px; border-radius: 26px; background: #0B0D1F; padding: 14px; box-shadow: 0 12px 30px rgba(18,20,43,.25); }
+  .car .in { width: 100%; height: 100%; border-radius: 16px; overflow: hidden; position: relative; color: #FFF0D8; background: #12142B; }
+  .car-grid { display: grid; grid-template-columns: 1fr; gap: 34px; }
+  .cbtn { position: absolute; display: grid; place-items: center; border-radius: 22px; background: #F4D98B; color: #12142B; font-weight: 800; font-size: 26px; }
+
+  /* 치수 표시 */
+  body.measure [data-dp] { outline: 2px dashed #E26D5A; outline-offset: 2px; }
+  body.measure [data-dp]::after { content: attr(data-dp); position: absolute; top: -10px; right: 10px; background: #E26D5A; color: #fff; font: 700 11px/16px system-ui, sans-serif; padding: 0 6px; border-radius: 6px; z-index: 9; }
+  body.measure .anno { display: none; }
+  body.reduce .allo-char * { animation: none !important; }
+
   .rules { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
   .rules .card { padding: 16px 18px; font-size: 13px; }
   .rules b { display: block; margin-bottom: 4px; font-size: 14px; }
+  .rules a { color: #6F86B8; }
 </style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&display=swap">
 </head>
 <body>
 <div class="wrap">
   <div class="logo">AL<span>L</span>O</div>
-  <h1 style="font-size:22px">UI/UX 와이어프레임 <span class="pill" style="background:var(--butter)">시안 · 11/5 회의용</span></h1>
-  <p class="sub" style="margin:4px 0 16px">Soft Journey UI · 화면 흐름은 현재 <code>phone/lib/screens/</code> 구성과 <code>docs/schema.md</code> 기준 · 기준 문서 <code>docs/art-direction.md</code> 8절</p>
-  <p class="note" style="margin:0 0 14px">화면 속 캐릭터와 알은 <b>레이아웃용 플레이스홀더(SVG)</b>입니다. 실제 룩은 AI 레퍼런스 시트(docs/art-direction.md 1-1절)를 따르고, 개별 PNG가 오면 교체합니다.</p>
-  <div class="flow"><span>① 페어링</span><i>→</i><span>② 알 받기</span><i>→</i><span>③ 품기</span><i>→</i><span>④ 부화</span><i>→</i><span>⑤ 동행</span><i>→</i><span>⑥ 도착</span><i>→</i><span>⑦ 도감 · ⑧ 상세</span></div>
-  <div class="legend">
-    <span class="pill tag-drive">주행 중 OK — 큰 버튼 3개 이하</span>
-    <span class="pill tag-park">정차 후 권장</span>
-    <span class="pill tag-none">보기만 (조작 없음)</span>
+  <h1 style="font-size:22px">UI/UX 와이어프레임 v2 <span class="pill" style="background:var(--butter)">시안 · 11/5 회의용</span></h1>
+  <p class="sub" style="margin:4px 0 12px">기준 문서 <code>docs/art-direction.md</code> 9·10절 (UI 시스템·화면 설계). 폰 프레임 안은 <b>1px = 1dp</b>(360dp 폭)라 버튼 크기를 그대로 잴 수 있습니다. 캐릭터·알은 레이아웃용 플레이스홀더(SVG)이고 실제 룩은 AI 레퍼런스 시트를 따릅니다.</p>
+
+  <div class="tools">
+    <button id="bMeasure" aria-pressed="false">📏 치수 표시</button>
+    <button id="bReduce" aria-pressed="false">🫧 동작 줄이기 미리보기</button>
+    <span class="pill tag-drive">주행 중 OK</span><span class="pill tag-park">정차 후 권장</span><span class="pill tag-none">보기만</span><span class="pill tag-new">v2 새 화면</span>
+  </div>
+  <div class="flow" style="margin-top:6px"><span>① 페어링</span><i>→</i><span>② 알 받기</span><i>→</i><span>③ 품기</span><i>→</i><span>④ 부화</span><i>→</i><span>⑤ 동행</span><i>→</i><span>⑥ 도착</span><i>→</i><span>⑦ 도감 · ⑧ 상세</span><i>·</i><span>⑨ 보호자 설정</span></div>
+
+  <h2><span class="num">0</span> UI 토큰 — 화면을 그리기 전에 정한 숫자</h2>
+  <div class="tokens">
+    <div class="card"><h4>터치 크기 (아이 손가락 · 흔들리는 차)</h4>
+      <div class="tk"><div class="box" style="width:128px;height:64px;background:var(--peach)"></div><div><b>주행 중 주 버튼 높이 128dp</b> (약 2cm)<br>폭은 화면 가득 또는 반반. 한 화면 3개까지</div></div>
+      <div class="tk"><div class="box" style="width:96px;height:48px"></div><div><b>주행 중 보조 버튼 96dp</b> (약 1.5cm)</div></div>
+      <div class="tk"><div class="box" style="width:64px;height:32px;background:var(--sage)"></div><div><b>정차 후 최소 64dp</b> (약 1cm) · 간격 12dp 이상</div></div>
+      <div class="tk"><div class="box" style="width:76px;height:38px;background:#12142B"></div><div><b>차 화면 최소 76dp</b> · 간격 24dp (Android for Cars)</div></div>
+      <p class="sub" style="margin:8px 0 0;font-size:12px">근거: NN/g 어린 아이 2×2cm 권장, 만 11세쯤 성인 수준. 1dp = 1/160인치.</p>
+    </div>
+    <div class="card type"><h4>글자 크기</h4>
+      <div style="font-family:Jua,sans-serif;font-size:26px">제목 26sp · 주아</div>
+      <div style="font-size:20px;font-weight:800">버튼 20~22sp · 굵게</div>
+      <div style="font-size:17px">본문 17sp</div>
+      <div style="font-size:14px;color:var(--brown-2)">최소 14sp (보조 문구)</div>
+      <div style="font-size:13px;margin-top:8px">차 화면 최소 24sp · 한 줄 상태는 44sp</div>
+      <p class="sub" style="margin:8px 0 0;font-size:12px">제목 글꼴 후보: 주아(Jua, OFL), 본문 후보: 나눔스퀘어라운드(OFL). 라이선스 확인 후 확정.</p>
+    </div>
+    <div class="card"><h4>희소도 배지 — 색 + 모양 + 글자</h4>
+      <div id="badges" style="display:flex;flex-direction:column;gap:8px;align-items:flex-start"></div>
+      <p class="sub" style="margin:10px 0 0;font-size:12px">색을 못 구분해도 별 개수·왕관으로 읽힌다 (WCAG 1.4.1). 도감 칸처럼 좁은 곳은 모양만.</p>
+      <h4 style="margin-top:12px">모서리 · 간격</h4>
+      <div>카드 22~24 · 버튼 28 · 칩 999(알약)<br>화면 여백 16 · 요소 간격 12 · 섹션 간격 24</div>
+    </div>
   </div>
 
   <h2><span class="num">A</span> 폰 — 아이 화면</h2>
   <div class="screens" id="screens"></div>
 
   <h2><span class="num">B</span> 차 화면 — 운전자·가족</h2>
-  <p class="sub">현재 <code>car/.../ui/</code> 의 DrivingScreen · ParkedScreen 구성. 바탕은 지금의 밤하늘 남색을 유지하고(야간 눈부심), 강조색과 캐릭터 카드만 브랜드에 맞춥니다.</p>
-  <div class="car-row" id="car"></div>
+  <p class="sub">현재 <code>car/.../ui/</code> 구성(PairingScreen · SpeedNoticeScreen · DrivingScreen · ParkedScreen)과 문구 기준. 바탕은 지금의 밤하늘 남색 유지(야간 눈부심), 강조색과 캐릭터 카드만 브랜드에 맞춥니다. 프레임은 차 화면 비율로 축소해 그렸고, 표기한 dp·sp는 실제 기준값입니다.</p>
+  <div class="car-grid" id="car"></div>
 
-  <h2><span class="num">C</span> 화면 공통 규칙</h2>
+  <h2><span class="num">C</span> 화면 공통 규칙 (문서 9·10절 요약)</h2>
   <div class="rules">
-    <div class="card"><b>🚗 주행 중</b>주 버튼 72dp 이상, 한 화면 3개까지. 빠른 반응·정밀 터치·퍼즐 없음. 캐릭터 움직임 폭은 정차 때의 절반 (멀미).</div>
-    <div class="card"><b>👀 창밖이 주인공</b>창밖 보기 프롬프트는 화면보다 창밖을 보게 만드는 장치. 프롬프트가 뜨면 화면은 단순해지고 "봤어!" 하나만 남습니다.</div>
-    <div class="card"><b>🔒 개인정보</b>아이 이름 입력 없음. "이름 지어주기"도 만들지 않음 (CLAUDE.md 규칙 3). 도감은 폰에만 저장, 위치는 지역 단어(바다·산·도심)만.</div>
-    <div class="card"><b>🎁 확률형 없음</b>룰렛·카드 뒤집기 같은 뽑기 연출 금지. 부화 연출은 "누가 나올까"의 기대이지 결제 유도가 아님.</div>
-    <div class="card"><b>🧸 캐릭터가 반응</b>버튼을 누르면 숫자만 오르는 게 아니라 캐릭터 표정이 바로 바뀜 (Happy · Sleepy · Surprise 포즈).</div>
-    <div class="card"><b>🎭 상태 매핑</b>페어링 look · 부화 직후 happy · 창밖 보기 look · 먹이/쓰다듬기 happy · 긴 동행 sleepy · 급제동 알림 surprise · 도감 idle · 도감 상세 signature. 상태 PNG가 없으면 idle 대체(B 확인).</div>
-    <div class="card"><b>🗣 운전자를 평가하지 않음</b>급제동 때 화면은 "알이 놀랐어요"까지만. "운전이 거칠어요" 같은 운전자 평가 문구 금지.</div>
+    <div class="card"><b>🚗 주행 중</b>주 버튼 128dp, 한 화면 3개까지. 빠른 반응·정밀 터치·드래그·퍼즐 없음. 스크롤 없음 — 한 화면에 다 보이게.</div>
+    <div class="card"><b>🫧 멀미</b>패럴랙스·화면 전체 이동·깜빡임 금지. 캐릭터 움직임은 주행 중 절반. "동작 줄이기"(OS 설정 + 보호자 설정)에서는 이동을 페이드로 바꾸고 기울기 효과를 끔. <a href="https://webkit.org/blog/7551/responsive-design-for-motion/">WebKit</a></div>
+    <div class="card"><b>👀 창밖이 주인공</b>창밖 보기 프롬프트가 뜨면 화면은 단순해지고 "봤어!" 하나만 커진다. 화면을 오래 보게 만드는 장치를 두지 않음.</div>
+    <div class="card"><b>⭐ 색만으로 말하지 않기</b>희소도·속성·진행은 색 + 모양 + 글자. 회색조로 봐도 구분돼야 함. <a href="https://developer.mozilla.org/en-US/docs/Web/Accessibility/Guides/Understanding_WCAG/Perceivable/Use_of_color">MDN</a></div>
+    <div class="card"><b>🧸 캐릭터가 대답</b>버튼을 누르면 숫자만 오르지 않고 캐릭터 상태(happy·sleepy·look·surprise)가 바로 바뀜. 방치해도 벌칙·슬픔 없음.</div>
+    <div class="card"><b>🔒 개인정보 · 결제</b>아이 이름 입력 없음("이름 지어주기"도 없음). 확률형 연출 없음. 운전자를 평가하는 문구 없음("알이 놀랐어요"까지만).</div>
   </div>
 </div>
 
@@ -92,138 +147,187 @@
 <script>
 const A = window.ALLO, ch = (id, o) => A.renderSpecies(id, o), egg = o => A.renderEgg(o);
 const status = `<div class="status"><span>9:41</span><span>▮▮▮ ◔</span></div>`;
-const conn = `<span class="chip">✅ 차량 연결됨</span>`;
+const conn = `<span class="chip">✅ 연결됨</span>`;
 const an = (n, x, y) => `<span class="anno" style="left:${x}px;top:${y}px">${n}</span>`;
-const svgBox = (s, w) => `<div style="width:${w}px;height:${w}px">${s.replace('<svg ', `<svg width="${w}" height="${w}" `)}</div>`;
+const box = (s, w) => `<div style="width:${w}px;height:${w}px">${s.replace('<svg ', `<svg width="${w}" height="${w}" `)}</div>`;
+const dot = { normal: '🌿', water: '💧', dark: '🌙' };
+
+// 진행 링: 끝점(12시) = 부화 지점. 성장 단계 경계 2곳에 눈금.
+function ring(p, size = 280) {
+  const r = 46, c = 2 * Math.PI * r;
+  const tick = t => { const a = -Math.PI / 2 + t * 2 * Math.PI; return `<circle cx="${50 + r * Math.cos(a)}" cy="${50 + r * Math.sin(a)}" r="2.6" fill="#fff" stroke="#E6D5B8" stroke-width="1.2"/>`; };
+  return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" style="position:absolute">
+    <circle cx="50" cy="50" r="${r}" fill="none" stroke="#fff" stroke-width="5"/>
+    <circle cx="50" cy="50" r="${r}" fill="none" stroke="#F4D98B" stroke-width="5" stroke-linecap="round" stroke-dasharray="${c * p} ${c}" transform="rotate(-90 50 50)"/>
+    ${tick(1 / 3)}${tick(2 / 3)}
+    <g transform="translate(50,4)"><circle r="6.5" fill="#fff" stroke="#F4D98B" stroke-width="1.5"/><path d="M-2.6,0.8 l1.3,-1.6 l1.3,1.4 l1.3,-1.4 l1.3,1.6" stroke="#66584D" stroke-width=".9" fill="none" stroke-linejoin="round"/></g>
+  </svg>`;
+}
 
 const screens = [
 {
   n: '① 페어링', tag: ['tag-drive', '출발 전'], body: `${status}
-    <div class="title" style="margin-top:28px">차량과 연결해요!</div>
-    <div class="desc">차 화면의 QR을 찍어 주세요</div>
-    <div class="center"><div class="qr"><div style="text-align:center;font-size:13px;color:#9A8B7E">📷<br>카메라 화면</div></div>
-      <div style="position:absolute;bottom:4px;right:40px;width:90px">${ch('puddle_pip', { expr: 'look' })}</div>${an(1, 60, 20)}</div>
-    <div class="foot"><div class="btn b-white" style="font-size:15px">⌨️ QR이 안 되면 직접 입력</div>
-      <div class="desc" style="margin-top:10px">차 없이 해 보기 →</div></div>${an(2, 20, 600)}`,
-  notes: ['QR = <code>allo://pair?sid=…&code=…</code>. 스캔 성공 시 바로 다음 화면', '직접 입력은 세션 ID + 6자리 코드 (코드만으로는 연결 안 됨, schema 3.2)', '부모 폰을 빌려 쓰는 경우가 많아 가입·로그인 없음'],
+    <div class="t1" style="margin-top:24px">차와 연결해요!</div>
+    <div class="t2">차 화면의 QR을 찍어 주세요</div>
+    <div class="center"><div class="qr"><div style="text-align:center;font-size:15px;color:#9A8B7E">📷<br>카메라</div></div>
+      <div style="position:absolute;bottom:0;right:22px">${box(ch('puddle_pip', { expr: 'look' }), 110)}</div>${an(1, 60, 30)}</div>
+    <div class="foot"><div class="btn b-white" data-dp="64dp" style="font-size:17px">⌨️ 숫자로 연결하기</div>
+      <div class="t2" style="margin:0">차 없이 해 보기 ›</div></div>${an(2, 22, 640)}`,
+  notes: ['QR <code>allo://pair?sid=…&code=…</code>. 스캔 성공 즉시 다음 화면 (확인 버튼 없음)', '수동 연결은 세션 ID + 6자리 코드 (schema 3.2). 출발 전 화면이라 64dp', '가입·로그인 없음. 부모 폰을 빌려 쓰는 경우를 기본으로'],
 },
 {
-  n: '② 알 받기 (자동)', tag: ['tag-drive', '출발 직후'], body: `${status}<div class="topbar">${conn}</div>
-    <div class="title" style="margin-top:20px">알이 도착했어요!</div>
-    <div class="desc">무엇이 태어날지는 길이 정해요</div>
-    <div class="center"><div class="hill"></div>${svgBox(egg({ size: 'mid', stage: 1 }), 230)}${an(1, 40, 60)}</div>
-    <div class="foot"><div class="btn big b-sky">함께 출발! 🚗</div></div>${an(2, 18, 600)}`,
-  notes: ['알은 자동으로 지급. 아이가 고르지 않음. 처음엔 민무늬이고 종은 부화 때 규칙으로 정해짐', '알 크기(small/mid/large)는 거리 모드의 목표만 정함 (ETA가 있으면 ETA로 고정, schema 3.4). 크기를 무엇으로 정할지는 B·C 확인 필요 — 지금 코드는 small 고정', '이 화면 자체도 생략 가능: 페어링 직후 바로 ③ 품기로 가도 됨'],
+  n: '② 알 받기', tag: ['tag-drive', '출발 직후'], body: `${status}<div class="topbar">${conn}</div>
+    <div class="t1" style="margin-top:16px">알이 도착했어요!</div>
+    <div class="t2">무엇이 태어날지는 오늘 길이 정해요</div>
+    <div class="center"><div class="ground"></div>${box(egg({ size: 'mid', stage: 1 }), 240)}${an(1, 40, 50)}</div>
+    <div class="foot"><div class="btn xl b-sky" data-dp="128dp"><span class="ico">🚗</span>함께 출발!</div></div>${an(2, 22, 610)}`,
+  notes: ['알은 자동 지급. 아이가 고르지 않음. 민무늬로 시작', '이 화면은 생략 가능 — 페어링 직후 바로 ③으로 가도 됨', '차 화면: "뒷자리 폰에서 알을 확인해 주세요"로 문구 맞춤 필요(현재 "골라 주세요", A)'],
 },
 {
   n: '③ 품기', tag: ['tag-drive', '주행 중'], body: `${status}<div class="topbar">${conn}<span class="chip">🌧 비 · 🛣 고속도로</span></div>
-    <div class="title">알이 자라고 있어요</div>
-    <div class="desc">앞으로 <b>12분</b></div>
-    <div class="center"><div class="hill"></div>
-      <svg class="ring" viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="none" stroke="#fff" stroke-width="3"/><circle cx="50" cy="50" r="46" fill="none" stroke="#F4D98B" stroke-width="3" stroke-linecap="round" stroke-dasharray="180 289" transform="rotate(-90 50 50)"/></svg>
-      ${svgBox(egg({ size: 'mid', stage: 2, tags: ['rain', 'highway'] }), 220)}
-      ${an(1, 40, 60)}${an(2, 250, 40)}</div>
-    <div class="foot"><div class="row2"><div class="btn big b-peach" style="background:var(--peach)">🤗 감싸기</div><div class="btn big b-sage">🎵 길게 눌러 노래</div></div>
-      <div class="desc" style="margin-top:8px">💛 감싸 준 횟수 3</div></div>${an(3, 18, 560)}`,
-  notes: ['진행은 숫자보다 <b>알 무늬와 광택</b>으로. 지나온 환경(비·고속도로)이 표면에 떠오름', '환경 칩은 차량 <code>envTags</code> 그대로. ETA 없으면 "앞으로 8km"', '흔들리면(급제동·급조향) 알이 흔들리고 "감싸기"가 반짝. 운전자 평가 문구 없음'],
+    <div class="t1">알이 자라고 있어요</div>
+    <div class="t2">부화까지 <b>12분</b></div>
+    <div class="center"><div class="ground"></div>${ring(0.6)}${box(egg({ size: 'mid', stage: 2, tags: ['rain', 'highway'] }), 200)}
+      ${an(1, 50, 30)}${an(2, 166, 6)}${an(3, 300, 210)}</div>
+    <div class="foot"><div class="row2"><div class="btn xl b-peach" data-dp="128dp"><span class="ico">🤗</span>감싸기</div><div class="btn xl b-sage" data-dp="128dp"><span class="ico">🎵</span>노래<small>꾹 누르기</small></div></div></div>`,
+  notes: ['진행 링의 <b>끝(12시) = 부화 지점</b>. 끝 표시가 없으면 남은 양을 알기 어렵다(Pokémon GO 비평). 흰 눈금 2개 = 알 성장 단계', '지나온 환경이 알 무늬로 떠오름 + 위 칩으로 글자 표시 (색만으로 말하지 않기)', 'ETA 없으면 "부화까지 8km". 숫자는 진행 링 보조 — 아이는 링과 무늬를 본다'],
 },
 {
-  n: '③-b 흔들림 반응', tag: ['tag-drive', '주행 중'], body: `${status}<div class="topbar">${conn}<span class="chip">🌧 비</span></div>
-    <div class="title">어이쿠! 알이 놀랐어요</div>
-    <div class="desc">꼬옥 감싸 주세요</div>
-    <div class="center"><div class="hill"></div>
-      <div style="transform:rotate(-9deg)">${svgBox(egg({ size: 'mid', stage: 2, tags: ['rain'] }), 220)}</div>
-      <div style="position:absolute;top:70px;left:58px;font-size:26px">💦</div>${an(1, 260, 70)}</div>
-    <div class="foot"><div class="btn big b-white" style="background:var(--peach);margin:0 16px;box-shadow:0 0 0 6px rgba(245,185,159,.35)">🤗 감싸기</div>
-      <div class="desc" style="margin-top:8px">천천히 눌러도 괜찮아요</div></div>${an(2, 18, 590)}`,
-  notes: ['흔들림은 좌우 기울기 트랜스폼만 (빠른 진동 없음)', '감싸기 하나만 크게. 몇 초 안에 누를 필요 없음 — 늦게 눌러도 성공'],
+  n: '③-b 흔들림', tag: ['tag-drive', '주행 중'], body: `${status}<div class="topbar">${conn}<span class="chip">🌧 비</span></div>
+    <div class="t1">어이쿠! 알이 놀랐어요</div>
+    <div class="t2">꼬옥 감싸 주세요</div>
+    <div class="center"><div class="ground"></div>${ring(0.6)}<div style="transform:rotate(-8deg)">${box(egg({ size: 'mid', stage: 2, tags: ['rain'] }), 200)}</div>
+      <div style="position:absolute;top:60px;left:62px;font-size:28px">💦</div>${an(1, 290, 60)}</div>
+    <div class="foot"><div class="btn xl b-peach" data-dp="128dp" style="box-shadow:0 0 0 6px rgba(245,185,159,.4)"><span class="ico">🤗</span>감싸기</div>
+      <div class="t2" style="margin:0">천천히 눌러도 괜찮아요</div></div>${an(2, 22, 590)}`,
+  notes: ['흔들림은 한 번 기울었다 돌아오는 정도. 빠른 진동·화면 흔들기 없음 (멀미)', '감싸기 하나만 남김. 시간 제한 없음 — 늦게 눌러도 성공', '"운전이 거칠어요" 같은 운전자 평가 문구 금지'],
 },
 {
-  n: '④ 부화', tag: ['tag-none', '보기만'], body: `<div class="ph" style="background:radial-gradient(circle at 50% 42%, #FFF6D8 0%, #E6F2FB 60%)">${status}
-    <div class="title" style="margin-top:30px">새 친구가 태어났어요!</div>
-    <div class="center"><svg viewBox="0 0 200 200" style="position:absolute;width:300px;opacity:.6">${[0,1,2,3,4,5,6,7].map(i=>`<rect x="97" y="0" width="6" height="40" rx="3" fill="#F4D98B" transform="rotate(${i*45} 100 100)"/>`).join('')}</svg>
-      ${svgBox(ch('tide_keeper', { expr: 'happy' }), 230)}${an(1, 30, 40)}</div>
-    <div style="text-align:center"><span class="pill" style="background:#F4D98B">초희귀</span> <span class="pill" style="background:#A9D4F1">물</span>
-      <div style="font-size:24px;font-weight:900;margin-top:6px">물결지기</div><div class="desc">Tide Keeper · 비 오는 날 태어났어요</div></div>${an(2, 18, 520)}
-    <div class="foot"><div class="btn big b-butter">같이 가자 ›</div></div></div>`, raw: true,
-  notes: ['흔들림 → 금 → 빛 → 등장 → 첫 인사(Happy) → 이름·등급 → 도감 등록. 등급별 밀도는 art-direction 5절, 특별도 4초 이내', '"이름 지어주기" 대신 종 이름 + 오늘의 이유 한 줄. 등급 배지 기준(종/개체 tier)은 C 결정 대기', '정차 중이면 차 화면에도 같은 순간 표시'],
+  n: '④ 부화', tag: ['tag-none', '보기만'], raw: true, body: `<div class="ph" style="background:radial-gradient(circle at 50% 42%, #FFF6D8 0%, #E6F2FB 62%)">${status}
+    <div class="t1" style="margin-top:28px">새 친구가 태어났어요!</div>
+    <div class="center"><svg viewBox="0 0 200 200" style="position:absolute;width:320px;opacity:.55">${[0,1,2,3,4,5,6,7].map(i=>`<rect x="97" y="0" width="6" height="40" rx="3" fill="#F4D98B" transform="rotate(${i*45} 100 100)"/>`).join('')}</svg>
+      ${box(ch('tide_keeper', { expr: 'happy' }), 240)}${an(1, 36, 40)}</div>
+    <div style="text-align:center">${A.badge('epic', { size: 13 })} <span class="badge" style="background:#A9D4F1">💧<b>물</b></span>
+      <div style="font-family:Jua,sans-serif;font-size:30px;margin-top:6px">물결지기</div><div class="t2" style="margin:0">Tide Keeper · 비 오는 날 태어났어요</div></div>${an(2, 22, 540)}
+    <div class="foot"><div class="btn lg b-butter" data-dp="96dp">같이 가자 ›</div></div></div>`,
+  notes: ['흔들림 → 금 → 빛 → 등장 → 첫 인사(happy) → 이름·등급 → 도감 등록. 특별 등급도 4초 이내', '배지는 별 개수 + 글자. 등급 배지 기준(종 tier / 개체 tier)은 C 결정 대기 (PR #29)', '"이름 지어주기" 없음. 종 이름 + 오늘의 이유 한 줄'],
 },
 {
   n: '⑤ 동행 — 창밖 보기', tag: ['tag-drive', '주행 중'], body: `${status}<div class="topbar">${conn}<span class="chip">⛰ 산</span></div>
-    <div class="center"><div class="hill"></div>
-      <div class="bubble" style="top:20px;left:24px">저기 봐! 산이야 ⛰<br><span class="word" style="margin-top:6px">Mountain</span></div>
-      <div style="transform:rotate(-6deg);margin-top:90px">${svgBox(ch('tide_keeper', { expr: 'look' }), 210)}</div>${an(1, 270, 30)}${an(2, 40, 280)}</div>
-    <div class="foot"><div class="btn big b-sky">👀 봤어!</div>
-      <div class="row2"><div class="btn b-white">🍓 먹이</div><div class="btn b-white">⚽ 놀아주기</div></div></div>${an(3, 18, 610)}`,
-  notes: ['프롬프트는 현재 envTags에 맞춤. 태그가 없으면 특정 풍경을 단정하지 않음', '생물이 차 기울기를 따라 같이 기울어짐 (재미 카드, 멀미 효과는 주장하지 않음)', '"봤어!"가 가장 큼. 먹이·놀아주기는 보조'],
+    <div class="center"><div class="ground"></div>
+      <div class="bubble" style="top:18px;left:20px">저기 봐! 산이야 ⛰<br><span class="word">Mountain</span></div>
+      <div style="transform:rotate(-5deg);margin-top:110px">${box(ch('tide_keeper', { expr: 'look' }), 210)}</div>${an(1, 300, 26)}${an(2, 40, 300)}</div>
+    <div class="foot"><div class="btn xl b-sky" data-dp="128dp"><span class="ico">👀</span>봤어!</div>
+      <div class="row2"><div class="btn lg b-white" data-dp="96dp">🍓 먹이</div><div class="btn lg b-white" data-dp="96dp">⚽ 놀기</div></div></div>`,
+  notes: ['프롬프트는 현재 envTags에 맞춤. 태그가 없으면 특정 풍경을 단정하지 않음 (PR #22)', '생물이 차 기울기를 따라 살짝 기움(최대 ±5°). 동작 줄이기에선 끔', '"봤어!"가 가장 큼. 영어 단어는 묻지 않고 보여만 줌'],
 },
 {
-  n: '⑤-b 동행 — 반응', tag: ['tag-drive', '주행 중'], body: `${status}<div class="topbar">${conn}<span class="chip">💛 친해짐 ●●●○○</span></div>
-    <div class="center"><div class="hill"></div>
-      <div class="bubble" style="top:24px;right:24px">냠냠! 잔잔하게 가자~</div>
-      ${svgBox(ch('tide_keeper', { expr: 'happy' }), 230)}${an(1, 30, 40)}</div>
-    <div class="foot" style="padding-top:0"><div class="desc" style="margin-bottom:8px">물결지기에게 물어보기</div>
-      <div class="row2"><div class="btn b-white" style="font-size:14px">지금 기분 어때?</div><div class="btn b-white" style="font-size:14px">저건 뭐야?</div></div>
-      <div class="row2"><div class="btn b-white">🍓 먹이</div><div class="btn b-white">⚽ 놀아주기</div></div></div>${an(2, 18, 520)}`,
-  notes: ['말투·말버릇은 dialogue-style.md 종별 표. 대사는 뱅크에서 고름', '자유 입력 없이 <b>질문 버튼</b>만 (ai-dialogue-design 4절). 아이의 문장은 어디로도 가지 않음'],
+  n: '⑤-b 동행 — 대답', tag: ['tag-drive', '주행 중'], body: `${status}<div class="topbar">${conn}<span class="chip">💛 친해짐 3</span></div>
+    <div class="center"><div class="ground"></div>
+      <div class="bubble" style="top:18px;right:20px">냠냠! 잔잔하게 가자~</div>
+      ${box(ch('tide_keeper', { expr: 'happy' }), 230)}${an(1, 30, 30)}</div>
+    <div class="foot"><div class="t2" style="margin:0">물결지기에게 물어보기</div>
+      <div class="row2"><div class="btn lg b-white" data-dp="96dp" style="font-size:17px">기분 어때?</div><div class="btn lg b-white" data-dp="96dp" style="font-size:17px">저건 뭐야?</div></div>
+      <div class="row2"><div class="btn b-white" data-dp="64dp">🍓 먹이</div><div class="btn b-white" data-dp="64dp">⚽ 놀기</div></div></div>${an(2, 22, 560)}`,
+  notes: ['말투는 dialogue-style.md 종별 표. 대사는 검수된 뱅크에서만 (#19)', '자유 입력 없이 질문 버튼만 (ai-dialogue-design 4절)', '이 화면은 버튼이 4개 → 주행 중 3개 규칙 초과. 질문 2개는 정차 후로 옮기거나 먹이/놀기를 숨김 (회의 결정)'],
 },
 {
   n: '⑥ 도착', tag: ['tag-park', '정차'], body: `${status}
-    <div class="title" style="margin-top:26px">오늘 여행 끝! 🎉</div>
-    <div class="desc">물결지기가 도감에 들어갔어요</div>
-    <div class="center">${svgBox(ch('tide_keeper', { expr: 'sleepy' }), 180)}</div>
-    <div class="info"><dl><dt>만난 친구</dt><dd>물결지기 <span class="pill" style="background:#F4D98B">초희귀</span></dd>
-      <dt>오늘의 길</dt><dd>🌧 비 · 🛣 고속도로</dd><dt>감싸기</dt><dd>💛 3번</dd><dt>창밖 보기</dt><dd>👀 2번</dd><dt>새 단어</dt><dd><span class="word">Mountain</span> <span class="word">Rain</span></dd></dl></div>${an(1, 18, 430)}
-    <div class="foot"><div class="btn b-sky" style="margin-top:4px">📖 도감 보기</div></div>`,
-  notes: ['차량 <code>sessionEnd</code> 수신 후 저장이 끝나면 표시. 저장 실패 시 "다시 저장" 버튼 (schema 3.5)', '주행 거리·경로·지도는 보여 주지 않음'],
+    <div class="t1" style="margin-top:22px">오늘 여행 끝! 🎉</div>
+    <div class="t2">물결지기가 도감에 들어갔어요</div>
+    <div class="center">${box(ch('tide_keeper', { expr: 'sleepy' }), 170)}</div>
+    <div class="info"><dl><dt>만난 친구</dt><dd>물결지기 ${A.badge('epic')}</dd>
+      <dt>감싸기</dt><dd>💛 3번</dd><dt>창밖 보기</dt><dd>👀 2번</dd><dt>새 단어</dt><dd><span class="word" style="margin:0">Mountain</span> <span class="word" style="margin:0">Rain</span></dd></dl>
+      <div style="margin-top:10px;font-weight:800">새 길 카드</div>
+      <div class="cards" style="margin-top:6px"><div class="ecard got"><div><div class="e">🌧</div>비</div></div><div class="ecard got"><div><div class="e">🛣</div>고속도로</div></div></div></div>${an(1, 22, 470)}
+    <div class="foot"><div class="btn b-sky" data-dp="64dp">📖 도감 보기</div></div>`,
+  notes: ['차량 <code>sessionEnd</code> 수신 후 저장 완료 시 표시. 저장 실패면 "다시 저장" (schema 3.5)', '<b>길 카드(제안)</b>: 이번에 처음 지난 환경 태그 7종을 카드로 모음. 12종 외 수집 거리 — 폰 로컬 저장, B·C 확인', '주행 거리·경로·지도는 보여 주지 않음'],
 },
 {
   n: '⑦ 도감', tag: ['tag-park', '정차 후 권장'], body: `${status}
-    <div class="topbar"><b style="font-size:19px">📖 나의 도감</b><span class="chip">5 / 12</span></div>
-    <div class="filters"><span class="chip on">전체</span><span class="chip">🌿 땅·길</span><span class="chip">💧 물</span><span class="chip">🌙 밤</span></div>
+    <div class="topbar"><b style="font-family:Jua,sans-serif;font-size:24px;font-weight:400">📖 나의 도감</b><span class="chip">5 / 12</span></div>
+    <div class="filters"><span class="chip on">전체</span><span class="chip">🌿 땅</span><span class="chip">💧 물</span><span class="chip">🌙 밤</span></div>
     <div class="dex">${A.ORDER.map((id, i) => { const got = [0, 1, 3, 5, 6].includes(i), s = A.SPECIES[id];
-      return `<div class="c ${got ? '' : 'lock'} still ${got ? '' : 'silhouette'}"><span class="dot" style="background:${A.RANK[s.rank].color}"></span>${ch(id)}<div style="filter:none">${got ? s.ko : '???'}</div></div>`; }).join('')}</div>${an(1, 300, 120)}${an(2, 20, 340)}`,
-  notes: ['12칸 고정 크기. 미획득은 실루엣 + 탭하면 힌트("비 오는 날 천천히")', '점 색 = 표시 등급. 속성 필터만 (희소도 필터는 확장안)', '지역 미수집 정보는 차량 목적지 제안에만 쓰이고 여기선 표시만'],
+      return `<div class="c ${got ? '' : 'lock'}">${A.badge(s.rank, { size: 10 })}<div class="still ${got ? '' : 'silhouette'}">${ch(id)}</div>${got ? s.ko : dot[s.attr] + ' ???'}</div>`; }).join('')}</div>
+    ${an(1, 300, 160)}${an(2, 30, 300)}`,
+  notes: ['12칸이 <b>스크롤 없이</b> 한 화면에 (어린 아이는 스크롤을 피함, NN/g). 칸 104×120dp', '배지는 별 개수로만(좁은 칸). 미획득 칸도 등급·속성 아이콘은 보여 줌 — 무엇을 찾는지 힌트', '미획득 칸을 누르면 힌트("비 오는 날 천천히"). 실루엣 테스트는 이 크기(76px)로 함'],
 },
 {
-  n: '⑧ 도감 상세', tag: ['tag-park', '정차 후 권장'], body: `${status}<div class="topbar"><span>‹ 도감</span><span class="chip">💛 친해짐 ●●●○○</span></div>
-    <div class="center" style="background:radial-gradient(circle at 50% 55%, #A9D4F133, transparent 65%)">${svgBox(ch('tide_keeper', { expr: 'signature' }), 200)}</div>
-    <div style="text-align:center;margin-bottom:8px"><div style="font-size:24px;font-weight:900">물결지기</div>
-      <div class="desc" style="margin:0">Tide Keeper</div>
-      <span class="pill" style="background:#F4D98B">초희귀</span> <span class="pill" style="background:#A9D4F1">💧 물</span></div>
-    <div class="info" style="margin-bottom:22px">잔잔하고 든든한 바다 지킴이. <b>"지켜 줄게."</b>
-      <dl><dt>만난 날</dt><dd>2026.11.05</dd><dt>날씨·길</dt><dd>🌧 비 · 🛣 고속도로</dd><dt>지역</dt><dd>— (확실할 때만)</dd><dt>좋아하는 것</dt><dd>조개 · 잔잔한 길</dd></dl></div>${an(1, 18, 450)}`,
-  notes: ['기록: 획득 날짜·날씨/환경·지역(regionTag가 확실할 때만, 아니면 비움)', '영어 이름을 크게 — 학습 레이어. 정답을 묻지 않음'],
+  n: '⑧ 도감 상세', tag: ['tag-park', '정차 후 권장'], body: `${status}<div class="topbar"><span class="chip">‹ 도감</span><span class="chip">💛 친해짐 3</span></div>
+    <div class="center" style="background:radial-gradient(circle at 50% 55%, #A9D4F133, transparent 65%)">${box(ch('tide_keeper', { expr: 'signature' }), 200)}</div>
+    <div style="text-align:center;margin-bottom:10px"><div style="font-family:Jua,sans-serif;font-size:30px">물결지기</div>
+      <div class="t2" style="margin:0 0 6px;font-size:18px;font-weight:700">Tide Keeper</div>
+      ${A.badge('epic', { size: 12 })} <span class="badge" style="background:#A9D4F1">💧<b>물</b></span></div>
+    <div class="info" style="margin-bottom:24px">잔잔하고 든든한 바다 지킴이. <b>"지켜 줄게."</b>
+      <dl><dt>만난 날</dt><dd>2026.11.05</dd><dt>그날의 길</dt><dd>🌧 비 · 🛣 고속도로</dd><dt>지역</dt><dd>— (확실할 때만)</dd></dl></div>${an(1, 22, 440)}`,
+  notes: ['signature 포즈. 탭하면 시그니처 동작 (동작 줄이기면 포즈 전환만)', '지역은 regionTag가 확실할 때만, 아니면 비움 (schema 3.4)', '영어 이름을 크게 — 학습 레이어. 정답을 묻지 않음'],
+},
+{
+  n: '⑨ 보호자 설정', tag: ['tag-new', '제안 · B 확인'], body: `${status}<div class="topbar"><span class="chip">‹ 돌아가기</span></div>
+    <div class="t1" style="text-align:left;margin:6px 16px 4px">보호자 설정</div>
+    <div class="t2" style="text-align:left;margin:0 16px 14px">아이 화면에서는 ⚙️를 3초 꾹 눌러야 열려요</div>
+    <div style="background:#fff;border-radius:22px;margin:0 16px">
+      <div class="toggle" data-dp="64dp"><div>동작 줄이기<small>휴대폰 설정을 따라요 · 움직임 → 부드러운 전환</small></div><span class="sw on"></span></div>
+      <div class="toggle" data-dp="64dp"><div>차와 같이 기울기<small>캐릭터가 코너에서 살짝 기울어요</small></div><span class="sw"></span></div>
+      <div class="toggle" data-dp="64dp"><div>소리<small>효과음과 캐릭터 소리</small></div><span class="sw on"></span></div>
+      <div class="toggle" data-dp="64dp" style="border:0"><div>진동<small>흔들림 알림</small></div><span class="sw"></span></div>
+    </div>
+    <div class="info" style="margin-top:16px;font-size:14px;color:var(--brown-2)">알로는 아이 이름·연락처·위치를 받지 않아요. 도감은 이 폰에만 저장돼요.</div>${an(1, 300, 210)}`,
+  notes: ['<b>멀미 대응</b>: OS "동작 줄이기"를 따르고 앱 안에도 토글(WCAG 2.3.3 권장). 기본값은 OS 설정', '보호자 잠금은 3초 길게 누르기 — 계정·비밀번호 없음', '앱 안에 설정 화면이 아직 없음 → B 범위 확인. 안 되면 OS 설정만 따르기'],
 },
 ];
 
+document.getElementById('badges').innerHTML = ['common', 'rare', 'epic', 'special'].map(r => A.badge(r, { size: 13 })).join('');
 document.getElementById('screens').innerHTML = screens.map(s => `<div class="scr">
   <h4>${s.n} <span class="pill ${s.tag[0]}">${s.tag[1]}</span></h4>
   <div class="phone">${s.raw ? s.body : `<div class="ph">${s.body}</div>`}</div>
   <ol>${s.notes.map(x => `<li>${x}</li>`).join('')}</ol></div>`).join('');
 
-document.getElementById('car').innerHTML = `
-<div><h4 style="margin:0 0 8px">⑨ 주행 중 (기어 D) <span class="pill tag-none">운전자 조작 없음</span></h4>
-<div class="car"><div class="in" style="display:flex;align-items:center;justify-content:center;gap:28px;background:#12142B">
-  <div style="width:110px">${egg({ size: 'mid', stage: 2, tags: ['rain', 'highway'] })}</div>
-  <div><div style="font-size:44px;font-weight:800">알을 품는 중 · 60%</div>
-  <div style="height:14px;border-radius:7px;background:#2E3360;margin-top:16px;width:520px"><div style="width:60%;height:100%;border-radius:7px;background:#F4D98B"></div></div></div>
-</div></div>
-<ol style="font-size:12.5px;color:#7A6B5F"><li>한 줄 상태 + 진행바만. 게임·애니메이션 없음 (Pleos 규정, CarUxRestrictions)</li><li>알 아이콘은 정지 이미지</li></ol></div>
+const carScr = (title, tag, inner, notes) => `<div><h4 style="margin:0 0 8px;font-size:15px">${title} <span class="pill ${tag[0]}">${tag[1]}</span></h4>
+  <div class="car"><div class="in">${inner}</div></div><ol style="font-size:12.5px;color:#7A6B5F;margin:10px 0 0;padding-left:18px">${notes.map(n => `<li>${n}</li>`).join('')}</ol></div>`;
+const qrSvg = (() => { let s = ''; const g = 21; for (let y = 0; y < g; y++) for (let x = 0; x < g; x++) { const f = (x < 7 && y < 7) || (x > 13 && y < 7) || (x < 7 && y > 13); const v = f ? ((x % 6 === 0 || y % 6 === 0 || (x > 1 && x < 5 && y > 1 && y < 5) || (x > 15 && x < 19 && y > 1 && y < 5) || (x > 1 && x < 5 && y > 15 && y < 19)) && !(x === 6 && y > 6) ) : ((x * 7 + y * 13 + x * y) % 3 === 0); if (v) s += `<rect x="${x}" y="${y}" width="1" height="1"/>`; } return `<svg viewBox="-1 -1 23 23" width="190" height="190" style="background:#fff;border-radius:14px"><g fill="#12142B">${s}</g></svg>`; })();
 
-<div><h4 style="margin:0 0 8px">⑩ 정차 (기어 P) — 가족 화면 <span class="pill tag-park">기어 P에서만</span></h4>
-<div class="car"><div class="in" style="background:linear-gradient(#1D2142, #12142B)">
-  <div style="position:absolute;left:40px;top:34px;font-size:30px;font-weight:800">🚗 오늘의 여행</div>
-  <div style="position:absolute;left:40px;top:84px;font-size:18px;color:#A9ACC6">감싸주기 3회 · 창밖 보기 2회</div>
-  <div style="position:absolute;left:40px;bottom:34px;width:330px;height:190px;border-radius:26px;background:#FFF0D8;color:#66584D;display:flex;align-items:center;gap:6px;padding:10px 16px">
-    <div style="width:150px">${ch('tide_keeper', { expr: 'happy' })}</div><div><div style="font-size:24px;font-weight:900">물결지기</div><div style="font-size:14px">초희귀 · 물</div><div style="font-size:15px;margin-top:8px;font-weight:700">"오늘도 잔잔하게 왔어!"</div></div></div>
-  <div style="position:absolute;left:400px;bottom:34px;display:flex;gap:14px">
-    <div style="width:200px;height:190px;border-radius:22px;background:#1D2142;text-align:center;padding-top:10px;font-size:15px;color:#A9ACC6"><div style="width:120px;margin:0 auto">${egg({ size: 'mid', stage: 3, tags: ['rain', 'highway'] })}</div>다음 알 · 30%</div>
-    <div style="width:330px;height:190px;border-radius:22px;background:#1D2142;padding:18px 20px;font-size:15px;color:#A9ACC6"><div style="color:#FFF0D8;font-weight:800;font-size:20px">📖 도감 5 / 12</div><div style="margin-top:10px">아직 못 만난 곳: 바다 · 산</div><div style="margin-top:6px">비 오는 날에만 나오는 친구가 있어요</div></div>
-  </div>
-  <div style="position:absolute;right:40px;top:34px;background:#F4D98B;color:#12142B;border-radius:18px;padding:10px 18px;font-weight:800">🔊 Gleo: "물 속성 아이가 깨어났어요!"</div>
-</div></div>
-<ol style="font-size:12.5px;color:#7A6B5F"><li>폰 화면 미러링이 아니라 <code>/game</code> 상태로 다시 그림. 기어 D 진입 시 즉시 ⑨로</li><li>캐릭터 카드만 크림색으로 띄워 "같이 보는 순간"을 만듦</li><li>"못 만난 곳"은 <code>uncollectedRegions</code>(도감 수집 기준, 방문 기록 아님). known=false면 이 줄을 숨김</li></ol></div>`;
+document.getElementById('car').innerHTML = [
+  carScr('⑩ 페어링 (기어 P)', ['tag-park', '출발 전'],
+    `<div style="position:absolute;left:60px;top:70px;font-size:36px;font-weight:800">뒷자리 폰으로 QR을 찍어 주세요</div>
+     <div style="position:absolute;left:60px;top:130px;font-size:24px;color:#A9ACC6">카메라가 안 되면 숫자로 연결해요</div>
+     <div style="position:absolute;left:60px;top:190px;font-size:64px;font-weight:800;letter-spacing:10px;color:#F4D98B">483 920</div>
+     <div style="position:absolute;right:250px;top:60px">${qrSvg}</div>
+     <div style="position:absolute;right:40px;bottom:30px;width:180px">${ch('puddle_pip', { expr: 'look' })}</div>`,
+    ['현재 문구(strings.xml) 유지. 6자리는 3자리씩 띄워 읽기 쉽게, 64sp 버터색', '캐릭터가 QR 쪽을 봄(look). 이 화면은 정차 중에만'],
+  ),
+  carScr('⑪ 속도 권한 안내 (기어 P · 최초 1회)', ['tag-new', 'v2 · D·A'],
+    `<div style="position:absolute;left:0;right:0;top:56px;text-align:center;font-size:40px;font-weight:800">🥚 알이 자라려면 차의 속도가 필요해요</div>
+     <div style="position:absolute;left:50px;right:50px;top:124px;text-align:center;font-size:24px;line-height:1.5;color:#C9CCE6">다음 창에 <b style="color:#FFF0D8">'위치 정보'</b>라고 나오지만, 알로가 쓰는 건 <b style="color:#FFF0D8">차의 속도</b>예요.<br>바다·산·도시 판정도 차 안에서만 하고, 위치는 어디에도 보내거나 저장하지 않아요.</div>
+     <div style="position:absolute;left:50px;right:50px;top:224px;display:flex;justify-content:center;gap:40px;font-size:24px;color:#A9ACC6"><span>✅ 차 속도</span><span>✅ 와이퍼·전조등</span><span>🚫 좌표 전송</span><span>🚫 경로 저장</span></div>
+     <div class="cbtn" data-dp="76dp+" style="left:440px;right:440px;bottom:30px;height:76px">계속</div>`,
+    ['verification.md의 D·A 항목: AAOS가 CAR_SPEED를 위치 권한으로 묶어 "위치 정보" 창이 뜸 → 미리 설명', '현재 SpeedNoticeScreen 문구 유지 + 아이콘 4개로 "쓰는 것 / 안 하는 것"을 한눈에', '버튼 76dp 이상, 글자 24sp 이상 (Android for Cars)'],
+  ),
+  carScr('⑫ 주행 중 (기어 D)', ['tag-none', '운전자 조작 없음'],
+    `<div style="display:flex;align-items:center;justify-content:center;gap:34px;height:100%">
+      <div style="width:120px">${egg({ size: 'mid', stage: 2, tags: ['rain', 'highway'] })}</div>
+      <div><div style="font-size:44px;font-weight:800">알을 품는 중 · 60%</div>
+      <div style="height:16px;border-radius:8px;background:#2E3360;margin-top:18px;width:560px;position:relative"><div style="width:60%;height:100%;border-radius:8px;background:#F4D98B"></div><span style="position:absolute;right:-6px;top:-10px;font-size:26px">🥚</span></div></div></div>`,
+    ['한 줄 + 진행바만. 게임·애니메이션 없음 (Pleos 규정, CarUxRestrictions)', '한 번 보는 데 2초 이내 (NHTSA 기준) — 숫자 하나, 막대 하나', '진행바 끝 🥚 = 부화 지점 (폰 진행 링과 같은 규칙)'],
+  ),
+  carScr('⑬ 정차 (기어 P) — 가족 화면', ['tag-park', '기어 P에서만'],
+    `<div style="position:absolute;left:40px;top:32px;font-size:32px;font-weight:800">🚗 오늘의 여행</div>
+     <div style="position:absolute;left:40px;top:82px;font-size:24px;color:#A9ACC6">감싸주기 3회 · 창밖 보기 2회</div>
+     <div style="position:absolute;left:40px;bottom:32px;width:380px;height:210px;border-radius:26px;background:#FFF0D8;color:#66584D;display:flex;align-items:center;gap:6px;padding:10px 18px">
+       <div style="width:160px">${ch('tide_keeper', { expr: 'happy' })}</div><div><div style="font-size:28px;font-weight:900">물결지기</div><div style="margin-top:4px">${A.badge('epic', { size: 13 })}</div><div style="font-size:18px;margin-top:10px;font-weight:700">"오늘도 잔잔하게 왔어!"</div></div></div>
+     <div style="position:absolute;left:450px;bottom:32px;width:210px;height:210px;border-radius:22px;background:#1D2142;text-align:center;padding-top:12px;font-size:24px;color:#A9ACC6"><div style="width:130px;margin:0 auto">${egg({ size: 'mid', stage: 3, tags: ['rain', 'highway'] })}</div>다음 알 30%</div>
+     <div style="position:absolute;left:690px;right:40px;bottom:32px;height:210px;border-radius:22px;background:#1D2142;padding:20px 22px;font-size:24px;color:#A9ACC6"><div style="color:#FFF0D8;font-weight:800;font-size:28px">📖 도감 5 / 12</div><div style="margin-top:12px">아직 못 만난 곳: 바다 · 산</div></div>
+     <div style="position:absolute;right:40px;top:32px;background:#F4D98B;color:#12142B;border-radius:18px;padding:10px 18px;font-weight:800;font-size:24px">🔊 "물 속성 아이가 깨어났어요!"</div>`,
+    ['폰 화면 미러링이 아니라 /game 상태로 다시 그림. 기어 D 진입 즉시 ⑫로', '캐릭터 카드만 크림색으로 띄워 "같이 보는 순간". 글자 24sp 이상', '"못 만난 곳" = uncollectedRegions(도감 기준, 방문 기록 아님). known=false면 줄 숨김'],
+  ),
+].join('');
+
+const toggle = (id, cls) => document.getElementById(id).addEventListener('click', e => {
+  const on = document.body.classList.toggle(cls); e.currentTarget.setAttribute('aria-pressed', on);
+});
+toggle('bMeasure', 'measure'); toggle('bReduce', 'reduce');
+const q = new URLSearchParams(location.search);
+if (q.has('measure')) document.getElementById('bMeasure').click();
 </script>
 </body>
 </html>

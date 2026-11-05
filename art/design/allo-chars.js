@@ -431,5 +431,17 @@
       </g></svg>`;
   }
 
-  window.ALLO = { C, SPECIES, ORDER, RANK, ATTR, TAGS, renderSpecies, renderEgg, starPath };
+  // 희소도 배지: 색 + 모양(별 개수·왕관) + 글자. 색만으로 등급을 구분하지 않는다 (WCAG 1.4.1).
+  const RANK_MARK = { common: 1, rare: 2, epic: 3, special: 'crown' };
+  function rankMark(rank, size = 12) {
+    const m = RANK_MARK[rank];
+    if (m === 'crown') return `<svg width="${size * 1.4}" height="${size}" viewBox="0 0 14 10"><path d="M1,9 L1.5,3 L4.5,5.5 L7,1 L9.5,5.5 L12.5,3 L13,9Z" fill="${C.brown}" stroke="${C.brown}" stroke-width="1" stroke-linejoin="round"/></svg>`;
+    return `<svg width="${size * m}" height="${size}" viewBox="0 0 ${10 * m} 10">${Array.from({ length: m }, (_, i) => starPath(5 + i * 10, 5.3, 4.3, C.brown)).join('')}</svg>`;
+  }
+  function badge(rank, opt = {}) {
+    const r = RANK[rank];
+    return `<span class="badge" style="background:${r.color}">${rankMark(rank, opt.size || 11)}<b>${r.ko}</b></span>`;
+  }
+
+  window.ALLO = { C, SPECIES, ORDER, RANK, ATTR, TAGS, renderSpecies, renderEgg, starPath, rankMark, badge };
 })();
