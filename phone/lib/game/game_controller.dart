@@ -82,6 +82,7 @@ class GameController extends ChangeNotifier {
   HatchTimer? _timer;
   String? _sessionId;
   String? _activeSessionId;
+  String? _roundSessionId;
   Map<String, double> _sessionDistances = {};
   double _distanceBaseline = 0;
   double _lastDistance = 0;
@@ -214,8 +215,8 @@ class GameController extends ChangeNotifier {
     await feed.pair(credentials.sessionId, pairCode: credentials.code);
     if (_disposed || connection != _connection) return;
     // A saved companion belongs to its vehicle session, not the next pairing.
-    if (_activeSessionId != null &&
-        _activeSessionId != credentials.sessionId &&
+    if (_roundSessionId != null &&
+        _roundSessionId != credentials.sessionId &&
         game.stage == Stage.hatched) {
       hatched = null;
       companionMessage = null;
@@ -349,6 +350,7 @@ class GameController extends ChangeNotifier {
 
   // A new egg never opens another vehicle subscription (Fake.watch resets a trip).
   void _resetEgg(EggTier tier) {
+    _roundSessionId = _activeSessionId;
     _roundNumber++;
     _eggId = '$_now-$_roundNumber';
     _elapsedMs = 0;
@@ -751,7 +753,7 @@ class GameController extends ChangeNotifier {
   Map<String, dynamic> _roundSnapshot() => {
         'eggId': _eggId,
         'number': _roundNumber,
-        'sessionId': _activeSessionId,
+        'sessionId': _roundSessionId,
         'elapsedMs': _elapsedMs,
         'hatchSec': _hatchSec,
         'companionSec': _companionSec,
@@ -843,6 +845,11 @@ class GameController extends ChangeNotifier {
                 ?.toInt() ??
             0;
     final stage = Stage.values.byName(g['stage'] as String);
+    // Retrying a completed result elsewhere must not reassign its source session.
+    // Unhatched progress keeps the current session for resume counter baselines.
+    if (stage == Stage.hatched && !isFake) {
+      _roundSessionId = round['sessionId'] as String?;
+    }
     final speciesId = g['speciesId'] as String?;
     if (speciesId != null) {
       hatched = _table!.byId(speciesId);
