@@ -58,6 +58,7 @@ class FakeVehicleFeed implements VehicleFeed {
 
   final _events = StreamController<Map<String, Object?>>.broadcast();
   Timer? _timer;
+  VehicleState? _latest;
   double _dist = 0;
   int _harshBrake = 0;
   int _harshSteer = 0;
@@ -74,6 +75,7 @@ class FakeVehicleFeed implements VehicleFeed {
     _elapsed = 0;
     _harshBrake = 0;
     _harshSteer = 0;
+    _latest = null;
     final startedAt = DateTime.now().millisecondsSinceEpoch;
     final timer = Timer.periodic(const Duration(seconds: 1), (_) {
       _elapsed++;
@@ -83,7 +85,7 @@ class FakeVehicleFeed implements VehicleFeed {
         _harshBrake++;
         if (_elapsed % (scenario.harshEverySec.round() * 2) == 0) _harshSteer++;
       }
-      ctrl.add(VehicleState(
+      _latest = VehicleState(
         ts: startedAt + (_elapsed * timeScale * 1000).round(),
         gear: 'D',
         speedKph: scenario.speedKph,
@@ -107,12 +109,16 @@ class FakeVehicleFeed implements VehicleFeed {
           'gear',
           if (scenario.etaSec != null) 'eta'
         ],
-      ));
+      );
+      ctrl.add(_latest!);
     });
     _timer = timer;
     ctrl.onCancel = timer.cancel;
     return ctrl.stream;
   }
+
+  @override
+  Future<VehicleState?> readLatestVehicle() async => _latest;
 
   @override
   Future<void> publishGame(GameState state) async {}
