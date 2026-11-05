@@ -213,6 +213,15 @@ class GameController extends ChangeNotifier {
     final connection = ++_connection;
     await feed.pair(credentials.sessionId, pairCode: credentials.code);
     if (_disposed || connection != _connection) return;
+    // A saved companion belongs to its vehicle session, not the next pairing.
+    if (_activeSessionId != null &&
+        _activeSessionId != credentials.sessionId &&
+        game.stage == Stage.hatched) {
+      hatched = null;
+      companionMessage = null;
+      game = GameState(
+          ts: _now, eggTier: game.eggTier, stage: Stage.idle, progress: 0);
+    }
     _sessionId = credentials.sessionId;
     _remoteEnded = false;
     _remoteSaved = false;
@@ -781,6 +790,16 @@ class GameController extends ChangeNotifier {
 
   void _restoreRound(Map<String, dynamic> round, EggTier tier) {
     final g = Map<String, dynamic>.from(round['game'] as Map);
+    // Preserve unfinished saves and legacy/Fake checkpoints. A completed round
+    // from another real session must not replace the fresh egg set up by start.
+    if (!isFake &&
+        round['sessionId'] != null &&
+        _activeSessionId != null &&
+        round['sessionId'] != _activeSessionId &&
+        g['stage'] == Stage.hatched.name &&
+        round['pendingEntry'] == null) {
+      return;
+    }
     // A distance-mode arrival retains the existing manual new-egg behavior.
     // Lifecycle snapshots restore distance companions; explicit endSession clears it.
     _eggId = round['eggId'] as String?;
