@@ -1,9 +1,9 @@
 /// docs/schema.md 3장과 1:1 로 맞춘다. 필드를 바꾸면 schema.md 먼저.
 
 enum EggTier {
-  small(10_000),
-  mid(50_000),
-  large(150_000);
+  small(10000),
+  mid(50000),
+  large(150000);
 
   /// 거리 폴백의 목표 거리(m). 부화는 이 값의 50% 지점.
   final int targetM;

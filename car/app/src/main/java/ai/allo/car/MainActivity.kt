@@ -50,6 +50,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** 포그라운드 서비스는 화면에 보일 때만 시작할 수 있다 (Android 12+). 실패했으면 다음 onStart 에서 다시 */
+    override fun onStart() {
+        super.onStart()
+        (application as AlloApp).session.ensureForeground()
+    }
+
     /**
      * 속도(CAR_SPEED)는 dangerous 권한. 에뮬레이터 시연의 거리 = 속도 적분이라 없으면 알이 안 자란다.
      * 시스템 창이 "위치 정보" 라고 나오므로 먼저 SpeedNoticeScreen 을 보여 준다.

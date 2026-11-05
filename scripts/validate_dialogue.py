@@ -25,7 +25,8 @@ QUESTION_IDS = {"ask_name", "ask_origin", "ask_like", "ask_mood", "ask_window", 
 SITUATION_IDS = {"hatch", "look_out", "look_out_done", "env_change", "care",
                  "car_egg_status", "car_hatch", "car_suggest", "car_suggest_none", "car_accept", "car_unknown"}
 SITUATIONS = {"hatched", "incubating", "harsh", "rain", "tunnel", "highway", "coast", "city", "night", "none", "eta", "distance", "driving", "*",
-              "idle", "not_yet", "first", "unvisited", "alt", "all_visited", "none_nearby", "exhausted", "ok"}
+              "idle", "not_yet", "first", "unvisited", "alt", "all_visited", "none_nearby", "exhausted", "ok",
+              "route_active", "not_ready"}
 
 # 길이 계산용 예시값. 플레이스홀더를 이 값으로 바꿔서 잰다
 SAMPLES = {"{name}": "별부엉이", "{eta_min}": "15", "{progress}": "62", "{word_en}": "bridge", "{word_ko}": "다리",

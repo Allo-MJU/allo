@@ -6,28 +6,64 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// 도감 + 이어하기 거리. **기기에만 저장**한다. 서버에는 올리지 않는다 (아동 개인정보 설계).
 class DexStore {
   static const _kDex = 'dex.entries.v1';
+  static const _kProgress = 'hatch.progress.v2.';
   static const _kCarry = 'hatch.carried.v1.'; // + eggTier
 
   Future<List<DexEntry>> all() async {
     final p = await SharedPreferences.getInstance();
     final raw = p.getStringList(_kDex) ?? const [];
-    return raw.map((s) => DexEntry.fromJson(jsonDecode(s) as Map<String, dynamic>)).toList();
+    return raw
+        .map((s) => DexEntry.fromJson(jsonDecode(s) as Map<String, dynamic>))
+        .toList();
   }
 
   Future<void> add(DexEntry e) async {
     final p = await SharedPreferences.getInstance();
     final raw = List<String>.from(p.getStringList(_kDex) ?? const []);
-    raw.add(jsonEncode(e.toJson()));
+    final encoded = jsonEncode(e.toJson());
+    if (!raw.contains(encoded)) raw.add(encoded);
     await p.setStringList(_kDex, raw);
   }
 
-  Future<double> carriedDistance(EggTier t) async {
+  Future<IncubationProgress> incubationProgress(EggTier tier) async {
     final p = await SharedPreferences.getInstance();
-    return p.getDouble('$_kCarry${t.name}') ?? 0;
+    final raw = p.getString('$_kProgress${tier.name}');
+    if (raw != null) {
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      return IncubationProgress(
+        carriedM: (data['carriedM'] as num).toDouble(),
+        sessionDistances: (data['sessionDistances'] as Map<String, dynamic>)
+            .map((key, value) => MapEntry(key, (value as num).toDouble())),
+      );
+    }
+    return IncubationProgress(
+        carriedM: p.getDouble('$_kCarry${tier.name}') ?? 0);
   }
 
-  Future<void> setCarriedDistance(EggTier t, double m) async {
+  /// 누적 거리와 해당 세션의 반영 위치를 한 값으로 저장한다.
+  Future<void> saveIncubationProgress(
+      EggTier tier, IncubationProgress progress) async {
     final p = await SharedPreferences.getInstance();
-    await p.setDouble('$_kCarry${t.name}', m);
+    final saved = await p.setString(
+        '$_kProgress${tier.name}',
+        jsonEncode({
+          'carriedM': progress.carriedM,
+          'sessionDistances': progress.sessionDistances,
+        }));
+    if (!saved) throw StateError('Could not save incubation progress');
   }
+
+  Future<double> carriedDistance(EggTier tier) async =>
+      (await incubationProgress(tier)).carriedM;
+
+  Future<void> setCarriedDistance(EggTier tier, double m) =>
+      saveIncubationProgress(tier, IncubationProgress(carriedM: m));
+}
+
+/// 로컬 이어하기 기록. 각 세션의 반영 위치는 부화 후에도 보존한다.
+class IncubationProgress {
+  const IncubationProgress(
+      {this.carriedM = 0, this.sessionDistances = const {}});
+  final double carriedM;
+  final Map<String, double> sessionDistances;
 }

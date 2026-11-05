@@ -5,10 +5,11 @@ import 'feed/fake_feed.dart';
 import 'feed/firebase_feed.dart';
 import 'feed/vehicle_feed.dart';
 
-/// --dart-define=FEED=fake  → 차 없이 가짜 신호로 실행 (기본값은 firebase)
+/// --dart-define=FEED=fake  → 차 없이 가짜 신호로 실행 (기본값은 fake)
 /// --dart-define=SCENARIO=rainy_highway|tunnel_rough|clear|rough  (fake 일 때)
-const _feedKind = String.fromEnvironment('FEED', defaultValue: 'firebase');
-const _scenario = String.fromEnvironment('SCENARIO', defaultValue: 'rainy_highway');
+const _feedKind = String.fromEnvironment('FEED', defaultValue: 'fake');
+const _scenario =
+    String.fromEnvironment('SCENARIO', defaultValue: 'rainy_highway');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

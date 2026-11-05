@@ -694,7 +694,7 @@
       "reviewedBy": null,
       "lines": [
         "{tier_word} 알이 {progress}퍼센트 자랐어요. 부드럽게 가면 좋은 아이가 나와요.",
-        "{tier_word} 알이 {progress}퍼센트 자랐어요. 지금처럼 부드럽게 가 주세요."
+        "{tier_word} 알이 {progress}퍼센트 자랐어요."
       ]
     },
     {
@@ -710,7 +710,7 @@
       "reviewedBy": null,
       "lines": [
         "아직 품고 있는 알이 없어요.",
-        "뒷자리 폰에서 알을 고르면 시작돼요."
+        "지금은 품고 있는 알이 없어요."
       ]
     },
     {
@@ -726,7 +726,7 @@
       "reviewedBy": null,
       "lines": [
         "어둠 속성 {name}{name:이/가} 깨어났어요! 뒷자리에 물어보세요.",
-        "{name}{name:이/가} 깨어났어요. 밤길이 만든 아이예요."
+        "어둠 속성 {name}{name:이/가} 깨어났어요."
       ]
     },
     {
@@ -734,7 +734,7 @@
       "reviewedBy": null,
       "lines": [
         "{name}{name:이/가} 깨어났어요! 뒷자리에 물어보세요.",
-        "{name}{name:이/가} 깨어났어요. 부드러운 운전 덕분이에요."
+        "{name}{name:이/가} 깨어났어요."
       ]
     },
     {
@@ -742,21 +742,21 @@
       "reviewedBy": null,
       "lines": [
         "아직 깨어나지 않았어요.",
-        "조금만 더 가면 깨어나요."
+        "지금은 부화 소식이 없어요."
       ]
     },
     {
       "key": "car_suggest|*|first",
       "reviewedBy": null,
       "lines": [
-        "{region_word} 쪽에서만 나오는 아이가 있어요. {place}까지 안내할까요?{km} 같은 {region_word}{region_word:이라면/라면} 다른 곳도 괜찮아요."
+        "{region_word} 쪽 {place}까지 안내할까요?{km} 같은 {region_word}{region_word:이라면/라면} 다른 곳도 괜찮아요."
       ]
     },
     {
       "key": "car_suggest|*|unvisited",
       "reviewedBy": null,
       "lines": [
-        "{region_word} 쪽은 아직 안 가보셨네요. 거기서만 나오는 아이가 있어요. {place}까지 안내할까요?{km}"
+        "{region_word} 쪽 {place}까지 안내할까요?{km}"
       ]
     },
     {
@@ -770,29 +770,36 @@
       "key": "car_suggest_none|*|all_visited",
       "reviewedBy": null,
       "lines": [
-        "가까운 곳은 다 가보셨어요. 다음 계절에 새 아이가 나와요."
+        "지금은 추가로 제안할 곳이 없어요."
       ]
     },
     {
       "key": "car_suggest_none|*|none_nearby",
       "reviewedBy": null,
       "lines": [
-        "가까운 곳에는 새 아이가 나오는 곳이 없어요."
+        "가까운 곳에서 추천할 장소를 찾지 못했어요."
       ]
     },
     {
       "key": "car_suggest_none|*|exhausted",
       "reviewedBy": null,
       "lines": [
-        "근처에서 추천할 곳은 여기까지예요. 내비에서 원하는 곳을 직접 고르셔도 돼요."
+        "지금 추천할 장소는 여기까지예요."
+      ]
+    },
+    {
+      "key": "car_suggest_none|*|route_active",
+      "reviewedBy": null,
+      "lines": [
+        "지금은 길 안내 중이에요. 안내가 끝나면 다시 물어봐 주세요."
       ]
     },
     {
       "key": "car_accept|*|ok",
       "reviewedBy": null,
       "lines": [
-        "{place}까지 안내를 시작할게요.",
-        "{place}{place:으로/로} 갈게요. 안내를 시작해요."
+        "{place}까지 안내를 요청했어요.",
+        "{place}{place:으로/로} 가는 경로를 요청했어요."
       ]
     },
     {
@@ -800,6 +807,20 @@
       "reviewedBy": null,
       "lines": [
         "먼저 어디로 갈지 물어봐 주세요."
+      ]
+    },
+    {
+      "key": "car_accept|*|route_active",
+      "reviewedBy": null,
+      "lines": [
+        "지금은 길 안내 중이라 목적지를 바꾸지 않을게요."
+      ]
+    },
+    {
+      "key": "car_accept|*|not_ready",
+      "reviewedBy": null,
+      "lines": [
+        "지금은 내비에 목적지를 넣지 못했어요. 잠시 뒤에 다시 말해 주세요."
       ]
     },
     {

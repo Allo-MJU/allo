@@ -7,7 +7,7 @@ import ai.allo.car.BuildConfig
 import ai.allo.car.model.*
 import ai.allo.car.vehicle.*
 import ai.allo.car.dialogue.DialogueBank
-import ai.allo.car.gleo.Destination
+import ai.allo.car.gleo.AcceptResult
 import ai.allo.car.gleo.DestinationFlow
 import ai.allo.car.gleo.GleoFunctions
 import ai.allo.car.voice.DriverVoice
@@ -84,7 +84,6 @@ class SessionManager(private val context: Context) {
     fun ensureStarted() {
         if (started) return
         started = true
-        context.startForegroundService(Intent(context, SessionService::class.java))
         caps.assumeAaos()
         if (!aaos.start()) caps.mark(Capability.SPEED, false) // 권한 허용 후 onSpeedPermissionGranted 에서 다시 true
         vehicleReader.start()
@@ -96,6 +95,16 @@ class SessionManager(private val context: Context) {
         if (BuildConfig.DEBUG) scope.launch { screen.collect { debugLog("screen $it gear=${aaos.state.value.gear}") } } // P↔D 전환 시간 측정용
     }
 
+    /**
+     * 포그라운드 서비스 시작. MainActivity.onStart(화면에 보일 때)에서 부른다.
+     * 백그라운드에서 부르면 Android 12+ 가 막으므로 실패는 삼키고, 다음에 화면이 보일 때 다시 시도한다.
+     * 이미 돌고 있으면 onStartCommand 만 다시 불린다 (startForeground 재호출, 부작용 없음).
+     */
+    fun ensureForeground() {
+        runCatching { context.startForegroundService(Intent(context, SessionService::class.java)) }
+            .onFailure { android.util.Log.w("SessionManager", "foreground service not started: ${it.javaClass.simpleName}") }
+    }
+
     /** MainActivity 가 CAR_SPEED 런타임 권한을 받은 뒤 호출. */
     fun onSpeedPermissionGranted() {
         if (aaos.startSpeed()) caps.mark(Capability.SPEED, true)
@@ -103,6 +112,7 @@ class SessionManager(private val context: Context) {
 
     /** Gleo 제안. 현재 위치에서 가까운 순. 폰에는 지역 태그만 알린다 (좌표 X). */
     fun suggestDestination(): DestinationFlow.Offer {
+        if (naviEta.guidance.value == ai.allo.car.navi.Guidance.GUIDING) return DestinationFlow.Offer.None(ai.allo.car.gleo.NoSuggestion.ROUTE_ACTIVE)
         val here = naviEta.position.value
         // 방문 기록은 폰에만 있다. /game 에 미방문 지역 필드가 생기기 전까지는 null(폴백). 이슈 #9
         val offer = destinations.offer(here, regionTagger.tag(here?.lat, here?.lng), unvisitedRegions = null)
@@ -113,12 +123,18 @@ class SessionManager(private val context: Context) {
         return offer
     }
 
-    /** 운전자가 수락. 직전 제안이 유효할 때만 내비에 목적지를 넣는다. */
-    fun acceptDestination(): Destination? {
-        val d = destinations.accept() ?: return null
-        naviEta.requestRoute(d.latitude, d.longitude, d.name)
-        scope.launch { runCatching { emitEvent("destinationSuggest", mapOf("region" to d.region, "status" to "accepted")) } }
-        return d
+    /**
+     * 운전자가 수락. 직전 제안이 유효하고, 안내 중이 아니고, 내비 요청이 성공했을 때만 목적지가 바뀐다.
+     * accepted 이벤트도 성공했을 때만 보낸다.
+     */
+    fun acceptDestination(): AcceptResult {
+        val r = destinations.accept(naviEta.guidance.value) { d -> naviEta.requestRoute(d.latitude, d.longitude, d.name) }
+        if (r is AcceptResult.Started) {
+            val d = r.destination
+            scope.launch { runCatching { emitEvent("destinationSuggest", mapOf("region" to d.region, "status" to "accepted")) } }
+        }
+        debugLog("accept → ${r::class.simpleName}")
+        return r
     }
 
     /** 새 세션: 새 id·페어링 코드, 누적값 초기화, 구독 다시 시작. 폰은 다시 페어링해야 한다 */
@@ -242,7 +258,7 @@ class SessionManager(private val context: Context) {
         }
         if (!_meta.value.paired) return
         val arrived = naviEta.arrivedAt.value?.let { it >= sessionStartedAt } == true
-        endDetector.update(now, gear, derivation.distanceM, routeActive = naviEta.etaSec.value != null, arrived = arrived)
+        endDetector.update(now, gear, derivation.distanceM, routeActive = naviEta.guidance.value == ai.allo.car.navi.Guidance.GUIDING, arrived = arrived)
             ?.let { endSession(it.name.lowercase()) }
     }
 

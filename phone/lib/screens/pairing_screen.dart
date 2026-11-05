@@ -18,6 +18,13 @@ class _PairingScreenState extends State<PairingScreen> {
   final _code = TextEditingController();
 
   @override
+  void dispose() {
+    _sid.dispose();
+    _code.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final c = widget.controller;
     return Scaffold(
@@ -26,36 +33,63 @@ class _PairingScreenState extends State<PairingScreen> {
         listenable: c,
         builder: (_, __) => Padding(
           padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: ListView(
             children: [
-              const Text('차 화면의 QR을 찍어 주세요', style: TextStyle(fontSize: 20)),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: () {
-                  // TODO(B): mobile_scanner 로 "allo://pair?sid=...&code=..." 파싱 → c.pair(sid, pairCode: code)
-                },
-                icon: const Icon(Icons.qr_code_scanner),
-                label: const Text('QR 스캔'),
-              ),
-              const Divider(height: 48),
-              const Text('QR이 안 되면 코드로'),
-              TextField(controller: _sid, decoration: const InputDecoration(labelText: '세션 ID')),
-              TextField(controller: _code, decoration: const InputDecoration(labelText: '6자리 코드'), keyboardType: TextInputType.number, maxLength: 6),
-              FilledButton.tonal(
-                onPressed: () => c.pair(_sid.text.trim(), pairCode: _code.text.trim()),
-                child: const Text('연결'),
-              ),
-              if (c.error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(c.error!, style: const TextStyle(color: Colors.red))),
-              const Spacer(),
+              Text(c.isFake ? '차 없이 알로를 체험해 보세요' : '차 화면의 QR을 찍어 주세요',
+                  style: const TextStyle(fontSize: 20)),
+              if (c.isFake) const Text('가상 주행으로 알을 품고 도감에 모아요.'),
+              if (!c.isFake) ...[
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: () {
+                    // TODO(B): mobile_scanner 로 "allo://pair?sid=...&code=..." 파싱 → c.pair(sid, pairCode: code)
+                  },
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: const Text('QR 스캔'),
+                ),
+                const Divider(height: 48),
+                const Text('QR이 안 되면 코드로'),
+                TextField(
+                    controller: _sid,
+                    decoration: const InputDecoration(labelText: '세션 ID')),
+                TextField(
+                    controller: _code,
+                    decoration: const InputDecoration(labelText: '6자리 코드'),
+                    keyboardType: TextInputType.number,
+                    maxLength: 6),
+                FilledButton.tonal(
+                  onPressed: c.busy
+                      ? null
+                      : () =>
+                          c.pair(_sid.text.trim(), pairCode: _code.text.trim()),
+                  child: const Text('연결'),
+                ),
+              ],
+              if (c.paired) const Text('차량과 연결됐어요'),
+              if (c.error != null)
+                Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(c.error!,
+                        style: const TextStyle(color: Colors.red))),
+              const SizedBox(height: 24),
               OutlinedButton(
-                onPressed: () async {
-                  await c.startIncubating(EggTier.small);
-                  if (context.mounted) context.go('/incubating');
-                },
-                child: const Text('연결 없이 시작 (fake feed)'),
+                onPressed: !c.canStart
+                    ? null
+                    : () async {
+                        final started = await c.startIncubating(EggTier.small);
+                        if (started && context.mounted) {
+                          context.go('/incubating');
+                        }
+                      },
+                child: Text(c.busy
+                    ? '준비 중…'
+                    : c.isFake
+                        ? '체험 시작'
+                        : '알 품기 시작'),
               ),
-              TextButton(onPressed: () => context.go('/dex'), child: const Text('도감 보기')),
+              TextButton(
+                  onPressed: () => context.go('/dex'),
+                  child: const Text('도감 보기')),
             ],
           ),
         ),

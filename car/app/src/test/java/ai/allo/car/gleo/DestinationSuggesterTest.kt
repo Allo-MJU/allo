@@ -1,5 +1,6 @@
 package ai.allo.car.gleo
 
+import ai.allo.car.navi.Guidance
 import ai.allo.car.vehicle.GeoPoint
 import ai.allo.car.vehicle.RegionTagger
 import kotlin.test.*
@@ -64,6 +65,42 @@ class DestinationSuggesterTest {
         val second = (flow.offer(pangyo, "city") as DestinationFlow.Offer.Made).suggestion.destination
         assertEquals(second, flow.accept())
         assertNull(flow.accept())
+    }
+
+    @Test fun `accept keeps the offer when navi fails or a route is active`() {
+        val flow = DestinationFlow(now = { 0L })
+        val offered = (flow.offer(pangyo, "city") as DestinationFlow.Offer.Made).suggestion.destination
+        assertEquals(AcceptResult.NaviNotReady, flow.accept(Guidance.IDLE) { false })
+        assertEquals(AcceptResult.RouteActive, flow.accept(Guidance.GUIDING) { error("내비를 부르면 안 된다") })
+        assertEquals(AcceptResult.NaviNotReady, flow.accept(Guidance.UNKNOWN) { error("내비를 부르면 안 된다") })   // 상태 미확인
+        assertEquals(AcceptResult.Started(offered), flow.accept(Guidance.IDLE) { true })   // 남아 있던 제안
+        assertEquals(AcceptResult.NoOffer, flow.accept(Guidance.IDLE) { true })            // 한 번만
+    }
+
+    @Test fun `ROUTE_DRIVE without ETA still blocks the route change`() {
+        // 리뷰 사례: ROUTE_DRIVE 는 받았고 남은 시간(onDestinationInfo)은 아직 → ETA 는 null 이지만 안내 중
+        assertNull(ai.allo.car.navi.NaviEta.etaSec("ROUTE_DRIVE", null))
+        val g = Guidance.fromStatus("ROUTE_DRIVE")
+        assertEquals(Guidance.GUIDING, g)
+        val flow = DestinationFlow(now = { 0L })
+        flow.offer(pangyo, "city")
+        assertEquals(AcceptResult.RouteActive, flow.accept(g) { error("내비를 부르면 안 된다") })
+    }
+
+    @Test fun `guidance mapping`() {
+        assertEquals(Guidance.IDLE, Guidance.fromStatus("FREE_DRIVE"))
+        assertEquals(Guidance.UNKNOWN, Guidance.fromStatus("INITIALIZING"))
+        assertEquals(Guidance.UNKNOWN, Guidance.fromStatus("INACTIVE"))
+        assertEquals(Guidance.UNKNOWN, Guidance.fromStatus(null))
+        assertEquals(Guidance.GUIDING, Guidance.fromNaviMode("ROUTE_GUIDING"))
+        assertEquals(Guidance.GUIDING, Guidance.fromNaviMode("SIMULATION_GUIDING"))
+        assertEquals(Guidance.IDLE, Guidance.fromNaviMode("SAFE_GUIDING"))
+        assertEquals(Guidance.IDLE, Guidance.fromNaviMode("NOT_WORKING"))
+    }
+
+    @Test fun `forged accept without a prior offer never reaches navi`() {
+        val flow = DestinationFlow(now = { 0L })
+        assertEquals(AcceptResult.NoOffer, flow.accept(Guidance.IDLE) { error("내비를 부르면 안 된다") })
     }
 
     @Test fun `accept without offer or after ttl is rejected and ttl restarts ranking`() {

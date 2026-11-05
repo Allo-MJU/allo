@@ -8,6 +8,7 @@ import ai.pleos.playground.navi.data.CurrentLocationInfo
 import ai.pleos.playground.navi.data.DestinationInfo
 import ai.pleos.playground.navi.data.DrivingInfo
 import ai.pleos.playground.navi.data.RouteInfo
+import ai.pleos.playground.navi.data.RouteStateInfo
 import ai.pleos.playground.navi.data.TripInfo
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
@@ -35,6 +36,10 @@ class NaviEtaReader(context: Context) {
     private val _arrivedAt = MutableStateFlow<Long?>(null)
     val arrivedAt: StateFlow<Long?> = _arrivedAt
 
+    /** 경로 안내 상태. ETA 와 독립 ([Guidance]). 처음과 내비 연결 전에는 UNKNOWN */
+    private val _guidance = MutableStateFlow(Guidance.UNKNOWN)
+    val guidance: StateFlow<Guidance> = _guidance
+
     @Volatile private var status: String? = null
     @Volatile private var remainSec: Int? = null
     @Volatile private var ready = false
@@ -42,6 +47,7 @@ class NaviEtaReader(context: Context) {
     private val listener = object : NaviHelperEventListener {
         override fun onNavigationStatus(s: NavigationStatus) {
             status = s.name
+            setGuidance(Guidance.fromStatus(s.name))
             if (s != NavigationStatus.ROUTE_DRIVE) remainSec = null
             publish("status=${s.name}")
         }
@@ -55,10 +61,25 @@ class NaviEtaReader(context: Context) {
         override fun onTripInfo(info: TripInfo) {
             Log.d(TAG, "tripInfo eta=${info.eta} distance=${info.distance}")
         }
-        override fun onRouteEnded() { status = null; remainSec = null; publish("route ended") }
-        override fun onRouteCancelled() { status = null; remainSec = null; publish("route cancelled") }
+        override fun onRouteStarted(info: ai.pleos.playground.navi.data.RouteStartInfo) { setGuidance(Guidance.GUIDING); Log.d(TAG, "route started") }
+        override fun onRouteEnded() { status = null; remainSec = null; setGuidance(Guidance.IDLE); publish("route ended") }
+        override fun onRouteCancelled() { status = null; remainSec = null; setGuidance(Guidance.IDLE); publish("route cancelled") }
         override fun onDestinationArrived(info: ai.pleos.playground.navi.data.DestinationArrivedInfo) {
             remainSec = null; _arrivedAt.value = System.currentTimeMillis(); publish("arrived")
+        }
+        /**
+         * 앱이 켜지기 전에 시작된 안내는 onNavigationStatus 가 다시 오지 않는다 → poll 의 getRouteStateInfo 로 채운다.
+         * 에뮬레이터 실측: 안내 중에 isRouting=false · naviMode=ROUTE_GUIDING (isRouting 은 경로 탐색 중 여부로 보인다)
+         * → naviMode 로 판단한다. 안내 중인데 상태를 모르면 ROUTE_DRIVE 로 본다 (목적지 제안이 진행 중인 경로를 바꾸지 않게)
+         */
+        override fun onRouteStateInfo(info: RouteStateInfo) {
+            val g = Guidance.fromNaviMode(info.naviMode?.name)
+            if (g != Guidance.UNKNOWN) setGuidance(g)
+            val guiding = g == Guidance.GUIDING
+            val before = status
+            if (guiding) { if (status == null) status = "ROUTE_DRIVE" }
+            else if (status == "ROUTE_DRIVE") { status = null; remainSec = null }
+            if (status != before) publish("routeState mode=${info.naviMode}")
         }
         override fun onCurrentLocationInfo(info: CurrentLocationInfo) {
             _position.value = GeoPoint(info.latitude, info.longitude)
@@ -79,21 +100,35 @@ class NaviEtaReader(context: Context) {
     /** 이벤트가 안 오는 구간을 메우려고 SessionManager 가 주기적으로 부른다. */
     fun poll() {
         if (!ready) return
+        runCatching { navi.getRouteStateInfo() }.onFailure { Log.w(TAG, "getRouteStateInfo failed", it) }
         runCatching { navi.getDestinationInfo() }.onFailure { Log.w(TAG, "getDestinationInfo failed", it) }
         runCatching { navi.getCurrentLocationInfo() }.onFailure { Log.w(TAG, "getCurrentLocationInfo failed", it) }
     }
 
     /** 목적지 설정. 목적지 제안(A-5)과 디버그 확인에 쓴다. 좌표는 내비에만 넘기고 Firebase 로 보내지 않는다. */
-    fun requestRoute(latitude: Double, longitude: Double, name: String) {
-        if (!ready) { Log.w(TAG, "requestRoute before init"); return }
-        runCatching {
+    /** @return 내비에 요청을 넘겼으면 true. 초기화 전이거나 SDK 예외면 false */
+    fun requestRoute(latitude: Double, longitude: Double, name: String): Boolean {
+        if (!ready) { Log.w(TAG, "requestRoute before init"); return false }
+        return runCatching {
             navi.requestRoute(RouteInfo(latitude = latitude, longitude = longitude, poiName = name, poiId = "", address = "", poiSubId = ""))
-        }.onFailure { Log.w(TAG, "requestRoute failed", it) }
+        }.onFailure { Log.w(TAG, "requestRoute failed", it) }.isSuccess
+    }
+
+    /** 진행 중인 경로 안내 취소. 디버그·시연 초기화용 (DebugRouteReceiver) */
+    fun cancelRoute() {
+        if (!ready) return
+        runCatching { navi.cancelRoute() }.onFailure { Log.w(TAG, "cancelRoute failed", it) }
     }
 
     fun stop() {
         runCatching { navi.removeListener(listener); navi.release() }
         ready = false
+        setGuidance(Guidance.UNKNOWN)
+    }
+
+    private fun setGuidance(g: Guidance) {
+        if (_guidance.value != g) Log.d(TAG, "guidance ${_guidance.value} → $g")
+        _guidance.value = g
     }
 
     private fun publish(why: String) {
