@@ -15,6 +15,7 @@
 | [setup.md](./setup.md) | 차량 앱 개발 환경 초기 세팅 (JDK · Android Studio · Pleos 에뮬레이터 · 샘플앱) | A · 차량 앱 빌드할 사람 |
 | [verification.md](./verification.md) | SDK 검증 8개 결과 기록 | A |
 | [architecture.md](./architecture.md) | 기술 스택 결정과 근거, 선례에서 확인된 제약 | 전원 |
+| [art-direction.md](./art-direction.md) | 아트 디렉션, 12종 캐릭터 바이블, 등급별 시각 규칙, 화면 설계 | D·B |
 | [demo-scenario.md](./demo-scenario.md) | 시연 9단계와 Virtual Console 명령 | A·B·D |
 
 ## 읽는 순서

@@ -1,0 +1,44 @@
+:root {
+  --cream: #FFF0D8; --bg: #FFF8EF; --card: #FFFFFF; --sage: #B9D0B9; --sky: #A9D4F1;
+  --lav: #C9B9E8; --peach: #F5B99F; --butter: #F4D98B; --brown: #66584D; --brown-2: #9A8B7E;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--brown);
+  font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  line-height: 1.5;
+}
+.wrap { max-width: 1400px; margin: 0 auto; padding: 40px 32px 80px; }
+.logo { font-weight: 900; font-size: 44px; letter-spacing: -1px; color: #6F86B8; }
+.logo span { color: #9CC58F; }
+h1 { margin: 0; }
+h2 { font-size: 22px; margin: 56px 0 6px; display: flex; gap: 10px; align-items: center; }
+h2 .num { background: var(--butter); border-radius: 999px; padding: 2px 12px; font-size: 14px; }
+.sub { color: var(--brown-2); margin: 0 0 20px; font-size: 14px; }
+.card { background: var(--card); border-radius: 24px; box-shadow: 0 6px 24px rgba(102, 88, 77, .08); }
+.pill { display: inline-block; border-radius: 999px; padding: 1px 10px; font-size: 12px; font-weight: 700; }
+.note { background: #FFF3D6; border-radius: 14px; padding: 10px 14px; font-size: 13px; }
+
+/* 캐릭터 애니메이션. 주기는 --p 로 종마다 다르게 */
+.allo-char { overflow: visible; }
+.allo-char .char-body { transform-origin: 100px 186px; animation: var(--move, bounce) var(--p, 2s) ease-in-out infinite; }
+.still .allo-char .char-body, .still .allo-char * { animation: none !important; }
+@keyframes bounce { 0%,100% { transform: translateY(0) scale(1, 1); } 50% { transform: translateY(-6px) scale(.985, 1.015); } }
+@keyframes hop { 0%,60%,100% { transform: translateY(0) scale(1,1); } 20% { transform: translateY(-14px) scale(.97,1.03); } 40% { transform: translateY(0) scale(1.03,.97); } }
+@keyframes breathe { 0%,100% { transform: scale(1, 1); } 50% { transform: scale(1.012, 1.02); } }
+@keyframes sway { 0%,100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes rock { 0%,100% { transform: rotate(-2deg) translateY(0); } 50% { transform: rotate(2deg) translateY(-3px); } }
+@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+@keyframes turn { 0%,100% { transform: rotate(0); } 30% { transform: rotate(-4deg); } 70% { transform: rotate(4deg); } }
+.allo-char .glow { animation: glow 2.4s ease-in-out infinite; }
+@keyframes glow { 0%,100% { opacity: .2; } 50% { opacity: .55; } }
+.allo-char .twinkle { animation: twinkle 2s ease-in-out infinite; }
+@keyframes twinkle { 0%,100% { opacity: .3; } 50% { opacity: 1; } }
+.allo-char .spin { transform-origin: 100px 112px; animation: spin 18s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.allo-char .drift { animation: drift 4s ease-in-out infinite; }
+@keyframes drift { 0%,100% { transform: translateX(0); } 50% { transform: translateX(6px); } }
+.allo-char .win { animation: win 2.4s ease-in-out infinite; }
+@keyframes win { 0%,100% { opacity: .45; } 40% { opacity: 1; } }
+.silhouette svg { filter: brightness(0); opacity: .12; }
+@media (prefers-reduced-motion: reduce) { .allo-char * { animation: none !important; } }

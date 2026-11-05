@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>ALLO — Character Design Bible (시안)</title>
+<link rel="stylesheet" href="allo.css">
+<style>
+  .head { display: flex; align-items: flex-end; gap: 24px; justify-content: space-between; flex-wrap: wrap; }
+  .legend { display: flex; gap: 14px; font-size: 13px; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+  .group-title { font-weight: 800; margin: 26px 0 10px; display: flex; gap: 10px; align-items: center; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .sp { padding: 18px 20px 20px; display: grid; grid-template-columns: 170px 1fr; gap: 14px; position: relative; overflow: hidden; }
+  .sp .art { width: 170px; height: 170px; border-radius: 20px; display: grid; place-items: center; }
+  .sp .art svg { width: 160px; height: 160px; }
+  .sp h3 { margin: 2px 0 0; font-size: 20px; }
+  .sp .en { color: var(--brown-2); font-size: 12px; margin-bottom: 6px; }
+  .sp dl { margin: 6px 0 0; font-size: 12.5px; display: grid; grid-template-columns: 46px 1fr; gap: 3px 6px; }
+  .sp dt { color: var(--brown-2); }
+  .sp dd { margin: 0; }
+  .sp code { font-size: 11px; color: var(--brown-2); }
+  .rank { position: absolute; top: 14px; right: 16px; }
+  .row { display: flex; gap: 18px; flex-wrap: wrap; }
+  .panel { padding: 20px 24px; }
+  .swatches { display: flex; gap: 14px; flex-wrap: wrap; }
+  .sw { text-align: center; font-size: 12px; }
+  .sw b { display: block; width: 64px; height: 64px; border-radius: 50%; margin: 0 auto 6px; box-shadow: inset 0 -6px 12px rgba(0,0,0,.06); }
+  .mini { display: flex; gap: 10px; align-items: flex-end; }
+  .mini figure { margin: 0; text-align: center; font-size: 12px; }
+  .mini svg { width: 120px; height: 120px; }
+  #lineup svg, #lineup-s svg { width: 98px; height: 98px; }
+  .tiers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .tiers .card { padding: 16px; text-align: center; }
+  .tiers svg { width: 150px; height: 150px; }
+  .tiers ul { text-align: left; font-size: 12.5px; padding-left: 18px; margin: 8px 0 0; }
+  .eggs { display: grid; grid-template-columns: 120px repeat(3, 1fr); gap: 8px; align-items: center; text-align: center; font-size: 13px; }
+  .eggs svg { width: 150px; height: 150px; }
+  .pats { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; text-align: center; font-size: 12px; }
+  .pats svg { width: 100%; height: auto; }
+  .hatch { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; text-align: center; font-size: 12px; }
+  .hatch .f { background: linear-gradient(#EAF5FC, #FFF8EF); border-radius: 18px; padding: 10px; }
+  .hatch svg { width: 100%; height: auto; }
+  .anatomy { position: relative; width: 300px; }
+  .anatomy svg { width: 300px; height: 300px; }
+  .anatomy span { position: absolute; font-size: 11.5px; background: #fff; border-radius: 8px; padding: 1px 7px; box-shadow: 0 2px 6px rgba(0,0,0,.08); white-space: nowrap; }
+  .refs { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .refs .card { padding: 12px; }
+  .refs img { width: 100%; border-radius: 14px; display: block; }
+  .refs figcaption { font-size: 12.5px; padding: 8px 4px 0; }
+  .st { display: inline-block; border-radius: 999px; padding: 0 8px; font-size: 11px; font-weight: 700; margin: 1px 2px; }
+  .st.ok { background: #DDEBDD; } .st.fix { background: #FFE3D2; }
+  table.t { border-collapse: collapse; font-size: 13px; width: 100%; }
+  table.t td, table.t th { border-bottom: 1px solid #F1E6D6; padding: 6px 8px; text-align: left; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div>
+      <div class="logo">AL<span>L</span>O</div>
+      <h1 style="font-size:22px">Character Design Bible <span class="pill" style="background:var(--butter)">시안 · 11/5 회의용</span></h1>
+      <p class="sub" style="margin:4px 0 0">길 위에서 자라는 작은 친구들 · 12종은 <code>data/species.json</code> 기준 · 기준 문서 <code>docs/art-direction.md</code></p>
+    </div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <h2><span class="num">0</span> 확정 방향 — AI 레퍼런스 시트</h2>
+  <p class="sub">실제 룩의 기준은 이 두 장입니다. 개별 PNG가 아니라 스타일 기준 이미지이고, 최종 에셋은 종별로 다시 생성합니다. 아래 1~7번의 SVG 캐릭터는 <b>레이아웃·움직임 데모용 플레이스홀더</b>입니다.</p>
+  <div class="refs">
+    <figure class="card" style="margin:0"><img src="ref/ref-2-lineup.jpg" alt="2차 시트: 12종 라인업" onerror="this.outerHTML='<div class=note>레퍼런스 이미지는 IP 확인 후 추가됩니다 (ref-2-lineup.jpg)</div>'"><figcaption><b>2차 · 12종 라인업</b><br>
+      <span class="st ok">확정 후보</span> 길싹이 · 웅덩이삐약 · 강미끄럼 · 등불나방 · 별부엉이 · 폭풍등 · 고속혜성<br>
+      <span class="st fix">3차로 교체</span> 산정령 · 물결지기 · 다리뛰기 · 바다안개 · 터널나방</figcaption></figure>
+    <figure class="card" style="margin:0"><img src="ref/ref-3-revised.jpg" alt="3차 시트: 수정 5종과 알·부화" onerror="this.outerHTML='<div class=note>레퍼런스 이미지는 IP 확인 후 추가됩니다 (ref-3-revised.jpg)</div>'"><figcaption><b>3차 · 수정 5종 + 알 + 부화</b> (물결지기 예시)<br>
+      <span class="st ok">확정 후보</span> 물결지기 · 바다안개 · 터널나방<br>
+      <span class="st fix">조정 필요</span> 산정령(눈썹·뾰족한 뿔) · 다리뛰기(Sage색·아치 무늬) · 알 무늬(투명 레이어·라벨)</figcaption></figure>
+  </div>
+  <div class="note" style="margin-top:14px">남은 수정: 실제 알파 채널 PNG(시트의 체크무늬는 그림에 구워진 것으로 보임) · 알 성장 2·3단계 · look 포즈 방향 통일 · 전 종 6상태(idle·happy·sleepy·look·surprise·signature) 개별 출력. 자세한 내용은 <code>docs/art-direction.md</code> 1-2절.</div>
+
+  <h2><span class="num">1</span> 생물 12종 — 설계표 <span class="pill" style="background:#EEE">SVG 플레이스홀더</span></h2>
+  <p class="sub">같은 몸(2.5등신)에 얼굴·머리 장식·꼬리 끝·무늬만 바꿨습니다. 움직이는 리듬도 성격대로 다릅니다 (산정령은 거의 안 움직이고, 다리뛰기는 깡총거림).</p>
+  <div id="species"></div>
+
+  <h2><span class="num">2</span> 도감 라인업 — 나란히 놓았을 때</h2>
+  <p class="sub">같은 세계의 생물로 보이는지 확인하는 용도. 아래 줄은 미획득 실루엣.</p>
+  <div class="card panel">
+    <div class="mini still" id="lineup" style="flex-wrap:wrap"></div>
+    <div class="mini silhouette still" id="lineup-s" style="flex-wrap:wrap;margin-top:6px"></div>
+  </div>
+
+  <h2><span class="num">3</span> 등급별 시각 규칙</h2>
+  <p class="sub">색만 바꾸지 않고 장식·재질·이펙트 밀도를 올립니다.</p>
+  <div class="tiers" id="tiers"></div>
+
+  <h2><span class="num">4</span> 6상태 포즈</h2>
+  <p class="sub">종마다 idle · happy · sleepy · look · surprise · signature 6장 (12종 × 6 = 72장). 움직임은 앱에서 트랜스폼으로. 같은 상태도 종마다 다르게 보입니다.</p>
+  <div class="card panel" id="expr"></div>
+
+  <h2><span class="num">5</span> 공통 체형 · 컬러</h2>
+  <div class="row">
+    <div class="card panel">
+      <div class="anatomy still" id="anatomy"></div>
+    </div>
+    <div class="card panel" style="flex:1;min-width:420px">
+      <b>팔레트 — A Gentle Journey</b>
+      <div class="swatches" id="swatches" style="margin-top:12px"></div>
+      <p class="sub" style="margin-top:14px">크림 65% · 속성색 25% · 포인트 10%. 몸통은 밝게, 속성색은 뿔·날개·꼬리·무늬에만. 발광은 네온이 아니라 버터 옐로의 은은한 빛.</p>
+      <table class="t">
+        <tr><th>속성</th><th>색</th><th>주제</th><th>종</th></tr>
+        <tr><td>normal</td><td>Sage</td><td>땅과 길 (산정령은 스톤 그레이 + 이끼)</td><td>길싹이 · 다리뛰기 · 산정령</td></tr>
+        <tr><td>water</td><td>Sky</td><td>비와 물</td><td>웅덩이삐약 · 강미끄럼 · 물결지기 (+폭풍등 · 바다안개)</td></tr>
+        <tr><td>dark</td><td>Lavender</td><td>밤에 켜지는 작은 빛 (무섭지 않게)</td><td>등불나방 · 터널나방 · 별부엉이 (+고속혜성)</td></tr>
+      </table>
+      <p class="note" style="margin-top:12px">금지: 날카로운 이빨·발톱·불꽃, 큰 뿔·날개, 갑옷, 순검정 바탕, 색만 바꾼 등급.</p>
+    </div>
+  </div>
+
+  <h2><span class="num">6</span> 알 — 크기 3 × 단계 3, 그리고 길이 남기는 무늬</h2>
+  <p class="sub">schema 의 <code>eggTier</code>(small/mid/large) 기준. 알은 폰이 자동 지급하고 아이가 고르지 않습니다. 현재 폰 코드는 small 고정이라 크기를 쓸지는 B·C 확인 필요. 처음엔 민무늬이고, 품는 동안 지나간 환경 태그가 표면에 떠오릅니다. 단계가 오를수록 무늬가 선명해지고 광택·금이 생깁니다. (판정엔 쓰지 않는 표시 연출)</p>
+  <div class="card panel">
+    <div class="eggs still" id="eggs"></div>
+  </div>
+  <p class="note" style="margin-top:12px">3차 시트의 알 무늬 7종은 색 있는 알에 무늬가 구워져 있고 라벨이 없어 터널·고속도로를 알아볼 수 없습니다. 아래 SVG처럼 <b>크림 알 위에 겹치는 투명 레이어</b>로 재생성이 필요합니다.</p>
+  <div class="card panel" style="margin-top:16px">
+    <b>환경 무늬 7종</b> <span class="sub">— <code>envTags</code> 와 1:1. <code>egg/pattern_{tag}.png</code> (B 확인 전 제안)</span>
+    <div class="pats still" id="pats" style="margin-top:10px"></div>
+  </div>
+
+  <h2><span class="num">7</span> 부화 연출 프레임</h2>
+  <p class="sub"><code>hatch_1~5.png</code> = 금 가기 3컷 + 빛 2컷. 시연 종 물결지기 예시(3차 시트에 같은 구성의 실제 룩이 있음). 초희귀라 빛 기둥이 추가됩니다.</p>
+  <div class="hatch still" id="hatch"></div>
+</div>
+
+<script src="allo-chars.js"></script>
+<script>
+const A = window.ALLO, $ = id => document.getElementById(id);
+const tint = c => c + '33';
+
+$('legend').innerHTML = Object.values(A.RANK).map(r => `<span><i style="background:${r.color}"></i>${r.ko}</span>`).join('');
+
+const groups = [
+  ['normal · Sage · 땅과 길', ['road_sprout', 'bridge_hopper', 'mountain_sprite'], A.C.sage],
+  ['water · Sky · 비와 물', ['puddle_pip', 'river_glider', 'tide_keeper'], A.C.sky],
+  ['dark · Lavender · 밤에 켜지는 빛', ['lamp_moth', 'tunnel_moth', 'star_owl'], A.C.lav],
+  ['특별 · 두 환경이 겹친 날', ['storm_lantern', 'highway_comet', 'sea_mist'], '#E7B7D6'],
+];
+$('species').innerHTML = groups.map(([t, ids, c]) => `
+  <div class="group-title"><span class="pill" style="background:${c}">${t}</span></div>
+  <div class="grid">${ids.map(id => card(id)).join('')}</div>`).join('');
+
+function card(id) {
+  const s = A.SPECIES[id], r = A.RANK[s.rank], a = A.ATTR[s.attr];
+  return `<div class="card sp">
+    <span class="pill rank" style="background:${r.color}">${r.ko}</span>
+    <div class="art" style="background:radial-gradient(circle at 50% 60%, ${tint(a.color)}, transparent 70%);--p:${s.idle}s;--move:${s.move}">${A.renderSpecies(id)}</div>
+    <div>
+      <h3>${s.ko}</h3>
+      <div class="en">${s.en} · <code>${id}</code></div>
+      <div style="font-size:13.5px">${s.persona} <b>${s.say}</b></div>
+      <dl>
+        <dt>조건</dt><dd>${s.cond}</dd>
+        <dt>시그니처</dt><dd>${s.sig}</dd>
+        <dt>Idle</dt><dd>${s.idle}초 · ${({bounce:'통통',hop:'깡총',breathe:'호흡만',sway:'좌우 흔들',rock:'출렁',float:'둥실',turn:'고개 돌리기'})[s.move]}</dd>
+        <dt>베이스</dt><dd>${s.base}</dd>
+      </dl>
+    </div></div>`;
+}
+
+$('lineup').innerHTML = A.ORDER.map(id => `<figure>${A.renderSpecies(id)}<figcaption>${A.SPECIES[id].ko}</figcaption></figure>`).join('');
+$('lineup-s').innerHTML = A.ORDER.map(id => `<figure>${A.renderSpecies(id)}<figcaption style="filter:none;opacity:1">???</figcaption></figure>`).join('');
+
+const tierInfo = [
+  ['road_sprout', ['기본 체형 + 속성 장식 1개 (새싹)', '매트 재질', '이펙트 없음', '부화 연출 약 2초']],
+  ['bridge_hopper', ['+ 고유 무늬 (다리 아치)', '+ 액세서리 (스카프)', 'Happy 때 작은 파티클', '부화 + 파티클']],
+  ['mountain_sprite', ['+ 꼬리 끝 빛나는 결정', '펄감 재질', 'Idle 중 반짝임', '부화 + 빛 기둥']],
+  ['storm_lantern', ['두 속성 재료 조합 (비 + 등불)', '반투명 날개 + 은은한 발광', '오라 링 (선택, 회의에서 결정)', '전용 등장 연출 (4초 이내)']],
+];
+$('tiers').innerHTML = tierInfo.map(([id, li]) => { const s = A.SPECIES[id], r = A.RANK[s.rank]; return `
+  <div class="card" style="--p:${s.idle}s;--move:${s.move}"><span class="pill" style="background:${r.color}">${r.ko}</span>
+  <div>${A.renderSpecies(id)}</div><b>${s.ko}</b><ul>${li.map(x => `<li>${x}</li>`).join('')}</ul></div>`; }).join('');
+
+const exprs = [['', 'Idle · 기본'], ['happy', 'Happy · 쓰다듬기·먹이'], ['sleepy', 'Sleepy · 긴 동행'], ['look', 'Look · 창밖 보기'], ['surprise', 'Surprise · 급제동'], ['signature', 'Signature · 도감 상세']];
+$('expr').innerHTML = ['tide_keeper', 'mountain_sprite', 'lamp_moth'].map(id => `
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><b style="width:90px">${A.SPECIES[id].ko}</b>
+  <div class="mini still">${exprs.map(([e, l]) => `<figure>${A.renderSpecies(id, { expr: e || undefined })}<figcaption>${l}</figcaption></figure>`).join('')}</div></div>`).join('')
+  + `<p class="note">산정령은 Happy 에서도 입꼬리만 살짝 (무뚝뚝 유지)하도록 최종 일러스트에서 조정. 시안은 공통 표정 규칙만 보여줍니다.</p>`;
+
+$('anatomy').innerHTML = A.renderSpecies('road_sprout') + [
+  ['머리: 몸보다 조금 큼, 뭉툭한 돌기', 150, 20], ['눈: 크고 둥근 · 하이라이트 2점', 4, 110], ['볼: Peach 홍조', 4, 140],
+  ['날개: 작고 둥글게', 210, 110], ['꼬리 끝 = 종 구분 포인트', 200, 160], ['배: Cream', 4, 200], ['발: 짧고 둥글게 · 발톱 금지', 120, 278], ['약 2.5등신', 220, 250],
+].map(([t, x, y]) => `<span style="left:${x}px;top:${y}px">${t}</span>`).join('');
+
+$('swatches').innerHTML = [['Cream', '#FFF0D8'], ['Sage', '#B9D0B9'], ['Sky', '#A9D4F1'], ['Lavender', '#C9B9E8'], ['Peach', '#F5B99F'], ['Butter', '#F4D98B'], ['Warm Brown', '#66584D']]
+  .map(([n, h]) => `<div class="sw"><b style="background:${h}"></b>${n}<br><code>${h}</code></div>`).join('');
+
+const sizes = [['small', '작은 알 · ~5km'], ['mid', '중간 알 · ~25km'], ['large', '긴 알 · ~75km']];
+$('eggs').innerHTML = `<div></div><b>1 초기 · 민무늬</b><b>2 중기 · 무늬 선명 + 광택</b><b>3 부화 직전 · 금 + 빛</b>`
+  + sizes.map(([sz, l]) => `<b>${l}<br><code>egg_${sz}_n</code></b>` + [1, 2, 3].map(st => `<div>${A.renderEgg({ size: sz, stage: st, tags: st === 1 ? [] : st === 2 ? ['rain'] : ['rain', 'highway'] })}</div>`).join('')).join('')
+  + `<div></div><div class="sub" style="grid-column:span 3">예시: 비 오는 고속도로를 지난 알 — 2단계에 rain, 3단계에 highway 가 겹침 (시연 시나리오)</div>`;
+
+$('pats').innerHTML = Object.entries(A.TAGS).map(([t, v]) => `<div>${A.renderEgg({ stage: 3, tags: [t] }).replace(/<path d="M70,96[^>]*>|<path d="M132,84[^>]*>/g, '')}<b>${v.ko}</b><br><code>${t}</code></div>`).join('');
+
+const ray = c => `<g opacity=".9">${[0, 1, 2, 3, 4, 5, 6, 7].map(i => `<rect x="97" y="10" width="6" height="40" rx="3" fill="${c}" transform="rotate(${i * 45} 100 110)"/>`).join('')}</g>`;
+const egg3 = A.renderEgg({ size: 'mid', stage: 3, tags: ['rain', 'highway'] });
+$('hatch').innerHTML = [
+  ['1 흔들림', `<div style="transform:rotate(-8deg)">${A.renderEgg({ size: 'mid', stage: 2, tags: ['rain', 'highway'] })}</div>`],
+  ['2 금 1', egg3],
+  ['3 금 2 · 빛 새어 나옴', egg3.replace('</g></svg>', `<path d="M60,120 L80,112 L96,126 L112,110 L128,124 L144,114" stroke="#F4D98B" stroke-width="5" fill="none" stroke-linejoin="round"/></g></svg>`)],
+  ['4 빛 1', `<svg viewBox="0 0 200 200">${ray('#F4D98B')}<circle cx="100" cy="110" r="56" fill="#FFF6D8"/><circle cx="100" cy="110" r="40" fill="#fff"/></svg>`],
+  ['5 빛 2 · 빛 기둥 (초희귀)', `<svg viewBox="0 0 200 200"><rect x="70" y="0" width="60" height="200" rx="30" fill="#F4D98B" opacity=".35"/><circle cx="100" cy="120" r="70" fill="#fff" opacity=".9"/></svg>`],
+  ['등장 · 첫 인사', A.renderSpecies('tide_keeper', { expr: 'happy' })],
+].map(([l, s]) => `<div class="f">${s}<div>${l}</div></div>`).join('');
+</script>
+</body>
+</html>
