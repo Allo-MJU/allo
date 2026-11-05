@@ -67,10 +67,15 @@ class FirebaseRest(
             call.enqueue(object : Callback {
                 override fun onFailure(call: Call, e: IOException) { cont.resumeWithException(e) }
                 override fun onResponse(call: Call, response: Response) {
-                    response.use {
-                        if (it.isSuccessful) cont.resume(it.body?.string().orEmpty())
-                        else cont.resumeWithException(IOException("HTTP ${it.code} $method $path"))
+                    // 본문 읽기도 실패할 수 있다 (헤더 뒤 본문이 멈추면 callTimeout 으로 IOException).
+                    // 여기서 던지면 callback 밖으로 새고 continuation 이 끝나지 않는다 (PR #27 리뷰)
+                    val result = runCatching {
+                        response.use {
+                            if (!it.isSuccessful) throw IOException("HTTP ${it.code} $method $path")
+                            it.body?.string().orEmpty()
+                        }
                     }
+                    result.fold({ cont.resume(it) }, { cont.resumeWithException(it) })
                 }
             })
         }
