@@ -1,0 +1,90 @@
+name: Firebase daily session cleanup
+
+on:
+  schedule:
+    - cron: '15 3 * * *' # 12:15 Asia/Seoul; delayed/skipped runs are possible.
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Delete expired sessions (also requires ALLO_CLEANUP_APPLY_ENABLED=true)'
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: allo-firebase-session-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    # Preparation only: absent/false READY means no job or authentication occurs.
+    # Secrets are available only to reviewed code on the default branch.
+    if: >-
+      vars.ALLO_CLEANUP_READY == 'true' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      ALLO_DB_URL: ${{ vars.ALLO_DB_URL }}
+      ALLO_FIREBASE_PROJECT_ID: ${{ vars.ALLO_FIREBASE_PROJECT_ID }}
+      ALLO_FIREBASE_SERVICE_ACCOUNT: ${{ vars.ALLO_FIREBASE_SERVICE_ACCOUNT }}
+      ALLO_CLEANUP_APPLY_ENABLED: ${{ vars.ALLO_CLEANUP_APPLY_ENABLED }}
+      RUN_APPLY: ${{ (github.event_name == 'schedule' && vars.ALLO_CLEANUP_APPLY_ENABLED == 'true') || (github.event_name == 'workflow_dispatch' && inputs.apply) }}
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Offline cleanup checks
+        run: python3 -m unittest discover -s scripts/tests -p 'test_cleanup_sessions*.py'
+      - name: Validate configuration without logging credentials
+        env:
+          SERVICE_ACCOUNT_JSON: ${{ secrets.ALLO_FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          sys.path.insert(0, 'scripts')
+          from cleanup_sessions import target_url
+          try:
+              target_url(dict(os.environ, ALLO_FIREBASE_ACCESS_TOKEN='configuration-check'))
+              key = json.loads(os.environ['SERVICE_ACCOUNT_JSON'])
+              project = os.environ['ALLO_FIREBASE_PROJECT_ID']
+              account = os.environ['ALLO_FIREBASE_SERVICE_ACCOUNT']
+              if (key.get('type') != 'service_account' or not account
+                      or key.get('project_id') != project or key.get('client_email') != account
+                      or not account.endswith('@' + project + '.iam.gserviceaccount.com')
+                      or not key.get('private_key')):
+                  raise ValueError()
+              if os.environ['RUN_APPLY'] == 'true' and os.environ['ALLO_CLEANUP_APPLY_ENABLED'] != 'true':
+                  raise ValueError()
+          except Exception:
+              print('cleanup_error: configuration is missing or inconsistent', file=sys.stderr)
+              sys.exit(1)
+          PY
+      - id: auth
+        name: Mint short-lived scoped access token
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          credentials_json: ${{ secrets.ALLO_FIREBASE_SERVICE_ACCOUNT_JSON }}
+          project_id: ${{ vars.ALLO_FIREBASE_PROJECT_ID }}
+          service_account: ${{ vars.ALLO_FIREBASE_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_lifetime: 600s
+          access_token_scopes: 'https://www.googleapis.com/auth/firebase.database,https://www.googleapis.com/auth/userinfo.email'
+          create_credentials_file: false
+          export_environment_variables: false
+      - name: Report or conditionally delete expired sessions
+        env:
+          ALLO_FIREBASE_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+        shell: bash
+        run: |
+          args=()
+          if [[ "$RUN_APPLY" == "true" ]]; then
+            args+=(--apply)
+          fi
+          python3 scripts/cleanup_sessions.py "${args[@]}"
