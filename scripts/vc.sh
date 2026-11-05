@@ -17,15 +17,24 @@ CLIENT=${CLIENT:-allo-scripts}
 
 vc_setup() {
   if [ -z "${ANDROID_SERIAL:-}" ]; then
-    for s in $(adb devices | awk '/^emulator-[0-9]+\tdevice$/{print $1}'); do
-      name=$(adb -s "$s" emu avd name 2>/dev/null | head -1 | tr -d '\r')
-      case "$name" in Pleos*|pleos*) export ANDROID_SERIAL=$s ;; esac
+    local devices s name found=""
+    devices=$(adb devices) || return 1
+    for s in $(printf '%s\n' "$devices" | awk '/^emulator-[0-9]+[[:space:]]+device$/{print $1}'); do
+      name=$(adb -s "$s" emu avd name 2>/dev/null) || return 1
+      name=$(printf '%s\n' "$name" | head -1 | tr -d '\r')
+      case "$name" in
+        Pleos*|pleos*)
+          if [ -n "$found" ]; then echo "vc_setup: 여러 Pleos 에뮬레이터가 있습니다. ANDROID_SERIAL을 지정하세요." >&2; return 1; fi
+          found=$s ;;
+      esac
     done
+    [ -n "$found" ] || { echo "vc_setup: Pleos 에뮬레이터가 없습니다. ANDROID_SERIAL을 확인하세요." >&2; return 1; }
+    export ANDROID_SERIAL=$found
   fi
   adb forward tcp:8088 tcp:8088 >/dev/null
 }
-beat()  { curl -s -o /dev/null -X POST "$VC/browser/session?client=$CLIENT"; }
-put()   { beat; curl -s -o /dev/null -X PUT "$VC/$1"; }
+beat()  { curl --fail --silent --show-error --connect-timeout 5 --max-time 10 -o /dev/null -X POST "$VC/browser/session?client=$CLIENT"; }
+put()   { beat && curl --fail --silent --show-error --connect-timeout 5 --max-time 10 -o /dev/null -X PUT "$VC/$1"; }
 gear()  { put "vehicle/gear?gear=$1"; }
 drive() { put "vehicle/controls?speed=${1:-0}&accelerator=${2:-0}&brake=${3:-0}&steering=${4:-0}"; }
 seat()  { put "vehicle/seat?area=${1:-rear_right}&kind=occupied&value=${2:-true}"; }
@@ -44,4 +53,4 @@ light() {
 }
 # odo <km> : 에뮬레이터는 주행으로 Odometer 를 올리지 않는다. 거리 시나리오는 이걸로 직접 올린다
 odo() { put "vehicle/odometer?traveled_distance_km=${1:?km}"; }
-vc_close() { curl -s -o /dev/null -X POST "$VC/browser/session?client=$CLIENT&closing=1"; }
+vc_close() { curl --fail --silent --show-error --connect-timeout 5 --max-time 10 -o /dev/null -X POST "$VC/browser/session?client=$CLIENT&closing=1"; }
