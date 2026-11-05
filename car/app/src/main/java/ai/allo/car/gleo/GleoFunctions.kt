@@ -69,26 +69,24 @@ object GleoFunctions {
     }
 
     /**
-     * 방문 기록을 모르는 폴백(unvisited=false)에서는 "아직 안 가보셨네요"라고 말하지 않는다. 사실이 아닐 수 있다.
+     * 방문 여부·지역 전용 생물·계절 해금·생물 부재를 단정하지 않는다 (#32 C 사전 검토).
+     * 산·도심 전용 종이 아직 없어서 "그 지역에서만 나오는 아이" 같은 말은 사실이 아니다 (팀 결정 대기).
      * 장소 이름 뒤에는 받침과 무관한 "까지"·"도" 를 쓴다. 거리는 직선 거리라 "직선으로" 를 붙인다.
      */
     private fun suggestMessage(offer: DestinationFlow.Offer?): String = when (offer) {
-        null -> "가까운 곳은 다 가보셨어요. 다음 계절에 새 아이가 나와요."
+        null -> "지금은 추가로 제안할 곳이 없어요."
         is DestinationFlow.Offer.None -> when (offer.why) {
-            NoSuggestion.ALL_VISITED -> "가까운 곳은 다 가보셨어요. 다음 계절에 새 아이가 나와요."
-            NoSuggestion.NONE_NEARBY -> "가까운 곳에는 새 아이가 나오는 곳이 없어요."
-            NoSuggestion.EXHAUSTED -> "근처에서 추천할 곳은 여기까지예요. 내비에서 원하는 곳을 직접 고르셔도 돼요."
+            NoSuggestion.ALL_VISITED -> "지금은 추가로 제안할 곳이 없어요."
+            NoSuggestion.NONE_NEARBY -> "가까운 곳에서 추천할 장소를 찾지 못했어요."
+            NoSuggestion.EXHAUSTED -> "지금 추천할 장소는 여기까지예요."
             NoSuggestion.ROUTE_ACTIVE -> "지금은 길 안내 중이에요. 안내가 끝나면 다시 물어봐 주세요."
         }
         is DestinationFlow.Offer.Made -> {
             val s = offer.suggestion; val d = s.destination
             val far = s.distanceKm?.let { " 직선으로 약 ${roundKm(it)}km예요." } ?: ""
             if (s.alternative) "${regionWord(d.region)} 쪽 ${d.name}도 있어요.$far 안내할까요?"
-            else {
-                val lead = if (s.unvisited) "${regionWord(d.region)} 쪽은 아직 안 가보셨네요. 거기서만 나오는 아이가 있어요."
-                           else "${regionWord(d.region)} 쪽에서만 나오는 아이가 있어요."
-                "$lead ${d.name}까지 안내할까요?$far 같은 ${withIra(regionWord(d.region))} 다른 곳도 괜찮아요."
-            }
+            else if (s.unvisited) "${regionWord(d.region)} 쪽 ${d.name}까지 안내할까요?$far"
+            else "${regionWord(d.region)} 쪽 ${d.name}까지 안내할까요?$far 같은 ${withIra(regionWord(d.region))} 다른 곳도 괜찮아요."
         }
     }
 
@@ -109,11 +107,12 @@ object GleoFunctions {
     fun respondAccept(result: AcceptResult, bank: DialogueBank = DialogueBank.EMPTY): GleoCallback {
         fun line(situation: String, vars: Map<String, String> = emptyMap()) = bank.line("car_accept", null, null, situation, vars)
         return when (result) {
+            // requestRoute() 가 예외 없이 끝났다는 뜻이지 안내 시작 확인은 아니다 → "요청했어요" (#32 D21·D22)
             is AcceptResult.Started -> GleoCallback(SUGGEST_DESTINATION, "success",
-                line("ok", mapOf("place" to result.destination.name)) ?: "${result.destination.name}까지 안내를 시작할게요.")
+                line("ok", mapOf("place" to result.destination.name)) ?: "${result.destination.name}까지 안내를 요청했어요.")
             AcceptResult.NoOffer -> GleoCallback(SUGGEST_DESTINATION, "fail", line("none") ?: "먼저 어디로 갈지 물어봐 주세요.")
             AcceptResult.RouteActive -> GleoCallback(SUGGEST_DESTINATION, "fail", line("route_active") ?: "지금은 길 안내 중이라 목적지를 바꾸지 않을게요.")
-            AcceptResult.NaviNotReady -> GleoCallback(SUGGEST_DESTINATION, "fail", line("not_ready") ?: "내비가 아직 준비되지 않았어요. 잠시 뒤에 다시 말해 주세요.")
+            AcceptResult.NaviNotReady -> GleoCallback(SUGGEST_DESTINATION, "fail", line("not_ready") ?: "지금은 내비에 목적지를 넣지 못했어요. 잠시 뒤에 다시 말해 주세요.")
         }
     }
 

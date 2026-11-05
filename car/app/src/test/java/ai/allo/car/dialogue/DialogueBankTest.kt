@@ -103,4 +103,16 @@ class DialogueBankTest {
             assertNotNull(real.line("ask_name", id, null, "hatched"), id)
         }
     }
+
+    /** #32 C 사전 검토: 차 음성이 코드로 확인할 수 없는 사실을 단정하지 않는다 */
+    @Test fun `real bank car lines make no unverifiable claims`() {
+        val entries = Regex(""""key"\s*:\s*"(car_[^"]+)"[^\]]*?"lines"\s*:\s*\[([^\]]*)\]""")
+            .findAll(File("../../data/dialogue.json").readText()).map { it.groupValues[1] to it.groupValues[2] }.toList()
+        assertTrue(entries.size >= 19)
+        for ((key, lines) in entries) {
+            if (key.startsWith("car_suggest")) for (claim in listOf("에서만", "가보셨", "계절", "새 아이")) assertFalse(claim in lines, "$key: $claim")
+            if (key.startsWith("car_hatch")) for (claim in listOf("밤길이", "운전 덕분", "조금만 더")) assertFalse(claim in lines, "$key: $claim")
+            if (key == "car_accept|*|ok") assertFalse("시작" in lines, key)
+        }
+    }
 }

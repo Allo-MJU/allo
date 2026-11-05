@@ -33,11 +33,23 @@ class GleoFunctionsTest {
         assertTrue("바다" in msg && "경포해변까지" in msg && "같은 바다라면" in msg)
     }
 
-    @Test fun `known unvisited suggestion says so with distance`() {
+    @Test fun `known unvisited suggestion gives place and distance without claims`() {
         val msg = GleoFunctions.respond(GleoFunctions.SUGGEST_DESTINATION, GameState(), made("mountain", "북한산 국립공원", true, 28.4)).message
-        assertTrue("산 쪽은 아직 안 가보셨네요" in msg)
-        assertTrue("직선으로 약 30km" in msg)
-        assertTrue("같은 산이라면" in msg)
+        assertEquals("산 쪽 북한산 국립공원까지 안내할까요? 직선으로 약 30km예요.", msg)
+    }
+
+    @Test fun `suggestions never claim region-only creatures, visits or seasons`() {
+        val offers = listOf<DestinationFlow.Offer?>(made("coast", "경포해변", false), made("mountain", "북한산 국립공원", true, 28.4), null) +
+            NoSuggestion.values().map { DestinationFlow.Offer.None(it) }
+        for (o in offers) {
+            val msg = GleoFunctions.respond(GleoFunctions.SUGGEST_DESTINATION, GameState(), o).message
+            for (claim in listOf("에서만", "가보셨", "계절", "새 아이")) assertFalse(claim in msg, msg)
+        }
+    }
+
+    @Test fun `accept success says requested, not started`() {
+        val msg = GleoFunctions.respondAccept(AcceptResult.Started(DestinationSuggester.CANDIDATES.first())).message
+        assertTrue("요청했어요" in msg && "시작" !in msg, msg)
     }
 
     @Test fun `alternative offer is short`() {
