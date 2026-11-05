@@ -41,12 +41,12 @@ void main() {
   test('주행 중 ETA 가 null → 값으로 바뀌면 ETA 모드로 전환된다', () {
     final t = HatchTimer(eggTier: EggTier.mid);
     t.update(v(ts: 0));
-    t.update(v(ts: 60_000, distanceM: 1000)); // 거리 진행 4%
-    final p = t.update(v(ts: 61_000, distanceM: 1010, etaSec: 1200));
+    t.update(v(ts: 60000, distanceM: 1000)); // 거리 진행 4%
+    final p = t.update(v(ts: 61000, distanceM: 1010, etaSec: 1200));
     expect(t.usesEta, isTrue);
     expect(t.hatchAtSec, 600);
     expect(p, closeTo(0, 1e-9)); // 전환 직후 0 에서 다시 시작
-    expect(t.shouldHatch(t.update(v(ts: 61_000 + 600_000, distanceM: 20000, etaSec: 600))), isTrue);
+    expect(t.shouldHatch(t.update(v(ts: 61000 + 600000, distanceM: 20000, etaSec: 600))), isTrue);
   });
 
   test('거리 진행이 이미 절반을 넘었으면 늦게 들어온 ETA 를 무시한다', () {
