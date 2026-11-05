@@ -354,6 +354,46 @@ void main() {
     expect(await store.all(), hasLength(1));
   });
 
+  test('legacy 동행도 실제 A 종료 저장 뒤 B 첫 발행은 idle이다', () async {
+    final store = DexStore();
+    final feed = BoundaryFeed();
+    var now = 0;
+    final c = GameController(feed: feed, dex: store, monotonicMs: () => now);
+    await c.pair(sessionA, pairCode: '123456');
+    await c.startIncubating(EggTier.small);
+    feed.sample(eta: 600, distance: 1000);
+    now = 300000;
+    feed.sample(eta: 300, distance: 2000);
+    await settle();
+    expect(await c.setAppActive(false), isTrue);
+    final saved = await store.incubationProgress(EggTier.small);
+    await store.saveIncubationProgress(
+        EggTier.small,
+        IncubationProgress(
+            carriedM: saved.carriedM,
+            sessionDistances: saved.sessionDistances,
+            round: Map.of(saved.round!)..remove('sessionId')));
+    c.dispose();
+    final nextFeed = BoundaryFeed();
+    final next =
+        GameController(feed: nextFeed, dex: store, monotonicMs: () => 0);
+    addTearDown(next.dispose);
+    await next.restorePairing();
+    expect(await next.startIncubating(EggTier.small), isTrue);
+    nextFeed.sample(eta: 300, distance: 2000);
+    expect(next.game.stage, Stage.hatched);
+    nextFeed.carEvents.add({'type': 'sessionEnd', 'by': 'car'});
+    expect(await next.endSession(), isTrue);
+    expect(next.sessionSaved, isTrue);
+    await next.pair(sessionB, pairCode: '123456');
+    await settle();
+    final published = nextFeed.bySession[sessionB]!.first;
+    expect(published.stage, Stage.idle);
+    expect(published.speciesId, isNull);
+    expect(next.hatched, isNull);
+    expect(await store.all(), hasLength(1));
+  });
+
   test('sessionId 없는 legacy 동행을 종료된 타 세션으로 단정하지 않는다', () async {
     final store = DexStore();
     final feed = BoundaryFeed();

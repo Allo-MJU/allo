@@ -215,8 +215,10 @@ class GameController extends ChangeNotifier {
     await feed.pair(credentials.sessionId, pairCode: credentials.code);
     if (_disposed || connection != _connection) return;
     // A saved companion belongs to its vehicle session, not the next pairing.
-    if (_roundSessionId != null &&
-        _roundSessionId != credentials.sessionId &&
+    // Legacy companions still use the known active session for this boundary.
+    final previousSessionId = _roundSessionId ?? _activeSessionId;
+    if (previousSessionId != null &&
+        previousSessionId != credentials.sessionId &&
         game.stage == Stage.hatched) {
       hatched = null;
       companionMessage = null;
