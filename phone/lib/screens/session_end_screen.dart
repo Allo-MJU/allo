@@ -56,7 +56,7 @@ class SessionEndScreen extends StatelessWidget {
                           Text(saved
                               ? controller.isFake
                                   ? '새 체험을 시작하거나 도감을 확인해 보세요.'
-                                  : '다음 주행은 차량의 새 QR로 연결해 주세요.'
+                                  : '차가 출발하면 새 QR이 나와요. 다음 주행은 차량의 새 QR로 연결해 주세요.'
                               : saving
                                   ? '이번 주행의 기록을 저장하고 있어요. 잠시 기다려 주세요.'
                                   : '저장 중 문제가 생겼어요. 다시 저장해 주세요.'),
