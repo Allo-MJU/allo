@@ -66,6 +66,18 @@ class FirebaseVehicleFeed implements VehicleFeed {
       );
 
   @override
+  Future<VehicleState?> readLatestVehicle() async {
+    final session = _session;
+    final snapshot = await session
+        .child('vehicle')
+        .get()
+        .timeout(const Duration(seconds: 10));
+    return snapshot.value == null
+        ? null
+        : VehicleState.fromJson(_asMap(snapshot.value));
+  }
+
+  @override
   Future<void> publishGame(GameState state) =>
       _session.child('game').set(state.toJson());
 
