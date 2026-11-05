@@ -8,7 +8,7 @@ abstract class VehicleFeed {
 
   Stream<VehicleState> watch();
 
-  /// 현재 세션의 마지막 저장값을 읽는다. 새 주행 틱을 만들지 않는다.
+  /// 호출한 세션의 마지막 저장 신호. 종료 저장 전에 읽으며 새 신호를 만들지 않는다.
   Future<VehicleState?> readLatestVehicle();
 
   /// 폰이 계산한 게임 상태를 차 화면용으로 올린다. 가짜 구현은 무시한다.

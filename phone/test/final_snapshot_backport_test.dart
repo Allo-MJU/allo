@@ -5,7 +5,7 @@ import 'package:allo_phone/storage/dex_store.dart';
 import 'package:allo_phone/storage/pairing_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'session_end_test.dart' show EndingFeed;
+import 'session_end_regression_test.dart' show EndingFeed;
 import 'session_resume_test.dart' show sessionA, sessionB;
 
 class FinalFeed extends EndingFeed {
@@ -77,7 +77,7 @@ void main() {
     feed.server(4000);
     feed.end();
     expect(await c.endSession(), false);
-    expect(c.needsNewPairing, false);
+    expect(c.sessionSaved, false);
     expect(c.canStart, false);
     expect(await PairingStore().read(), isNotNull);
     feed.fail = false;

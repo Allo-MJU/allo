@@ -9,6 +9,7 @@ import 'screens/dex_screen.dart';
 import 'screens/hatching_screen.dart';
 import 'screens/incubating_screen.dart';
 import 'screens/pairing_screen.dart';
+import 'screens/session_end_screen.dart';
 import 'storage/dex_store.dart';
 
 class AlloApp extends StatefulWidget {
@@ -27,14 +28,20 @@ class _AlloAppState extends State<AlloApp> {
     initialLocation: '/pairing',
     refreshListenable: controller,
     redirect: (_, state) {
-      if (controller.needsNewPairing &&
-          state.uri.path != '/pairing' &&
-          state.uri.path != '/dex') {
-        return '/pairing';
+      final path = state.uri.path;
+      if (!controller.sessionEnded) {
+        return path == '/session-end' ? '/pairing' : null;
+      }
+      if (!controller.sessionSaved ||
+          !const {'/session-end', '/pairing', '/dex'}.contains(path)) {
+        return path == '/session-end' ? null : '/session-end';
       }
       return null;
     },
     routes: [
+      GoRoute(
+          path: '/session-end',
+          builder: (_, __) => SessionEndScreen(controller: controller)),
       GoRoute(
           path: '/pairing',
           builder: (_, __) => PairingScreen(controller: controller)),

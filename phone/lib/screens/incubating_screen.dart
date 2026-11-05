@@ -33,13 +33,16 @@ class _IncubatingScreenState extends State<IncubatingScreen>
 
   void _onSignal() {
     final c = widget.controller;
+    if (c.sessionEnded) return;
     final harsh = (c.vehicle?.harshBrake ?? 0) + (c.vehicle?.harshSteer ?? 0);
     if (harsh > _harsh) _shake.forward(from: 0);
     _harsh = harsh;
     if (c.game.stage == Stage.hatched && !_routing) {
       _routing = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) context.go('/hatching');
+        if (mounted && !widget.controller.sessionEnded) {
+          context.go('/hatching');
+        }
       });
     }
   }
@@ -69,7 +72,13 @@ class _IncubatingScreenState extends State<IncubatingScreen>
             : '앞으로 ${((1 - g.progress) * (g.hatchAtM ?? 0) / 1000).toStringAsFixed(1)}km';
         return Scaffold(
           appBar: AppBar(
-              title: const Text('알 품기'), automaticallyImplyLeading: false),
+              title: const Text('알 품기'),
+              automaticallyImplyLeading: false,
+              actions: [
+                if (c.isFake)
+                  TextButton(
+                      onPressed: c.endFakeTrip, child: const Text('주행 종료')),
+              ]),
           body: SafeArea(
             child: ListView(
               padding: const EdgeInsets.all(24),

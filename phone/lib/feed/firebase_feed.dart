@@ -92,11 +92,14 @@ class FirebaseVehicleFeed implements VehicleFeed {
       });
 
   @override
-  Stream<Map<String, Object?>> events() => _session
-      .child('events')
-      .onChildAdded
-      .map((e) => _asMap(e.snapshot.value))
-      .where((m) => m['by'] == 'car');
+  Stream<Map<String, Object?>> events() {
+    final session = _session;
+    return session
+        .child('events')
+        .onChildAdded
+        .map((e) => _asMap(e.snapshot.value))
+        .where((m) => m['by'] == 'car');
+  }
 
   @override
   Future<void> dispose() async {}
