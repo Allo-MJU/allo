@@ -14,7 +14,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('차 없이 알로를 체험해 보세요'), findsOneWidget);
     expect(find.text('QR 스캔'), findsNothing);
-    await tester.runAsync(() => rootBundle.loadString('../data/species.json'));
+    await tester.runAsync(() => rootBundle.loadString('assets/data/species.json'));
     await tester.tap(find.text('체험 시작'));
     await tester.pumpAndSettle();
     for (var i = 0; i < 20 && find.text('알 품기').evaluate().isEmpty; i++) {
@@ -35,6 +35,13 @@ void main() {
     await tester.tap(find.text('같이 가자'));
     await tester.pumpAndSettle();
     expect(find.text('봤어!'), findsOneWidget);
+    await tester.tap(find.text('먹이'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('맛있게 먹었어요'), findsOneWidget);
+    await tester.tap(find.text('놀아주기'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('먹이 1회 · 놀이 1회'), findsOneWidget);
+    expect(find.textContaining('신나게 뛰어요'), findsOneWidget);
     await tester.tap(find.text('도착'));
     await tester.pumpAndSettle();
     for (var i = 0; i < 20 && find.text('도감').evaluate().isEmpty; i++) {

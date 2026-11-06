@@ -33,13 +33,22 @@ class _IncubatingScreenState extends State<IncubatingScreen>
 
   void _onSignal() {
     final c = widget.controller;
+    if (c.sessionEnded) return;
     final harsh = (c.vehicle?.harshBrake ?? 0) + (c.vehicle?.harshSteer ?? 0);
     if (harsh > _harsh) _shake.forward(from: 0);
     _harsh = harsh;
     if (c.game.stage == Stage.hatched && !_routing) {
       _routing = true;
+      final eggId = c.eggId;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) context.go('/hatching');
+        if (mounted &&
+            !c.sessionEnded &&
+            c.game.stage == Stage.hatched &&
+            c.eggId == eggId) {
+          context.go('/hatching');
+        } else {
+          _routing = false;
+        }
       });
     }
   }
@@ -64,12 +73,20 @@ class _IncubatingScreenState extends State<IncubatingScreen>
       builder: (context, _) {
         final c = widget.controller;
         final g = c.game;
-        final remaining = g.hatchAtSec != null
-            ? '앞으로 ${((1 - g.progress) * g.hatchAtSec! / 60).ceil()}분'
-            : '앞으로 ${((1 - g.progress) * (g.hatchAtM ?? 0) / 1000).toStringAsFixed(1)}km';
+        final remaining = g.stage == Stage.idle
+            ? '남은 주행이 짧아 다음 알을 기다리고 있어요'
+            : g.hatchAtSec != null
+                ? '앞으로 ${((1 - g.progress) * g.hatchAtSec! / 60).ceil()}분'
+                : '앞으로 ${((1 - g.progress) * (g.hatchAtM ?? 0) / 1000).toStringAsFixed(1)}km';
         return Scaffold(
           appBar: AppBar(
-              title: const Text('알 품기'), automaticallyImplyLeading: false),
+              title: const Text('알 품기'),
+              automaticallyImplyLeading: false,
+              actions: [
+                if (c.isFake)
+                  TextButton(
+                      onPressed: c.endFakeTrip, child: const Text('주행 종료')),
+              ]),
           body: SafeArea(
             child: ListView(
               padding: const EdgeInsets.all(24),

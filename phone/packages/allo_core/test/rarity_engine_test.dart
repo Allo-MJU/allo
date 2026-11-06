@@ -17,7 +17,8 @@ void main() {
   });
 
   test('태그 없음 → normal', () {
-    expect(e.judge(seenTags: {}, harshBrake: 0, harshSteer: 0).attribute, Attribute.normal);
+    expect(e.judge(seenTags: {}, harshBrake: 0, harshSteer: 0).attribute,
+        Attribute.normal);
   });
 
   test('rain + tunnel → rain 우선', () {
@@ -27,7 +28,8 @@ void main() {
   });
 
   test('차가 wiper 를 못 읽으면 rain 이 있어도 water 가 안 나온다', () {
-    expect(e.attributeFor({'rain'}, capabilities: ['light', 'seat']), Attribute.normal);
+    expect(e.attributeFor({'rain'}, capabilities: ['light', 'seat']),
+        Attribute.normal);
   });
 
   test('케어 3회가 급제동 1회를 상쇄한다', () {
@@ -46,7 +48,10 @@ void main() {
   test('돌봄은 3회 단위로 상쇄하고 과다 돌봄도 최대 등급 3을 넘지 않는다', () {
     for (final entry in {2: 2, 3: 3, 100: 3}.entries) {
       final r = e.judge(
-        seenTags: {}, harshBrake: 3, harshSteer: 0, careCount: entry.key,
+        seenTags: {},
+        harshBrake: 3,
+        harshSteer: 0,
+        careCount: entry.key,
       );
       expect(r.tier, entry.value, reason: '급격 조작 3회, 돌봄 ${entry.key}회');
     }
@@ -66,7 +71,8 @@ void main() {
     for (final entry in {2: 3, 3: 2, 7: 1}.entries) {
       final r = e.judge(
         seenTags: {'rain', 'tunnel', 'night'},
-        harshBrake: entry.key, harshSteer: 0,
+        harshBrake: entry.key,
+        harshSteer: 0,
         capabilities: ['wiper', 'light'],
       );
       expect(r.attribute, Attribute.water);
@@ -77,7 +83,9 @@ void main() {
   test('light 미지원이면 tunnel과 night 모두 dark를 주지 않는다', () {
     for (final tag in ['tunnel', 'night']) {
       final r = e.judge(
-        seenTags: {tag}, harshBrake: 0, harshSteer: 0,
+        seenTags: {tag},
+        harshBrake: 0,
+        harshSteer: 0,
         capabilities: ['wiper', 'seat'],
       );
       expect(r.attribute, Attribute.normal, reason: '$tag에 필요한 light 없음');
@@ -87,11 +95,22 @@ void main() {
 
   test('rain을 지원하지 않아도 light가 있으면 tunnel 속성을 선택한다', () {
     final r = e.judge(
-      seenTags: {'rain', 'tunnel'}, harshBrake: 7, harshSteer: 0,
+      seenTags: {'rain', 'tunnel'},
+      harshBrake: 7,
+      harshSteer: 0,
       capabilities: ['light'],
     );
 
     expect(r.attribute, Attribute.dark);
     expect(r.tier, 1);
+  });
+  test('지원 태그는 원본과 독립된 불변 스냅샷이다', () {
+    final tags = {'rain', 'tunnel', 'highway'};
+    final result = e.judge(
+        seenTags: tags, harshBrake: 0, harshSteer: 0, capabilities: ['light']);
+    expect(tags, {'rain', 'tunnel', 'highway'});
+    tags.add('night');
+    expect(result.supportedTags, {'tunnel', 'highway'});
+    expect(() => result.supportedTags!.add('rain'), throwsUnsupportedError);
   });
 }
