@@ -23,6 +23,8 @@ class SnapshotFeed implements VehicleFeed {
   @override
   Stream<Map<String, Object?>> events() => const Stream.empty();
   @override
+  Future<VehicleState?> readLatestVehicle() async => null;
+  @override
   Future<void> publishGame(GameState state) async {}
   @override
   Future<void> emitEvent(String type,

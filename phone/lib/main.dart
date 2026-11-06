@@ -1,27 +1,108 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
 import 'app.dart';
+import 'config/firebase_config.dart';
 import 'feed/fake_feed.dart';
 import 'feed/firebase_feed.dart';
 import 'feed/vehicle_feed.dart';
 
-/// --dart-define=FEED=fake  → 차 없이 가짜 신호로 실행 (기본값은 fake)
-/// --dart-define=SCENARIO=rainy_highway|tunnel_rough|clear|rough  (fake 일 때)
+/// --dart-define=FEED=fake → 차 없이 가짜 신호로 실행 (기본값).
+/// Firebase 설정은 --dart-define-from-file=config/firebase.local.json 으로 주입.
 const _feedKind = String.fromEnvironment('FEED', defaultValue: 'fake');
 const _scenario =
     String.fromEnvironment('SCENARIO', defaultValue: 'rainy_highway');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  runApp(await createApp());
+}
 
-  final VehicleFeed feed;
-  if (_feedKind == 'fake') {
-    feed = FakeVehicleFeed(scenario: FakeScenario.byName(_scenario));
-  } else {
-    // `flutterfire configure` 로 lib/firebase_options.dart 를 생성한 뒤 아래 주석을 푼다 (git 미추적).
-    // await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-    feed = FirebaseVehicleFeed();
+/// 초기화 성공 전에는 Firebase feed를 만들지 않는다.
+/// 초기화 함수와 feed 팩토리는 플랫폼 연결 없이 시작 흐름을 검증할 때 주입한다.
+Future<Widget> createApp({
+  String feedKind = _feedKind,
+  String scenario = _scenario,
+  FirebaseConfig? config,
+  Future<void> Function(FirebaseOptions)? initializeFirebase,
+  VehicleFeed Function()? createFirebaseFeed,
+}) async {
+  if (feedKind == 'fake') {
+    return AlloApp(
+        feed: FakeVehicleFeed(scenario: FakeScenario.byName(scenario)));
+  }
+  if (feedKind != 'firebase') {
+    return const ConnectionSetupApp(message: '실행 설정을 확인해야 해요.');
   }
 
-  runApp(AlloApp(feed: feed));
+  final FirebaseOptions options;
+  try {
+    options = (config ?? FirebaseConfig.fromEnvironment()).toOptions();
+  } on FormatException catch (error) {
+    return ConnectionSetupApp(message: error.message);
+  }
+
+  try {
+    if (initializeFirebase != null) {
+      await initializeFirebase(options);
+    } else {
+      await Firebase.initializeApp(options: options);
+    }
+    return AlloApp(feed: (createFirebaseFeed ?? FirebaseVehicleFeed.new)());
+  } catch (_) {
+    // SDK 오류에는 설정 값이 포함될 수 있어 사용자 화면에 원문을 표시하지 않는다.
+    return const ConnectionSetupApp(
+        message: '차량 연결을 준비하지 못했어요. 앱을 다시 실행해 주세요.');
+  }
+}
+
+class ConnectionSetupApp extends StatefulWidget {
+  const ConnectionSetupApp({super.key, required this.message});
+  final String message;
+
+  @override
+  State<ConnectionSetupApp> createState() => _ConnectionSetupAppState();
+}
+
+class _ConnectionSetupAppState extends State<ConnectionSetupApp> {
+  bool _tryFake = false;
+  late final _fakeFeed = FakeVehicleFeed(scenario: FakeScenario.rainyHighway);
+
+  @override
+  Widget build(BuildContext context) {
+    if (_tryFake) {
+      return AlloApp(feed: _fakeFeed);
+    }
+    return MaterialApp(
+      title: '알로',
+      theme: ThemeData(
+          colorSchemeSeed: const Color(0xFF4FB3A9), useMaterial3: true),
+      home: Scaffold(
+        appBar: AppBar(title: const Text('알로')),
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.link_off, size: 64),
+                  const SizedBox(height: 24),
+                  Text(widget.message, textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  const Text('차 없이 체험 모드로 먼저 만나볼 수 있어요.',
+                      textAlign: TextAlign.center),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    onPressed: () => setState(() => _tryFake = true),
+                    child: const Text('체험 모드 시작'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -9,7 +9,24 @@ flutter pub get
 flutter run --dart-define=FEED=fake --dart-define=SCENARIO=rainy_highway   # 차 없이
 ```
 
-Firebase 연결은 `flutterfire configure` 로 `lib/firebase_options.dart` 를 만들고(git 미추적) `main.dart` 의 `Firebase.initializeApp` 주석을 푼다.
+Firebase 연결은 아래 로컬 설정을 주입한다. 초기화가 성공한 뒤에만 차량 연결 화면을 연다.
+
+```bash
+cp config/firebase.example.json config/firebase.local.json
+# Firebase 콘솔에 등록한 해당 Android/iOS 앱의 설정값과 Realtime Database URL을 채운다.
+flutter run --dart-define-from-file=config/firebase.local.json
+```
+
+`firebase.local.json`은 Git에서 제외한다. 실제 값은 커밋·로그·채팅에 넣지 않는다.
+Android/iOS의 앱 ID는 서로 다르므로 기기 플랫폼에 맞는 등록 앱의 값을 사용한다.
+설정 누락·초기화 실패 시 안내 화면에서 체험 모드로 전환할 수 있다.
+
+차량 화면의 QR(`allo://pair?sid=<UUID>&code=<6자리>`)을 스캔하거나 세션 ID와 코드를 직접 입력한다.
+카메라 권한이 없으면 설정에서 허용하거나 직접 입력으로 돌아갈 수 있다. QR 이미지·카메라 프레임은 저장하지 않는다.
+서버의 세션 생성 시각(24시간 이내)과 코드를 확인하고 페어링 상태·이벤트를 한 번에 기록한 뒤 연결을 완료한다.
+연결 성공 시 세션 ID와 코드를 폰 로컬에 저장하고 앱 시작 시 서버에 다시 확인해 재연결한다.
+이전 주행의 세션이 만료됐거나 새 세션으로 바뀌면 차량의 새 QR을 스캔해야 한다.
+네트워크 오류 때는 저장된 정보를 유지하며, 연결 성공 전에는 품기를 시작할 수 없다.
 
 ## 구조
 
@@ -46,8 +63,9 @@ Android/iOS 플랫폼 폴더는 저장소에 포함되어 있다. APK 검증은 
 기존 `VehicleState.fromJson`의 null/빈 목록 기본값을 유지하고 회귀 테스트로 확인한다.
 `/game`의 `hatchAtM`과 `hatchAtSec` 중 하나만 채운다.
 
-Firebase 실연결, QR 스캔, 6자리 코드만으로 세션 찾기, 자동 재연결은 아직 미완료다.
-Firebase 모드는 초기화 설정 후 실행하며, 연결 완료 후에만 품기를 시작할 수 있다.
+Firebase 초기화·QR·로컬 세션 재연결 코드는 구현했지만 실제 프로젝트 설정으로 차량과 통합 검증하지 않았다.
+카메라 실기·권한 거부·앱 재실행과 iOS 실행도 현장 검증이 필요하다.
+6자리 코드만으로 세션 찾기는 아직 미구현이다.
 6자리 코드 조회는 현재 스키마에 조회 경로가 없어 C와 계약 협의가 필요하다.
 [이슈 #9](https://github.com/Allo-MJU/allo/issues/9)의 `unvisitedRegions`와
 `destinationSuggest` payload는 C 승인 대기 중이다. 승인 전 필드는 보내지 않는다.
@@ -76,3 +94,13 @@ Fake는 구독마다 새 가상 주행이므로 이전 품기 거리와 새 주�
 구버전 저장에는 세션 정보가 없어 저장 거리는 보존하되 첫 신호를 기준점으로 잡는다.
 이 경우 저장 후 첫 연결 전까지 달린 거리는 정확히 복원할 수 없다.
 서버 스키마와 코어 부화 판정은 바꾸지 않고 폰 로컬 기록만 확장한다.
+
+### 종료된 차량 세션
+
+연결 전에 차량의 `sessionEnd` 이벤트를 확인해 종료된 세션은 연결하지 않는다.
+자동 재연결 시 종료가 확인되면 이전 연결 정보를 지우고 새 QR을 안내한다.
+연결 중 종료 이벤트를 받으면 새 품기와 후속 주행 반영을 막고 진행·도감을 저장한다.
+저장과 연결 정보 삭제가 성공하면 연결 화면으로 돌아간다. 저장 실패 시 현재 기록을
+유지하므로 품기 화면의 저장 버튼 또는 동행의 도착 버튼으로 다시 시도할 수 있다.
+`sessionEnd`의 payload가 없는 Firebase 데이터도 처리한다.
+일반적인 품기 저장 실패에서는 신호 구독을 재개해 알이 계속 자라도록 한다.

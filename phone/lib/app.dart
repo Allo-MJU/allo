@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -24,6 +25,15 @@ class _AlloAppState extends State<AlloApp> {
 
   late final _router = GoRouter(
     initialLocation: '/pairing',
+    refreshListenable: controller,
+    redirect: (_, state) {
+      if (controller.needsNewPairing &&
+          state.uri.path != '/pairing' &&
+          state.uri.path != '/dex') {
+        return '/pairing';
+      }
+      return null;
+    },
     routes: [
       GoRoute(
           path: '/pairing',
@@ -41,6 +51,12 @@ class _AlloAppState extends State<AlloApp> {
           path: '/dex', builder: (_, __) => DexScreen(controller: controller)),
     ],
   );
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(controller.restorePairing());
+  }
 
   @override
   void dispose() {

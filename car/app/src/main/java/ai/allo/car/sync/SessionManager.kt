@@ -174,9 +174,29 @@ class SessionManager(private val context: Context) {
     fun endSession(reason: String) {
         if (_ended.value) return
         _ended.value = true
-        val id = sessionId; val ready = sessionReady
+        val id = sessionId; val ready = sessionReady; val last = _vehicle.value
         debugLog("session end sid=$id reason=$reason")
-        scope.launch { runCatching { emitEvent("sessionEnd", id = id, ready = ready) } }
+        scope.launch { deliverEnd(id, ready, last) }
+    }
+
+    /**
+     * 폰은 sessionEnd 를 받으면 /vehicle 을 한 번 읽어 마지막 값으로 저장한다 (PR #25 계약).
+     * 그래서 ① 마지막 vehicle 쓰기가 성공한 뒤에 ② sessionEnd 를 보낸다. 둘 다 실패하면 재시도한다 (1·2·4·8초).
+     * ①이 끝내 실패해도 ②는 보낸다 — 종료가 안 가면 폰이 저장을 시작하지 못한다.
+     * 재시도 중 응답만 늦게 와서 sessionEnd 가 두 번 써질 수 있다. 폰은 중복 종료를 같은 저장 작업으로 처리한다.
+     */
+    private suspend fun deliverEnd(id: String, ready: CompletableDeferred<Unit>, last: VehicleSnapshot?) {
+        if (!rest.isConfigured || !ready.isCompleted) { debugLog("session end not sent sid=$id: session not created"); return }
+        if (last != null) {
+            val wrote = retrying(5, onFailure = { i, e -> debugLog("final vehicle write failed #$i: ${e.message}") }) {
+                rest.put("sessions/$id/vehicle", rest.json.encodeToString(last))
+            }
+            if (!wrote) debugLog("final vehicle write gave up sid=$id")
+        }
+        val sent = retrying(5, onFailure = { i, e -> debugLog("sessionEnd send failed #$i: ${e.message}") }) {
+            emitEvent("sessionEnd", id = id, ready = ready)
+        }
+        debugLog(if (sent) "sessionEnd sent sid=$id" else "sessionEnd gave up sid=$id")
     }
 
     fun stop() {
