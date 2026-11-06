@@ -9,9 +9,10 @@ import ai.allo.car.model.Capability
 class CapabilityChecker {
     private val supported = linkedSetOf<String>()
 
-    fun mark(name: String, ok: Boolean) { if (ok) supported += name else supported -= name }
-    fun has(name: String) = name in supported
-    fun snapshot(): List<String> = supported.toList()
+    // SDK·내비 콜백 스레드에서 mark, 1초 발행 루프에서 snapshot 을 부르므로 동기화한다
+    @Synchronized fun mark(name: String, ok: Boolean) { if (ok) supported += name else supported -= name }
+    @Synchronized fun has(name: String) = name in supported
+    @Synchronized fun snapshot(): List<String> = supported.toList()
 
     /** 에뮬레이터·실차 모두에서 AAOS 속도·기어는 항상 기대한다. 실패하면 mark 로 뺀다. */
     fun assumeAaos() { mark(Capability.SPEED, true); mark(Capability.GEAR, true) }

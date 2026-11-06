@@ -1,0 +1,861 @@
+{
+  "version": 1,
+  "_comment": "생물 대사 뱅크 (A, 2026-11-04). 규칙은 docs/dialogue-style.md. 키 = 질문ID|대상|상황, 조회 순서 종 → @속성 → *. 숫자는 플레이스홀더로만. `{name:이/가}` 처럼 받침에 따라 조사를 고른다. car_ 로 시작하는 키는 차 음성(운전자, 존댓말, 70자). reviewedBy 가 채워진 항목만 빌드에 넣는다.",
+  "placeholders": [
+    "{name}",
+    "{eta_min}",
+    "{progress}",
+    "{word_en}",
+    "{word_ko}",
+    "{tier_word}",
+    "{attr_word}",
+    "{region_word}",
+    "{place}",
+    "{km}"
+  ],
+  "entries": [
+    {
+      "key": "ask_name|road_sprout|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "나는 길싹이야. 길 위에서 처음 만난 친구다!",
+        "길싹이라고 불러 줘. 오늘 처음 세상에 나왔어."
+      ]
+    },
+    {
+      "key": "ask_origin|road_sprout|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "그냥 길에서 쑥 자랐어. 어디든 길이 있으면 나와!",
+        "네가 달리는 동안 알 속에서 자랐어. 신기하다!"
+      ]
+    },
+    {
+      "key": "ask_like|road_sprout|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "처음 보는 건 다 좋아! 창밖에 뭐 있어?",
+        "햇빛이랑 새로운 길. 오늘은 어디로 가는 걸까?"
+      ]
+    },
+    {
+      "key": "ask_name|bridge_hopper|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "다리뛰기! 다리만 보면 깡총 뛰고 싶어져.",
+        "나는 다리뛰기야. 같이 다리 건너자."
+      ]
+    },
+    {
+      "key": "ask_origin|bridge_hopper|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "부드럽게 달리는 차에서 태어났어. 덜컹 안 해서 좋았어.",
+        "다리 건너는 소리를 들으면서 자랐지. 깡총!"
+      ]
+    },
+    {
+      "key": "ask_like|bridge_hopper|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "다리! 영어로 bridge야. 창밖에 하나 찾아볼래?",
+        "건너는 거 다 좋아. 강이든 길이든 깡총!"
+      ]
+    },
+    {
+      "key": "ask_name|mountain_sprite|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "산정령이야. 천천히 가도 괜찮아, 내가 같이 있으니까.",
+        "나는 산정령. 조용한 산길을 좋아해."
+      ]
+    },
+    {
+      "key": "ask_origin|mountain_sprite|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "급하지 않게 달려 준 덕분에 나왔어. 고마워.",
+        "산 쪽에서 왔어. 흔들리지 않는 길을 따라서."
+      ]
+    },
+    {
+      "key": "ask_like|mountain_sprite|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "산이랑 나무. 영어로 mountain이라고 해.",
+        "천천히 가는 길. 창밖 산 한번 볼래?"
+      ]
+    },
+    {
+      "key": "ask_name|puddle_pip|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "나는 웅덩이삐약! 비 오는 날 첨벙 나왔어. 삐약.",
+        "웅덩이삐약이야. 촉촉한 날이 좋아."
+      ]
+    },
+    {
+      "key": "ask_origin|puddle_pip|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "빗방울이 창문을 두드릴 때 깨어났어. 삐약!",
+        "비 오는 날 물웅덩이에서 첨벙 태어났지."
+      ]
+    },
+    {
+      "key": "ask_like|puddle_pip|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "비! 영어로 rain이야. 창문에 빗방울 세어 볼래?",
+        "첨벙첨벙 물웅덩이. 삐약."
+      ]
+    },
+    {
+      "key": "ask_name|river_glider|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "강미끄럼이야. 스르르, 느긋하게 가자.",
+        "나는 강미끄럼. 급할 거 없어."
+      ]
+    },
+    {
+      "key": "ask_origin|river_glider|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "비 오는 날 천천히 달려 줘서 나왔어. 스르르.",
+        "강물처럼 흘러가는 차 안에서 자랐어."
+      ]
+    },
+    {
+      "key": "ask_like|river_glider|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "강! 영어로 river. 창밖에 물 보이면 알려 줘.",
+        "느긋하게 흘러가는 거. 지금처럼."
+      ]
+    },
+    {
+      "key": "ask_name|tide_keeper|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "나는 물결지기야. 파도처럼 잔잔하게 가자.",
+        "물결지기라고 해. 바다를 지키는 게 내 일이야."
+      ]
+    },
+    {
+      "key": "ask_origin|tide_keeper|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "비 오는 날 아주 부드럽게 달려 준 덕분이야. 고마워.",
+        "먼 바다에서 왔어. 파도처럼 잔잔한 길을 따라서."
+      ]
+    },
+    {
+      "key": "ask_like|tide_keeper|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "바다! 영어로 sea야. 언젠가 같이 가 보자.",
+        "잔잔한 빗소리. 지금 들려?"
+      ]
+    },
+    {
+      "key": "ask_name|storm_lantern|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "폭풍등이야! 비 오는 터널에서 번쩍 태어났어.",
+        "나는 폭풍등. 어두워도 환하게 비춰 줄게."
+      ]
+    },
+    {
+      "key": "ask_origin|storm_lantern|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "비 오는 날 터널을 지날 때 번쩍! 하고 나왔어.",
+        "빗속 터널에서 태어났어. 아무나 못 만나는 거야."
+      ]
+    },
+    {
+      "key": "ask_like|storm_lantern|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "터널! 영어로 tunnel. 들어가면 내가 환하게 켜질게.",
+        "천둥 대신 씩씩한 노래. 번쩍!"
+      ]
+    },
+    {
+      "key": "ask_name|sea_mist|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "바다안개야… 몽글몽글. 살며시 왔어.",
+        "나는 바다안개. 조용히 옆에 있을게."
+      ]
+    },
+    {
+      "key": "ask_origin|sea_mist|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "비 오는 바닷가에서 몽글몽글 피어났어.",
+        "바다랑 비가 만나는 곳에서 왔어. 살며시."
+      ]
+    },
+    {
+      "key": "ask_like|sea_mist|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "안개 낀 아침. 영어로 fog라고 해.",
+        "파도 소리를 멀리서 듣는 거. 몽글몽글."
+      ]
+    },
+    {
+      "key": "ask_name|lamp_moth|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "등불나방! 불빛만 보면 반짝 신나.",
+        "나는 등불나방이야. 밤이 좋아."
+      ]
+    },
+    {
+      "key": "ask_origin|lamp_moth|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "해가 진 뒤에 가로등 불빛 따라 나왔어. 반짝!",
+        "밤길에서 태어났어. 불빛이 날 불렀지."
+      ]
+    },
+    {
+      "key": "ask_like|lamp_moth|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "불빛! 영어로 light야. 창밖에 몇 개나 보여?",
+        "환한 가로등이랑 반짝이는 간판."
+      ]
+    },
+    {
+      "key": "ask_name|tunnel_moth|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "터널나방이야. 어두워도 괜찮아, 길은 내가 알아.",
+        "나는 터널나방. 따라와, 환한 데로 데려다줄게."
+      ]
+    },
+    {
+      "key": "ask_origin|tunnel_moth|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "터널을 지날 때 어둠 속에서 나왔어.",
+        "터널 불빛 사이에서 자랐어. 길 찾는 건 자신 있어."
+      ]
+    },
+    {
+      "key": "ask_like|tunnel_moth|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "터널! 영어로 tunnel. 끝에 빛이 보이면 알려 줘.",
+        "어두운 데서 환한 데로 나가는 순간."
+      ]
+    },
+    {
+      "key": "ask_name|star_owl|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "별부엉이야. 후후, 밤하늘은 내가 제일 잘 알아.",
+        "나는 별부엉이. 별 이야기 해 줄까?"
+      ]
+    },
+    {
+      "key": "ask_origin|star_owl|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "밤길을 아주 부드럽게 달려 줘서 나왔어. 후후.",
+        "별이 많은 밤에 태어났어. 흔들리지 않는 차에서."
+      ]
+    },
+    {
+      "key": "ask_like|star_owl|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "별! 영어로 star야. 창밖에 하나 찾아볼래?",
+        "달이랑 별. 그거 알아? 달은 밤마다 모양이 바뀌어."
+      ]
+    },
+    {
+      "key": "ask_name|highway_comet|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "고속혜성! 슝, 빛처럼 빠른 게 좋아.",
+        "나는 고속혜성이야. 쌩쌩 달리는 밤이 최고."
+      ]
+    },
+    {
+      "key": "ask_origin|highway_comet|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "밤 고속도로를 끝까지 부드럽게 달려서 나왔어. 슝!",
+        "별똥별이 떨어지는 밤 고속도로에서 왔어."
+      ]
+    },
+    {
+      "key": "ask_like|highway_comet|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "고속도로! 영어로 highway. 쌩쌩 가는 소리 들려?",
+        "밤하늘에 긴 꼬리 그리는 거. 슝!"
+      ]
+    },
+    {
+      "key": "ask_mood|@normal|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "기분 좋아! 창밖이 계속 바뀌어서 재밌어.",
+        "편안해. 너랑 같이 가서 좋아."
+      ]
+    },
+    {
+      "key": "ask_mood|@water|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "촉촉하고 좋아. 빗소리가 자장가 같아.",
+        "잔잔해. 지금처럼만 가면 돼."
+      ]
+    },
+    {
+      "key": "ask_mood|@dark|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "밤이라 신나! 불빛이 반짝반짝해.",
+        "좋아. 어두운 길도 너랑 가면 괜찮아."
+      ]
+    },
+    {
+      "key": "ask_mood|*|harsh",
+      "reviewedBy": null,
+      "lines": [
+        "아까 덜컹해서 조금 놀랐어. 이제 괜찮아.",
+        "살짝 흔들렸어. 천천히 가면 금방 나아져."
+      ]
+    },
+    {
+      "key": "ask_window|*|rain",
+      "reviewedBy": null,
+      "lines": [
+        "비가 와! 영어로 rain. 창문에 빗방울 몇 개야?",
+        "와이퍼가 왔다 갔다 해. 빗방울 경주 해 볼래?"
+      ]
+    },
+    {
+      "key": "ask_window|*|tunnel",
+      "reviewedBy": null,
+      "lines": [
+        "터널이야! 영어로 tunnel. 끝에 빛 보이면 말해 줘.",
+        "터널 안이야. 불빛이 줄줄이 지나가."
+      ]
+    },
+    {
+      "key": "ask_window|*|highway",
+      "reviewedBy": null,
+      "lines": [
+        "고속도로야. 영어로 highway. 큰 트럭 찾아볼래?",
+        "쌩쌩 달리는 중! 초록 표지판에 뭐라고 써 있어?"
+      ]
+    },
+    {
+      "key": "ask_window|*|coast",
+      "reviewedBy": null,
+      "lines": [
+        "바다 근처야! 영어로 sea. 창밖에 물 보여?",
+        "짠 냄새 나지 않아? 바다가 가까워."
+      ]
+    },
+    {
+      "key": "ask_window|*|city",
+      "reviewedBy": null,
+      "lines": [
+        "도시야. 높은 건물 세어 볼래? 영어로 building.",
+        "간판이 많아. 아는 글자 찾아봐."
+      ]
+    },
+    {
+      "key": "ask_window|*|night",
+      "reviewedBy": null,
+      "lines": [
+        "밤이야. 영어로 night. 달 보여?",
+        "가로등이 켜졌어. 몇 개나 지나가는지 세어 볼래?"
+      ]
+    },
+    {
+      "key": "ask_window|*|none",
+      "reviewedBy": null,
+      "lines": [
+        "창밖에 뭐가 보여? 나무나 차, 하나 골라 봐.",
+        "구름 모양 찾기 어때? 뭐 닮았어?"
+      ]
+    },
+    {
+      "key": "ask_eta|*|eta",
+      "reviewedBy": null,
+      "lines": [
+        "{eta_min}분 정도 더 가면 돼. 금방이야.",
+        "내비가 {eta_min}분 남았대. 같이 가자."
+      ]
+    },
+    {
+      "key": "ask_eta|*|distance",
+      "reviewedBy": null,
+      "lines": [
+        "벌써 {progress}퍼센트 왔어. 조금만 더!",
+        "{progress}퍼센트! 창밖 보다 보면 금방이야."
+      ]
+    },
+    {
+      "key": "ask_want|@normal|*",
+      "reviewedBy": null,
+      "lines": [
+        "산 쪽에 가 보고 싶어. 거기서만 만나는 친구가 있대.",
+        "바다 쪽! 파도 소리 듣고 싶어."
+      ]
+    },
+    {
+      "key": "ask_want|@water|*",
+      "reviewedBy": null,
+      "lines": [
+        "바다! 비 오는 바닷가에 가면 안개 친구를 만날 수 있어.",
+        "물이 있는 곳이면 어디든 좋아."
+      ]
+    },
+    {
+      "key": "ask_want|@dark|*",
+      "reviewedBy": null,
+      "lines": [
+        "밤 고속도로! 별똥별 친구가 거기 살아.",
+        "터널 많은 길. 어두울수록 좋아."
+      ]
+    },
+    {
+      "key": "say_bored|*|driving",
+      "reviewedBy": null,
+      "lines": [
+        "그럼 창밖에서 빨간 차 세 대 찾아볼래?",
+        "표지판에서 아는 글자 하나 찾아봐. 영어로 sign이야.",
+        "구름 중에 동물 닮은 거 있어? 찾으면 말해 줘."
+      ]
+    },
+    {
+      "key": "say_bored|*|incubating",
+      "reviewedBy": null,
+      "lines": [
+        "알이 자라는 중이야. 창밖 보면 더 잘 자란대.",
+        "조금만 기다려. 창밖에 뭐 보이는지 알려 줄래?"
+      ]
+    },
+    {
+      "key": "say_bye|@normal|*",
+      "reviewedBy": null,
+      "lines": [
+        "잘 가! 다음 길에서 또 만나.",
+        "오늘 같이 가서 좋았어. 또 보자!"
+      ]
+    },
+    {
+      "key": "say_bye|@water|*",
+      "reviewedBy": null,
+      "lines": [
+        "잘 가! 비 오는 날 또 보자.",
+        "오늘 고마웠어. 다음에 또 같이 가자."
+      ]
+    },
+    {
+      "key": "say_bye|@dark|*",
+      "reviewedBy": null,
+      "lines": [
+        "잘 가! 밤길에서 또 만나.",
+        "오늘 재밌었어. 다음에 또 보자!"
+      ]
+    },
+    {
+      "key": "hatch|road_sprout|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "안녕! 나 길싹이야. 드디어 나왔다!",
+        "짠! 길싹이 등장. 창밖이 신기해!"
+      ]
+    },
+    {
+      "key": "hatch|bridge_hopper|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "깡총! 다리뛰기야. 같이 가자!",
+        "나왔다! 다리뛰기. 다음 다리는 언제야?"
+      ]
+    },
+    {
+      "key": "hatch|mountain_sprite|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "안녕, 산정령이야. 천천히 잘 왔어.",
+        "깨어났어. 부드럽게 달려 줘서 고마워."
+      ]
+    },
+    {
+      "key": "hatch|puddle_pip|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "삐약! 웅덩이삐약 나왔어!",
+        "첨벙! 비 오는 날 만나서 반가워. 삐약."
+      ]
+    },
+    {
+      "key": "hatch|river_glider|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "스르르, 강미끄럼이야. 반가워.",
+        "나왔어. 느긋하게 같이 가자."
+      ]
+    },
+    {
+      "key": "hatch|tide_keeper|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "물결지기야. 잔잔하게 잘 왔어, 고마워.",
+        "파도처럼 조용히 깨어났어. 반가워."
+      ]
+    },
+    {
+      "key": "hatch|storm_lantern|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "번쩍! 폭풍등이야. 빗속 터널에서 나왔어!",
+        "환하게 비춰 줄게. 나는 폭풍등!"
+      ]
+    },
+    {
+      "key": "hatch|sea_mist|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "몽글몽글… 바다안개야. 살며시 왔어.",
+        "비 오는 바닷가에서 피어났어. 반가워."
+      ]
+    },
+    {
+      "key": "hatch|lamp_moth|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "반짝! 등불나방이야. 불빛 따라 왔어!",
+        "나왔다! 밤이라 더 신나."
+      ]
+    },
+    {
+      "key": "hatch|tunnel_moth|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "터널나방이야. 어두워도 걱정 마, 길은 내가 알아.",
+        "깨어났어. 환한 데까지 같이 가자."
+      ]
+    },
+    {
+      "key": "hatch|star_owl|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "후후, 별부엉이야. 별 많은 밤에 태어났어.",
+        "깨어났어. 밤하늘 이야기 해 줄게."
+      ]
+    },
+    {
+      "key": "hatch|highway_comet|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "슝! 고속혜성이야. 쌩쌩 밤길에서 왔어!",
+        "나왔다! 빛처럼 빠르게 같이 가자."
+      ]
+    },
+    {
+      "key": "look_out|*|rain",
+      "reviewedBy": null,
+      "lines": [
+        "창밖 봐! 빗방울 경주야. 어느 게 먼저 내려가?",
+        "와이퍼 소리에 맞춰 빗방울 세 개 찾아볼래?"
+      ]
+    },
+    {
+      "key": "look_out|*|tunnel",
+      "reviewedBy": null,
+      "lines": [
+        "터널이다! 천장 불빛 몇 개 지나가는지 세어 봐.",
+        "터널 끝 빛이 보이면 나한테 알려 줘."
+      ]
+    },
+    {
+      "key": "look_out|*|highway",
+      "reviewedBy": null,
+      "lines": [
+        "초록 표지판 찾아봐! 영어로 sign이야.",
+        "큰 트럭 한 대 찾으면 말해 줘."
+      ]
+    },
+    {
+      "key": "look_out|*|coast",
+      "reviewedBy": null,
+      "lines": [
+        "바다 쪽 창문 봐! 물이 보이면 손 흔들어 줘.",
+        "짠 냄새 나지? 갈매기 찾아볼래?"
+      ]
+    },
+    {
+      "key": "look_out|*|city",
+      "reviewedBy": null,
+      "lines": [
+        "높은 건물 세 개 찾아봐. 영어로 building!",
+        "간판에서 아는 글자 하나 찾아볼래?"
+      ]
+    },
+    {
+      "key": "look_out|*|night",
+      "reviewedBy": null,
+      "lines": [
+        "달 찾아봐! 영어로 moon이야.",
+        "가로등 다섯 개 세어 볼래?"
+      ]
+    },
+    {
+      "key": "look_out|*|none",
+      "reviewedBy": null,
+      "lines": [
+        "창밖에 나무 세 그루 찾아볼래? 영어로 tree!",
+        "구름 모양 봐. 뭐 닮았어?"
+      ]
+    },
+    {
+      "key": "look_out_done|*|*",
+      "reviewedBy": null,
+      "lines": [
+        "찾았어? 대단해! 알이 더 잘 자랄 거야.",
+        "역시 눈이 좋아. 고마워!",
+        "와, 벌써 찾았어? 한 번 더 할래?"
+      ]
+    },
+    {
+      "key": "env_change|*|rain",
+      "reviewedBy": null,
+      "lines": [
+        "비 온다! 영어로 rain. 물 친구들이 좋아하는 날이야.",
+        "빗방울 소리 들려? 촉촉한 날이야."
+      ]
+    },
+    {
+      "key": "env_change|*|tunnel",
+      "reviewedBy": null,
+      "lines": [
+        "터널 들어간다! 어두워도 괜찮아, 금방 나가.",
+        "터널이야. 영어로 tunnel. 불빛 봐!"
+      ]
+    },
+    {
+      "key": "env_change|*|highway",
+      "reviewedBy": null,
+      "lines": [
+        "고속도로야. 쌩쌩 달리는 중! 영어로 highway.",
+        "빨라졌다! 창밖이 휙휙 지나가."
+      ]
+    },
+    {
+      "key": "env_change|*|coast",
+      "reviewedBy": null,
+      "lines": [
+        "바다 근처야! 영어로 sea. 물 보여?",
+        "바닷가다! 바다 친구가 나올지도 몰라."
+      ]
+    },
+    {
+      "key": "env_change|*|night",
+      "reviewedBy": null,
+      "lines": [
+        "해가 졌어. 영어로 night. 불빛이 켜지기 시작해.",
+        "밤이 됐어. 어둠 친구들이 깨어나는 시간이야."
+      ]
+    },
+    {
+      "key": "care|*|incubating",
+      "reviewedBy": null,
+      "lines": [
+        "따뜻해… 고마워. 조금 더 자랄 것 같아.",
+        "포근하다. 알 속에서 꼼지락!",
+        "고마워. 창밖도 한번 봐 줄래?"
+      ]
+    },
+    {
+      "key": "care|*|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "간지러워! 고마워.",
+        "좋아, 더 힘이 나!"
+      ]
+    },
+    {
+      "key": "car_egg_status|*|incubating",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "지금 {tier_word} 알을 품고 있어요. {progress}퍼센트 자랐어요.",
+        "{tier_word} 알이 {progress}퍼센트 자랐어요."
+      ]
+    },
+    {
+      "key": "car_egg_status|*|hatched",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "이미 깨어났어요. 도착까지 같이 가고 있어요.",
+        "{name}{name:이/가} 깨어나서 뒷자리와 같이 가고 있어요."
+      ]
+    },
+    {
+      "key": "car_egg_status|*|idle",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "아직 품고 있는 알이 없어요.",
+        "지금은 품고 있는 알이 없어요."
+      ]
+    },
+    {
+      "key": "car_hatch|@water|hatched",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "물 속성 {name}{name:이/가} 깨어났어요.",
+        "{name}{name:이/가} 깨어났어요. 비 오는 날이 만든 아이예요."
+      ]
+    },
+    {
+      "key": "car_hatch|@dark|hatched",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "어둠 속성 {name}{name:이/가} 알에서 깨어났어요.",
+        "어둠 속성 {name}{name:이/가} 깨어났어요."
+      ]
+    },
+    {
+      "key": "car_hatch|@normal|hatched",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "{name}{name:이/가} 알에서 깨어났어요.",
+        "{name}{name:이/가} 깨어났어요."
+      ]
+    },
+    {
+      "key": "car_hatch|*|not_yet",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "아직 깨어나지 않았어요.",
+        "지금은 부화 소식이 없어요."
+      ]
+    },
+    {
+      "key": "car_suggest|*|first",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "{region_word} 쪽 {place}까지 안내할까요?{km} 같은 {region_word}{region_word:이라면/라면} 다른 곳도 괜찮아요."
+      ]
+    },
+    {
+      "key": "car_suggest|*|uncollected",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "아직 {region_word}에서 만난 아이가 없어요. {place}까지 안내할까요?{km}"
+      ]
+    },
+    {
+      "key": "car_suggest|*|alt",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "{region_word} 쪽 {place}도 있어요.{km} 안내할까요?"
+      ]
+    },
+    {
+      "key": "car_suggest_none|*|all_collected",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "바다·산·도심에서 모두 아이를 만났어요. 지금은 따로 추천할 곳이 없어요."
+      ]
+    },
+    {
+      "key": "car_suggest_none|*|only_current_region",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "아직 아이를 못 만난 곳은 지금 계신 지역뿐이에요. 다른 추천은 없어요."
+      ]
+    },
+    {
+      "key": "car_suggest_none|*|none_nearby",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "가까운 곳에서 추천할 장소를 찾지 못했어요."
+      ]
+    },
+    {
+      "key": "car_suggest_none|*|exhausted",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "지금 추천할 장소는 여기까지예요."
+      ]
+    },
+    {
+      "key": "car_suggest_none|*|route_active",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "지금은 길 안내 중이에요. 안내가 끝나면 다시 물어봐 주세요."
+      ]
+    },
+    {
+      "key": "car_accept|*|ok",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "{place}까지 안내를 요청했어요.",
+        "{place}{place:으로/로} 가는 경로를 요청했어요."
+      ]
+    },
+    {
+      "key": "car_accept|*|none",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "먼저 어디로 갈지 물어봐 주세요."
+      ]
+    },
+    {
+      "key": "car_accept|*|route_active",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "지금은 길 안내 중이라 목적지를 바꾸지 않을게요."
+      ]
+    },
+    {
+      "key": "car_accept|*|not_ready",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "지금은 내비에 목적지를 넣지 못했어요. 잠시 뒤에 다시 말해 주세요."
+      ]
+    },
+    {
+      "key": "car_unknown|*|*",
+      "reviewedBy": "C",
+      "reviewedAt": "2026-11-05",
+      "lines": [
+        "모르는 요청이에요."
+      ]
+    }
+  ]
+}

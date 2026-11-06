@@ -1,0 +1,23 @@
+{
+  "sid_expired_old": {"meta": {"createdAt": 1793588400000}},
+  "sid_boundary_before": {"meta": {"createdAt": 1793674800001}},
+  "sid_boundary_exact": {"meta": {"createdAt": 1793674800000}},
+  "sid_boundary_after": {"meta": {"createdAt": 1793674799999}},
+  "sid_normal": {"meta": {"createdAt": 1793761140000}},
+  "sid_now": {"meta": {"createdAt": 1793761200000}},
+  "sid_fractional_ms": {"meta": {"createdAt": 1793761199999.5}},
+  "sid_orphan_vehicle": {"vehicle": {"ts": 1793761140000, "gear": "P", "privateMarker": "must-not-log-payload"}},
+  "sid_orphan_null_meta": {"meta": null, "vehicle": {"ts": 1793761140000}},
+  "sid_missing_created_at": {"meta": {"paired": false}},
+  "sid_null_created_at": {"meta": {"createdAt": null}},
+  "sid_string_created_at": {"meta": {"createdAt": "1793588400000"}},
+  "sid_boolean_created_at": {"meta": {"createdAt": true}},
+  "sid_array_created_at": {"meta": {"createdAt": [1793588400000]}},
+  "sid_object_created_at": {"meta": {"createdAt": {"value": 1793588400000}}},
+  "sid_string_meta": {"meta": "must-not-log-payload"},
+  "sid_array_meta": {"meta": []},
+  "sid_negative_created_at": {"meta": {"createdAt": -1}},
+  "sid_future_created_at": {"meta": {"createdAt": 1793761200001}},
+  "sid_invalid_session": "must-not-log-payload",
+  "sid_empty_session": {}
+}
