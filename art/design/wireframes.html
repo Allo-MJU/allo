@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ALLO 와이어프레임 v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* Values mirror art/design/tokens.json (semantic roles). Change tokens.json first. */
+:root {
+  --bg-canvas: #FFFFFF; --bg-soft: #F4F7F3; --bg-success: #E8F5ED; --bg-error: #FFF2F1; --bg-discovery: #FCCC44;
+  --text-primary: #111111; --text-secondary: #56675D; --text-inverse: #FFFFFF; --text-action: #146B49; --text-error: #A1282B;
+  --border-line: #DDE6DE; --border-control: #738478;
+  --action-primary: #146B49; --action-discovery: #FCCC44;
+  --progress-fill: #1D9965; --progress-track: #F4F7F3;
+  --car-bg: #181C1E; --car-text: #F4F8F5; --car-progress: #1D9965; --car-accent: #FCCC44;
+  --tint-puddle: #E3EEF8; --tint-sprout: #EEF0DC; --tint-moth: #EFE6F2;
+  --r-md: 12px; --r-lg: 16px; --r-xl: 24px;
+}
+* { box-sizing: border-box; margin: 0; }
+body { font-family: "Noto Sans KR", sans-serif; color: var(--text-primary); background: var(--bg-soft); line-height: 1.5; }
+.doc { max-width: 1640px; margin: 0 auto; padding: 48px 32px 96px; }
+.doc > header { max-width: 720px; margin-bottom: 48px; }
+.doc h1 { font-size: 28px; line-height: 36px; letter-spacing: -0.01em; }
+.doc header p { color: var(--text-secondary); margin-top: 8px; }
+.doc h2 { font-size: 20px; line-height: 28px; margin: 56px 0 24px; padding-top: 24px; border-top: 1px solid var(--border-line); }
+.row { display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-start; }
+figure { width: 360px; }
+figcaption { margin-top: 16px; font-size: 14px; color: var(--text-secondary); }
+figcaption b { display: block; color: var(--text-primary); font-size: 16px; margin-bottom: 4px; }
+figcaption ul { padding-left: 18px; margin-top: 6px; }
+
+/* phone */
+.phone { width: 360px; height: 760px; background: var(--bg-canvas); border-radius: 32px; border: 1px solid var(--border-line);
+  display: flex; flex-direction: column; overflow: hidden; position: relative; }
+.status { height: 32px; flex: none; }
+.top { padding: 8px 24px 0; display: flex; align-items: center; justify-content: space-between; min-height: 48px; }
+.top h3 { font-size: 20px; line-height: 28px; }
+.body { flex: 1; padding: 16px 24px; display: flex; flex-direction: column; gap: 16px; }
+.bottom { padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 12px; }
+.muted { color: var(--text-secondary); }
+.cap { font-size: 13px; line-height: 18px; font-weight: 500; color: var(--text-secondary); }
+.title { font-size: 28px; line-height: 36px; font-weight: 700; letter-spacing: -0.01em; }
+.say { font-size: 18px; line-height: 28px; font-weight: 500; }
+.center { text-align: center; align-items: center; }
+
+/* components (Figma: Components page) */
+.btn { height: 72px; border-radius: var(--r-lg); border: 0; font: 700 20px/26px "Noto Sans KR"; width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 8px; }
+.btn.md { height: 56px; font-size: 16px; }
+.btn.primary { background: var(--action-primary); color: var(--text-inverse); }
+.btn.discovery { background: var(--action-discovery); color: var(--text-primary); }
+.btn.secondary { background: var(--bg-canvas); color: var(--text-primary); box-shadow: inset 0 0 0 2px var(--border-control); }
+.btn.ghost { background: none; color: var(--text-action); }
+.btn-row { display: flex; gap: 12px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 999px; background: var(--bg-soft);
+  color: var(--text-secondary); font: 700 14px/20px "Noto Sans KR"; }
+.chip svg, .badge svg { width: 16px; height: 16px; fill: currentColor; }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 999px; font: 700 14px/20px "Noto Sans KR"; }
+.badge.common { background: var(--bg-soft); color: var(--text-secondary); }
+.badge.rare { background: var(--bg-success); color: var(--text-action); }
+.badge.epic { background: var(--action-primary); color: var(--text-inverse); }
+.badge.special { background: var(--bg-discovery); color: var(--text-primary); }
+.progress .head { display: flex; justify-content: space-between; align-items: baseline; font-weight: 700; }
+.track { height: 16px; border-radius: 999px; background: var(--progress-track); box-shadow: inset 0 0 0 1px var(--border-line); overflow: hidden; margin: 8px 0 6px; }
+.track i { display: block; height: 100%; border-radius: 999px; background: var(--progress-fill); }
+.bubble { background: var(--bg-canvas); border: 1px solid var(--border-line); border-radius: 24px 24px 24px 8px; padding: 16px 24px;
+  box-shadow: 0 4px 12px rgba(17,17,17,.10); }
+.word { margin-top: 12px; background: var(--bg-soft); border-radius: var(--r-md); padding: 8px 16px; display: flex; align-items: baseline; gap: 8px; }
+.word b { color: var(--text-action); font-size: 24px; line-height: 30px; }
+.banner { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: var(--r-md); font-size: 15px; }
+.banner.ok { background: var(--bg-success); color: var(--text-action); }
+.banner.err { background: var(--bg-error); color: var(--text-error); }
+.banner svg { flex: none; width: 20px; height: 20px; fill: currentColor; margin-top: 2px; }
+.tabs { display: flex; border-top: 1px solid var(--border-line); padding: 8px 8px 20px; flex: none; }
+.tabs a { flex: 1; height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-size: 13px; font-weight: 700; color: var(--text-secondary); text-decoration: none; border-radius: var(--r-md); }
+.tabs a svg { width: 24px; height: 24px; fill: currentColor; }
+.tabs a.on { color: var(--text-action); background: var(--bg-success); }
+
+/* stage: the quiet green field behind eggs and creatures */
+.stage { background: var(--bg-soft); border-radius: var(--r-xl); flex: 1; display: flex; align-items: center; justify-content: center; position: relative; min-height: 260px; }
+.stage .tl { position: absolute; top: 16px; left: 16px; }
+.creature { width: 200px; height: 200px; border-radius: var(--r-xl); border: 2px dashed var(--border-control);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 13px; color: var(--text-secondary); gap: 4px; }
+.creature b { font-size: 16px; color: var(--text-primary); }
+.egg { width: 150px; }
+.shake { transform: rotate(-9deg); }
+.rain { position: absolute; inset: 0; background-image: linear-gradient(105deg, transparent 47%, rgba(86,103,93,.28) 48% 52%, transparent 53%); background-size: 22px 30px; border-radius: inherit; pointer-events: none; }
+.code { display: flex; gap: 8px; }
+.code span { flex: 1; height: 56px; border-radius: var(--r-md); box-shadow: inset 0 0 0 2px var(--border-control); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; }
+.code span.bad { box-shadow: inset 0 0 0 2px var(--text-error); }
+.pick { display: flex; flex-direction: column; gap: 12px; }
+.pick div { display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--border-line); }
+.pick div.on { box-shadow: inset 0 0 0 3px var(--action-primary); }
+.pick svg { flex: none; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.card { aspect-ratio: 3 / 4; border-radius: var(--r-lg); padding: 8px; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; font-size: 13px; font-weight: 700; position: relative; }
+.card .pic { flex: 1; border-radius: var(--r-md); border: 1.5px dashed rgba(86,103,93,.45); }
+.card .shape { position: absolute; top: 12px; right: 12px; width: 14px; height: 14px; fill: var(--text-secondary); }
+.card.locked { background: var(--bg-soft); color: var(--text-secondary); font-weight: 500; }
+.card.locked .pic { border: 0; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; color: var(--border-control); }
+.meta { display: grid; grid-template-columns: 72px 1fr; row-gap: 10px; font-size: 15px; align-items: center; }
+.meta dt { color: var(--text-secondary); }
+.yellow { background: var(--bg-discovery); }
+.label-new { display: inline-block; background: var(--text-primary); color: var(--bg-discovery); padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 14px; }
+
+/* car (Pleos) */
+figure.wide { width: 860px; }
+.car { width: 860px; height: 400px; background: #0B0D0E; border-radius: 20px; padding: 16px; display: flex; gap: 16px; }
+.car .map { flex: 1; border-radius: var(--r-lg); background: repeating-linear-gradient(135deg, #22282B 0 12px, #1E2326 12px 24px);
+  display: flex; align-items: flex-end; padding: 16px; color: #8D979B; font-size: 14px; }
+.car .app { background: var(--car-bg); color: var(--car-text); border-radius: var(--r-lg); padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.car .full { flex: 1; }
+.car .line { height: 76px; border-radius: var(--r-lg); background: var(--car-bg); color: var(--car-text); display: flex; align-items: center; gap: 16px; padding: 0 24px; font-size: 28px; line-height: 36px; font-weight: 700; }
+.car .line svg { width: 32px; height: 32px; fill: var(--car-accent); flex: none; }
+.car .mini { width: 160px; height: 12px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; margin-left: auto; flex: none; }
+.car .mini i { display: block; height: 100%; background: var(--car-progress); }
+.car h4 { font-size: 36px; line-height: 44px; }
+.car .ctrack { height: 16px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; }
+.car .ctrack i { display: block; height: 100%; background: var(--car-progress); border-radius: 999px; }
+.car .stat { display: flex; gap: 32px; font-size: 22px; font-weight: 700; }
+.car .stat span { color: var(--car-text); font-size: 16px; font-weight: 500; display: block; }
+.car .cbtn { height: 76px; border-radius: var(--r-lg); background: var(--car-accent); color: var(--text-primary); font: 700 22px "Noto Sans KR"; border: 0; padding: 0 32px; align-self: flex-start; }
+.car .cbtn.ghost { background: rgba(255,255,255,.08); color: var(--car-text); }
+.split { display: flex; gap: 24px; align-items: center; flex: 1; }
+.note { font-size: 14px; color: var(--text-secondary); max-width: 720px; }
+.open { background: var(--bg-canvas); border-radius: var(--r-xl); padding: 24px 32px; max-width: 860px; }
+.open li { margin: 6px 0; }
+@media (prefers-reduced-motion: no-preference) { .egg.wobble { animation: wob 1.2s ease-in-out infinite; } }
+@keyframes wob { 0%,100% { transform: rotate(-9deg); } 50% { transform: rotate(7deg); } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="egg" viewBox="0 0 120 150">
+      <path d="M60 4C88 4 114 48 114 88a54 54 0 0 1-108 0C6 48 32 4 60 4Z" fill="#E8F5ED" stroke="#1D9965" stroke-width="5"/>
+      <path d="M60 4C78 4 95 22 104 44L90 38 76 48 62 38 48 48 34 38 18 44C27 22 42 4 60 4Z" fill="#FCCC44" stroke="#1D9965" stroke-width="5" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="egg-open" viewBox="0 0 120 150">
+      <path d="M6 88C6 72 10 58 16 46L32 56 46 44 60 56 74 44 88 56 104 46c6 12 10 26 10 42a54 54 0 0 1-108 0Z" fill="#E8F5ED" stroke="#1D9965" stroke-width="5" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-rain" viewBox="0 0 24 24"><path d="M12 3c-.4 0-.8.2-1 .6C8.6 7.2 6 10.6 6 14a6 6 0 0 0 12 0c0-3.4-2.6-6.8-5-10.4-.2-.4-.6-.6-1-.6Z"/></symbol>
+    <symbol id="i-highway" viewBox="0 0 24 24"><path d="M9 3h2l-1 18H4L9 3Zm4 0h2l5 18h-6l-1-18Z"/></symbol>
+    <symbol id="i-mountain" viewBox="0 0 24 24"><path d="M2 20 9 7l3.5 5.5L15 9l7 11H2Z"/></symbol>
+    <symbol id="i-common" viewBox="0 0 24 24"><path d="M12 6a6 6 0 1 1 0 12 6 6 0 0 1 0-12Z"/></symbol>
+    <symbol id="i-rare" viewBox="0 0 24 24"><path d="M12 4l7 8-7 8-7-8 7-8Z"/></symbol>
+    <symbol id="i-epic" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9L12 3.5Z"/></symbol>
+    <symbol id="i-special" viewBox="0 0 24 24"><path d="M12 2c.6 4.6 2.6 7.4 8 8.4v1.2c-5.4 1-7.4 3.8-8 8.4h-.2c-.6-4.6-2.6-7.4-8-8.4v-1.2c5.4-1 7.4-3.8 8-8.4h.2Z"/></symbol>
+    <symbol id="i-egg" viewBox="0 0 24 24"><path d="M12 3c3.6 0 6.5 5.4 6.5 10.2a6.5 6.5 0 0 1-13 0C5.5 8.4 8.4 3 12 3Z"/></symbol>
+    <symbol id="i-friend" viewBox="0 0 24 24"><path d="M12 13c3 0 6 2.5 6 5.5 0 1.4-1.2 2.5-2.7 2.5H8.7C7.2 21 6 19.9 6 18.5 6 15.5 9 13 12 13ZM6 7.5a2.2 2.2 0 1 1 0 4.4 2.2 2.2 0 0 1 0-4.4Zm12 0a2.2 2.2 0 1 1 0 4.4 2.2 2.2 0 0 1 0-4.4ZM9.3 3a2.3 2.3 0 1 1 0 4.6 2.3 2.3 0 0 1 0-4.6Zm5.4 0a2.3 2.3 0 1 1 0 4.6 2.3 2.3 0 0 1 0-4.6Z"/></symbol>
+    <symbol id="i-dex" viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2.5a9.5 9.5 0 1 1 0 19 9.5 9.5 0 0 1 0-19Zm-1.3 5h2.6l-.4 6.5h-1.8l-.4-6.5Zm1.3 8a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M9.5 16.2 5.3 12l-1.8 1.8 6 6L21 8.3l-1.8-1.8-9.7 9.7Z"/></symbol>
+  </defs>
+</svg>
+
+<main class="doc">
+<header>
+  <h1>알로 와이어프레임 v1</h1>
+  <p>디자인 시스템 v1(<a href="../../docs/design-system.md">docs/design-system.md</a>)의 토큰과 컴포넌트만 썼다. 화면 순서는 시연 9단계(<a href="../../docs/demo-scenario.md">demo-scenario.md</a>)를 따른다. 점선 칸은 캐릭터 이미지 자리이고, 실제 컷은 Figma Characters 페이지에 있다.</p>
+</header>
+
+<h2>폰 · 연결부터 품기까지</h2>
+<div class="row">
+  <figure>
+    <div class="phone">
+      <div class="status"></div>
+      <div class="top"><h3>차와 연결하기</h3></div>
+      <div class="body">
+        <p class="say">차 화면에 보이는 숫자 6개를 눌러 주세요</p>
+        <div class="code"><span>4</span><span>8</span><span>2</span><span>0</span><span class="bad">9</span><span class="bad">1</span></div>
+        <div class="banner err"><svg><use href="#i-alert"/></svg><span>코드가 맞지 않아요. 차 화면의 숫자를 다시 확인해 주세요</span></div>
+        <div class="banner ok"><svg><use href="#i-check"/></svg><span>차와 연결됐어요</span></div>
+      </div>
+      <div class="bottom">
+        <button class="btn primary">연결하기</button>
+        <button class="btn secondary md">QR 코드로 연결</button>
+      </div>
+    </div>
+    <figcaption><b>1. 연결 (시연 1–2단계)</b>
+      <ul><li>코드 칸은 입력 테두리 2px, 틀린 칸만 오류 글자 색 테두리</li>
+      <li>Status Banner: 오류는 무엇이 틀렸고 무엇을 하면 되는지만 쓴다. 성공과 오류는 실제로는 한 번에 하나만 뜬다</li>
+      <li>아이 이름 입력란은 없다(CLAUDE.md 규칙 3)</li></ul></figcaption>
+  </figure>
+
+  <figure>
+    <div class="phone">
+      <div class="status"></div>
+      <div class="top"><h3>어떤 알을 품을까?</h3></div>
+      <div class="body">
+        <p class="muted">여행이 길수록 큰 알이 어울려요</p>
+        <div class="pick">
+          <div><svg width="40" height="50"><use href="#egg"/></svg><span><b>작은 알</b><br><span class="cap">가까운 나들이</span></span></div>
+          <div class="on"><svg width="52" height="65"><use href="#egg"/></svg><span><b>중간 알</b><br><span class="cap">한두 시간 여행</span></span></div>
+          <div><svg width="64" height="80"><use href="#egg"/></svg><span><b>큰 알</b><br><span class="cap">먼 여행</span></span></div>
+        </div>
+      </div>
+      <div class="bottom"><button class="btn primary">이 알 품기</button></div>
+    </div>
+    <figcaption><b>2. 알 고르기</b>
+      <ul><li><code>eggTier</code> small · mid · large. 크기 차이를 알 그림 크기로 보여 준다</li>
+      <li>선택은 동작 초록 3px 테두리. 색만으로 구분하지 않도록 알 크기와 이름이 같이 바뀐다</li>
+      <li>알 그림: 알 초록 외곽 + 알 노랑 윗껍질. 로고의 A와 같은 구조</li></ul></figcaption>
+  </figure>
+
+  <figure>
+    <div class="phone">
+      <div class="status"></div>
+      <div class="top"><h3>알 품는 중</h3><span class="chip"><svg><use href="#i-rain"/></svg>비</span></div>
+      <div class="body">
+        <div class="stage"><div class="rain"></div><svg class="egg" viewBox="0 0 120 150"><use href="#egg"/></svg></div>
+        <div class="progress">
+          <div class="head"><span>앞으로 12분</span><span class="cap">60%</span></div>
+          <div class="track"><i style="width:60%"></i></div>
+          <span class="cap">비 오는 고속도로를 달리는 중</span>
+        </div>
+      </div>
+      <div class="bottom"><button class="btn secondary md">길게 눌러 노래하기</button></div>
+      <nav class="tabs"><a class="on"><svg><use href="#i-egg"/></svg>알</a><a><svg><use href="#i-friend"/></svg>친구</a><a><svg><use href="#i-dex"/></svg>도감</a></nav>
+    </div>
+    <figcaption><b>3. 품기 (3단계)</b>
+      <ul><li>환경 태그는 상단 칩과 무대의 빗방울 무늬로 함께 보여 준다. 무늬는 움직이지 않는다</li>
+      <li>Egg Progress: 남은 양은 말로, 퍼센트는 보조 글자로</li>
+      <li>노래는 길게 누르는 보조 행동이라 Secondary</li></ul></figcaption>
+  </figure>
+
+  <figure>
+    <div class="phone">
+      <div class="status"></div>
+      <div class="top"><h3>알 품는 중</h3><span class="chip"><svg><use href="#i-rain"/></svg>비</span></div>
+      <div class="body">
+        <div class="stage"><svg class="egg wobble" viewBox="0 0 120 150"><use href="#egg"/></svg></div>
+        <p class="say center">덜컹! 알이 놀랐어요.<br>감싸 주세요</p>
+      </div>
+      <div class="bottom"><button class="btn primary">감싸기</button></div>
+      <nav class="tabs"><a class="on"><svg><use href="#i-egg"/></svg>알</a><a><svg><use href="#i-friend"/></svg>친구</a><a><svg><use href="#i-dex"/></svg>도감</a></nav>
+    </div>
+    <figcaption><b>4. 흔들림 → 감싸기 (4단계)</b>
+      <ul><li>급제동·급조향 신호가 오면 진행바 자리를 문장과 큰 버튼으로 바꾼다</li>
+      <li>알만 작게 흔들린다. 화면은 움직이지 않는다(멀미). 동작 줄이기 설정에서는 기울어진 채로 멈춘다</li>
+      <li>Primary Large 72. 흔들리는 차에서 아이가 바로 누를 수 있는 크기</li></ul></figcaption>
+  </figure>
+</div>
+
+<h2>폰 · 부화와 동행</h2>
+<div class="row">
+  <figure>
+    <div class="phone yellow">
+      <div class="status"></div>
+      <div class="body center" style="justify-content:center">
+        <span class="label-new">새 친구</span>
+        <div class="creature" style="background:var(--tint-puddle)"><b>Puddle Pip</b>HAPPY 포즈</div>
+        <svg style="margin-top:-72px;flex:none" width="232" height="100" viewBox="2 40 116 106" preserveAspectRatio="none" aria-hidden="true"><use href="#egg-open" width="120" height="150"/></svg>
+        <p class="title" style="font-size:36px;line-height:44px">웅덩이삐약</p>
+        <p class="muted" style="color:var(--text-primary)">Puddle Pip</p>
+        <div style="display:flex;gap:8px"><span class="badge common"><svg><use href="#i-common"/></svg>일반</span><span class="chip" style="background:var(--bg-canvas)"><svg><use href="#i-rain"/></svg>비</span></div>
+      </div>
+      <div class="bottom"><button class="btn primary">친구 만나기</button></div>
+    </div>
+    <figcaption><b>5. 부화 (6단계)</b>
+      <ul><li>알 노랑이 화면 전체에 깔리는 유일한 순간. 발견 = 노랑 규칙</li>
+      <li>연출: 금 가기 3컷 → 빛 2컷 → 등장. 2400ms 한 번만, 번쩍이는 효과 없음</li>
+      <li>노랑 위 버튼은 동작 초록(흰 글자 6.50:1). 노란 버튼을 노란 면에 두지 않는다</li>
+      <li>시연 부화 종(물결지기)은 새 12종에 없어서 B를 넣었다. C 확정 후 교체</li></ul></figcaption>
+  </figure>
+
+  <figure>
+    <div class="phone">
+      <div class="status"></div>
+      <div class="top"><h3>웅덩이삐약</h3><span class="badge common"><svg><use href="#i-common"/></svg>일반</span></div>
+      <div class="body">
+        <div class="bubble"><p class="say">저기 봐! 산이야</p><div class="word"><svg width="20" height="20" style="fill:var(--text-secondary)"><use href="#i-mountain"/></svg><b>mountain</b><span class="muted">산</span></div></div>
+        <div class="stage" style="min-height:220px"><div class="creature" style="background:var(--tint-puddle)"><b>Puddle Pip</b>SURPRISED 포즈<br>(look 포즈 요청 중)</div></div>
+      </div>
+      <div class="bottom">
+        <button class="btn primary">봤어!</button>
+        <div class="btn-row"><button class="btn secondary md">먹이 주기</button><button class="btn secondary md">놀아 주기</button></div>
+      </div>
+      <nav class="tabs"><a><svg><use href="#i-egg"/></svg>알</a><a class="on"><svg><use href="#i-friend"/></svg>친구</a><a><svg><use href="#i-dex"/></svg>도감</a></nav>
+    </div>
+    <figcaption><b>6. 동행 · 창밖 보기 (7–8단계)</b>
+      <ul><li>Speech Bubble Look: 각진 왼쪽 아래 모서리가 생물을 가리키도록 위에 둔다</li>
+      <li>영어 단어 하나만 동작 초록으로. 대사는 50자 이내</li>
+      <li>차 기울기에 따라 생물만 조금 기운다. 무대와 화면은 고정</li></ul></figcaption>
+  </figure>
+</div>
+
+<h2>폰 · 도감</h2>
+<div class="row">
+  <figure>
+    <div class="phone">
+      <div class="status"></div>
+      <div class="top"><h3>도감</h3><span class="cap" style="font-size:15px">3 / 12</span></div>
+      <div class="body" style="gap:12px">
+        <div style="display:flex;gap:8px"><span class="chip" style="background:var(--bg-success);color:var(--text-action)">전체</span><span class="chip">만난 친구</span><span class="chip">아직</span></div>
+        <div class="grid">
+          <div class="card" style="background:var(--tint-sprout)"><svg class="shape"><use href="#i-common"/></svg><div class="pic"></div>길싹이</div>
+          <div class="card" style="background:var(--tint-puddle)"><svg class="shape"><use href="#i-common"/></svg><div class="pic"></div>웅덩이삐약</div>
+          <div class="card" style="background:var(--tint-moth)"><svg class="shape"><use href="#i-common"/></svg><div class="pic"></div>등불나방</div>
+          <div class="card locked"><div class="pic">?</div>비 오는 날 터널을 지나면</div>
+          <div class="card locked"><div class="pic">?</div>밤 고속도로를 끝까지 부드럽게</div>
+          <div class="card locked"><div class="pic">?</div>비 오는 바닷가에서만</div>
+          <div class="card locked"><div class="pic">?</div>아직 몰라요</div>
+          <div class="card locked"><div class="pic">?</div>아직 몰라요</div>
+          <div class="card locked"><div class="pic">?</div>아직 몰라요</div>
+        </div>
+      </div>
+      <nav class="tabs"><a><svg><use href="#i-egg"/></svg>알</a><a><svg><use href="#i-friend"/></svg>친구</a><a class="on"><svg><use href="#i-dex"/></svg>도감</a></nav>
+    </div>
+    <figcaption><b>7. 도감 (9단계)</b>
+      <ul><li>Dex Card 수집: 종별 tint 바탕 + IDLE 컷 + 이름 + 등급 모양</li>
+      <li>미수집: 옅은 녹색 면 + ? + 출현 조건 힌트(<code>species.json</code> hint). 실루엣은 보여 주지 않는다</li>
+      <li>G~L 6종은 데이터가 없어서 "아직 몰라요"로 둔다(C 확인)</li></ul></figcaption>
+  </figure>
+
+  <figure>
+    <div class="phone">
+      <div class="status"></div>
+      <div class="top"><h3>‹</h3><span class="badge common"><svg><use href="#i-common"/></svg>일반</span></div>
+      <div class="body">
+        <div class="stage" style="background:var(--tint-puddle);min-height:240px;flex:none">
+          <div class="creature" style="border-color:rgba(86,103,93,.45);width:160px;height:160px;margin-bottom:24px"><b>Puddle Pip</b>8방향 보기</div>
+          <span class="cap" style="position:absolute;bottom:12px">← 밀어서 돌려 보기 →</span>
+        </div>
+        <div><p class="title">웅덩이삐약</p><p class="muted">Puddle Pip</p></div>
+        <dl class="meta">
+          <dt>만난 날</dt><dd>11월 6일 목요일</dd>
+          <dt>날씨</dt><dd><span class="chip"><svg><use href="#i-rain"/></svg>비</span></dd>
+          <dt>길</dt><dd><span class="chip"><svg><use href="#i-highway"/></svg>고속도로</span></dd>
+          <dt>함께 간 길</dt><dd>48km</dd>
+        </dl>
+      </div>
+    </div>
+    <figcaption><b>8. 도감 상세</b>
+      <ul><li>8방향 시트를 좌우로 밀어 돌려 본다(LEGO Builder 참고). 자동 회전은 하지 않는다</li>
+      <li>획득 기록은 Pikmin Bloom 라이프로그처럼 날짜·날씨·길을 남긴다. 위치 좌표는 쓰지 않는다(규칙 2)</li>
+      <li>기록은 폰에만 저장한다</li></ul></figcaption>
+  </figure>
+</div>
+
+<h2>차 화면 (Pleos)</h2>
+<div class="row">
+  <figure class="wide">
+    <div class="car" style="flex-direction:column">
+      <div class="map">내비게이션 (Pleos 기본 화면)</div>
+      <div class="line"><svg><use href="#i-egg"/></svg>알이 자라는 중 · 60%<div class="mini"><i style="width:60%"></i></div></div>
+    </div>
+    <figcaption><b>9. 주행 중 (3·4·6단계)</b> Car Status 한 줄만. 버튼 없음, 2초 안에 읽힌다. 기어 D에 들어가면 어느 화면에서든 즉시 이 상태로 돌아온다(페이드 200ms).</figcaption>
+  </figure>
+
+  <figure class="wide">
+    <div class="car">
+      <div class="app full">
+        <div class="split">
+          <svg width="150" height="188" viewBox="0 0 120 150"><use href="#egg"/></svg>
+          <div style="flex:1;display:flex;flex-direction:column;gap:16px">
+            <h4>알이 60% 자랐어요</h4>
+            <div class="ctrack"><i style="width:60%"></i></div>
+            <div class="stat"><div><span>남은 길</span>12분</div><div><span>감싸 준 횟수</span>2번</div><div><span>날씨</span>비</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption><b>10. 정차 중 · 아이 화면 함께 보기 (5단계)</b> 휴게소에서 기어 P가 되면 <code>/game</code> 상태를 차 화면 크기로 다시 그린다(미러링 아님). 큰 글자와 필요한 상태만 둔다. 조작은 폰에서 한다.</figcaption>
+  </figure>
+
+  <figure class="wide">
+    <div class="car">
+      <div class="app full" style="background:var(--car-bg)">
+        <div class="split">
+          <div class="creature" style="background:var(--tint-puddle);width:220px;height:220px;border-color:rgba(86,103,93,.45)"><b>Puddle Pip</b>HAPPY 포즈</div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:16px">
+            <span class="label-new" style="align-self:flex-start;background:var(--car-accent);color:var(--text-primary)">새 친구</span>
+            <h4>웅덩이삐약이 깨어났어요</h4>
+            <p style="font-size:20px;font-weight:500">뒷자리에 이름을 물어보세요</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption><b>11. 정차 중 부화 (6–7단계)</b> 폰 부화와 같이 재생한다. 차 화면에서는 노랑을 라벨에만 쓴다(어두운 실내에서 넓은 노랑은 눈부시다). Gleo 음성 문구와 같은 내용.</figcaption>
+  </figure>
+
+  <figure class="wide">
+    <div class="car">
+      <div class="app full">
+        <h4>오늘 여행에서 만난 친구</h4>
+        <div class="split" style="gap:16px">
+          <div class="creature" style="background:var(--tint-puddle);width:150px;height:150px;border-color:rgba(86,103,93,.45)"><b>Puddle Pip</b></div>
+          <div style="flex:1;display:flex;flex-direction:column;gap:8px;font-size:22px;font-weight:700">웅덩이삐약<span style="font-size:16px;font-weight:500">비 · 고속도로 · 48km</span></div>
+          <div class="stat" style="flex-direction:column;gap:8px"><div><span>도감</span>3 / 12</div></div>
+        </div>
+        <button class="cbtn ghost">닫기</button>
+      </div>
+    </div>
+    <figcaption><b>12. 도착 요약 (9단계)</b> 정차 화면에서 오늘 만난 친구와 도감 칸 수만 보여 준다. 닫기 버튼 76.</figcaption>
+  </figure>
+</div>
+
+<h2>열린 항목</h2>
+<div class="open">
+  <ul>
+    <li><b>C</b> · G~L 6종 데이터와 시연 부화 종. 지금은 B(웅덩이삐약)로 그렸다</li>
+    <li><b>D</b> · 창밖 보기용 look 포즈 12종. 지금은 SURPRISED로 대신한다</li>
+    <li><b>D</b> · 부화 연출 5컷(금 가기 3, 빛 2)과 알 크기 3종 × 성장 3단계 그림</li>
+    <li><b>B</b> · 탭 3개(알 · 친구 · 도감) 구조를 현재 화면 흐름(pairing → incubating → hatching → companion → dex)과 맞출지</li>
+  </ul>
+</div>
+</main>
+</body>
+</html>

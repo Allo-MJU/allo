@@ -4,6 +4,7 @@
 > 색은 확정안 「색상 및 참고 서비스 가이드」(2026-11-06), 캐릭터는 `character-production-01`(2026-11-05 승인 12종)을 기준으로 한다.
 > 토큰 원본: [`art/design/tokens.json`](../art/design/tokens.json) · 검사: `python3 scripts/check_design_tokens.py`
 > Figma: [ALLO Design System](https://www.figma.com/design/TRrSfvlCajZCNcf8t9hK1u) (변수·스타일·컴포넌트, 캐릭터 시트)
+> 와이어프레임: [`art/design/wireframes.html`](../art/design/wireframes.html) (브라우저로 연다. 폰 8화면 + 차 화면 4화면)
 
 이 문서는 화면이 **어떻게 보이는지**만 정한다. 종 구성, 등급, 판정 규칙은 [`data/species.json`](../data/species.json)과 [`schema.md`](./schema.md)를 따른다.
 
