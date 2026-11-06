@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ALLO 와이어프레임 v1</title>
+<title>ALLO 와이어프레임 v2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Asta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* Values mirror art/design/tokens.json (semantic roles). Change tokens.json first. */
 :root {
@@ -17,119 +17,185 @@
   --car-bg: #181C1E; --car-text: #F4F8F5; --car-progress: #1D9965; --car-accent: #FCCC44;
   --tint-puddle: #E3EEF8; --tint-sprout: #EEF0DC; --tint-moth: #EFE6F2;
   --r-md: 12px; --r-lg: 16px; --r-xl: 24px;
+  /* mock-only: Pleos system chrome around the ALLO window, not ALLO UI */
+  --os-black: #0B0C0E; --os-surface: #16171A; --os-high: #2E2F33; --os-sub: #A3A8AD;
 }
-* { box-sizing: border-box; margin: 0; }
-body { font-family: "Noto Sans KR", sans-serif; color: var(--text-primary); background: var(--bg-soft); line-height: 1.5; }
-.doc { max-width: 1640px; margin: 0 auto; padding: 48px 32px 96px; }
-.doc > header { max-width: 720px; margin-bottom: 48px; }
-.doc h1 { font-size: 28px; line-height: 36px; letter-spacing: -0.01em; }
-.doc header p { color: var(--text-secondary); margin-top: 8px; }
-.doc h2 { font-size: 20px; line-height: 28px; margin: 56px 0 24px; padding-top: 24px; border-top: 1px solid var(--border-line); }
-.row { display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-start; }
-figure { width: 360px; }
-figcaption { margin-top: 16px; font-size: 14px; color: var(--text-secondary); }
-figcaption b { display: block; color: var(--text-primary); font-size: 16px; margin-bottom: 4px; }
-figcaption ul { padding-left: 18px; margin-top: 6px; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Asta Sans", sans-serif; color: var(--text-primary); background: #E9ECE9; line-height: 1.45;
+  -webkit-font-smoothing: antialiased; font-feature-settings: "tnum"; }
+.doc { max-width: 1680px; margin: 0 auto; padding: 56px 40px 120px; }
+.doc > header { max-width: 760px; margin-bottom: 40px; }
+.doc h1 { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; }
+.doc header p { color: var(--text-secondary); margin-top: 10px; font-size: 15px; }
+.doc h2 { font-size: 18px; font-weight: 800; margin: 64px 0 24px; }
+.row { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+figure { width: 375px; }
+figcaption { margin-top: 18px; font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+figcaption b { display: block; color: var(--text-primary); font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+figcaption p + p { margin-top: 4px; }
+code { font-size: 13px; }
+svg.i { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 
-/* phone */
-.phone { width: 360px; height: 760px; background: var(--bg-canvas); border-radius: 32px; border: 1px solid var(--border-line);
-  display: flex; flex-direction: column; overflow: hidden; position: relative; }
-.status { height: 32px; flex: none; }
-.top { padding: 8px 24px 0; display: flex; align-items: center; justify-content: space-between; min-height: 48px; }
-.top h3 { font-size: 20px; line-height: 28px; }
-.body { flex: 1; padding: 16px 24px; display: flex; flex-direction: column; gap: 16px; }
-.bottom { padding: 16px 24px 24px; display: flex; flex-direction: column; gap: 12px; }
-.muted { color: var(--text-secondary); }
-.cap { font-size: 13px; line-height: 18px; font-weight: 500; color: var(--text-secondary); }
-.title { font-size: 28px; line-height: 36px; font-weight: 700; letter-spacing: -0.01em; }
-.say { font-size: 18px; line-height: 28px; font-weight: 500; }
-.center { text-align: center; align-items: center; }
+/* ---------- phone ---------- */
+.phone { width: 375px; height: 812px; background: var(--bg-canvas); border-radius: 44px; overflow: hidden; position: relative;
+  display: flex; flex-direction: column; box-shadow: 0 0 0 10px #111, 0 0 0 11px #3a3a3a; }
+.phone.soft { background: var(--bg-soft); }
+.sb { height: 48px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 4px 30px 0 34px;
+  font-size: 15px; font-weight: 700; }
+.sb span:last-child { display: flex; gap: 6px; align-items: center; }
+.sb .bat { width: 24px; height: 12px; border-radius: 4px; box-shadow: inset 0 0 0 1.5px currentColor; padding: 2px; }
+.sb .bat i { display: block; width: 70%; height: 100%; border-radius: 2px; background: currentColor; }
+.home-ind { position: absolute; bottom: 8px; left: 50%; width: 134px; height: 5px; margin-left: -67px; border-radius: 3px; background: var(--text-primary); }
+.nav { height: 52px; flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; }
+.nav .t { font-size: 17px; font-weight: 700; }
+.ib { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 22px; color: var(--text-primary); }
+.scroll { flex: 1; padding: 4px 20px 20px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+.h-lg { font-size: 28px; line-height: 36px; font-weight: 800; letter-spacing: -0.02em; }
+.h-xl { font-size: 36px; line-height: 44px; font-weight: 800; letter-spacing: -0.02em; }
+.sub { font-size: 15px; color: var(--text-secondary); }
+.eyebrow { font-size: 13px; font-weight: 700; color: var(--text-secondary); }
+.say { font-size: 18px; line-height: 27px; font-weight: 600; }
+.foot { flex: none; padding: 12px 20px 34px; display: flex; flex-direction: column; gap: 4px; }
 
-/* components (Figma: Components page) */
-.btn { height: 72px; border-radius: var(--r-lg); border: 0; font: 700 20px/26px "Noto Sans KR"; width: 100%;
+.btn { height: 56px; border-radius: var(--r-lg); border: 0; font: 700 17px "Asta Sans"; width: 100%;
   display: flex; align-items: center; justify-content: center; gap: 8px; }
-.btn.md { height: 56px; font-size: 16px; }
+.btn.kid { height: 72px; font-size: 20px; }
 .btn.primary { background: var(--action-primary); color: var(--text-inverse); }
-.btn.discovery { background: var(--action-discovery); color: var(--text-primary); }
-.btn.secondary { background: var(--bg-canvas); color: var(--text-primary); box-shadow: inset 0 0 0 2px var(--border-control); }
-.btn.ghost { background: none; color: var(--text-action); }
-.btn-row { display: flex; gap: 12px; }
-.chip { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 999px; background: var(--bg-soft);
-  color: var(--text-secondary); font: 700 14px/20px "Noto Sans KR"; }
-.chip svg, .badge svg { width: 16px; height: 16px; fill: currentColor; }
-.badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 999px; font: 700 14px/20px "Noto Sans KR"; }
+.btn.text { background: none; color: var(--text-secondary); height: 48px; font-size: 15px; font-weight: 600; }
+
+.card { background: var(--bg-canvas); border-radius: 20px; padding: 20px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: 14px; background: var(--bg-soft);
+  color: var(--text-secondary); font-size: 13px; font-weight: 700; }
+.chip svg, .badge svg { width: 14px; height: 14px; fill: currentColor; }
+.chip.on-white { background: rgba(255,255,255,.85); }
+.badge { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px; border-radius: 13px; font-size: 13px; font-weight: 700; }
 .badge.common { background: var(--bg-soft); color: var(--text-secondary); }
-.badge.rare { background: var(--bg-success); color: var(--text-action); }
-.badge.epic { background: var(--action-primary); color: var(--text-inverse); }
-.badge.special { background: var(--bg-discovery); color: var(--text-primary); }
-.progress .head { display: flex; justify-content: space-between; align-items: baseline; font-weight: 700; }
-.track { height: 16px; border-radius: 999px; background: var(--progress-track); box-shadow: inset 0 0 0 1px var(--border-line); overflow: hidden; margin: 8px 0 6px; }
-.track i { display: block; height: 100%; border-radius: 999px; background: var(--progress-fill); }
-.bubble { background: var(--bg-canvas); border: 1px solid var(--border-line); border-radius: 24px 24px 24px 8px; padding: 16px 24px;
-  box-shadow: 0 4px 12px rgba(17,17,17,.10); }
-.word { margin-top: 12px; background: var(--bg-soft); border-radius: var(--r-md); padding: 8px 16px; display: flex; align-items: baseline; gap: 8px; }
-.word b { color: var(--text-action); font-size: 24px; line-height: 30px; }
-.banner { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: var(--r-md); font-size: 15px; }
-.banner.ok { background: var(--bg-success); color: var(--text-action); }
-.banner.err { background: var(--bg-error); color: var(--text-error); }
-.banner svg { flex: none; width: 20px; height: 20px; fill: currentColor; margin-top: 2px; }
-.tabs { display: flex; border-top: 1px solid var(--border-line); padding: 8px 8px 20px; flex: none; }
-.tabs a { flex: 1; height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  font-size: 13px; font-weight: 700; color: var(--text-secondary); text-decoration: none; border-radius: var(--r-md); }
-.tabs a svg { width: 24px; height: 24px; fill: currentColor; }
-.tabs a.on { color: var(--text-action); background: var(--bg-success); }
+.track { height: 10px; border-radius: 5px; background: var(--progress-track); overflow: hidden; }
+.card .track { box-shadow: inset 0 0 0 1px var(--border-line); }
+.track i { display: block; height: 100%; border-radius: 5px; background: var(--progress-fill); }
 
-/* stage: the quiet green field behind eggs and creatures */
-.stage { background: var(--bg-soft); border-radius: var(--r-xl); flex: 1; display: flex; align-items: center; justify-content: center; position: relative; min-height: 260px; }
-.stage .tl { position: absolute; top: 16px; left: 16px; }
-.creature { width: 200px; height: 200px; border-radius: var(--r-xl); border: 2px dashed var(--border-control);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-size: 13px; color: var(--text-secondary); gap: 4px; }
-.creature b { font-size: 16px; color: var(--text-primary); }
-.egg { width: 150px; }
-.shake { transform: rotate(-9deg); }
-.rain { position: absolute; inset: 0; background-image: linear-gradient(105deg, transparent 47%, rgba(86,103,93,.28) 48% 52%, transparent 53%); background-size: 22px 30px; border-radius: inherit; pointer-events: none; }
-.code { display: flex; gap: 8px; }
-.code span { flex: 1; height: 56px; border-radius: var(--r-md); box-shadow: inset 0 0 0 2px var(--border-control); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; }
-.code span.bad { box-shadow: inset 0 0 0 2px var(--text-error); }
-.pick { display: flex; flex-direction: column; gap: 12px; }
-.pick div { display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--border-line); }
-.pick div.on { box-shadow: inset 0 0 0 3px var(--action-primary); }
-.pick svg { flex: none; }
-.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.card { aspect-ratio: 3 / 4; border-radius: var(--r-lg); padding: 8px; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; font-size: 13px; font-weight: 700; position: relative; }
-.card .pic { flex: 1; border-radius: var(--r-md); border: 1.5px dashed rgba(86,103,93,.45); }
-.card .shape { position: absolute; top: 12px; right: 12px; width: 14px; height: 14px; fill: var(--text-secondary); }
-.card.locked { background: var(--bg-soft); color: var(--text-secondary); font-weight: 500; }
-.card.locked .pic { border: 0; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; color: var(--border-control); }
-.meta { display: grid; grid-template-columns: 72px 1fr; row-gap: 10px; font-size: 15px; align-items: center; }
-.meta dt { color: var(--text-secondary); }
+.tabs { flex: none; display: flex; background: var(--bg-canvas); border-top: 1px solid var(--border-line); padding: 6px 12px 30px; }
+.tabs a { flex: 1; height: 50px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  font-size: 11px; font-weight: 600; color: #8A968E; }
+.tabs a.on { color: var(--text-primary); font-weight: 700; }
+.tabs a.on svg.i { fill: currentColor; }
+.tabs + .home-ind { bottom: 8px; }
+
+/* code input */
+.code { display: flex; gap: 8px; margin-top: 20px; }
+.code span { flex: 1; height: 60px; border-radius: var(--r-md); background: var(--bg-soft); display: flex; align-items: center; justify-content: center;
+  font-size: 26px; font-weight: 700; }
+.code span.bad { background: var(--bg-error); box-shadow: inset 0 0 0 2px var(--text-error); color: var(--text-error); }
+.inline-err { display: flex; gap: 6px; align-items: center; color: var(--text-error); font-size: 14px; font-weight: 600; margin-top: 10px; }
+.inline-err svg { width: 16px; height: 16px; fill: currentColor; flex: none; }
+
+/* egg picker */
+.opt { display: flex; align-items: center; gap: 16px; padding: 16px 18px; border-radius: 20px; background: var(--bg-canvas);
+  box-shadow: inset 0 0 0 1.5px var(--border-line); }
+.opt.on { box-shadow: inset 0 0 0 2.5px var(--action-primary); }
+.opt .eg { width: 64px; height: 72px; display: flex; align-items: flex-end; justify-content: center; flex: none; }
+.opt .nm { flex: 1; font-size: 17px; font-weight: 700; }
+.opt .nm span { display: block; font-size: 14px; font-weight: 500; color: var(--text-secondary); margin-top: 2px; }
+.radio { width: 24px; height: 24px; border-radius: 12px; box-shadow: inset 0 0 0 2px var(--border-control); flex: none; }
+.opt.on .radio { background: var(--action-primary); box-shadow: none; display: flex; align-items: center; justify-content: center; }
+.opt.on .radio::after { content: ""; width: 8px; height: 8px; border-radius: 4px; background: #fff; }
+
+/* stage */
+.stage { position: relative; border-radius: 24px; background: var(--bg-canvas); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.stage .tags { position: absolute; top: 16px; left: 16px; display: flex; gap: 6px; }
+.rain { position: absolute; inset: 0; background-image: linear-gradient(105deg, transparent 47%, rgba(86,103,93,.16) 48% 52%, transparent 53%); background-size: 20px 28px; }
+.ground { position: absolute; bottom: 44px; left: 50%; width: 150px; height: 18px; margin-left: -75px; border-radius: 50%; background: rgba(17,17,17,.06); }
+@media (prefers-reduced-motion: no-preference) { .wobble { animation: wob 1.2s ease-in-out infinite; transform-origin: 50% 90%; } }
+@keyframes wob { 0%,100% { transform: rotate(-8deg); } 50% { transform: rotate(6deg); } }
+.big-num { display: flex; align-items: baseline; gap: 4px; }
+.big-num b { font-size: 40px; line-height: 44px; font-weight: 800; letter-spacing: -0.02em; }
+.big-num span { font-size: 17px; font-weight: 700; }
+.listrow { display: flex; align-items: center; gap: 14px; min-height: 56px; }
+.listrow .ic { width: 40px; height: 40px; border-radius: 12px; background: var(--bg-soft); display: flex; align-items: center; justify-content: center; color: var(--text-action); flex: none; }
+.listrow .tx { flex: 1; font-size: 16px; font-weight: 700; }
+.listrow .tx span { display: block; font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+.listrow .chev { color: #A4B0A8; }
+
+/* hatch */
 .yellow { background: var(--bg-discovery); }
-.label-new { display: inline-block; background: var(--text-primary); color: var(--bg-discovery); padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 14px; }
+.label-new { display: inline-flex; height: 30px; align-items: center; padding: 0 14px; border-radius: 15px; background: var(--text-primary); color: var(--bg-discovery); font-weight: 800; font-size: 14px; }
 
-/* car (Pleos) */
-figure.wide { width: 860px; }
-.car { width: 860px; height: 400px; background: #0B0D0E; border-radius: 20px; padding: 16px; display: flex; gap: 16px; }
-.car .map { flex: 1; border-radius: var(--r-lg); background: repeating-linear-gradient(135deg, #22282B 0 12px, #1E2326 12px 24px);
-  display: flex; align-items: flex-end; padding: 16px; color: #8D979B; font-size: 14px; }
-.car .app { background: var(--car-bg); color: var(--car-text); border-radius: var(--r-lg); padding: 24px; display: flex; flex-direction: column; gap: 16px; }
-.car .full { flex: 1; }
-.car .line { height: 76px; border-radius: var(--r-lg); background: var(--car-bg); color: var(--car-text); display: flex; align-items: center; gap: 16px; padding: 0 24px; font-size: 28px; line-height: 36px; font-weight: 700; }
-.car .line svg { width: 32px; height: 32px; fill: var(--car-accent); flex: none; }
-.car .mini { width: 160px; height: 12px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; margin-left: auto; flex: none; }
-.car .mini i { display: block; height: 100%; background: var(--car-progress); }
-.car h4 { font-size: 36px; line-height: 44px; }
-.car .ctrack { height: 16px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; }
-.car .ctrack i { display: block; height: 100%; background: var(--car-progress); border-radius: 999px; }
-.car .stat { display: flex; gap: 32px; font-size: 22px; font-weight: 700; }
-.car .stat span { color: var(--car-text); font-size: 16px; font-weight: 500; display: block; }
-.car .cbtn { height: 76px; border-radius: var(--r-lg); background: var(--car-accent); color: var(--text-primary); font: 700 22px "Noto Sans KR"; border: 0; padding: 0 32px; align-self: flex-start; }
-.car .cbtn.ghost { background: rgba(255,255,255,.08); color: var(--car-text); }
-.split { display: flex; gap: 24px; align-items: center; flex: 1; }
-.note { font-size: 14px; color: var(--text-secondary); max-width: 720px; }
-.open { background: var(--bg-canvas); border-radius: var(--r-xl); padding: 24px 32px; max-width: 860px; }
-.open li { margin: 6px 0; }
-@media (prefers-reduced-motion: no-preference) { .egg.wobble { animation: wob 1.2s ease-in-out infinite; } }
-@keyframes wob { 0%,100% { transform: rotate(-9deg); } 50% { transform: rotate(7deg); } }
+/* companion */
+.bubble { background: var(--bg-canvas); border-radius: 22px 22px 22px 6px; padding: 16px 20px; box-shadow: 0 4px 12px rgba(17,17,17,.10); }
+.word { margin-top: 12px; display: flex; align-items: center; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border-line); }
+.word b { color: var(--text-action); font-size: 24px; line-height: 30px; font-weight: 800; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tile { height: 64px; border-radius: var(--r-lg); background: var(--bg-canvas); display: flex; align-items: center; gap: 10px; padding: 0 16px; font-size: 16px; font-weight: 700; }
+.tile svg.i { color: var(--text-action); }
+
+/* dex */
+.seg { display: flex; background: #E6ECE7; border-radius: 12px; padding: 3px; }
+.seg span { flex: 1; height: 34px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: var(--text-secondary); border-radius: 9px; }
+.seg span.on { background: var(--bg-canvas); color: var(--text-primary); font-weight: 700; box-shadow: 0 1px 3px rgba(17,17,17,.08); }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.dex { aspect-ratio: 3 / 4; border-radius: var(--r-lg); padding: 8px 8px 10px; display: flex; flex-direction: column; gap: 4px; position: relative; overflow: hidden; }
+.dex img { flex: 1; min-height: 0; width: 100%; object-fit: contain; }
+.dex .n { font-size: 13px; font-weight: 700; text-align: center; }
+.dex .no { position: absolute; top: 8px; left: 10px; font-size: 11px; font-weight: 700; color: var(--text-secondary); }
+.dex.locked { background: var(--bg-canvas); }
+.dex.locked .q { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; color: #B9C4BC; }
+.dex.locked .n { font-size: 11px; font-weight: 500; color: var(--text-secondary); line-height: 1.35; }
+.rows { background: var(--bg-canvas); border-radius: 20px; padding: 4px 20px; }
+.rows div { display: flex; justify-content: space-between; align-items: center; min-height: 52px; font-size: 15px; }
+.rows div + div { border-top: 1px solid var(--border-line); }
+.rows dt { color: var(--text-secondary); }
+.rows dd { font-weight: 700; display: flex; align-items: center; gap: 6px; }
+.dots { display: flex; gap: 5px; justify-content: center; position: absolute; bottom: 14px; left: 0; right: 0; }
+.dots i { width: 6px; height: 6px; border-radius: 3px; background: rgba(17,17,17,.18); }
+.dots i.on { width: 16px; background: var(--text-primary); }
+
+/* ---------- car (Pleos Connect, 3-part layout) ---------- */
+figure.wide { width: 1188px; }
+.car { width: 1188px; height: 480px; background: var(--os-black); border-radius: 28px; padding: 10px; display: grid;
+  grid-template-columns: 280px 1fr; grid-template-rows: 30px 1fr 68px; gap: 8px; color: var(--car-text); box-shadow: 0 0 0 6px #1d1f22; }
+.car .osbar { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; padding: 0 16px; font-size: 14px; font-weight: 600; color: var(--os-sub); }
+.drive { background: var(--os-surface); border-radius: 20px; padding: 22px 24px; display: flex; flex-direction: column; }
+.drive .spd { font-size: 64px; line-height: 64px; font-weight: 800; letter-spacing: -0.03em; }
+.drive .unit { font-size: 15px; color: var(--os-sub); font-weight: 600; margin-top: 4px; }
+.gear { display: flex; gap: 14px; margin-top: 20px; font-size: 20px; font-weight: 700; color: #55595E; }
+.gear b { color: var(--car-text); }
+.drive .rng { margin-top: auto; font-size: 14px; color: var(--os-sub); }
+.drive .rng b { display: block; font-size: 20px; color: var(--car-text); margin-top: 2px; }
+.apps { display: flex; gap: 8px; min-width: 0; }
+.win { background: var(--car-bg); border-radius: 20px; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+.win .wh { height: 44px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 18px; font-size: 14px; font-weight: 700; color: var(--os-sub); }
+.win .wh .ai { width: 20px; height: 20px; border-radius: 6px; background: var(--car-accent); display: flex; align-items: center; justify-content: center; }
+.map { flex: 1; background: #1B1F22; border-radius: 20px; position: relative; overflow: hidden; }
+.map svg.road { position: absolute; inset: 0; }
+.turn { position: absolute; top: 16px; left: 16px; width: 250px; background: var(--os-high); border-radius: 16px; padding: 14px 18px; display: flex; gap: 14px; align-items: center; }
+.turn b { font-size: 26px; font-weight: 800; display: block; line-height: 1.1; }
+.turn span { font-size: 14px; color: var(--os-sub); }
+.eta { position: absolute; bottom: 16px; left: 16px; background: var(--os-high); border-radius: 14px; padding: 10px 16px; font-size: 15px; font-weight: 700; }
+.eta span { color: var(--os-sub); font-weight: 500; margin-left: 8px; }
+.gnb { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; }
+.gnb .clim { font-size: 22px; font-weight: 700; width: 120px; }
+.gnb .clim:last-child { text-align: right; }
+.gnb .clim span { font-size: 13px; color: var(--os-sub); font-weight: 600; margin-left: 4px; }
+.gnb nav { display: flex; gap: 10px; }
+.gnb nav i { width: 52px; height: 52px; border-radius: 16px; background: var(--os-surface); display: flex; align-items: center; justify-content: center; color: var(--car-text); position: relative; }
+.gnb nav i.on::after { content: ""; position: absolute; bottom: -7px; width: 16px; height: 3px; border-radius: 2px; background: var(--car-text); }
+.gnb nav i.allo { background: var(--car-accent); }
+.c-line { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 14px; padding: 0 28px 28px; }
+.c-line .l { display: flex; align-items: center; gap: 12px; font-size: 28px; line-height: 36px; font-weight: 700; }
+.c-line .l svg { width: 32px; height: 32px; fill: var(--car-accent); flex: none; }
+.ctrack { height: 12px; border-radius: 6px; background: rgba(255,255,255,.12); overflow: hidden; }
+.ctrack i { display: block; height: 100%; border-radius: 6px; background: var(--car-progress); }
+.c-body { flex: 1; display: flex; align-items: center; gap: 40px; padding: 0 48px 32px; }
+.c-body .txt { flex: 1; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.c-h { font-size: 48px; line-height: 56px; font-weight: 800; letter-spacing: -0.02em; }
+.c-sub { font-size: 22px; font-weight: 500; color: var(--os-sub); }
+.stat { display: flex; gap: 40px; }
+.stat div { font-size: 26px; font-weight: 800; }
+.stat span { display: block; font-size: 15px; font-weight: 600; color: var(--os-sub); margin-bottom: 2px; }
+.cbtn { height: 76px; border-radius: 24px; border: 0; padding: 0 40px; font: 700 22px "Asta Sans"; background: var(--os-high); color: var(--car-text); align-self: flex-start; }
+.c-label { display: inline-flex; align-self: flex-start; height: 34px; align-items: center; padding: 0 16px; border-radius: 17px; background: var(--car-accent); color: var(--text-primary); font-weight: 800; font-size: 16px; }
+.open { background: var(--bg-canvas); border-radius: 20px; padding: 24px 32px; max-width: 880px; font-size: 15px; }
+.open li { margin: 6px 0 6px 18px; }
 </style>
 </head>
 <body>
@@ -142,106 +208,121 @@ figure.wide { width: 860px; }
     <symbol id="egg-open" viewBox="0 0 120 150">
       <path d="M6 88C6 72 10 58 16 46L32 56 46 44 60 56 74 44 88 56 104 46c6 12 10 26 10 42a54 54 0 0 1-108 0Z" fill="#E8F5ED" stroke="#1D9965" stroke-width="5" stroke-linejoin="round"/>
     </symbol>
+    <!-- filled tag / tier icons (design-system §6) -->
     <symbol id="i-rain" viewBox="0 0 24 24"><path d="M12 3c-.4 0-.8.2-1 .6C8.6 7.2 6 10.6 6 14a6 6 0 0 0 12 0c0-3.4-2.6-6.8-5-10.4-.2-.4-.6-.6-1-.6Z"/></symbol>
     <symbol id="i-highway" viewBox="0 0 24 24"><path d="M9 3h2l-1 18H4L9 3Zm4 0h2l5 18h-6l-1-18Z"/></symbol>
     <symbol id="i-mountain" viewBox="0 0 24 24"><path d="M2 20 9 7l3.5 5.5L15 9l7 11H2Z"/></symbol>
     <symbol id="i-common" viewBox="0 0 24 24"><path d="M12 6a6 6 0 1 1 0 12 6 6 0 0 1 0-12Z"/></symbol>
-    <symbol id="i-rare" viewBox="0 0 24 24"><path d="M12 4l7 8-7 8-7-8 7-8Z"/></symbol>
-    <symbol id="i-epic" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9L12 3.5Z"/></symbol>
-    <symbol id="i-special" viewBox="0 0 24 24"><path d="M12 2c.6 4.6 2.6 7.4 8 8.4v1.2c-5.4 1-7.4 3.8-8 8.4h-.2c-.6-4.6-2.6-7.4-8-8.4v-1.2c5.4-1 7.4-3.8 8-8.4h.2Z"/></symbol>
-    <symbol id="i-egg" viewBox="0 0 24 24"><path d="M12 3c3.6 0 6.5 5.4 6.5 10.2a6.5 6.5 0 0 1-13 0C5.5 8.4 8.4 3 12 3Z"/></symbol>
-    <symbol id="i-friend" viewBox="0 0 24 24"><path d="M12 13c3 0 6 2.5 6 5.5 0 1.4-1.2 2.5-2.7 2.5H8.7C7.2 21 6 19.9 6 18.5 6 15.5 9 13 12 13ZM6 7.5a2.2 2.2 0 1 1 0 4.4 2.2 2.2 0 0 1 0-4.4Zm12 0a2.2 2.2 0 1 1 0 4.4 2.2 2.2 0 0 1 0-4.4ZM9.3 3a2.3 2.3 0 1 1 0 4.6 2.3 2.3 0 0 1 0-4.6Zm5.4 0a2.3 2.3 0 1 1 0 4.6 2.3 2.3 0 0 1 0-4.6Z"/></symbol>
-    <symbol id="i-dex" viewBox="0 0 24 24"><path d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></symbol>
     <symbol id="i-alert" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2.5a9.5 9.5 0 1 1 0 19 9.5 9.5 0 0 1 0-19Zm-1.3 5h2.6l-.4 6.5h-1.8l-.4-6.5Zm1.3 8a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z"/></symbol>
-    <symbol id="i-check" viewBox="0 0 24 24"><path d="M9.5 16.2 5.3 12l-1.8 1.8 6 6L21 8.3l-1.8-1.8-9.7 9.7Z"/></symbol>
+    <!-- line system icons: 24 grid, 2px stroke -->
+    <symbol id="l-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+    <symbol id="l-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="l-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+    <symbol id="l-more" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="3"/></symbol>
+    <symbol id="l-car" viewBox="0 0 24 24"><path d="M5 16V11l2-5h10l2 5v5M3 16h18v3h-3v-1M6 18v1H3M7.5 13h.01M16.5 13h.01"/></symbol>
+    <symbol id="l-egg" viewBox="0 0 24 24"><path d="M12 3c3.6 0 6.5 5.4 6.5 10.2a6.5 6.5 0 0 1-13 0C5.5 8.4 8.4 3 12 3Z"/></symbol>
+    <symbol id="l-friend" viewBox="0 0 24 24"><path d="M12 12.5c3 0 5.5 2.6 5.5 5.3 0 1.5-1.1 2.7-2.6 2.7H9.1c-1.5 0-2.6-1.2-2.6-2.7 0-2.7 2.5-5.3 5.5-5.3ZM5.5 7.5a2 2 0 1 1 0 4 2 2 0 0 1 0-4Zm13 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4ZM9.5 3a2 2 0 1 1 0 4 2 2 0 0 1 0-4Zm5 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4Z"/></symbol>
+    <symbol id="l-dex" viewBox="0 0 24 24"><path d="M4 4h6.5v6.5H4ZM13.5 4H20v6.5h-6.5ZM4 13.5h6.5V20H4ZM13.5 13.5H20V20h-6.5Z"/></symbol>
+    <symbol id="l-mic" viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3ZM5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></symbol>
+    <symbol id="l-food" viewBox="0 0 24 24"><path d="M4 12h16a8 8 0 0 1-16 0ZM9 8c0-2 2-2 2-4M14 8c0-2 2-2 2-4"/></symbol>
+    <symbol id="l-ball" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18ZM3.5 9.5c5 1 12 1 17 0M3.5 14.5c5-1 12-1 17 0"/></symbol>
+    <symbol id="l-share" viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 13v6h14v-6"/></symbol>
+    <symbol id="l-home" viewBox="0 0 24 24"><path d="M4 11 12 4l8 7v9h-5v-6H9v6H4Z"/></symbol>
+    <symbol id="l-nav" viewBox="0 0 24 24"><path d="M12 3l7 18-7-4-7 4Z"/></symbol>
+    <symbol id="l-music" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM20 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></symbol>
+    <symbol id="l-phone" viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a1 1 0 0 1-1 1A16 16 0 0 1 4 5a1 1 0 0 1 1-1Z"/></symbol>
+    <symbol id="l-grid" viewBox="0 0 24 24"><path d="M5 5h.01M12 5h.01M19 5h.01M5 12h.01M12 12h.01M19 12h.01M5 19h.01M12 19h.01M19 19h.01" stroke-width="3.2"/></symbol>
+    <symbol id="l-turn" viewBox="0 0 24 24"><path d="M7 21v-8a4 4 0 0 1 4-4h8M15 5l4 4-4 4"/></symbol>
   </defs>
 </svg>
 
 <main class="doc">
 <header>
-  <h1>알로 와이어프레임 v1</h1>
-  <p>디자인 시스템 v1(<a href="../../docs/design-system.md">docs/design-system.md</a>)의 토큰과 컴포넌트만 썼다. 화면 순서는 시연 9단계(<a href="../../docs/demo-scenario.md">demo-scenario.md</a>)를 따른다. 점선 칸은 캐릭터 이미지 자리이고, 실제 컷은 Figma Characters 페이지에 있다.</p>
+  <h1>알로 와이어프레임 v2</h1>
+  <p>v1을 실제 앱 화면 수준으로 다시 그렸다. 폰은 국내 차량 앱처럼 옅은 바탕에 흰 카드를 쌓는 구조이고 차 화면은 Pleos Connect의 3단 배치(주행 정보 · 앱 창 · 하단 바)를 그대로 따른다. 글꼴은 Pleos 시스템 글꼴인 Asta Sans로 바꿨다. 캐릭터는 승인본 <code>character-production-01</code>에서 잘라 왔다(<code>art/design/wf/</code>).</p>
 </header>
 
 <h2>폰 · 연결부터 품기까지</h2>
 <div class="row">
   <figure>
     <div class="phone">
-      <div class="status"></div>
-      <div class="top"><h3>차와 연결하기</h3></div>
-      <div class="body">
-        <p class="say">차 화면에 보이는 숫자 6개를 눌러 주세요</p>
+      <div class="sb"><span>9:41</span><span><span class="bat"><i></i></span></span></div>
+      <div class="nav"><span class="ib"><svg class="i"><use href="#l-close"/></svg></span></div>
+      <div class="scroll">
+        <p class="h-lg">차 화면에 나온<br>숫자 6개를 입력해 주세요</p>
+        <p class="sub">알로를 처음 켜면 차 화면에 연결 번호가 떠요</p>
         <div class="code"><span>4</span><span>8</span><span>2</span><span>0</span><span class="bad">9</span><span class="bad">1</span></div>
-        <div class="banner err"><svg><use href="#i-alert"/></svg><span>코드가 맞지 않아요. 차 화면의 숫자를 다시 확인해 주세요</span></div>
-        <div class="banner ok"><svg><use href="#i-check"/></svg><span>차와 연결됐어요</span></div>
+        <p class="inline-err"><svg><use href="#i-alert"/></svg>번호가 달라요. 차 화면을 다시 확인해 주세요</p>
       </div>
-      <div class="bottom">
+      <div class="foot">
         <button class="btn primary">연결하기</button>
-        <button class="btn secondary md">QR 코드로 연결</button>
+        <button class="btn text">QR 코드로 연결</button>
       </div>
+      <div class="home-ind"></div>
     </div>
     <figcaption><b>1. 연결 (시연 1–2단계)</b>
-      <ul><li>코드 칸은 입력 테두리 2px, 틀린 칸만 오류 글자 색 테두리</li>
-      <li>Status Banner: 오류는 무엇이 틀렸고 무엇을 하면 되는지만 쓴다. 성공과 오류는 실제로는 한 번에 하나만 뜬다</li>
-      <li>아이 이름 입력란은 없다(CLAUDE.md 규칙 3)</li></ul></figcaption>
+      <p>틀린 칸만 오류 색으로 칠하고 오류 문구는 입력칸 바로 아래에 붙인다. 연결에 성공하면 토스트를 띄우지 않고 다음 화면으로 넘어간다.</p>
+      <p>아이 이름 입력란은 두지 않는다(CLAUDE.md 규칙 3).</p></figcaption>
   </figure>
 
   <figure>
-    <div class="phone">
-      <div class="status"></div>
-      <div class="top"><h3>어떤 알을 품을까?</h3></div>
-      <div class="body">
-        <p class="muted">여행이 길수록 큰 알이 어울려요</p>
-        <div class="pick">
-          <div><svg width="40" height="50"><use href="#egg"/></svg><span><b>작은 알</b><br><span class="cap">가까운 나들이</span></span></div>
-          <div class="on"><svg width="52" height="65"><use href="#egg"/></svg><span><b>중간 알</b><br><span class="cap">한두 시간 여행</span></span></div>
-          <div><svg width="64" height="80"><use href="#egg"/></svg><span><b>큰 알</b><br><span class="cap">먼 여행</span></span></div>
-        </div>
+    <div class="phone soft">
+      <div class="sb"><span>9:41</span><span><span class="bat"><i></i></span></span></div>
+      <div class="nav"><span class="ib"><svg class="i"><use href="#l-back"/></svg></span></div>
+      <div class="scroll">
+        <p class="h-lg">어떤 알을 품을까요?</p>
+        <p class="sub" style="margin-bottom:8px">오래 달릴수록 큰 알이 잘 자라요</p>
+        <div class="opt"><span class="eg"><svg width="40" height="50"><use href="#egg"/></svg></span><span class="nm">작은 알<span>30분 안쪽 나들이</span></span><span class="radio"></span></div>
+        <div class="opt on"><span class="eg"><svg width="52" height="65"><use href="#egg"/></svg></span><span class="nm">중간 알<span>한두 시간 걸리는 길</span></span><span class="radio"></span></div>
+        <div class="opt"><span class="eg"><svg width="62" height="72" viewBox="0 0 120 140"><use href="#egg"/></svg></span><span class="nm">큰 알<span>멀리 가는 여행</span></span><span class="radio"></span></div>
       </div>
-      <div class="bottom"><button class="btn primary">이 알 품기</button></div>
+      <div class="foot"><button class="btn primary kid">이 알 품기</button></div>
+      <div class="home-ind"></div>
     </div>
     <figcaption><b>2. 알 고르기</b>
-      <ul><li><code>eggTier</code> small · mid · large. 크기 차이를 알 그림 크기로 보여 준다</li>
-      <li>선택은 동작 초록 3px 테두리. 색만으로 구분하지 않도록 알 크기와 이름이 같이 바뀐다</li>
-      <li>알 그림: 알 초록 외곽 + 알 노랑 윗껍질. 로고의 A와 같은 구조</li></ul></figcaption>
+      <p><code>eggTier</code> small · mid · large. 알 크기, 이름, 라디오가 함께 바뀌어서 색을 못 봐도 고른 알을 알 수 있다.</p>
+      <p>버튼은 아이가 누르므로 72.</p></figcaption>
   </figure>
 
   <figure>
-    <div class="phone">
-      <div class="status"></div>
-      <div class="top"><h3>알 품는 중</h3><span class="chip"><svg><use href="#i-rain"/></svg>비</span></div>
-      <div class="body">
-        <div class="stage"><div class="rain"></div><svg class="egg" viewBox="0 0 120 150"><use href="#egg"/></svg></div>
-        <div class="progress">
-          <div class="head"><span>앞으로 12분</span><span class="cap">60%</span></div>
+    <div class="phone soft">
+      <div class="sb"><span>9:41</span><span><span class="bat"><i></i></span></span></div>
+      <div class="nav" style="padding-left:20px"><span><span class="eyebrow">중간 알</span><br><span class="t" style="font-size:22px;font-weight:800">알 품는 중</span></span><span class="ib"><svg class="i"><use href="#l-car"/></svg></span></div>
+      <div class="scroll" style="padding-top:12px">
+        <div class="stage" style="height:300px"><div class="rain"></div><div class="tags"><span class="chip on-white"><svg><use href="#i-rain"/></svg>비</span><span class="chip on-white"><svg><use href="#i-highway"/></svg>고속도로</span></div>
+          <svg width="140" height="175" viewBox="0 0 120 150" style="position:relative;margin-top:24px"><use href="#egg"/></svg></div>
+        <div class="card">
+          <p class="eyebrow">부화까지</p>
+          <div class="big-num" style="margin:4px 0 14px"><b>12</b><span>분</span><span class="sub" style="margin-left:auto;font-weight:600">60%</span></div>
           <div class="track"><i style="width:60%"></i></div>
-          <span class="cap">비 오는 고속도로를 달리는 중</span>
         </div>
+        <div class="card" style="padding:8px 16px"><div class="listrow"><span class="ic"><svg class="i"><use href="#l-mic"/></svg></span><span class="tx">노래 불러 주기<span>길게 누르는 동안 알이 들어요</span></span><svg class="i chev"><use href="#l-chev"/></svg></div></div>
       </div>
-      <div class="bottom"><button class="btn secondary md">길게 눌러 노래하기</button></div>
-      <nav class="tabs"><a class="on"><svg><use href="#i-egg"/></svg>알</a><a><svg><use href="#i-friend"/></svg>친구</a><a><svg><use href="#i-dex"/></svg>도감</a></nav>
+      <nav class="tabs"><a class="on"><svg class="i"><use href="#l-egg"/></svg>알</a><a><svg class="i"><use href="#l-friend"/></svg>친구</a><a><svg class="i"><use href="#l-dex"/></svg>도감</a></nav>
+      <div class="home-ind"></div>
     </div>
     <figcaption><b>3. 품기 (3단계)</b>
-      <ul><li>환경 태그는 상단 칩과 무대의 빗방울 무늬로 함께 보여 준다. 무늬는 움직이지 않는다</li>
-      <li>Egg Progress: 남은 양은 말로, 퍼센트는 보조 글자로</li>
-      <li>노래는 길게 누르는 보조 행동이라 Secondary</li></ul></figcaption>
+      <p>남은 시간을 가장 크게 쓰고 퍼센트는 오른쪽에 작게 둔다. 날씨와 길 태그는 무대 왼쪽 위에, 빗방울 무늬는 무대 안에만 깐다. 무늬는 움직이지 않는다.</p>
+      <p>오른쪽 위 차 아이콘은 연결 상태와 연결 해제로 들어가는 곳이다.</p></figcaption>
   </figure>
 
   <figure>
-    <div class="phone">
-      <div class="status"></div>
-      <div class="top"><h3>알 품는 중</h3><span class="chip"><svg><use href="#i-rain"/></svg>비</span></div>
-      <div class="body">
-        <div class="stage"><svg class="egg wobble" viewBox="0 0 120 150"><use href="#egg"/></svg></div>
-        <p class="say center">덜컹! 알이 놀랐어요.<br>감싸 주세요</p>
+    <div class="phone soft">
+      <div class="sb"><span>9:41</span><span><span class="bat"><i></i></span></span></div>
+      <div class="nav" style="padding-left:20px"><span><span class="eyebrow">중간 알</span><br><span class="t" style="font-size:22px;font-weight:800">알 품는 중</span></span><span class="ib"><svg class="i"><use href="#l-car"/></svg></span></div>
+      <div class="scroll" style="padding-top:12px">
+        <div class="stage" style="height:300px"><div class="tags"><span class="chip on-white"><svg><use href="#i-rain"/></svg>비</span><span class="chip on-white"><svg><use href="#i-highway"/></svg>고속도로</span></div>
+          <svg class="wobble" width="140" height="175" viewBox="0 0 120 150" style="position:relative;margin-top:24px"><use href="#egg"/></svg></div>
+        <div class="card" style="display:flex;flex-direction:column;gap:16px">
+          <p class="say">덜컹! 알이 깜짝 놀랐어요.<br>두 손으로 감싸 주세요</p>
+          <button class="btn primary kid">감싸 주기</button>
+        </div>
       </div>
-      <div class="bottom"><button class="btn primary">감싸기</button></div>
-      <nav class="tabs"><a class="on"><svg><use href="#i-egg"/></svg>알</a><a><svg><use href="#i-friend"/></svg>친구</a><a><svg><use href="#i-dex"/></svg>도감</a></nav>
+      <nav class="tabs"><a class="on"><svg class="i"><use href="#l-egg"/></svg>알</a><a><svg class="i"><use href="#l-friend"/></svg>친구</a><a><svg class="i"><use href="#l-dex"/></svg>도감</a></nav>
+      <div class="home-ind"></div>
     </div>
     <figcaption><b>4. 흔들림 → 감싸기 (4단계)</b>
-      <ul><li>급제동·급조향 신호가 오면 진행바 자리를 문장과 큰 버튼으로 바꾼다</li>
-      <li>알만 작게 흔들린다. 화면은 움직이지 않는다(멀미). 동작 줄이기 설정에서는 기울어진 채로 멈춘다</li>
-      <li>Primary Large 72. 흔들리는 차에서 아이가 바로 누를 수 있는 크기</li></ul></figcaption>
+      <p>급제동이나 급조향 신호가 오면 진행 카드가 이 카드로 바뀐다. 무대와 레이아웃은 그대로 두고 알만 작게 흔든다(멀미 방지). 동작 줄이기를 켜 둔 기기에서는 기운 채로 멈춘다.</p></figcaption>
   </figure>
 </div>
 
@@ -249,154 +330,200 @@ figure.wide { width: 860px; }
 <div class="row">
   <figure>
     <div class="phone yellow">
-      <div class="status"></div>
-      <div class="body center" style="justify-content:center">
+      <div class="sb"><span>9:41</span><span><span class="bat"><i></i></span></span></div>
+      <div class="scroll" style="align-items:center;justify-content:center;text-align:center;gap:10px">
         <span class="label-new">새 친구</span>
-        <div class="creature" style="background:var(--tint-puddle)"><b>Puddle Pip</b>HAPPY 포즈</div>
-        <svg style="margin-top:-72px;flex:none" width="232" height="100" viewBox="2 40 116 106" preserveAspectRatio="none" aria-hidden="true"><use href="#egg-open" width="120" height="150"/></svg>
-        <p class="title" style="font-size:36px;line-height:44px">웅덩이삐약</p>
-        <p class="muted" style="color:var(--text-primary)">Puddle Pip</p>
-        <div style="display:flex;gap:8px"><span class="badge common"><svg><use href="#i-common"/></svg>일반</span><span class="chip" style="background:var(--bg-canvas)"><svg><use href="#i-rain"/></svg>비</span></div>
+        <div style="position:relative;width:260px;height:260px;margin-top:8px">
+          <img src="wf/b-happy.webp" alt="" style="position:absolute;left:30px;top:36px;width:200px">
+          <svg style="position:absolute;left:20px;bottom:0" width="220" height="92" viewBox="2 40 116 106" preserveAspectRatio="none" aria-hidden="true"><use href="#egg-open" width="120" height="150"/></svg>
+        </div>
+        <p class="h-xl" style="margin-top:12px">웅덩이삐약</p>
+        <p style="font-weight:600;margin-top:-6px">Puddle Pip</p>
+        <div style="display:flex;gap:6px;margin-top:4px"><span class="badge common" style="background:var(--bg-canvas)"><svg><use href="#i-common"/></svg>일반</span><span class="chip" style="background:var(--bg-canvas)"><svg><use href="#i-rain"/></svg>비</span></div>
       </div>
-      <div class="bottom"><button class="btn primary">친구 만나기</button></div>
+      <div class="foot"><button class="btn primary kid">친구 만나기</button></div>
+      <div class="home-ind"></div>
     </div>
     <figcaption><b>5. 부화 (6단계)</b>
-      <ul><li>알 노랑이 화면 전체에 깔리는 유일한 순간. 발견 = 노랑 규칙</li>
-      <li>연출: 금 가기 3컷 → 빛 2컷 → 등장. 2400ms 한 번만, 번쩍이는 효과 없음</li>
-      <li>노랑 위 버튼은 동작 초록(흰 글자 6.50:1). 노란 버튼을 노란 면에 두지 않는다</li>
-      <li>시연 부화 종(물결지기)은 새 12종에 없어서 B를 넣었다. C 확정 후 교체</li></ul></figcaption>
+      <p>화면 전체가 알 노랑이 되는 건 이때 한 번뿐이다. 금 가기 3컷, 빛 2컷 뒤에 등장하고 전체 2400ms 동안 한 번만 재생한다. 번쩍이는 효과는 없다.</p>
+      <p>노랑 위 버튼은 동작 초록(흰 글자 6.50:1). 시연 부화 종이 아직 없어서 B를 넣었다.</p></figcaption>
   </figure>
 
   <figure>
-    <div class="phone">
-      <div class="status"></div>
-      <div class="top"><h3>웅덩이삐약</h3><span class="badge common"><svg><use href="#i-common"/></svg>일반</span></div>
-      <div class="body">
-        <div class="bubble"><p class="say">저기 봐! 산이야</p><div class="word"><svg width="20" height="20" style="fill:var(--text-secondary)"><use href="#i-mountain"/></svg><b>mountain</b><span class="muted">산</span></div></div>
-        <div class="stage" style="min-height:220px"><div class="creature" style="background:var(--tint-puddle)"><b>Puddle Pip</b>SURPRISED 포즈<br>(look 포즈 요청 중)</div></div>
+    <div class="phone soft">
+      <div class="sb"><span>9:41</span><span><span class="bat"><i></i></span></span></div>
+      <div class="nav" style="padding-left:20px"><span style="display:flex;align-items:center;gap:8px"><span class="t" style="font-size:22px;font-weight:800">웅덩이삐약</span><span class="badge common" style="background:var(--bg-canvas)"><svg><use href="#i-common"/></svg>일반</span></span><span class="ib"><svg class="i"><use href="#l-more"/></svg></span></div>
+      <div class="scroll" style="padding-top:8px">
+        <div class="stage" style="height:390px;flex-direction:column;justify-content:flex-start;padding:18px">
+          <div class="bubble" style="align-self:stretch"><p class="say">저기 봐! 산이 보여</p><div class="word"><svg width="20" height="20" style="fill:var(--text-secondary)"><use href="#i-mountain"/></svg><b>mountain</b><span class="sub">산</span></div></div>
+          <img src="wf/b-surprised.webp" alt="" style="width:190px;margin-top:14px;margin-left:-40px">
+        </div>
+        <button class="btn primary kid">봤어!</button>
+        <div class="tiles"><span class="tile"><svg class="i"><use href="#l-food"/></svg>먹이 주기</span><span class="tile"><svg class="i"><use href="#l-ball"/></svg>놀아 주기</span></div>
       </div>
-      <div class="bottom">
-        <button class="btn primary">봤어!</button>
-        <div class="btn-row"><button class="btn secondary md">먹이 주기</button><button class="btn secondary md">놀아 주기</button></div>
-      </div>
-      <nav class="tabs"><a><svg><use href="#i-egg"/></svg>알</a><a class="on"><svg><use href="#i-friend"/></svg>친구</a><a><svg><use href="#i-dex"/></svg>도감</a></nav>
+      <nav class="tabs"><a><svg class="i"><use href="#l-egg"/></svg>알</a><a class="on"><svg class="i"><use href="#l-friend"/></svg>친구</a><a><svg class="i"><use href="#l-dex"/></svg>도감</a></nav>
+      <div class="home-ind"></div>
     </div>
     <figcaption><b>6. 동행 · 창밖 보기 (7–8단계)</b>
-      <ul><li>Speech Bubble Look: 각진 왼쪽 아래 모서리가 생물을 가리키도록 위에 둔다</li>
-      <li>영어 단어 하나만 동작 초록으로. 대사는 50자 이내</li>
-      <li>차 기울기에 따라 생물만 조금 기운다. 무대와 화면은 고정</li></ul></figcaption>
+      <p>말풍선의 각진 왼쪽 아래 모서리가 생물을 가리킨다. 동작 초록은 영어 단어 하나에만 쓰고 대사는 50자를 넘기지 않는다.</p>
+      <p>먹이와 놀이는 자주 누르지 않으므로 아래 타일로 내렸다. 그림은 look 포즈 대신 SURPRISED를 썼다.</p></figcaption>
   </figure>
 </div>
 
 <h2>폰 · 도감</h2>
 <div class="row">
   <figure>
-    <div class="phone">
-      <div class="status"></div>
-      <div class="top"><h3>도감</h3><span class="cap" style="font-size:15px">3 / 12</span></div>
-      <div class="body" style="gap:12px">
-        <div style="display:flex;gap:8px"><span class="chip" style="background:var(--bg-success);color:var(--text-action)">전체</span><span class="chip">만난 친구</span><span class="chip">아직</span></div>
+    <div class="phone soft">
+      <div class="sb"><span>9:41</span><span><span class="bat"><i></i></span></span></div>
+      <div class="nav" style="padding-left:20px"><span class="t" style="font-size:26px;font-weight:800">도감</span><span class="sub" style="padding-right:8px;font-weight:700"><b style="color:var(--text-primary)">3</b> / 12</span></div>
+      <div class="scroll" style="padding-top:8px;gap:14px">
+        <div class="seg"><span class="on">전체</span><span>만난 친구</span><span>아직</span></div>
         <div class="grid">
-          <div class="card" style="background:var(--tint-sprout)"><svg class="shape"><use href="#i-common"/></svg><div class="pic"></div>길싹이</div>
-          <div class="card" style="background:var(--tint-puddle)"><svg class="shape"><use href="#i-common"/></svg><div class="pic"></div>웅덩이삐약</div>
-          <div class="card" style="background:var(--tint-moth)"><svg class="shape"><use href="#i-common"/></svg><div class="pic"></div>등불나방</div>
-          <div class="card locked"><div class="pic">?</div>비 오는 날 터널을 지나면</div>
-          <div class="card locked"><div class="pic">?</div>밤 고속도로를 끝까지 부드럽게</div>
-          <div class="card locked"><div class="pic">?</div>비 오는 바닷가에서만</div>
-          <div class="card locked"><div class="pic">?</div>아직 몰라요</div>
-          <div class="card locked"><div class="pic">?</div>아직 몰라요</div>
-          <div class="card locked"><div class="pic">?</div>아직 몰라요</div>
+          <div class="dex" style="background:var(--tint-sprout)"><span class="no">01</span><img src="wf/a-idle.webp" alt=""><span class="n">길싹이</span></div>
+          <div class="dex" style="background:var(--tint-puddle)"><span class="no">02</span><img src="wf/b-idle.webp" alt=""><span class="n">웅덩이삐약</span></div>
+          <div class="dex" style="background:var(--tint-moth)"><span class="no">03</span><img src="wf/c-idle.webp" alt=""><span class="n">등불나방</span></div>
+          <div class="dex locked"><span class="no">04</span><span class="q">?</span><span class="n">비 오는 날 터널을 지나면</span></div>
+          <div class="dex locked"><span class="no">05</span><span class="q">?</span><span class="n">밤 고속도로를 끝까지 부드럽게</span></div>
+          <div class="dex locked"><span class="no">06</span><span class="q">?</span><span class="n">비 오는 바닷가에서만</span></div>
+          <div class="dex locked"><span class="no">07</span><span class="q">?</span><span class="n">아직 몰라요</span></div>
+          <div class="dex locked"><span class="no">08</span><span class="q">?</span><span class="n">아직 몰라요</span></div>
+          <div class="dex locked"><span class="no">09</span><span class="q">?</span><span class="n">아직 몰라요</span></div>
         </div>
       </div>
-      <nav class="tabs"><a><svg><use href="#i-egg"/></svg>알</a><a><svg><use href="#i-friend"/></svg>친구</a><a class="on"><svg><use href="#i-dex"/></svg>도감</a></nav>
+      <nav class="tabs"><a><svg class="i"><use href="#l-egg"/></svg>알</a><a><svg class="i"><use href="#l-friend"/></svg>친구</a><a class="on"><svg class="i"><use href="#l-dex"/></svg>도감</a></nav>
+      <div class="home-ind"></div>
     </div>
     <figcaption><b>7. 도감 (9단계)</b>
-      <ul><li>Dex Card 수집: 종별 tint 바탕 + IDLE 컷 + 이름 + 등급 모양</li>
-      <li>미수집: 옅은 녹색 면 + ? + 출현 조건 힌트(<code>species.json</code> hint). 실루엣은 보여 주지 않는다</li>
-      <li>G~L 6종은 데이터가 없어서 "아직 몰라요"로 둔다(C 확인)</li></ul></figcaption>
+      <p>만난 친구는 종별 tint 바탕에 IDLE 컷을 넣는다. 아직 못 만난 칸은 흰 바탕에 ?와 출현 힌트(<code>species.json</code> hint)만 보여 주고 실루엣은 숨긴다.</p>
+      <p>번호는 도감 순서다. G~L 6종은 데이터가 없어 "아직 몰라요"로 뒀다.</p></figcaption>
   </figure>
 
   <figure>
-    <div class="phone">
-      <div class="status"></div>
-      <div class="top"><h3>‹</h3><span class="badge common"><svg><use href="#i-common"/></svg>일반</span></div>
-      <div class="body">
-        <div class="stage" style="background:var(--tint-puddle);min-height:240px;flex:none">
-          <div class="creature" style="border-color:rgba(86,103,93,.45);width:160px;height:160px;margin-bottom:24px"><b>Puddle Pip</b>8방향 보기</div>
-          <span class="cap" style="position:absolute;bottom:12px">← 밀어서 돌려 보기 →</span>
+    <div class="phone soft">
+      <div class="sb"><span>9:41</span><span><span class="bat"><i></i></span></span></div>
+      <div class="nav"><span class="ib"><svg class="i"><use href="#l-back"/></svg></span><span class="t">02</span><span class="ib"><svg class="i"><use href="#l-share"/></svg></span></div>
+      <div class="scroll" style="padding-top:4px;gap:16px">
+        <div class="stage" style="background:var(--tint-puddle);height:280px;flex:none">
+          <img src="wf/b-idle.webp" alt="" style="width:200px;margin-top:-16px">
+          <div class="dots"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
         </div>
-        <div><p class="title">웅덩이삐약</p><p class="muted">Puddle Pip</p></div>
-        <dl class="meta">
-          <dt>만난 날</dt><dd>11월 6일 목요일</dd>
-          <dt>날씨</dt><dd><span class="chip"><svg><use href="#i-rain"/></svg>비</span></dd>
-          <dt>길</dt><dd><span class="chip"><svg><use href="#i-highway"/></svg>고속도로</span></dd>
-          <dt>함께 간 길</dt><dd>48km</dd>
+        <div style="padding:0 4px"><div style="display:flex;align-items:center;gap:8px"><p class="h-lg">웅덩이삐약</p><span class="badge common" style="background:var(--bg-canvas)"><svg><use href="#i-common"/></svg>일반</span></div><p class="sub">Puddle Pip · 비 오는 날이면 누구나</p></div>
+        <dl class="rows">
+          <div><dt>만난 날</dt><dd>11월 6일 목요일</dd></div>
+          <div><dt>날씨</dt><dd><svg width="16" height="16" style="fill:var(--text-secondary)"><use href="#i-rain"/></svg>비</dd></div>
+          <div><dt>길</dt><dd><svg width="16" height="16" style="fill:var(--text-secondary)"><use href="#i-highway"/></svg>고속도로</dd></div>
+          <div><dt>함께 달린 거리</dt><dd>48km</dd></div>
         </dl>
       </div>
+      <div class="home-ind"></div>
     </div>
     <figcaption><b>8. 도감 상세</b>
-      <ul><li>8방향 시트를 좌우로 밀어 돌려 본다(LEGO Builder 참고). 자동 회전은 하지 않는다</li>
-      <li>획득 기록은 Pikmin Bloom 라이프로그처럼 날짜·날씨·길을 남긴다. 위치 좌표는 쓰지 않는다(규칙 2)</li>
-      <li>기록은 폰에만 저장한다</li></ul></figcaption>
+      <p>무대를 좌우로 밀면 8방향 턴어라운드가 한 칸씩 넘어가고 점 8개가 지금 보는 방향을 알려 준다. 자동으로 돌리지는 않는다.</p>
+      <p>획득 기록에는 날짜, 날씨, 길만 남기고 위치 좌표는 쓰지 않는다(규칙 2). 기록은 폰에만 저장한다.</p></figcaption>
   </figure>
 </div>
 
-<h2>차 화면 (Pleos)</h2>
+<h2>차 화면 · Pleos Connect</h2>
 <div class="row">
   <figure class="wide">
-    <div class="car" style="flex-direction:column">
-      <div class="map">내비게이션 (Pleos 기본 화면)</div>
-      <div class="line"><svg><use href="#i-egg"/></svg>알이 자라는 중 · 60%<div class="mini"><i style="width:60%"></i></div></div>
+    <div class="car">
+      <div class="osbar"><span>오후 2:14</span><span>바깥 18°C</span></div>
+      <div class="drive"><span class="spd">92</span><span class="unit">km/h</span><div class="gear"><span>P</span><span>R</span><span>N</span><b>D</b></div><p class="rng">주행 가능 거리<b>312km</b></p></div>
+      <div class="apps">
+        <div class="map">
+          <svg class="road" viewBox="0 0 560 360" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><path d="M300 380 C300 260 290 200 360 150 S 470 90 560 60" fill="none" stroke="#2C3236" stroke-width="34" stroke-linecap="round"/><path d="M300 380 C300 260 290 200 360 150 S 470 90 560 60" fill="none" stroke="#3E8CF0" stroke-width="10" stroke-linecap="round"/><path d="M-20 240 C120 230 200 250 300 250" fill="none" stroke="#2C3236" stroke-width="22"/><path d="M286 300l14-24 14 24Z" fill="#fff"/></svg>
+          <div class="turn"><svg class="i" style="width:40px;height:40px;color:#fff"><use href="#l-turn"/></svg><div><b>800m</b><span>강릉 방면 오른쪽</span></div></div>
+          <div class="eta">오후 2:26 도착<span>12분 · 14km</span></div>
+        </div>
+        <div class="win" style="width:340px;flex:none">
+          <div class="wh"><span class="ai"><svg width="12" height="14" viewBox="0 0 24 24" style="fill:var(--text-primary)"><path d="M12 3c3.6 0 6.5 5.4 6.5 10.2a6.5 6.5 0 0 1-13 0C5.5 8.4 8.4 3 12 3Z"/></svg></span>알로</div>
+          <div class="c-line"><div class="l"><svg viewBox="0 0 24 24"><path d="M12 3c3.6 0 6.5 5.4 6.5 10.2a6.5 6.5 0 0 1-13 0C5.5 8.4 8.4 3 12 3Z"/></svg>알이 자라는 중</div><div class="ctrack"><i style="width:60%"></i></div><span style="font-size:18px;color:var(--os-sub);font-weight:600">60%</span></div>
+        </div>
+      </div>
+      <div class="gnb"><span class="clim">21.5°<span>운전석</span></span>
+        <nav><i><svg class="i"><use href="#l-home"/></svg></i><i class="on"><svg class="i"><use href="#l-nav"/></svg></i><i><svg class="i"><use href="#l-music"/></svg></i><i class="allo on"><svg width="20" height="24" viewBox="0 0 24 24" style="fill:var(--text-primary)"><path d="M12 3c3.6 0 6.5 5.4 6.5 10.2a6.5 6.5 0 0 1-13 0C5.5 8.4 8.4 3 12 3Z"/></svg></i><i><svg class="i"><use href="#l-phone"/></svg></i><i><svg class="i"><use href="#l-grid"/></svg></i></nav>
+        <span class="clim">22.0°<span>동승석</span></span></div>
     </div>
-    <figcaption><b>9. 주행 중 (3·4·6단계)</b> Car Status 한 줄만. 버튼 없음, 2초 안에 읽힌다. 기어 D에 들어가면 어느 화면에서든 즉시 이 상태로 돌아온다(페이드 200ms).</figcaption>
+    <figcaption><b>9. 주행 중 (3·4·6단계)</b> 내비 옆 분할 창에 Car Status 한 줄만 띄운다. 버튼이 없고 2초 안에 읽혀야 한다. 기어가 D에 들어가면 어느 상태에서든 이 화면으로 돌아온다(페이드 200ms). 하단 바의 노란 타일이 알로 앱 아이콘이다.</figcaption>
   </figure>
 
   <figure class="wide">
     <div class="car">
-      <div class="app full">
-        <div class="split">
-          <svg width="150" height="188" viewBox="0 0 120 150"><use href="#egg"/></svg>
-          <div style="flex:1;display:flex;flex-direction:column;gap:16px">
-            <h4>알이 60% 자랐어요</h4>
-            <div class="ctrack"><i style="width:60%"></i></div>
-            <div class="stat"><div><span>남은 길</span>12분</div><div><span>감싸 준 횟수</span>2번</div><div><span>날씨</span>비</div></div>
+      <div class="osbar"><span>오후 2:41</span><span>바깥 18°C</span></div>
+      <div class="drive"><span class="spd">0</span><span class="unit">km/h</span><div class="gear"><b>P</b><span>R</span><span>N</span><span>D</span></div><p class="rng">주행 가능 거리<b>298km</b></p></div>
+      <div class="apps"><div class="win" style="flex:1">
+        <div class="wh"><span class="ai"><svg width="12" height="14" viewBox="0 0 24 24" style="fill:var(--text-primary)"><path d="M12 3c3.6 0 6.5 5.4 6.5 10.2a6.5 6.5 0 0 1-13 0C5.5 8.4 8.4 3 12 3Z"/></svg></span>알로</div>
+        <div class="c-body">
+          <svg width="170" height="212" viewBox="0 0 120 150" style="flex:none"><use href="#egg"/></svg>
+          <div class="txt">
+            <p class="c-h">알이 60% 자랐어요</p>
+            <div class="ctrack" style="height:14px"><i style="width:60%"></i></div>
+            <div class="stat"><div><span>남은 시간</span>12분</div><div><span>감싸 준 횟수</span>2번</div><div><span>날씨</span>비</div></div>
           </div>
         </div>
-      </div>
+      </div></div>
+      <div class="gnb"><span class="clim">21.5°<span>운전석</span></span>
+        <nav><i><svg class="i"><use href="#l-home"/></svg></i><i><svg class="i"><use href="#l-nav"/></svg></i><i><svg class="i"><use href="#l-music"/></svg></i><i class="allo on"><svg width="20" height="24" viewBox="0 0 24 24" style="fill:var(--text-primary)"><path d="M12 3c3.6 0 6.5 5.4 6.5 10.2a6.5 6.5 0 0 1-13 0C5.5 8.4 8.4 3 12 3Z"/></svg></i><i><svg class="i"><use href="#l-phone"/></svg></i><i><svg class="i"><use href="#l-grid"/></svg></i></nav>
+        <span class="clim">22.0°<span>동승석</span></span></div>
     </div>
-    <figcaption><b>10. 정차 중 · 아이 화면 함께 보기 (5단계)</b> 휴게소에서 기어 P가 되면 <code>/game</code> 상태를 차 화면 크기로 다시 그린다(미러링 아님). 큰 글자와 필요한 상태만 둔다. 조작은 폰에서 한다.</figcaption>
+    <figcaption><b>10. 정차 중 · 아이 화면 함께 보기 (5단계)</b> 휴게소에서 기어를 P에 두면 알로 창이 앱 영역 전체로 커진다. <code>/game</code> 상태를 차 화면에 맞게 새로 그린 것이고 폰 미러링이 아니다. 제목은 Pleos Headline Small(48, ExtraBold)이고 조작은 폰에서 한다.</figcaption>
   </figure>
 
   <figure class="wide">
     <div class="car">
-      <div class="app full" style="background:var(--car-bg)">
-        <div class="split">
-          <div class="creature" style="background:var(--tint-puddle);width:220px;height:220px;border-color:rgba(86,103,93,.45)"><b>Puddle Pip</b>HAPPY 포즈</div>
-          <div style="flex:1;display:flex;flex-direction:column;gap:16px">
-            <span class="label-new" style="align-self:flex-start;background:var(--car-accent);color:var(--text-primary)">새 친구</span>
-            <h4>웅덩이삐약이 깨어났어요</h4>
-            <p style="font-size:20px;font-weight:500">뒷자리에 이름을 물어보세요</p>
+      <div class="osbar"><span>오후 2:43</span><span>바깥 18°C</span></div>
+      <div class="drive"><span class="spd">0</span><span class="unit">km/h</span><div class="gear"><b>P</b><span>R</span><span>N</span><span>D</span></div><p class="rng">주행 가능 거리<b>298km</b></p></div>
+      <div class="apps"><div class="win" style="flex:1">
+        <div class="wh"><span class="ai"><svg width="12" height="14" viewBox="0 0 24 24" style="fill:var(--text-primary)"><path d="M12 3c3.6 0 6.5 5.4 6.5 10.2a6.5 6.5 0 0 1-13 0C5.5 8.4 8.4 3 12 3Z"/></svg></span>알로</div>
+        <div class="c-body">
+          <img src="wf/b-happy.webp" alt="" style="width:250px;flex:none;margin-top:-20px">
+          <div class="txt">
+            <span class="c-label">새 친구</span>
+            <p class="c-h">웅덩이삐약이<br>깨어났어요</p>
+            <p class="c-sub">뒷자리에 이름을 물어보세요</p>
           </div>
         </div>
-      </div>
+      </div></div>
+      <div class="gnb"><span class="clim">21.5°<span>운전석</span></span>
+        <nav><i><svg class="i"><use href="#l-home"/></svg></i><i><svg class="i"><use href="#l-nav"/></svg></i><i><svg class="i"><use href="#l-music"/></svg></i><i class="allo on"><svg width="20" height="24" viewBox="0 0 24 24" style="fill:var(--text-primary)"><path d="M12 3c3.6 0 6.5 5.4 6.5 10.2a6.5 6.5 0 0 1-13 0C5.5 8.4 8.4 3 12 3Z"/></svg></i><i><svg class="i"><use href="#l-phone"/></svg></i><i><svg class="i"><use href="#l-grid"/></svg></i></nav>
+        <span class="clim">22.0°<span>동승석</span></span></div>
     </div>
-    <figcaption><b>11. 정차 중 부화 (6–7단계)</b> 폰 부화와 같이 재생한다. 차 화면에서는 노랑을 라벨에만 쓴다(어두운 실내에서 넓은 노랑은 눈부시다). Gleo 음성 문구와 같은 내용.</figcaption>
+    <figcaption><b>11. 정차 중 부화 (6–7단계)</b> 폰 부화와 같은 순간에 재생한다. 어두운 실내에서는 넓은 노랑이 눈부시므로 노랑은 라벨에만 쓴다. Gleo 음성 안내도 같은 문장을 읽는다.</figcaption>
   </figure>
 
   <figure class="wide">
     <div class="car">
-      <div class="app full">
-        <h4>오늘 여행에서 만난 친구</h4>
-        <div class="split" style="gap:16px">
-          <div class="creature" style="background:var(--tint-puddle);width:150px;height:150px;border-color:rgba(86,103,93,.45)"><b>Puddle Pip</b></div>
-          <div style="flex:1;display:flex;flex-direction:column;gap:8px;font-size:22px;font-weight:700">웅덩이삐약<span style="font-size:16px;font-weight:500">비 · 고속도로 · 48km</span></div>
-          <div class="stat" style="flex-direction:column;gap:8px"><div><span>도감</span>3 / 12</div></div>
+      <div class="osbar"><span>오후 3:58</span><span>바깥 16°C</span></div>
+      <div class="drive"><span class="spd">0</span><span class="unit">km/h</span><div class="gear"><b>P</b><span>R</span><span>N</span><span>D</span></div><p class="rng">주행 가능 거리<b>241km</b></p></div>
+      <div class="apps"><div class="win" style="flex:1">
+        <div class="wh"><span class="ai"><svg width="12" height="14" viewBox="0 0 24 24" style="fill:var(--text-primary)"><path d="M12 3c3.6 0 6.5 5.4 6.5 10.2a6.5 6.5 0 0 1-13 0C5.5 8.4 8.4 3 12 3Z"/></svg></span>알로</div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:22px;padding:0 48px 32px">
+          <p class="c-h">도착했어요</p>
+          <div style="display:flex;align-items:center;gap:24px;background:var(--os-surface);border-radius:20px;padding:12px 28px 12px 12px">
+            <span style="width:132px;height:132px;border-radius:16px;background:var(--tint-puddle);display:flex;align-items:center;justify-content:center;flex:none"><img src="wf/b-idle.webp" alt="" style="width:112px"></span>
+            <div style="flex:1"><p style="font-size:30px;font-weight:800">웅덩이삐약</p><p class="c-sub" style="font-size:19px;margin-top:4px">비 · 고속도로 · 48km 함께 달림</p></div>
+            <div class="stat"><div><span>도감</span>3 / 12</div></div>
+          </div>
+          <button class="cbtn">닫기</button>
         </div>
-        <button class="cbtn ghost">닫기</button>
-      </div>
+      </div></div>
+      <div class="gnb"><span class="clim">21.5°<span>운전석</span></span>
+        <nav><i><svg class="i"><use href="#l-home"/></svg></i><i><svg class="i"><use href="#l-nav"/></svg></i><i><svg class="i"><use href="#l-music"/></svg></i><i class="allo on"><svg width="20" height="24" viewBox="0 0 24 24" style="fill:var(--text-primary)"><path d="M12 3c3.6 0 6.5 5.4 6.5 10.2a6.5 6.5 0 0 1-13 0C5.5 8.4 8.4 3 12 3Z"/></svg></i><i><svg class="i"><use href="#l-phone"/></svg></i><i><svg class="i"><use href="#l-grid"/></svg></i></nav>
+        <span class="clim">22.0°<span>동승석</span></span></div>
     </div>
-    <figcaption><b>12. 도착 요약 (9단계)</b> 정차 화면에서 오늘 만난 친구와 도감 칸 수만 보여 준다. 닫기 버튼 76.</figcaption>
+    <figcaption><b>12. 도착 요약 (9단계)</b> 오늘 만난 친구 한 명과 도감 칸 수만 보여 준다. 닫기 버튼은 76 높이에 모서리 24이고 Pleos 기본 버튼처럼 회색 면을 쓴다.</figcaption>
   </figure>
+</div>
+
+<h2>v1에서 바뀐 점</h2>
+<div class="open">
+  <ul>
+    <li>글꼴을 Noto Sans KR에서 Asta Sans로 바꿨다. Pleos 시스템 UI에 들어가는 글꼴이라 차 화면과 폰의 인상이 같아진다</li>
+    <li>점선 자리표시를 모두 승인 캐릭터 컷으로 바꿨다. 배경을 지운 컷은 <code>art/design/wf/</code>에 있다</li>
+    <li>폰 화면에 실제 기기 크롬(상태 표시줄, 내비게이션 바, 홈 인디케이터)을 그렸다. 뒤로, 닫기, 탭 같은 시스템 아이콘은 2px 선으로 바꿨다. 환경 태그와 등급 아이콘은 그대로 채운 모양이다</li>
+    <li>차 화면은 Pleos의 주행 정보 · 앱 창 · 하단 바 배치 안에 알로 창을 넣었다. 주행 중에는 분할 창, 정차 중에는 단일 창이다. 주변 회색은 목업용이고 알로 UI 색이 아니다</li>
+    <li>차 화면 제목을 36에서 Pleos Headline Small 48로 키웠다</li>
+  </ul>
 </div>
 
 <h2>열린 항목</h2>
@@ -406,6 +533,7 @@ figure.wide { width: 860px; }
     <li><b>D</b> · 창밖 보기용 look 포즈 12종. 지금은 SURPRISED로 대신한다</li>
     <li><b>D</b> · 부화 연출 5컷(금 가기 3, 빛 2)과 알 크기 3종 × 성장 3단계 그림</li>
     <li><b>B</b> · 탭 3개(알 · 친구 · 도감) 구조를 현재 화면 흐름(pairing → incubating → hatching → companion → dex)과 맞출지</li>
+    <li><b>B</b> · Asta Sans를 Flutter 앱에 번들할지. 차 앱은 시스템 글꼴을 그대로 쓰면 된다</li>
   </ul>
 </div>
 </main>
