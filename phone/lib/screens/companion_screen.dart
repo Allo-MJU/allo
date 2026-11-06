@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../game/game_controller.dart';
 import '../widgets/species_art.dart';
+import '../widgets/window_view.dart';
 
 class CompanionScreen extends StatelessWidget {
   const CompanionScreen({super.key, required this.controller});
@@ -26,14 +27,15 @@ class CompanionScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 children: [
                   if (controller.error != null) Text(controller.error!),
-                  const SizedBox(height: 24),
-                  Center(
+                  const SizedBox(height: 12),
+                  WindowView(
+                    vehicle: controller.vehicle,
                     child: AnimatedRotation(
                       turns: controller.playCount.isOdd ? 0.04 : -0.04,
                       duration: const Duration(milliseconds: 300),
                       child: species == null
-                          ? const Icon(Icons.pets, size: 140)
-                          : SpeciesArt(species: species, size: 140),
+                          ? const Icon(Icons.pets, size: 120)
+                          : SpeciesArt(species: species, size: 120),
                     ),
                   ),
                   const SizedBox(height: 24),

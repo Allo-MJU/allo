@@ -6,6 +6,7 @@ import 'config/firebase_config.dart';
 import 'feed/fake_feed.dart';
 import 'feed/firebase_feed.dart';
 import 'feed/vehicle_feed.dart';
+import 'widgets/window_view.dart';
 
 /// --dart-define=FEED=fake → 차 없이 가짜 신호로 실행 (기본값).
 /// Firebase 설정은 --dart-define-from-file=config/firebase.local.json 으로 주입.
@@ -15,7 +16,8 @@ const _scenario =
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(await createApp());
+  // 창밖 스크롤은 실제 실행에서만 켠다. 위젯 테스트는 정지 장면으로 본다.
+  runApp(SceneMotion(enabled: true, child: await createApp()));
 }
 
 /// 초기화 성공 전에는 Firebase feed를 만들지 않는다.
