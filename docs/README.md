@@ -16,6 +16,7 @@
 | [verification.md](./verification.md) | SDK 검증 8개 결과 기록 | A |
 | [architecture.md](./architecture.md) | 기술 스택 결정과 근거, 선례에서 확인된 제약 | 전원 |
 | [demo-scenario.md](./demo-scenario.md) | 시연 9단계와 Virtual Console 명령 | A·B·D |
+| [design-system.md](./design-system.md) | 색, 글자, 컴포넌트, 캐릭터 12종 표현 규칙 | B·D |
 
 ## 읽는 순서
 

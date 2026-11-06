@@ -13,9 +13,11 @@ phone/assets/ui/...                     버튼, 진행바, 도감 프레임
 
 ## 스펙
 
-- 도트 48×48, 팔레트 16색 이내
-- 속성별 색 계열: water 청 / dark 보라 / normal 녹
-- tier 가 높을수록 실루엣이 복잡하고 장식이 많게 (색만 바꾸면 티가 안 남)
+색, 글자, 컴포넌트, 캐릭터 표현은 [`docs/design-system.md`](../docs/design-system.md)를 따른다. 토큰 원본은 [`design/tokens.json`](./design/tokens.json)이다.
+
+- 캐릭터는 `character-production-01`(2026-11-05 승인 12종)의 스타일라이즈드 3D다. 도트 48×48 기준은 폐기했다
+- 종마다 시그니처 색 4개(base·deep·accent·tint)를 쓴다. 속성별 3색 계열은 쓰지 않는다
+- 등급 차이는 배지와 부화 연출로 낸다(design-system 8절)
 
 ## 폴더
 
