@@ -87,14 +87,16 @@ class NaviEtaReader(context: Context) {
         override fun onError(code: NaviErrorCode) { Log.w(TAG, "navi error $code") }
     }
 
-    fun start() {
+    /** @param onReady 내비 초기화 결과. 성공하면 true → capabilities 에 `eta` 를 올린다 (docs/schema.md 3.3) */
+    fun start(onReady: (Boolean) -> Unit = {}) {
         runCatching {
             navi.initialize({
                 ready = true
                 navi.addListener(listener)
                 poll()
-            }, { e -> Log.w(TAG, "navi init failed: ${e.message}") })
-        }.onFailure { Log.e(TAG, "navi start failed", it) }
+                onReady(true)
+            }, { e -> Log.w(TAG, "navi init failed: ${e.message}"); onReady(false) })
+        }.onFailure { Log.e(TAG, "navi start failed", it); onReady(false) }
     }
 
     /** 이벤트가 안 오는 구간을 메우려고 SessionManager 가 주기적으로 부른다. */

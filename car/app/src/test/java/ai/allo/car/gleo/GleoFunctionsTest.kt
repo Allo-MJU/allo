@@ -24,8 +24,8 @@ class GleoFunctionsTest {
         assertTrue(cb.message.isNotBlank())
     }
 
-    private fun made(region: String, name: String, unvisited: Boolean, km: Double? = null, alt: Boolean = false) =
-        DestinationFlow.Offer.Made(Suggestion(DestinationSuggester.CANDIDATES.first { it.name == name }.also { assertEquals(region, it.region) }, unvisited, km, alt))
+    private fun made(region: String, name: String, uncollected: Boolean, km: Double? = null, alt: Boolean = false) =
+        DestinationFlow.Offer.Made(Suggestion(DestinationSuggester.CANDIDATES.first { it.name == name }.also { assertEquals(region, it.region) }, uncollected, km, alt))
 
     @Test fun `fallback suggestion does not claim unvisited`() {
         val msg = GleoFunctions.respond(GleoFunctions.SUGGEST_DESTINATION, GameState(), made("coast", "경포해변", false)).message
@@ -33,9 +33,20 @@ class GleoFunctionsTest {
         assertTrue("바다" in msg && "경포해변까지" in msg && "같은 바다라면" in msg)
     }
 
-    @Test fun `known unvisited suggestion gives place and distance without claims`() {
+    @Test fun `known uncollected suggestion says only what the dex knows`() {
         val msg = GleoFunctions.respond(GleoFunctions.SUGGEST_DESTINATION, GameState(), made("mountain", "북한산 국립공원", true, 28.4)).message
-        assertEquals("산 쪽 북한산 국립공원까지 안내할까요? 직선으로 약 30km예요.", msg)
+        assertEquals("아직 산에서 만난 아이가 없어요. 북한산 국립공원까지 안내할까요? 직선으로 약 30km예요.", msg)
+    }
+
+    @Test fun `fallback lines do not tie driving to a good child or ask the driver to talk to the back seat`() {
+        val bankless = listOf(
+            GleoFunctions.respond(GleoFunctions.REPORT_EGG_STATUS, GameState(stage = "incubating", eggTier = "mid", progress = 0.62)),
+            GleoFunctions.respond(GleoFunctions.CELEBRATE_HATCH, GameState(stage = "hatched", attribute = "water")),
+            GleoFunctions.respond(GleoFunctions.CELEBRATE_HATCH, GameState(stage = "hatched")),
+        ).map { it.message }
+        for (m in bankless) for (claim in listOf("좋은 아이", "물어보세요")) assertFalse(claim in m, m)
+        assertEquals("물 속성 아이가 알에서 깨어났어요.", bankless[1])
+        assertEquals("아이가 알에서 깨어났어요.", bankless[2])
     }
 
     @Test fun `suggestions never claim region-only creatures, visits or seasons`() {
