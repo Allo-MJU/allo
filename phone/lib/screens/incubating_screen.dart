@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:allo_core/allo_core.dart';
 
 import '../game/game_controller.dart';
+import '../widgets/egg_art.dart';
+import '../theme/allo_colors.dart';
 
 class IncubatingScreen extends StatefulWidget {
   const IncubatingScreen({super.key, required this.controller});
@@ -98,18 +100,20 @@ class _IncubatingScreenState extends State<IncubatingScreen>
                 AnimatedBuilder(
                   animation: _shake,
                   builder: (_, child) => Transform.rotate(
-                    angle: math.sin(_shake.value * math.pi * 8) *
-                        0.15 *
-                        (1 - _shake.value),
+                    angle: MediaQuery.disableAnimationsOf(context)
+                        ? 0
+                        : math.sin(_shake.value * math.pi * 8) *
+                            0.15 *
+                            (1 - _shake.value),
                     child: child,
                   ),
-                  child: Semantics(
-                      label: '자라고 있는 알',
-                      child: Icon(Icons.egg,
-                          size: 180,
-                          color: _singing
-                              ? Colors.teal.shade300
-                              : Colors.amber.shade300)),
+                  child: EggArt(
+                    tier: g.eggTier,
+                    progress: g.progress,
+                    color: _singing
+                        ? AlloColors.growthGreen
+                        : AlloColors.shellYellow,
+                  ),
                 ),
                 Text(_singing ? '노래를 듣고 편안해졌어요' : '흔들리면 알을 감싸 주세요',
                     textAlign: TextAlign.center),

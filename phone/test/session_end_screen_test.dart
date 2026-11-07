@@ -58,7 +58,7 @@ void main() {
       });
       if (phase != '부화 전환 직전') await tester.pumpAndSettle();
       if (phase == '동행') {
-        await tester.tap(find.text('같이 가자'));
+        await tester.tap(find.text('친구 만나기'));
         await tester.pumpAndSettle();
         expect(find.text('봤어!'), findsOneWidget);
       }
@@ -71,7 +71,7 @@ void main() {
       expect(find.text('기록을 저장했어요'), findsOneWidget);
       expect(find.text('새 차량 연결'), findsOneWidget);
       expect(find.text('도감 보기'), findsOneWidget);
-      expect(find.text('같이 가자'), findsNothing);
+      expect(find.text('친구 만나기'), findsNothing);
       await tester.tap(find.text('새 차량 연결'));
       await tester.pumpAndSettle();
       expect(find.text('차 화면의 QR을 찍어 주세요'), findsOneWidget);

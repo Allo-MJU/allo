@@ -78,7 +78,8 @@ scripts/scenario_rainy_highway.sh <sessionId>
 
 ## 에셋 출처
 
-(사용한 도트 에셋 팩과 라이선스를 여기에 표기)
+- 폰 앱 글꼴: [Asta Sans](https://github.com/google/fonts/tree/main/ofl/astasans), The Asta Sans Project Authors, SIL OFL 1.1. [라이선스 전문](phone/assets/fonts/asta-sans/OFL.txt).
+- 캐릭터 원본과 성장·부화 프레임은 아직 앱에 반입하지 않았습니다.
 
 ## 라이선스
 

@@ -13,7 +13,7 @@ class SpeciesArt extends StatelessWidget {
         width: size,
         height: size,
         fit: BoxFit.contain,
-        filterQuality: FilterQuality.none,
+        filterQuality: FilterQuality.medium,
         semanticLabel: species.nameKo,
         errorBuilder: (_, __, ___) => Icon(Icons.pets,
             size: size,

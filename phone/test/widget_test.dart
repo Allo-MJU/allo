@@ -31,8 +31,8 @@ void main() {
     expect(find.textContaining('돌봄 2회'), findsOneWidget);
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
-    expect(find.text('같이 가자'), findsOneWidget);
-    await tester.tap(find.text('같이 가자'));
+    expect(find.text('친구 만나기'), findsOneWidget);
+    await tester.tap(find.text('친구 만나기'));
     await tester.pumpAndSettle();
     expect(find.text('봤어!'), findsOneWidget);
     await tester.tap(find.text('먹이'));

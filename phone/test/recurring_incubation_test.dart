@@ -301,7 +301,7 @@ void main() {
     uiClock = 40 * 60000;
     uiFeed.sample(eta: 15600);
     await tester.pumpAndSettle();
-    await until('같이 가자');
+    await until('친구 만나기');
     await tester.runAsync(settle);
     uiClock = 70 * 60000;
     uiFeed.sample(eta: 13800);
@@ -309,9 +309,9 @@ void main() {
     uiClock = 110 * 60000;
     uiFeed.sample(eta: 11400);
     await tester.pumpAndSettle();
-    await until('같이 가자');
+    await until('친구 만나기');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('같이 가자'));
+    await tester.tap(find.text('친구 만나기'));
     await tester.pumpAndSettle();
     expect(find.text('먹이'), findsOneWidget);
     uiClock = 140 * 60000;

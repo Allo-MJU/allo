@@ -12,6 +12,7 @@ import 'screens/incubating_screen.dart';
 import 'screens/pairing_screen.dart';
 import 'screens/session_end_screen.dart';
 import 'storage/dex_store.dart';
+import 'theme/allo_colors.dart';
 
 class AlloApp extends StatefulWidget {
   const AlloApp({super.key, required this.feed, this.monotonicMs});
@@ -91,7 +92,9 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
     return MaterialApp.router(
       title: '알로',
       theme: ThemeData(
-          colorSchemeSeed: const Color(0xFF4FB3A9), useMaterial3: true),
+          colorSchemeSeed: AlloColors.actionPrimary,
+          fontFamily: AlloPresentation.fontFamily,
+          useMaterial3: true),
       routerConfig: _router,
     );
   }
