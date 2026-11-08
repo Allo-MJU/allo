@@ -96,7 +96,7 @@ class _HatchingScreenState extends State<HatchingScreen>
                               liveRegion: true,
                               child: Text(
                                   revealed
-                                      ? '반가워!'
+                                      ? '부화했어요'
                                       : t < .44
                                           ? '조금씩 깨어나는 중'
                                           : '곧 만나요',
@@ -169,7 +169,7 @@ class _HatchingScreenState extends State<HatchingScreen>
                                     color: AlloColors.textPrimary,
                                     fontSize: 36,
                                     height: 44 / 36,
-                                    fontWeight: FontWeight.w800)),
+                                    fontWeight: FontWeight.w700)),
                             if (species != null)
                               Text(species.nameEn,
                                   style: const TextStyle(
@@ -186,7 +186,7 @@ class _HatchingScreenState extends State<HatchingScreen>
                                     backgroundColor: AlloColors.actionPrimary,
                                     foregroundColor: AlloColors.textInverse,
                                     minimumSize: const Size(double.infinity,
-                                        AlloPresentation.touchKid),
+                                        AlloPresentation.touchMin),
                                     shape: RoundedRectangleBorder(
                                         borderRadius:
                                             BorderRadius.circular(16)),
@@ -200,7 +200,7 @@ class _HatchingScreenState extends State<HatchingScreen>
                                       ? '/companion'
                                       : '/incubating');
                                 },
-                                child: const Text('친구 만나기')),
+                                child: const Text('동행 시작')),
                           ] else
                             TextButton(
                                 style: TextButton.styleFrom(

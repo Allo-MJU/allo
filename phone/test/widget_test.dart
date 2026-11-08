@@ -26,13 +26,16 @@ void main() {
     await tester.tap(find.text('감싸기'));
     await tester.pump();
     expect(find.textContaining('돌봄 1회'), findsOneWidget);
+    await tester.ensureVisible(find.text('♫ 길게 눌러 노래'));
+    await tester.pump();
+    expect(find.text('♫ 길게 눌러 노래').hitTestable(), findsOneWidget);
     await tester.longPress(find.text('♫ 길게 눌러 노래'));
     await tester.pump();
     expect(find.textContaining('돌봄 2회'), findsOneWidget);
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
-    expect(find.text('친구 만나기'), findsOneWidget);
-    await tester.tap(find.text('친구 만나기'));
+    expect(find.text('동행 시작'), findsOneWidget);
+    await tester.tap(find.text('동행 시작'));
     await tester.pumpAndSettle();
     expect(find.text('봤어!'), findsOneWidget);
     await tester.tap(find.text('먹이'));

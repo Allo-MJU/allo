@@ -64,7 +64,7 @@ void main() {
     final before = c.game.toJson();
     await tester.pumpWidget(app(c));
     expect(find.text('조금씩 깨어나는 중'), findsOneWidget);
-    expect(find.text('친구 만나기'), findsNothing);
+    expect(find.text('동행 시작'), findsNothing);
     await tester.pump(const Duration(milliseconds: 1200));
     expect(find.text('곧 만나요'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 1200));
@@ -72,7 +72,7 @@ void main() {
     expect(find.text('물결지기'), findsOneWidget);
     expect(find.text('물 속성 · 3등급'), findsOneWidget);
     expect(tester.getSize(find.byType(FilledButton)).height,
-        greaterThanOrEqualTo(72));
+        greaterThanOrEqualTo(56));
     expect(c.game.toJson(), before);
     expect(tester.takeException(), isNull);
   });
@@ -86,7 +86,7 @@ void main() {
     await tester.pumpWidget(MaterialApp.router(routerConfig: r));
     await tester.tap(find.text('건너뛰기'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('친구 만나기'));
+    await tester.tap(find.text('동행 시작'));
     await tester.pumpAndSettle();
     expect(find.text('동행 도착'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
@@ -123,9 +123,9 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(app(controller(), reduce: true, scale: 2));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('친구 만나기'));
+    await tester.ensureVisible(find.text('동행 시작'));
     expect(tester.takeException(), isNull);
-    expect(find.text('친구 만나기').hitTestable(), findsOneWidget);
+    expect(find.text('동행 시작').hitTestable(), findsOneWidget);
   });
   testWidgets('연출 도중 화면 제거 시 ticker가 남지 않는다', (tester) async {
     await tester.pumpWidget(app(controller()));

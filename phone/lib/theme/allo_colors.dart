@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
-/// 확정 색상 가이드 및 #49 fad3ad6의 역할 토큰 중 현재 화면에서 쓰는 값.
+/// 확정 색상 가이드 및 #49 v4 ef65d72의 역할 토큰 중 현재 화면에서 쓰는 값.
 /// 대응과 미반영 항목: docs/phone-presentation-integration.md.
 abstract final class AlloColors {
+  static const softBackground = Color(0xFFF4F7F3);
   static const discoveryBackground = shellYellow;
   static const textPrimary = ink;
   static const actionPrimary = actionGreen;
