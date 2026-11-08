@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../game/game_controller.dart';
-import '../widgets/species_art.dart';
-import '../widgets/window_view.dart';
+import '../widgets/character_stage.dart';
 
 class CompanionScreen extends StatelessWidget {
   const CompanionScreen({super.key, required this.controller});
@@ -28,22 +27,8 @@ class CompanionScreen extends StatelessWidget {
                 children: [
                   if (controller.error != null) Text(controller.error!),
                   const SizedBox(height: 12),
-                  WindowView(
-                    vehicle: controller.vehicle,
-                    child: AnimatedRotation(
-                      turns: controller.playCount.isOdd ? 0.04 : -0.04,
-                      duration: const Duration(milliseconds: 300),
-                      child: species == null
-                          ? const Icon(Icons.pets, size: 120)
-                          : SpeciesArt(species: species, size: 120),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Semantics(
-                    liveRegion: true,
-                    child: Text(controller.companionMessage ?? '도착할 때까지 함께 가요!',
-                        textAlign: TextAlign.center),
-                  ),
+                  CharacterStage(controller: controller),
+                  const SizedBox(height: 12),
                   Text(
                       '먹이 ${controller.feedCount}회 · 놀이 ${controller.playCount}회',
                       textAlign: TextAlign.center),
