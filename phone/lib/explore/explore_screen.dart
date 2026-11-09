@@ -17,6 +17,17 @@ typedef UnityViewBuilder = Widget Function({
   required void Function(String json) onMessage,
 });
 
+/// Unity 탐험 화면이 앞에 떠 있는지. Unity 는 별도 안드로이드 화면이라, 이때 Flutter 는
+/// 백그라운드로 보이지만 아이는 같은 앱에서 놀고 있다. 앱 활성 판단([appActiveFor])에 쓴다.
+final unityExploreOpen = ValueNotifier<bool>(false);
+
+/// 게임 진행(알 성장·주행 신호 처리)을 할지. 평소에는 Flutter 화면이 보일 때만,
+/// Unity 탐험 화면이 열려 있으면 Flutter 가 가려져 있어도 진행한다.
+/// 단 앱이 끝나는 중(detached)이면 멈춘다.
+bool appActiveFor(AppLifecycleState state, {required bool unityOpen}) =>
+    state == AppLifecycleState.resumed ||
+    (unityOpen && state != AppLifecycleState.detached);
+
 /// Unity 를 쓸지. `--dart-define=EXPLORE_UNITY=true` 로 켠다 (Unity 내보내기 결과가 있을 때만).
 const exploreUnityEnabled = bool.fromEnvironment('EXPLORE_UNITY');
 
@@ -45,6 +56,9 @@ class _ExploreScreenState extends State<ExploreScreen>
   final _jolts = JoltDetector();
   void Function(String)? _send;
   VoidCallback? _resume;
+
+  /// Unity 가 close 를 보냈다. 닫히는 동안 앱 복귀가 와도 Unity 를 다시 열지 않는다.
+  bool _closing = false;
   late final _link = ExploreLink((json) => _send?.call(json));
 
   bool get _useUnity =>
@@ -56,11 +70,13 @@ class _ExploreScreenState extends State<ExploreScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     widget.controller.addListener(_publish);
+    if (_useUnity) unityExploreOpen.value = true;
   }
 
   @override
   void dispose() {
     widget.controller.removeListener(_publish);
+    if (_useUnity) unityExploreOpen.value = false;
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -68,7 +84,7 @@ class _ExploreScreenState extends State<ExploreScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // 홈에 다녀오면 Unity 화면이 멈춘 채 남지 않게 다시 그린다
-    if (state == AppLifecycleState.resumed) _resume?.call();
+    if (state == AppLifecycleState.resumed && !_closing) _resume?.call();
   }
 
   void _publish() {
@@ -92,6 +108,19 @@ class _ExploreScreenState extends State<ExploreScreen>
       msg = jsonDecode(json);
     } on FormatException {
       return; // 깨진 메시지는 무시한다
+    }
+    if (msg is Map && msg['type'] == 'close') {
+      // 뒤로 가기는 Unity(close)와 Flutter(시스템 뒤로 가기) 양쪽에 들어올 수 있다.
+      // 탐험 화면이 아직 맨 위일 때 한 번만 닫는다. 두 번 닫으면 아래 화면까지 닫힌다.
+      final wasClosing = _closing;
+      _closing = true;
+      unityExploreOpen.value = false;
+      if (!wasClosing &&
+          mounted &&
+          (ModalRoute.of(context)?.isCurrent ?? false)) {
+        Navigator.of(context).pop();
+      }
+      return;
     }
     if (msg is Map && msg['type'] == 'ready') {
       _publish();

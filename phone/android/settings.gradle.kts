@@ -24,3 +24,16 @@ plugins {
 }
 
 include(":app")
+
+// Unity 탐험 화면 (scripts/export_unity.sh 결과). 없으면 포함하지 않고, 앱은 그대로 빌드된다.
+val unityLibraryDir = file("../unity/unityLibrary")
+if (unityLibraryDir.resolve("build.gradle").exists()) {
+    include(":unityLibrary")
+    project(":unityLibrary").projectDir = unityLibraryDir
+    // unityLibrary 는 unity.* · unityStreamingAssets 를 프로젝트 속성으로 읽는다
+    val unityProps = java.util.Properties()
+    file("../unity/unity.properties").inputStream().use { unityProps.load(it) }
+    gradle.beforeProject {
+        unityProps.forEach { (k, v) -> extensions.extraProperties.set(k as String, v) }
+    }
+}

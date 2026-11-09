@@ -47,3 +47,10 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Unity 탐험 화면이 내보내져 있을 때만 넣는다 (settings.gradle.kts)
+    if (findProject(":unityLibrary") != null) {
+        implementation(project(":unityLibrary"))
+    }
+}

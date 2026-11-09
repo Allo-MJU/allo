@@ -414,3 +414,25 @@ Pleos 문서 확인 ([Examples](https://document.pleos.ai/en/docs/pleos-only/app
 | 알 품기·동행 화면에서 "차 안 둘러보기" → 탐험 화면 | ✅ 전체 화면 차 안 뷰, 왼쪽 위 돌아가기 |
 | 홈 버튼으로 나갔다가 돌아오기 | ✅ 화면이 멈추지 않고 장면이 이어짐 (Unity 화면은 Unity 설치 후 다시 확인) |
 | 가로에서 기존 화면 버튼 접근 | ✅ 차 안 뷰를 화면 높이 절반으로 줄여 스크롤로 접근. 가로 2단 배치는 5단계에서 |
+
+## 탐험 화면 — Unity 연동 검증 (spike, 2026-11-09, A)
+
+Unity 6.0.85f2 LTS, 공식 "Unity as a Library"(별도 안드로이드 화면) 방식. `flutter_unity_widget` 은 개발 중단·Unity 6 미표기라 쓰지 않았다.
+휴대폰 에뮬레이터(Medium Phone API 37, arm64, 코어 1개), debug 빌드, `EXPLORE_UNITY=true`, `SCENARIO=scene_tour`.
+
+| 항목 | 결과 |
+| --- | --- |
+| Unity 내보내기 (`scripts/export_unity.sh`) | ✅ 35초, `phone/unity/unityLibrary` |
+| Unity 없이 빌드 | ✅ (`phone/unity` 를 치워도 `flutter build apk --debug` 성공) |
+| 앱 용량 증가 | ✅ debug APK 212MB → 229MB (+17MB, 기준 80MB 이하) |
+| 첫 진입 시간 | ✅ 0.94초 (기준 3초 이내) |
+| 메시지 왕복 | ✅ Unity `ready` → Flutter `scene`·`cast`·`settings` → Unity 수신(echo) |
+| Unity 가 열린 동안 장면 갱신 | ✅ 30초 동안 비 오는 바다→바다→산→터널→밤 도시 실시간 전달 |
+| 메모리 | 앱 전체 PSS 약 360~380MB (Flutter+Unity, 기준선 미측정) |
+| 여닫기 반복 | ⚠️ 고친 뒤 5회 연속 정상인 회차도 있었으나, 에뮬레이터 부하(loadavg 4~7, 1코어)로 Unity 표시가 수 초 늦는 경우가 있음. 실기기 재확인 필요 |
+
+찾아서 고친 버그 (모두 테스트 추가):
+1. 탐험 화면이 없을 때 온 Unity 메시지(지난 회차 close)를 엔진이 보관했다가 새 화면에 넘겨 바로 닫힘 → 처리기를 앱 수명 동안 한 번만 등록 (`unity_channel_test.dart`)
+2. Flutter 화면이 다시 보일 때(resume) Unity 를 다시 엶 → resume 으로 열지 않음
+3. 뒤로 가기 한 번에 탐험 화면과 동행 화면이 함께 닫힘 → 탐험 화면이 맨 위일 때 한 번만 닫기, Unity 는 키를 뗄 때 close
+4. Unity 가 앞에 있으면 Flutter 가 백그라운드로 판단해 알 성장·신호 처리가 멈춤 → Unity 탐험 화면이 열린 동안은 활성으로 (`appActiveFor`)
