@@ -2,4 +2,5 @@
 ///
 /// 끄면 예전 화면(제목·진행 막대·버튼)으로 돌아간다. 기존 흐름 테스트는 끈 상태로 돈다.
 /// 화면이 꽉 차도 알 탭 = 감싸기, 알 길게 누르기 = 노래, 동행 캐릭터 탭 = 놀아주기는 된다.
-bool fullscreenCabin = true;
+/// 개발 중 예전 화면이 필요하면 `--dart-define=CLASSIC_UI=true` 로 실행한다.
+bool fullscreenCabin = !const bool.fromEnvironment('CLASSIC_UI');

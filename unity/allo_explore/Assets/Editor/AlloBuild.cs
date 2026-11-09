@@ -1,6 +1,7 @@
 using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
+using Allo.Bridge;
 using UnityEngine;
 
 /// 명령줄에서 부르는 장면 생성·Android 내보내기.
@@ -17,8 +18,9 @@ public static class AlloBuild
         cube.name = "SpikeCube";
         cube.transform.position = new Vector3(0, 1, 0);
         cube.AddComponent<Spin>();
+        cube.AddComponent<SpikeSceneTint>();
         var bridge = new GameObject("FlutterBridge");
-        bridge.AddComponent<SpikeBridge>();
+        bridge.AddComponent<FlutterBridge>();
         EditorSceneManager.SaveScene(scene, ScenePath);
         EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
         AssetDatabase.SaveAssets();

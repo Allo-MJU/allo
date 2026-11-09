@@ -1,5 +1,8 @@
 using UnityEngine;
 
+namespace Allo.Bridge
+{
+
 /// Unity → Android 호스트(Kotlin `ai.allo.allo_phone.ExploreBridge`) 로 메시지를 보낸다.
 /// 에디터에서는 로그만 남긴다.
 public static class AndroidHost
@@ -15,4 +18,5 @@ public static class AndroidHost
         Debug.Log($"[AndroidHost] {json}");
 #endif
     }
+}
 }
