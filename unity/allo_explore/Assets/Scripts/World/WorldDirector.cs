@@ -19,6 +19,7 @@ namespace Allo.World
         public Material glass;
         public Material rain;
         public Material windows;
+        public Material ground;
         public Material sky;
         public Light sun;
 
@@ -48,6 +49,7 @@ namespace Allo.World
         {
             if (_kit != null) return;
             _kit = new Kit(solid, glow, props);
+            _kit.SetGround(ground);
             _track = new ChunkTrack();
             var fwd = forward;
             fwd.y = 0;
@@ -246,7 +248,7 @@ namespace Allo.World
             }
             else
             {
-                horizon = C("#DDEBEF"); ambientSky = C("#A6C8E6"); ambientGround = C("#7C7464"); sunI = 1.15f;
+                horizon = C("#DDEBEF"); ambientSky = C("#8FB4D6"); ambientGround = C("#6E6658"); sunI = 1.0f;
             }
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
@@ -260,11 +262,18 @@ namespace Allo.World
             if (sky != null)
             {
                 RenderSettings.skybox = sky;
-                sky.SetColor("_SkyTint", tunnel ? C("#1A1612") : s.night ? C("#1B2650") : rainy ? C("#8A949E") : C("#7FB2E5"));
-                sky.SetColor("_GroundColor", horizon);
-                sky.SetFloat("_Exposure", tunnel ? 0.05f : s.night ? 0.25f : rainy ? 0.9f : 1.25f);
-                sky.SetFloat("_SunSize", s.night ? 0.02f : 0.04f);
-                sky.SetFloat("_AtmosphereThickness", rainy ? 1.4f : 0.75f);
+                var (top, hor) = tunnel ? (C("#1A1612"), C("#2B2420"))
+                    : s.night ? (C("#0B1438"), C("#2E3F78"))
+                    : rainy ? (C("#7C8996"), C("#B9C2C9"))
+                    : (C("#2F86E8"), C("#BFE4FF"));
+                sky.SetColor("_Top", top);
+                sky.SetColor("_Horizon", hor);
+                sky.SetColor("_Bottom", Color.Lerp(hor, ambientGround, 0.5f));
+                sky.SetColor("_SunColor", s.night ? C("#E8EEFF") * 0.8f : rainy ? Color.black : C("#FFF4D6"));
+                sky.SetFloat("_SunSize", s.night ? 0.006f : 0.012f);
+                if (sun != null) sky.SetVector("_SunDir", -sun.transform.forward);
+                horizon = hor;
+                RenderSettings.fogColor = hor;
             }
             if (sun != null)
             {
@@ -354,7 +363,7 @@ namespace Allo.World
             _headlights.type = LightType.Spot;
             _headlights.spotAngle = 60;
             _headlights.range = 60;
-            _headlights.intensity = 3;
+            _headlights.intensity = 1.6f;
             _headlights.color = C("#FFF2D0");
             _headlights.enabled = false;
         }

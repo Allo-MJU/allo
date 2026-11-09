@@ -11,6 +11,24 @@ namespace Allo.World
         readonly Dictionary<Color, Material> _glows = new();
 
         readonly Dictionary<string, GameObject> _props = new();
+        Material _ground;
+        readonly Dictionary<Color, Material> _grounds = new();
+
+        /// 땅 재질: 풀·모래 무늬를 월드 좌표로 깐다 (넓은 판에 늘어나지 않게)
+        public void SetGround(Material ground) => _ground = ground;
+
+        public GameObject GroundBox(Transform p, Vector3 bottomCenter, Vector3 size, Color c)
+        {
+            var go = Box(p, bottomCenter, size, c);
+            if (_ground == null) return go;
+            if (!_grounds.TryGetValue(c, out var m))
+            {
+                m = new Material(_ground) { color = c };
+                _grounds[c] = m;
+            }
+            go.GetComponent<Renderer>().sharedMaterial = m;
+            return go;
+        }
 
         public Kit(Material solid, Material glow, IEnumerable<GameObject> props = null)
         {

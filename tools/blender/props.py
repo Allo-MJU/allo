@@ -19,7 +19,7 @@ import bpy  # noqa: E402
 import kit  # noqa: E402
 
 PROPS = ["Tree_Round", "Tree_Pine", "Bush", "House_A", "House_B", "Car_Sedan", "Car_SUV", "Bus",
-         "StreetLamp", "Cloud", "Rock", "Sailboat", "Lighthouse", "Bench"]
+         "StreetLamp", "Cloud", "Rock", "Sailboat", "Lighthouse", "Bench", "GrassTuft", "Flowers"]
 
 
 def mat(name, hex_color, rough=0.6, emit=0.0):
@@ -110,8 +110,10 @@ def join(name, parts, at=(0, 0, 0)):
 def build():
     kit.clear_scene()
     M = {
-        "trunk": mat("Trunk", "#5B4434"), "leaf": mat("Leaf", "#3E6B3A"), "leaf_lit": mat("LeafLit", "#6E9E4C"),
-        "pine": mat("Pine", "#2F5233"), "pine_lit": mat("PineLit", "#477A44"),
+        "trunk": mat("Trunk", "#5B4434"), "leaf": mat("Leaf", "#3C9A3E"), "leaf_lit": mat("LeafLit", "#7CCB4E"),
+        "pine": mat("Pine", "#2E7A45"), "pine_lit": mat("PineLit", "#4FA35A"),
+        "grass": mat("Grass", "#58B847"), "grass_lit": mat("GrassLit", "#8EDB5C"),
+        "petal_y": mat("PetalY", "#FFD84D"), "petal_w": mat("PetalW", "#FFFFFF"), "petal_p": mat("PetalP", "#FF8FB8"),
         "wall": mat("Wall", "#F1E6CF"), "wall2": mat("Wall2", "#E7B98F"), "roof": mat("Roof", "#B8634A"),
         "roof2": mat("Roof2", "#4A7FB0"), "door": mat("Door", "#6B4A35"), "glass": mat("Glass", "#5E7E9C", rough=0.15),
         "car_red": mat("CarRed", "#D4583F", rough=0.3), "car_blue": mat("CarBlue", "#5E8FC0", rough=0.3),
@@ -232,6 +234,27 @@ def build():
     for sx in (-0.7, 0.7):
         parts.append(box("l", (0.06, 0.45, 0.45), (sx, 0, 0.22), M["steel"], bevel=0.01))
     place(join("Bench", parts), 1.6)
+
+    # 풀 덤불: 가는 잎 여러 장이 사방으로 비스듬히 선다
+    rnd = random.Random(11)
+    parts = []
+    for k in range(14):
+        a = k / 14 * math.tau + rnd.uniform(-0.3, 0.3)
+        h = rnd.uniform(0.3, 0.65)
+        b = cone("g", 0.025, 0.0, h, (math.cos(a) * 0.06, math.sin(a) * 0.06, h / 2), M["grass" if k % 3 else "grass_lit"], verts=3)
+        tilt = rnd.uniform(0.25, 0.6)
+        b.rotation_euler = (math.sin(a) * tilt, -math.cos(a) * tilt, rnd.uniform(0, 3))
+        parts.append(b)
+    place(join("GrassTuft", parts), 0.6)
+
+    # 들꽃 무리: 줄기 + 꽃송이
+    parts = []
+    for k in range(5):
+        x, y = rnd.uniform(-0.3, 0.3), rnd.uniform(-0.3, 0.3)
+        h = rnd.uniform(0.25, 0.45)
+        parts.append(cone("s", 0.012, 0.012, h, (x, y, h / 2), M["grass"], verts=4))
+        parts.append(ico("f", 0.06, (x, y, h), M[["petal_y", "petal_w", "petal_p"][k % 3]], subdiv=1, squash=(1, 1, 0.5)))
+    place(join("Flowers", parts), 0.8)
 
 
 def main():

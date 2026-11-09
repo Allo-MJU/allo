@@ -8,8 +8,8 @@ namespace Allo.World
     public static class ChunkBuilder
     {
         public static readonly Color Asphalt = C("#55585C");
-        static readonly Color Grass = C("#7DB04E"), GrassDark = C("#5A8C3C"), Sand = C("#EBD7A8"),
-            Sea = C("#3B88B3"), Steel = C("#B9BEC0"), SteelDark = C("#7F888C"), White = C("#EDEDE6"),
+        static readonly Color Grass = C("#6CB847"), GrassDark = C("#549E3A"), Sand = C("#F4E2B0"),
+            Sea = C("#2F9BD6"), Steel = C("#B9BEC0"), SteelDark = C("#7F888C"), White = C("#EDEDE6"),
             Yellow = C("#F2C14E"), Wood = C("#6A5A4C"), Walk = C("#C9C4B8"), Concrete = C("#A8A49A");
 
         static readonly string[] Walls = { "#F1E6CF", "#E7B98F", "#B9CDB0", "#DCCB8E", "#AFC2D2", "#D9A9A0", "#C9C9D6" };
@@ -29,11 +29,27 @@ namespace Allo.World
             if (c.exit) Portal(k, root, 0.5f, false);
         }
 
+        /// 길가 풀 덤불과 들꽃: 길 양옆 띠에 빽빽하게, 멀어질수록 드물게
+        static void Verge(Kit k, Transform p, float L, System.Random r, float left, float right, float density = 1)
+        {
+            if (!k.Has("GrassTuft")) return;
+            var n = (int)(26 * density);
+            for (var i = 0; i < n; i++)
+            {
+                var side = i % 2 == 0 ? -1 : 1;
+                var d = Mathf.Pow((float)r.NextDouble(), 2) * 14;
+                var x = side < 0 ? left - 0.6f - d : right + 0.6f + d;
+                var at = new Vector3(x, 0, Rand(r, 0, L));
+                if (r.NextDouble() < 0.18) k.Prop("Flowers", p, at, Rand(r, 0, 360), Rand(r, 0.9f, 1.4f));
+                else k.Prop("GrassTuft", p, at, Rand(r, 0, 360), Rand(r, 0.8f, 1.6f));
+            }
+        }
+
         static void Road(Kit k, Transform p, float L, bool highway)
         {
             var left = highway ? -9.4f : -5.4f;
             var right = highway ? 4.2f : 2.6f;
-            k.Box(p, new Vector3((left + right) / 2, -0.1f, L / 2), new Vector3(right - left, 0.1f, L), Asphalt);
+            k.GroundBox(p, new Vector3((left + right) / 2, -0.1f, L / 2), new Vector3(right - left, 0.1f, L), Asphalt);
             k.Box(p, new Vector3(right - 0.45f, 0.0f, L / 2), new Vector3(0.14f, 0.01f, L), White);
             if (highway)
             {
@@ -50,7 +66,7 @@ namespace Allo.World
         }
 
         static void Ground(Kit k, Transform p, float L, float fromX, float toX, Color c, float y = -0.12f) =>
-            k.Box(p, new Vector3((fromX + toX) / 2, y, L / 2), new Vector3(Mathf.Abs(toX - fromX), 0.1f, L), c);
+            k.GroundBox(p, new Vector3((fromX + toX) / 2, y, L / 2), new Vector3(Mathf.Abs(toX - fromX), 0.1f, L), c);
 
         static void Rail(Kit k, Transform p, float L, float x)
         {
@@ -62,6 +78,7 @@ namespace Allo.World
         {
             Ground(k, p, L, -300, -5.4f, Grass);
             Ground(k, p, L, 2.6f, 300, Grass);
+            Verge(k, p, L, r, -5.4f, 2.6f, 1.4f);
             // 밭 고랑: 색이 다른 긴 띠
             for (var x = 12f; x < 80; x += 7) Ground(k, p, L, x, x + 3, GrassDark, -0.07f);
             for (var i = 0; i < 4; i++)
@@ -106,6 +123,7 @@ namespace Allo.World
         {
             Ground(k, p, L, -300, -5.4f, Grass);
             Ground(k, p, L, 2.6f, 14, Sand, -0.15f);
+            Verge(k, p, L, r, -5.4f, 900, 0.8f);
             Ground(k, p, L, 14, 600, Sea, -0.4f);
             Rail(k, p, L, 2.4f);
             // 방파제 테트라포드
@@ -130,6 +148,7 @@ namespace Allo.World
             Ground(k, p, L, -300, -5.4f, GrassDark);
             Ground(k, p, L, 2.6f, 300, GrassDark);
             Rail(k, p, L, 2.4f);
+            Verge(k, p, L, r, -5.4f, 4.5f, 1.2f);
             for (var i = 0; i < 18; i++)
             {
                 var side = i % 2 == 0 ? -1 : 1;
@@ -231,6 +250,7 @@ namespace Allo.World
                 k.GlowBall(p, new Vector3(-7.4f, 9.1f, z), 0.45f, C("#FFD98A"));
             }
             for (var i = 0; i < 3; i++) k.Tree(p, new Vector3(Rand(r, 10, 50), 0, Rand(r, 0, L)), Rand(r, 4, 8), r);
+            Verge(k, p, L, r, -10f, 5.2f, 0.8f);
         }
 
         static void Tunnel(Kit k, Transform p, ChunkInfo c, float L)

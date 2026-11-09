@@ -41,10 +41,14 @@ public static class AlloBuild
                 if (src == null) continue;
                 if (!converted.TryGetValue(src, out var dst))
                 {
-                    dst = new Material(Shader.Find("Standard")) { name = "Cabin_" + src.name };
+                    dst = new Material(Shader.Find("Allo/Toon")) { name = "Cabin_" + src.name };
+                    dst.SetFloat("_OutlineWidth", 0.004f);
+                    // 차 안은 바깥보다 어둡다 (창밖이 밝게 보이게). 그림자는 따뜻한 갈색 쪽
+                    dst.SetColor("_ShadowTint", new Color(0.52f, 0.47f, 0.5f));
+                    dst.SetFloat("_RimStrength", 0.06f);
                     var c = src.color;
                     // Linear 프로젝트에서 Material.color 는 이미 sRGB 값을 준다. 그대로 옮긴다
-                    dst.color = new Color(c.r, c.g, c.b, 1);
+                    dst.color = new Color(c.r * 0.78f, c.g * 0.76f, c.b * 0.74f, 1);
                     // 질감: 좌석은 천, 문·대시보드는 가죽·플라스틱 결, 천장은 부드러운 펠트
                     var hex = src.name.Replace("M_", "").Split('_')[0];
                     var (tex, tile, gloss) = hex switch
@@ -128,8 +132,7 @@ public static class AlloBuild
         RenderSettings.ambientGroundColor = new Color(0.3f, 0.27f, 0.24f);
 
         // 창밖 3D: 재질은 에셋으로 만들어 앱 빌드에 셰이더 변형이 빠지지 않게 한다
-        var solid = new Material(Shader.Find("Standard")) { enableInstancing = true };
-        solid.SetFloat("_Glossiness", 0.15f);
+        var solid = new Material(Shader.Find("Allo/Toon")) { enableInstancing = true };
         AssetDatabase.CreateAsset(solid, "Assets/Models/WorldSolid.mat");
         var glow = new Material(Shader.Find("Standard"));
         glow.EnableKeyword("_EMISSION");
@@ -157,7 +160,13 @@ public static class AlloBuild
         rainMat.EnableKeyword("_ALPHABLEND_ON");
         rainMat.renderQueue = 3000;
         AssetDatabase.CreateAsset(rainMat, "Assets/Models/Rain.mat");
-        var skyMat = new Material(Shader.Find("Skybox/Procedural"));
+        var skyMat = new Material(Shader.Find("Allo/SkyGradient"));
+        var groundTex = GroundTexture();
+        AssetDatabase.CreateAsset(groundTex, "Assets/Models/GroundTex.asset");
+        var groundMat = new Material(Shader.Find("Allo/Toon")) { mainTexture = groundTex };
+        groundMat.SetFloat("_WorldUV", 0.18f);
+        groundMat.SetFloat("_RimStrength", 0);
+        AssetDatabase.CreateAsset(groundMat, "Assets/Models/WorldGround.mat");
         AssetDatabase.CreateAsset(skyMat, "Assets/Models/Sky.mat");
         RenderSettings.skybox = skyMat;
         cam.clearFlags = CameraClearFlags.Skybox;
@@ -176,6 +185,7 @@ public static class AlloBuild
         world.glass = wallGlass;
         world.rain = rainMat;
         world.sky = skyMat;
+        world.ground = groundMat;
         world.sun = sun;
         (world.props, world.propGlows) = BuildProps(glow);
 
@@ -327,7 +337,8 @@ public static class AlloBuild
                     if (!converted.TryGetValue(m.name, out var dst))
                     {
                         var isGlow = m.name.StartsWith("Glow_");
-                        dst = isGlow ? new Material(glowBase) : new Material(Shader.Find("Standard"));
+                        dst = isGlow ? new Material(glowBase) : new Material(Shader.Find("Allo/Toon"));
+                        if (!isGlow) dst.SetFloat("_OutlineWidth", m.name.StartsWith("Cloud") ? 0 : m.name.StartsWith("Grass") || m.name.StartsWith("Petal") ? 0 : 0.025f);
                         dst.name = "Prop_" + m.name;
                         dst.color = new Color(m.color.r, m.color.g, m.color.b, 1);
                         dst.enableInstancing = true;
@@ -337,7 +348,7 @@ public static class AlloBuild
                             dst.SetColor("_EmissionColor", dst.color);
                             glows.Add(dst);
                         }
-                        else dst.SetFloat("_Glossiness", m.name.StartsWith("Car") || m.name == "Glass" ? 0.55f : 0.12f);
+                        else if (m.name.StartsWith("Cloud")) { dst.SetColor("_ShadowTint", new Color(0.8f, 0.84f, 0.95f)); dst.SetFloat("_RimStrength", 0.6f); }
                         AssetDatabase.CreateAsset(dst, $"Assets/Models/Props/Prop_{m.name}.mat");
                         converted[m.name] = dst;
                     }
@@ -349,6 +360,34 @@ public static class AlloBuild
             Object.DestroyImmediate(go);
         }
         return (prefabs.ToArray(), glows.ToArray());
+    }
+
+    /// 땅 무늬: 풀잎 같은 짧은 획과 얼룩. 흰색 기준이라 재질 색(풀·모래·아스팔트)이 곱해진다
+    static Texture2D GroundTexture()
+    {
+        const int n = 256;
+        var t = new Texture2D(n, n, TextureFormat.RGB24, true) { wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Trilinear, anisoLevel = 8 };
+        var px = new Color[n * n];
+        for (var y = 0; y < n; y++)
+        for (var x = 0; x < n; x++)
+        {
+            var v = 0.92f + (Mathf.PerlinNoise(x * 0.02f, y * 0.02f) - 0.5f) * 0.16f + (Mathf.PerlinNoise(x * 0.11f + 7, y * 0.11f) - 0.5f) * 0.08f;
+            px[y * n + x] = new Color(v, v, v);
+        }
+        var rng = new System.Random(9);
+        for (var k = 0; k < 2600; k++)
+        {
+            int x0 = rng.Next(n), y0 = rng.Next(n), len = 3 + rng.Next(5);
+            var bright = rng.NextDouble() < 0.5 ? 1.12f : 0.8f;
+            for (var j = 0; j < len; j++)
+            {
+                var i = ((y0 + j) % n) * n + (x0 + j / 3) % n;
+                px[i] = px[i] * bright;
+            }
+        }
+        t.SetPixels(px);
+        t.Apply();
+        return t;
     }
 
     static Texture2D _fabric;
