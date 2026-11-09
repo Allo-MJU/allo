@@ -8,6 +8,7 @@
 
 | 문서 | 내용 | 주로 보는 사람 |
 | --- | --- | --- |
+| [feature-rework-spec.md](./feature-rework-spec.md) | 팀 검토 전 기능 개편 상세 초안. 캐릭터 이동·호감도 부화·거점·여행 부탁, 모델링 제외 | 전원 · C 중심 |
 | [color-and-app-references.md](./color-and-app-references.md) | 알로 색상값과 참고 앱 | 전원 |
 | [proposal.md](./proposal.md) | 기획서. 문제 정의, 서비스 상세, 차량특화성, 기술 활용성, 사업성, 경쟁 분석 | 전원 |
 | [dev-plan.md](./dev-plan.md) | 개발 계획. 일정, 역할, 마일스톤 게이트, 리스크 | 전원 |
