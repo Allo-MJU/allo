@@ -73,12 +73,9 @@ class _CabinPainter extends CustomPainter {
             Radius.circular(h * 0.02)),
         _fill(const Color(0xFFF3EDE2)));
     if (scene.night) {
-      canvas.drawCircle(
-          Offset(w * 0.5, h * 0.06),
-          h * 0.05,
-          Paint()
-            ..color = const Color(0x22FFF1C8)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
+      _glowCircle(
+          canvas, Offset(w * 0.5, h * 0.06), h * 0.025, const Color(0x55FFF1C8),
+          spread: 2.5);
     }
     for (final side in [-1.0, 1.0]) {
       final cx = side < 0 ? w * 0.12 : w * 0.88;
@@ -201,9 +198,7 @@ class _CabinPainter extends CustomPainter {
               center: Offset(w * 0.37, h * 0.62),
               width: w * 0.12,
               height: h * 0.03),
-          Paint()
-            ..color = const Color(0x6658D8A0)
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
+          Paint()..color = const Color(0x4458D8A0));
     }
     // 운전대: 왼쪽 좌석 너머로 윗부분만 보인다
     canvas.drawArc(

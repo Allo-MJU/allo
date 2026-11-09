@@ -366,6 +366,29 @@ void _repeat(double width, double period, double offset,
   }
 }
 
+/// 빛 번짐. 흐림 효과(MaskFilter.blur)는 밤 장면에서 수십 번 그리면 끊겨서, 투명도를 낮춘
+/// 원을 바깥으로 세 겹 겹친다. 가운데는 [r], 가장 바깥은 r × [spread].
+void _glowCircle(Canvas canvas, Offset at, double r, Color color,
+    {double spread = 2.4}) {
+  final p = Paint();
+  for (final (k, a) in const [(1.0, 0.16), (0.6, 0.26), (0.25, 0.42)]) {
+    p.color = color.withValues(alpha: color.a * a);
+    canvas.drawCircle(at, r * (1 + (spread - 1) * k), p);
+  }
+}
+
+/// 사각형 빛 번짐 (창문·조명). [spread] 만큼 바깥으로 세 겹.
+void _glowRect(Canvas canvas, Rect rect, Color color, double spread) {
+  final p = Paint();
+  for (final (k, a) in const [(1.0, 0.14), (0.55, 0.24), (0.2, 0.4)]) {
+    p.color = color.withValues(alpha: color.a * a);
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(
+            rect.inflate(spread * k), Radius.circular(spread * k)),
+        p);
+  }
+}
+
 /// 0~1 사이의 부드러운 1차원 노이즈. 능선·숲 윤곽처럼 들쭉날쭉하지만 연속인 선을 만든다.
 double _noise(double x, int seed) {
   final i = x.floor();

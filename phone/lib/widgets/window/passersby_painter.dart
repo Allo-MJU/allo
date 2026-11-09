@@ -168,15 +168,11 @@ class _PasserbyPainter extends CustomPainter {
       final blink = (math.sin(age * 3 + k * 1.7) * 0.5 + 0.5);
       final fade = math.min(1.0, math.min(age, p.life - age) / 0.8);
       final a = blink * fade;
-      canvas
-        ..drawCircle(
-            Offset(x, y),
-            h * 0.03,
-            Paint()
-              ..color = const Color(0xFFDFFF8A).withValues(alpha: 0.35 * a)
-              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4))
-        ..drawCircle(Offset(x, y), h * 0.008,
-            Paint()..color = const Color(0xFFF4FFC4).withValues(alpha: a));
+      _glowCircle(canvas, Offset(x, y), h * 0.012,
+          const Color(0xFFDFFF8A).withValues(alpha: a),
+          spread: 3);
+      canvas.drawCircle(Offset(x, y), h * 0.008,
+          Paint()..color = const Color(0xFFF4FFC4).withValues(alpha: a));
     }
   }
 

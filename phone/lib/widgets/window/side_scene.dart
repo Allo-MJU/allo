@@ -189,9 +189,8 @@ class _ScenePainter extends CustomPainter {
     final litPaint = Paint()..color = lit;
     // 지평선 근처의 옅은 띠구름: 멀리 있어서 느리게 흐르고 하늘색에 묻힌다
     final wisp = Paint()
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5)
       ..color =
-          Color.lerp(lit, _haze, 0.3)!.withValues(alpha: rainy ? 0.35 : 0.7);
+          Color.lerp(lit, _haze, 0.3)!.withValues(alpha: rainy ? 0.3 : 0.55);
     _repeat(w, 190, m * _cloudPx * 0.5 + motion.seconds * 1.5, (x, i) {
       if (_rand(i, 41) < 0.3) return;
       final ww = 60 + _rand(i, 42) * 110;
@@ -593,9 +592,7 @@ class _ScenePainter extends CustomPainter {
   void _cityLights(Canvas canvas, Size size, double m) {
     final h = size.height;
     final lamp = Paint()..color = _Palette.lamp;
-    final glow = Paint()
-      ..color = _Palette.lamp.withValues(alpha: 0.35)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+    final glow = _Palette.lamp.withValues(alpha: 0.5);
     _repeat(size.width, _housePeriod, m * _midPx, (x, i) {
       final (r, _, _) = _house(i, x, h);
       final side = r.width * 0.22;
@@ -604,9 +601,8 @@ class _ScenePainter extends CustomPainter {
         for (var wx = r.left + 8; wx < r.right - side - 12; wx += 16) {
           if (_rand(i * 31 + k++, 90) < 0.55) {
             final win = Rect.fromLTWH(wx, wy, 8, 10);
-            canvas
-              ..drawRect(win.inflate(3), glow)
-              ..drawRect(win, lamp);
+            _glowRect(canvas, win, glow, 5);
+            canvas.drawRect(win, lamp);
           }
         }
       }
@@ -791,14 +787,11 @@ class _ScenePainter extends CustomPainter {
           _Palette.sodium.withValues(alpha: 0),
         ]));
     final lamp = Paint()..color = const Color(0xFFFFE2A8);
-    final glow = Paint()
-      ..color = _Palette.sodium.withValues(alpha: 0.55)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
+    final glow = _Palette.sodium.withValues(alpha: 0.75);
     _repeat(w, 120, m * _midPx * 2, (x, _) {
       final r = Rect.fromLTWH(x, h * 0.13, 56, 9);
-      canvas
-        ..drawRect(r.inflate(10), glow)
-        ..drawRect(r, lamp);
+      _glowRect(canvas, r, glow, 14);
+      canvas.drawRect(r, lamp);
     });
     canvas.drawRect(Rect.fromLTRB(0, h * 0.88, w, h),
         Paint()..color = const Color(0xFF26231F));

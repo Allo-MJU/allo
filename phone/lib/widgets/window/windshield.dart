@@ -366,19 +366,20 @@ class _WindshieldPainter extends CustomPainter {
                 side < 0 ? face : shade);
             if (row > 0) return;
             final rs = side < 0 ? x2 : x1;
-            // 창문 격자 (길 쪽 면)
-            final win = Paint()..color = _air(_Palette.glassDay, d);
+            // 창문 격자 (길 쪽 면): 건물 하나의 창문을 한 Path 로 묶어 한 번에 그린다
+            final windows = Path();
             for (var fy = 4.2; fy < hgt - 1; fy += 3) {
               for (var fd = 0.8; fd < len - 1; fd += 2.2) {
-                canvas.drawPath(
-                    _quad(
-                        _p(rs, fy, d + fd),
-                        _p(rs, fy + 1.3, d + fd),
-                        _p(rs, fy + 1.3, d + fd + 1.1),
-                        _p(rs, fy, d + fd + 1.1)),
-                    win);
+                windows.addPolygon([
+                  _p(rs, fy, d + fd),
+                  _p(rs, fy + 1.3, d + fd),
+                  _p(rs, fy + 1.3, d + fd + 1.1),
+                  _p(rs, fy, d + fd + 1.1),
+                ], true);
               }
             }
+            canvas.drawPath(
+                windows, Paint()..color = _air(_Palette.glassDay, d));
             // 1층 가게: 간판과 차양
             final sign = const [
               Color(0xFFE2614B),
@@ -753,13 +754,12 @@ class _WindshieldPainter extends CustomPainter {
       if (!p.visible(motion.seconds)) continue;
       final d = 2 + (1 - p.progress(motion.seconds)) * 150;
       final x = scene.highway ? -12.5 : -3.6;
-      final glow = Paint()
-        ..color = const Color(0xCCFFF2C8)
-        ..maskFilter =
-            MaskFilter.blur(BlurStyle.normal, math.max(1.5, 0.5 * _f / d));
       for (final dx in [-0.65, 0.65]) {
+        final at = _p(x + dx, 0.65, d);
+        final r = math.max(1.2, 0.25 * _f / d);
+        _glowCircle(canvas, at, r, const Color(0xFFFFF2C8), spread: 3);
         canvas.drawCircle(
-            _p(x + dx, 0.65, d), math.max(1.2, 0.35 * _f / d), glow);
+            at, r * 0.6, Paint()..color = const Color(0xFFFFFCF0));
       }
     }
   }
@@ -778,19 +778,19 @@ class _WindshieldPainter extends CustomPainter {
               Rect.fromLTRB(0, _p(0, 0, 38).dy, size.width, size.height))
           ..blendMode = BlendMode.plus);
     if (scene.kind == SceneKind.city || scene.highway) {
-      final lamp = Paint()
-        ..color = _Palette.lamp.withValues(alpha: 0.8)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3);
       final xs = scene.highway ? const [-8.0] : const [-5.2, 2.2];
       _along(scene.highway ? 40 : 28, 2, 200, (d, _) {
         for (final x in xs) {
-          canvas.drawCircle(_p(x, 7.1, d), math.max(1, 0.45 * _f / d), lamp);
+          _glowCircle(
+              canvas, _p(x, 7.1, d), math.max(1, 0.3 * _f / d), _Palette.lamp,
+              spread: 3);
         }
       });
     }
     if (scene.kind == SceneKind.city) {
-      // 건물 창에 켜진 불
-      final lit = Paint()..color = _Palette.lamp.withValues(alpha: 0.85);
+      // 건물 창에 켜진 불: 불 켜진 창을 한 Path 로 모아 번짐 한 번, 창 한 번에 그린다
+      final lit = Path();
+      final halo = Path();
       for (final side in [-1, 1]) {
         final x = side < 0 ? -9.0 : 6.0;
         _along(12, 1.0, 180, (d, i) {
@@ -800,15 +800,28 @@ class _WindshieldPainter extends CustomPainter {
           for (var fy = 2.5; fy < hgt - 1; fy += 3) {
             for (var fd = 1.5; fd < 10; fd += 3) {
               if (_rand(idx * 41 + k++, 83) < 0.45) {
-                canvas.drawPath(
-                    _quad(_p(x, fy, d + fd), _p(x, fy + 1.2, d + fd),
-                        _p(x, fy + 1.2, d + fd + 1.2), _p(x, fy, d + fd + 1.2)),
-                    lit);
+                lit.addPolygon([
+                  _p(x, fy, d + fd),
+                  _p(x, fy + 1.2, d + fd),
+                  _p(x, fy + 1.2, d + fd + 1.2),
+                  _p(x, fy, d + fd + 1.2),
+                ], true);
+                if (d < 60) {
+                  halo.addPolygon([
+                    _p(x, fy - 0.5, d + fd - 0.5),
+                    _p(x, fy + 1.7, d + fd - 0.5),
+                    _p(x, fy + 1.7, d + fd + 1.7),
+                    _p(x, fy - 0.5, d + fd + 1.7),
+                  ], true);
+                }
               }
             }
           }
         });
       }
+      canvas
+        ..drawPath(halo, Paint()..color = _Palette.lamp.withValues(alpha: 0.18))
+        ..drawPath(lit, Paint()..color = _Palette.lamp.withValues(alpha: 0.9));
     }
     _oncomingLights(canvas);
   }
@@ -833,11 +846,7 @@ class _WindshieldPainter extends CustomPainter {
     }
 
     // 출구 빛
-    canvas.drawPath(
-        arch(230),
-        Paint()
-          ..color = const Color(0xFFFFF4DA)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2));
+    canvas.drawPath(arch(230), Paint()..color = const Color(0xFFFFF4DA));
     // 벽 단면 고리: 멀수록 어둡고 주황빛이 옅다
     final ring = Paint()
       ..style = PaintingStyle.stroke
@@ -857,14 +866,16 @@ class _WindshieldPainter extends CustomPainter {
     });
     final lamp = Paint()..color = const Color(0xFFFFE2A8);
     final glow = Paint()
-      ..color = _Palette.sodium.withValues(alpha: 0.6)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+      ..strokeCap = StrokeCap.round
+      ..color = _Palette.sodium.withValues(alpha: 0.22);
     _along(8, 1.5, 200, (d, _) {
       for (final x in const [-4.2, 1.2]) {
         final a = _p(x, 5.4, d), b = _p(x, 5.4, d + 2.5);
+        final k = _f / d;
         canvas
-          ..drawLine(a, b, glow..strokeWidth = math.max(2, 1.2 * _f / d))
-          ..drawLine(a, b, lamp..strokeWidth = math.max(1, 0.4 * _f / d));
+          ..drawLine(a, b, glow..strokeWidth = math.max(3, 2.2 * k))
+          ..drawLine(a, b, glow..strokeWidth = math.max(2, 1.2 * k))
+          ..drawLine(a, b, lamp..strokeWidth = math.max(1, 0.4 * k));
       }
     });
     _oncomingLights(canvas);
