@@ -35,7 +35,7 @@ REQUIRED = [
 ]
 WALKS = [
     "Walk_RearSeat_L", "Walk_RearSeat_R", "Walk_Armrest", "Walk_RearShelf", "Walk_Dashboard",
-    "Walk_Headrest_FL", "Walk_Headrest_FR", "Walk_SeatBack_FL", "Walk_SeatBack_FR",
+    "Walk_Headrest_FL", "Walk_Headrest_FR",
     "Walk_DoorSill_L", "Walk_DoorSill_R",
 ]
 
@@ -267,7 +267,6 @@ def walk_surfaces():
     w("Walk_Dashboard", (W - 0.3, 0.3), (0, -1.74, 0.982), c)
     for side, sx in (("FL", 1), ("FR", -1)):
         w(f"Walk_Headrest_{side}", (0.22, 0.08), (sx * 0.36, -0.67, 1.206), c)
-        w(f"Walk_SeatBack_{side}", (0.42, 0.1), (sx * 0.36, -0.81, 1.02), c)
     w("Walk_DoorSill_L", (0.06, BACK - FRONT - 0.5), (HALF - 0.04, -0.6, BELT + 0.005), c)
     w("Walk_DoorSill_R", (0.06, BACK - FRONT - 0.5), (-HALF + 0.04, -0.6, BELT + 0.005), c)
 

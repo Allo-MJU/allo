@@ -1,4 +1,5 @@
 import 'package:allo_phone/app.dart';
+import 'package:allo_phone/explore/explore_screen.dart';
 import 'package:allo_phone/feed/fake_feed.dart';
 import 'package:allo_phone/screens/incubating_screen.dart';
 import 'package:allo_phone/ui_mode.dart';
@@ -30,7 +31,10 @@ Future<void> startTrip(WidgetTester tester) async {
 }
 
 void main() {
-  setUp(() => fullscreenCabin = true);
+  setUp(() {
+    fullscreenCabin = true;
+    autoEnterExplore = false;
+  });
   tearDown(() => fullscreenCabin = false);
 
   testWidgets('알 품기 화면은 차 안 화면만 꽉 채운다 (제목·버튼 없음)', (tester) async {
@@ -57,5 +61,20 @@ void main() {
     expect(find.bySemanticsLabel(RegExp('돌봄 1회')), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     semantics.dispose();
+  });
+
+  testWidgets('부화 후 같이 가자를 누르면 바로 차 안 탐험 화면으로 간다', (tester) async {
+    autoEnterExplore = true;
+    addTearDown(() => autoEnterExplore = false);
+    await startTrip(tester);
+    // 체험 주행은 100배속이라 기다리면 부화한다
+    for (var i = 0; i < 40 && find.text('같이 가자').evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(seconds: 1));
+    }
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('같이 가자'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ExploreScreen), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
   });
 }

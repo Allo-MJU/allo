@@ -97,6 +97,13 @@ namespace Allo.Critters
             _last = p;
             transform.position = p;
             _body.position = p + Vector3.up * (lift + Height * sy / 2);
+            // 납작한 그림이 뒤쪽 의자·머리받침에 파묻히지 않게 카메라 쪽으로 몸 반 너비만큼 당긴다
+            if (cam != null)
+            {
+                var toCam = cam.transform.position - _body.position;
+                toCam.y = 0;
+                if (toCam.sqrMagnitude > 1e-6f) _body.position += toCam.normalized * Height * 0.5f;
+            }
             if (cam != null)
             {
                 var fwd = _body.position - cam.transform.position;

@@ -59,9 +59,13 @@ namespace Allo.Critters
             return -1;
         }
 
+        /// 캐릭터 몸보다 좁은 면(머리받침 등)에서는 가운데에만 앉는다 (가장자리에 서면 떨어져 보인다)
+        public const float NarrowSurface = 0.2f;
+
         public Vector3 RandomPoint(int i, System.Random rng)
         {
             var s = Surfaces[i];
+            if (Mathf.Min(s.size.x, s.size.y) < NarrowSurface) return s.center;
             var hx = Mathf.Max(0, s.size.x / 2 - EdgeMargin);
             var hz = Mathf.Max(0, s.size.y / 2 - EdgeMargin);
             return new Vector3(

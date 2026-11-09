@@ -138,6 +138,7 @@ public static class AlloBuild
         var director = new GameObject("Critters").AddComponent<Allo.Critters.CritterDirector>();
         director.cabin = cabin.transform;
         director.childEye = rearAnchor;
+        director.Bake();
         director.critterMaterial = critterMat;
         director.shadowMaterial = shadowMat;
 
@@ -160,11 +161,7 @@ public static class AlloBuild
         Directory.CreateDirectory(outDir);
         // 캐릭터 3마리를 걷는 면 위에 세워 둔다 (Play 없이 확인)
         var dir2 = Object.FindFirstObjectByType<Allo.Critters.CritterDirector>();
-        var list = new System.Collections.Generic.List<Allo.Critters.WalkSurface>();
-        foreach (var r in dir2.cabin.GetComponentsInChildren<Renderer>(true))
-            if (r.name.StartsWith("Walk_") && !Allo.Critters.CritterDirector.TooCloseToChild(r.name, r.bounds, dir2.childEye.position))
-                list.Add(new Allo.Critters.WalkSurface(r.name, new Vector3(r.bounds.center.x, r.bounds.max.y, r.bounds.center.z), new Vector2(r.bounds.size.x, r.bounds.size.z)));
-        var graph = new Allo.Critters.WalkGraph(list);
+        var graph = dir2.BuildGraph();
         var views = new System.Collections.Generic.List<Allo.Critters.CritterView>();
         var spots = new[] { ("Walk_RearSeat_L", "water"), ("Walk_RearSeat_R", "water"), ("Walk_Armrest", "normal"), ("Walk_Dashboard", "dark"), ("Walk_DoorSill_L", "water") };
         for (var k = 0; k < spots.Length; k++)

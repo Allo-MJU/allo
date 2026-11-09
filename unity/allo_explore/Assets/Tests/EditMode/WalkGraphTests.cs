@@ -60,4 +60,12 @@ public class WalkGraphTests
         Assert.AreEqual(g.IndexOf("Walk_Dashboard"), g.Nearest(new Vector3(0.1f, 1f, -1.6f)));
         Assert.AreEqual(-1, g.IndexOf("nope"));
     }
+
+    [Test]
+    public void NarrowSurfaceUsesCenterOnly()
+    {
+        var g = new WalkGraph(new List<WalkSurface> { new WalkSurface("Walk_Headrest_FL", new Vector3(1, 1.2f, -0.6f), new Vector2(0.22f, 0.08f)) });
+        var rng = new System.Random(1);
+        for (var k = 0; k < 20; k++) Assert.AreEqual(g.Surfaces[0].center, g.RandomPoint(0, rng));
+    }
 }

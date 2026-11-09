@@ -17,6 +17,34 @@ namespace Allo.Critters
         public Material critterMaterial;
         public Material shadowMaterial;
 
+        /// 장면을 만들 때(에디터) 미리 계산해 둔 걷는 면. 꺼 둔 렌더러의 크기는 앱 빌드에서 0 으로 읽혀서
+        /// 실행 중에 계산하지 않는다 (AlloBuild.CreateExploreScene 이 채운다)
+        [SerializeField] string[] surfaceNames = new string[0];
+        [SerializeField] Vector3[] surfaceCenters = new Vector3[0];
+        [SerializeField] Vector2[] surfaceSizes = new Vector2[0];
+
+        public void Bake()
+        {
+            var names = new List<string>(); var centers = new List<Vector3>(); var sizes = new List<Vector2>();
+            foreach (var r in cabin.GetComponentsInChildren<Renderer>(true))
+            {
+                if (!r.name.StartsWith("Walk_")) continue;
+                var b = r.bounds;
+                if (childEye != null && TooCloseToChild(r.name, b, childEye.position)) continue;
+                names.Add(r.name);
+                centers.Add(new Vector3(b.center.x, b.max.y, b.center.z));
+                sizes.Add(new Vector2(b.size.x, b.size.z));
+            }
+            surfaceNames = names.ToArray(); surfaceCenters = centers.ToArray(); surfaceSizes = sizes.ToArray();
+        }
+
+        public WalkGraph BuildGraph()
+        {
+            var list = new List<WalkSurface>();
+            for (var i = 0; i < surfaceNames.Length; i++) list.Add(new WalkSurface(surfaceNames[i], surfaceCenters[i], surfaceSizes[i]));
+            return new WalkGraph(list);
+        }
+
         WalkGraph _graph;
         readonly Dictionary<string, CritterView> _views = new();
         Mood _mood = new Mood { moving = true };
@@ -24,15 +52,8 @@ namespace Allo.Critters
 
         void Awake()
         {
-            var list = new List<WalkSurface>();
-            foreach (var r in cabin.GetComponentsInChildren<Renderer>(true))
-            {
-                if (!r.name.StartsWith("Walk_")) continue;
-                var b = r.bounds;
-                if (childEye != null && TooCloseToChild(r.name, b, childEye.position)) continue;
-                list.Add(new WalkSurface(r.name, new Vector3(b.center.x, b.max.y, b.center.z), new Vector2(b.size.x, b.size.z)));
-            }
-            _graph = new WalkGraph(list);
+            _graph = BuildGraph();
+            Debug.Log($"[Critters] walk surfaces: {_graph.Surfaces.Count}");
         }
 
         /// 아이가 앉은 자리와 바로 옆 창턱은 캐릭터가 화면을 가리므로 쓰지 않는다
