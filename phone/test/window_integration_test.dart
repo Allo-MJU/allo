@@ -102,11 +102,45 @@ void main() {
         find.descendant(
             of: find.byType(WindowView), matching: find.byType(EggArt)),
         findsOneWidget);
-    expect(find.bySemanticsLabel('성장 3단계 알'), findsOneWidget);
-    await tester.ensureVisible(find.text('감싸기'));
-    await tester.tap(find.text('감싸기'));
+    expect(find.bySemanticsLabel(RegExp('성장 3단계 알')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('egg-touch-target')));
+    await tester.tap(find.byKey(const ValueKey('egg-touch-target')));
     await tester.pump();
     expect(c.game.careCount, 1);
+    expect(find.widgetWithText(FilledButton, '감싸기'), findsNothing);
+    expect(find.text('알을 감싸 주었어요'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+    expect(find.text('알을 감싸 주었어요'), findsNothing);
+    expect(c.game.careCount, 1);
+    await tester.pumpWidget(const SizedBox());
+    c.dispose();
+  });
+
+  testWidgets('모션 감소에서도 알 터치 피드백을 제공하고 대기 중에는 돌봄을 막는다', (tester) async {
+    final c = GameController(
+        feed: FakeVehicleFeed(scenario: FakeScenario.clear), dex: DexStore());
+    c.game = c.game.copyWith(stage: Stage.incubating);
+    await tester.pumpWidget(MaterialApp(
+        home: MediaQuery(
+            data: const MediaQueryData(disableAnimations: true),
+            child: IncubatingScreen(controller: c))));
+    await tester.pumpAndSettle();
+    final target = find.byKey(const ValueKey('egg-touch-target'));
+    await tester.tap(target);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(c.game.careCount, 1);
+    expect(find.text('알을 감싸 주었어요'), findsOneWidget);
+    expect(tester.hasRunningAnimations, isFalse);
+    await tester.pump(const Duration(seconds: 1));
+    c.game = c.game.copyWith(stage: Stage.idle);
+    c.notifyListeners();
+    await tester.pump();
+    await tester.tap(target);
+    await tester.pump();
+    expect(c.game.careCount, 1);
+    expect(find.text('알을 감싸 주었어요'), findsNothing);
     await tester.pumpWidget(const SizedBox());
     c.dispose();
   });

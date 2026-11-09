@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../game/game_controller.dart';
+import '../widgets/game_orientation.dart';
 import '../theme/allo_colors.dart';
 import '../widgets/character_stage.dart';
 
@@ -22,16 +22,13 @@ class _CompanionScreenState extends State<CompanionScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(SystemChrome.setPreferredOrientations(const [
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]));
+    GameOrientation.acquire();
   }
 
   @override
   void dispose() {
     // 진입/이탈 요청을 순서대로 전송한다. 다른 화면의 방향을 잠그지 않는다.
-    unawaited(SystemChrome.setPreferredOrientations(const []));
+    GameOrientation.release();
     super.dispose();
   }
 

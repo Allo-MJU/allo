@@ -24,11 +24,11 @@ void main() {
       await tester.pump();
     }
     expect(find.text('알 품기'), findsOneWidget);
-    await tester.tap(find.text('감싸기'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('egg-touch-target')));
     await tester.pump();
     expect(find.textContaining('돌봄 1회'), findsOneWidget);
-    await tester.ensureVisible(find.text('♫ 길게 눌러 노래'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('♫ 길게 눌러 노래').hitTestable(), findsOneWidget);
     await tester.longPress(find.text('♫ 길게 눌러 노래'));
     await tester.pump();
