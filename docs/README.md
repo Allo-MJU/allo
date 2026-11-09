@@ -8,6 +8,7 @@
 
 | 문서 | 내용 | 주로 보는 사람 |
 | --- | --- | --- |
+| [color-and-app-references.md](./color-and-app-references.md) | 알로 색상값과 참고 앱 | 전원 |
 | [proposal.md](./proposal.md) | 기획서. 문제 정의, 서비스 상세, 차량특화성, 기술 활용성, 사업성, 경쟁 분석 | 전원 |
 | [dev-plan.md](./dev-plan.md) | 개발 계획. 일정, 역할, 마일스톤 게이트, 리스크 | 전원 |
 | [roadmap.md](./roadmap.md) | 파트별 상세 로드맵. 각자 할 일 | 각 파트 |

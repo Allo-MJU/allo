@@ -278,7 +278,6 @@ adb shell am broadcast -a ai.allo.car.debug.ROUTE -n ai.allo.car/.debug.DebugRou
 - ⚠️ 수정 전엔 차 화면 글자가 안 보였다: `setContent` 에 테마가 없어 `Text` 가 검정, 창 배경도 검정. `MaterialTheme(darkColorScheme())` + `Surface` 로 감쌈
 
 **`scripts/vc.sh` 추가**: `wiper 0-3|auto` · `light on|off` · `odo <km>`. `wiper 3; light on; odo 20.5` → 스냅샷 `wiperLevel=3, headlightOn=true, distanceM=20500, envTags=[rain, tunnel]` 확인
-||||||| f4b6e23
 
 ### 2026-11-04 · Gleo `SUGGEST_DESTINATION` → NaviHelper 목적지 설정
 
@@ -404,4 +403,3 @@ Pleos 문서 확인 ([Examples](https://document.pleos.ai/en/docs/pleos-only/app
 | 백그라운드에서 `am crash` | 서비스가 되살아나지 않음 (좀비 없음) ✅ |
 | 다시 열기 | 새 프로세스에서 `isForeground=true` ✅ |
 | `startForeground` 거부 경로 | ❓ 재현 조건을 못 만들어 실기 확인 못 함. 예외를 잡는 코드만 추가 |
-||||||| 0117513
