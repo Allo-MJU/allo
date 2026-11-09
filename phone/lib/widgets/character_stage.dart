@@ -8,7 +8,7 @@ import '../character/character_behavior.dart';
 import '../game/game_controller.dart';
 import '../theme/allo_colors.dart';
 import 'species_art.dart';
-import 'seat_back.dart';
+import 'cabin_geometry.dart';
 import 'window_view.dart';
 
 /// 동행 화면 안에서만 살아 있는 표현 상태. 게임 판정·서버 전송은 변경하지 않는다.
@@ -217,7 +217,7 @@ class _CharacterStageState extends State<CharacterStage>
     if (stage != null && actor != null) {
       final position = actor.localToGlobal(Offset.zero, ancestor: stage);
       start = Offset(position.dx - (stage.size.width - actor.size.width) / 2,
-          stage.size.height - actor.size.height - 12 - position.dy);
+          position.dy - (stage.size.height - actor.size.height - 12));
     }
     if (_interact(CharacterEvent.dragStart)) {
       setState(() {
@@ -274,49 +274,34 @@ class _CharacterStageState extends State<CharacterStage>
     final scene = WindowView(
         height: sceneHeight,
         vehicle: c.vehicle,
+        friends: c.collectedSpecies,
+        childFillsScene: true,
         child: SizedBox(
-          height:
-              widget.sceneSize == null ? 184 : math.max(96, sceneHeight - 24),
+          height: sceneHeight,
           width: double.infinity,
           child: LayoutBuilder(builder: (context, constraints) {
-            final size = widget.sceneSize == null
-                ? math.min(112.0, math.max(56.0, constraints.maxWidth - 32))
-                : math.max(
-                    32.0,
-                    math.min(
-                        160.0,
-                        math.min(constraints.maxWidth - 32,
-                            constraints.maxHeight * .62)));
+            final cabin = CabinLayout(Size(constraints.maxWidth, sceneHeight));
+            final size = cabin.companionSize;
             final horizontal =
                 math.max(0.0, (constraints.maxWidth - size) / 2 - 12);
-            final top = -(constraints.maxHeight - size - 20);
-            final anchor = switch (attachment) {
-              CharacterAttachment.none => Offset.zero,
-              CharacterAttachment.window => Offset(-horizontal * .65, top),
-              CharacterAttachment.seat => Offset(horizontal * .75, -20),
+            final top = -math.max(0.0, constraints.maxHeight - size - 20);
+            final home = Offset((constraints.maxWidth - size) / 2,
+                constraints.maxHeight - size - 12);
+            final target = switch (attachment) {
+              CharacterAttachment.none => home,
+              CharacterAttachment.window =>
+                cabin.leftWindowContact - Offset(size / 2, size * .32),
+              CharacterAttachment.seat =>
+                cabin.passengerSeatGrip - Offset(size / 2, size * .18),
             };
+            final anchor = Offset(target.dx - home.dx, target.dy - home.dy);
             final desired = _dragging ? _drag : anchor;
             final offset = Offset(desired.dx.clamp(-horizontal, horizontal),
                 desired.dy.clamp(top, 0.0));
-            final seatShoulder = constraints.maxHeight - size - 32 + size * .18;
-            final headHeight =
-                math.min(size * .38, math.max(4.0, seatShoulder - 8));
             return Stack(
                 key: _stageKey,
                 clipBehavior: Clip.hardEdge,
                 children: [
-                  Positioned(
-                    left: (constraints.maxWidth - size) / 2 +
-                        horizontal * .75 +
-                        size * .02,
-                    top: seatShoulder - headHeight,
-                    width: size * .96,
-                    bottom: 0,
-                    child: SeatBack(
-                      key: const ValueKey('character-seat'),
-                      headHeight: headHeight,
-                    ),
-                  ),
                   AnimatedPositioned(
                     duration: _dragging || _reduceMotion || snapPosition
                         ? Duration.zero

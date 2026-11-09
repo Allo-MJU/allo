@@ -27,6 +27,7 @@ void main() {
               child: SizedBox(
                   width: 320,
                   child: WindowView(
+                      animatePassersby: false,
                       vehicle: vehicle(['coast', 'rain'], speed: speed)))),
         )));
     Future<Uint8List> pixels() async {
@@ -49,6 +50,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(await pixels(), orderedEquals(before));
     expect(tester.hasRunningAnimations, isFalse);
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('터널·날씨 전환은 페이드만 하고 알은 유지한다', (tester) async {
@@ -67,6 +69,7 @@ void main() {
     expect(find.bySemanticsLabel('창밖: 터널'), findsOneWidget);
     expect(tester.element(find.byType(EggArt)), same(egg));
     expect(tester.hasRunningAnimations, isFalse);
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('시스템 동작 줄이기에서도 장면은 200ms 페이드한다', (tester) async {
@@ -89,6 +92,7 @@ void main() {
     // Flutter simulation은 duration 초과 프레임에서 ticker를 완료한다.
     await tester.pump(const Duration(milliseconds: 1));
     expect(tester.hasRunningAnimations, isFalse);
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('품기 창 앞에서 성장 단계와 감싸기 동작을 보존한다', (tester) async {

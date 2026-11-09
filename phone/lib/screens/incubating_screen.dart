@@ -97,6 +97,7 @@ class _IncubatingScreenState extends State<IncubatingScreen>
     return WindowView(
       key: const ValueKey('incubating-game-scene'),
       vehicle: widget.controller.vehicle,
+      friends: widget.controller.collectedSpecies,
       height: height,
       child: AnimatedBuilder(
         animation: _shake,
