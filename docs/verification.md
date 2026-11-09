@@ -403,3 +403,14 @@ Pleos 문서 확인 ([Examples](https://document.pleos.ai/en/docs/pleos-only/app
 | 백그라운드에서 `am crash` | 서비스가 되살아나지 않음 (좀비 없음) ✅ |
 | 다시 열기 | 새 프로세스에서 `isForeground=true` ✅ |
 | `startForeground` 거부 경로 | ❓ 재현 조건을 못 만들어 실기 확인 못 함. 예외를 잡는 코드만 추가 |
+
+## 탐험 화면 — 가로 고정·진입 (2026-11-09, A)
+
+휴대폰 에뮬레이터(Medium Phone API 37, debug, `SCENARIO=scene_tour`, Unity 없음 → 대체 화면).
+
+| 항목 | 결과 |
+| --- | --- |
+| 앱 시작부터 가로 (`sensorLandscape` + `setPreferredOrientations`) | ✅ 스플래시부터 가로 |
+| 알 품기·동행 화면에서 "차 안 둘러보기" → 탐험 화면 | ✅ 전체 화면 차 안 뷰, 왼쪽 위 돌아가기 |
+| 홈 버튼으로 나갔다가 돌아오기 | ✅ 화면이 멈추지 않고 장면이 이어짐 (Unity 화면은 Unity 설치 후 다시 확인) |
+| 가로에서 기존 화면 버튼 접근 | ✅ 차 안 뷰를 화면 높이 절반으로 줄여 스크롤로 접근. 가로 2단 배치는 5단계에서 |

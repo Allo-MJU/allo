@@ -99,6 +99,9 @@ class _IncubatingScreenState extends State<IncubatingScreen>
                 WindowView(
                   vehicle: c.vehicle,
                   friends: c.collectedSpecies,
+                  // 가로 화면에서 버튼이 밀려나지 않게 화면 높이의 절반까지만 (가로 2단 개편 전 임시)
+                  height:
+                      math.min(300, MediaQuery.sizeOf(context).height * 0.5),
                   child: AnimatedBuilder(
                     animation: _shake,
                     builder: (_, child) => Transform.rotate(
@@ -161,6 +164,10 @@ class _IncubatingScreenState extends State<IncubatingScreen>
                             textAlign: TextAlign.center)),
                   ),
                 ),
+                TextButton.icon(
+                    onPressed: () => context.push('/explore'),
+                    icon: const Icon(Icons.threed_rotation),
+                    label: const Text('차 안 둘러보기')),
                 TextButton(
                     onPressed: () async {
                       final saved = await c.endSession();

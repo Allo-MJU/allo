@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -31,6 +33,9 @@ class CompanionScreen extends StatelessWidget {
                   WindowView(
                     vehicle: controller.vehicle,
                     friends: controller.collectedSpecies,
+                    // 가로 화면에서 버튼이 밀려나지 않게 화면 높이의 절반까지만 (가로 2단 개편 전 임시)
+                    height:
+                        math.min(300, MediaQuery.sizeOf(context).height * 0.5),
                     child: AnimatedRotation(
                       turns: controller.playCount.isOdd ? 0.04 : -0.04,
                       duration: const Duration(milliseconds: 300),
@@ -66,6 +71,10 @@ class CompanionScreen extends StatelessWidget {
                     spacing: 12,
                     runSpacing: 12,
                     children: [
+                      FilledButton.icon(
+                          onPressed: () => context.push('/explore'),
+                          icon: const Icon(Icons.threed_rotation),
+                          label: const Text('차 안 둘러보기')),
                       FilledButton.tonal(
                           onPressed: controller.feedCompanion,
                           child: const Text('먹이')),

@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'app.dart';
 import 'config/firebase_config.dart';
@@ -16,6 +17,9 @@ const _scenario =
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 앱 전체 가로 고정 (탐험 게임 설계 5절)
+  await SystemChrome.setPreferredOrientations(
+      [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
   // 창밖 스크롤은 실제 실행에서만 켠다. 위젯 테스트는 정지 장면으로 본다.
   runApp(SceneMotion(enabled: true, child: await createApp()));
 }
