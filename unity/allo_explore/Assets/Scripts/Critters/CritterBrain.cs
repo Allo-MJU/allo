@@ -109,7 +109,7 @@ namespace Allo.Critters
             var roam = mood.moving ? 1f : 0.5f; // 정차 중엔 더 자주 움직인다
             if (mood.tunnel)
             {
-                var arm = FindSurface("Walk_Armrest", "Walk_RearSeat");
+                var arm = FindSurface("Walk_Armrest", "Walk_RearSeat_L", "Walk_RearSeat_R");
                 if (arm >= 0 && arm != Surface && IsNeighbor(arm)) { JumpTo(arm); return; }
                 Enter(CritterState.Huddle, _g.RandomPoint(Surface, _rng), Range(3, 6));
                 return;

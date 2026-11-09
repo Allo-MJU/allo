@@ -34,7 +34,7 @@ REQUIRED = [
     "RearShelf",
 ]
 WALKS = [
-    "Walk_RearSeat", "Walk_Armrest", "Walk_RearShelf", "Walk_Dashboard",
+    "Walk_RearSeat_L", "Walk_RearSeat_R", "Walk_Armrest", "Walk_RearShelf", "Walk_Dashboard",
     "Walk_Headrest_FL", "Walk_Headrest_FR", "Walk_SeatBack_FL", "Walk_SeatBack_FR",
     "Walk_DoorSill_L", "Walk_DoorSill_R",
 ]
@@ -259,7 +259,9 @@ def walk_surfaces():
     """캐릭터가 서고 걸을 수 있는 면. 각 면의 가운데·크기만 의미가 있다."""
     w = kit.plane
     c = P.WALK
-    w("Walk_RearSeat", (W - 0.2, 0.4), (0, 0.22, 0.445), c)
+    # 뒷좌석은 팔걸이 양옆 두 칸 (팔걸이 아래로 파고들지 않게)
+    w("Walk_RearSeat_L", (0.48, 0.4), (0.39, 0.22, 0.445), c)
+    w("Walk_RearSeat_R", (0.48, 0.4), (-0.39, 0.22, 0.445), c)
     w("Walk_Armrest", (0.2, 0.38), (0, 0.24, 0.556), c)
     w("Walk_RearShelf", (W - 0.2, 0.2), (0, BACK - 0.06, BELT + 0.083), c)
     w("Walk_Dashboard", (W - 0.3, 0.3), (0, -1.74, 0.982), c)
