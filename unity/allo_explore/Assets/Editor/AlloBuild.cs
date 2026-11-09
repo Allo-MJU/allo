@@ -96,7 +96,7 @@ public static class AlloBuild
         sun.type = LightType.Directional;
         sun.intensity = 1.1f;
         sun.color = new Color(1f, 0.96f, 0.88f);
-        sun.shadows = LightShadows.Soft;
+        sun.shadows = LightShadows.Hard;
         sunGo.transform.rotation = Quaternion.Euler(50, -30, 0);
         var fillGo = new GameObject("CabinFill");
         var fill = fillGo.AddComponent<Light>();
@@ -110,13 +110,56 @@ public static class AlloBuild
         RenderSettings.ambientEquatorColor = new Color(0.62f, 0.58f, 0.52f);
         RenderSettings.ambientGroundColor = new Color(0.3f, 0.27f, 0.24f);
 
-        var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
-        ground.name = "OutsideGround";
-        ground.transform.position = new Vector3(0, -0.4f, 0);
-        ground.transform.localScale = new Vector3(80, 1, 80);
-        var gm = new Material(Shader.Find("Standard")) { color = new Color(0.55f, 0.75f, 0.4f) };
-        AssetDatabase.CreateAsset(gm, "Assets/Models/Ground.mat");
-        ground.GetComponent<Renderer>().sharedMaterial = gm;
+        // 창밖 3D: 재질은 에셋으로 만들어 앱 빌드에 셰이더 변형이 빠지지 않게 한다
+        var solid = new Material(Shader.Find("Standard")) { enableInstancing = true };
+        solid.SetFloat("_Glossiness", 0.15f);
+        AssetDatabase.CreateAsset(solid, "Assets/Models/WorldSolid.mat");
+        var glow = new Material(Shader.Find("Standard"));
+        glow.EnableKeyword("_EMISSION");
+        glow.SetColor("_EmissionColor", Color.white);
+        glow.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+        AssetDatabase.CreateAsset(glow, "Assets/Models/WorldGlow.mat");
+        var winTex = Allo.World.WorldDirector.WindowTexture();
+        AssetDatabase.CreateAsset(winTex, "Assets/Models/WindowTex.asset");
+        var windows = new Material(Shader.Find("Standard")) { mainTexture = winTex, mainTextureScale = new Vector2(3, 4) };
+        windows.SetFloat("_Mode", 1);
+        windows.SetFloat("_Cutoff", 0.5f);
+        windows.EnableKeyword("_ALPHATEST_ON");
+        windows.renderQueue = 2450;
+        windows.SetOverrideTag("RenderType", "TransparentCutout");
+        windows.EnableKeyword("_EMISSION");
+        windows.SetTexture("_EmissionMap", winTex);
+        windows.SetColor("_EmissionColor", Color.black);
+        windows.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+        AssetDatabase.CreateAsset(windows, "Assets/Models/WorldWindows.mat");
+        var wallGlass = new Material(Shader.Find("Legacy Shaders/Transparent/Diffuse")) { color = new Color(0.72f, 0.83f, 0.84f, 0.45f) };
+        AssetDatabase.CreateAsset(wallGlass, "Assets/Models/SoundWall.mat");
+        var rainShader = Shader.Find("Particles/Standard Unlit") ?? Shader.Find("Legacy Shaders/Particles/Alpha Blended");
+        var rainMat = new Material(rainShader);
+        rainMat.SetFloat("_Mode", 2);
+        rainMat.EnableKeyword("_ALPHABLEND_ON");
+        rainMat.renderQueue = 3000;
+        AssetDatabase.CreateAsset(rainMat, "Assets/Models/Rain.mat");
+        var skyMat = new Material(Shader.Find("Skybox/Procedural"));
+        AssetDatabase.CreateAsset(skyMat, "Assets/Models/Sky.mat");
+        RenderSettings.skybox = skyMat;
+        cam.clearFlags = CameraClearFlags.Skybox;
+        cam.farClipPlane = 900;
+        var floorY = Find(cabin.transform, "Shell").GetComponent<Renderer>().bounds.min.y; // Shell 이 바닥판이다 (cabin.py shell())
+        var world = new GameObject("World").AddComponent<Allo.World.WorldDirector>();
+        // 차체 축: 뒷좌석 가운데 → 앞좌석 사이
+        var carAxis = between - rear.center;
+        carAxis.y = 0;
+        world.carCenter = (rear.center + between) / 2;
+        world.forward = carAxis.normalized;
+        world.roadY = floorY - 0.3f;
+        world.solid = solid;
+        world.glow = glow;
+        world.windows = windows;
+        world.glass = wallGlass;
+        world.rain = rainMat;
+        world.sky = skyMat;
+        world.sun = sun;
 
         new GameObject("FlutterBridge").AddComponent<FlutterBridge>();
 
@@ -195,6 +238,49 @@ public static class AlloBuild
         cam.targetTexture = null;
         RenderTexture.active = null;
         Debug.Log($"[AlloBuild] captured views to {outDir}");
+    }
+
+    /// 장면마다 창밖을 만들어 앞·옆을 찍는다 (빌드 없이 확인)
+    ///   Unity -batchmode -quit -projectPath unity/allo_explore -executeMethod AlloBuild.CaptureWorld
+    public static void CaptureWorld()
+    {
+        EditorSceneManager.OpenScene(ScenePath);
+        var cam = Camera.main;
+        var rig = cam.GetComponent<Allo.CameraRig.CameraRig>();
+        var world = Object.FindFirstObjectByType<Allo.World.WorldDirector>();
+        var dir = rig.lookTarget.position - rig.rearAnchor.position;
+        var baseYaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+        var outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../../../docs/work-results/explore"));
+        var rt = new RenderTexture(1600, 720, 24);
+        cam.targetTexture = rt;
+        var scenes = new (string name, Allo.Bridge.SceneState s)[]
+        {
+            ("road", new Allo.Bridge.SceneState { kind = "road", moving = true, speedKph = 60 }),
+            ("coast", new Allo.Bridge.SceneState { kind = "coast", moving = true, speedKph = 60 }),
+            ("mountain", new Allo.Bridge.SceneState { kind = "mountain", moving = true, speedKph = 60 }),
+            ("city", new Allo.Bridge.SceneState { kind = "city", moving = true, speedKph = 40 }),
+            ("city_night", new Allo.Bridge.SceneState { kind = "city", night = true, moving = true, speedKph = 40 }),
+            ("highway_rain", new Allo.Bridge.SceneState { kind = "road", highway = true, rain = 3, moving = true, speedKph = 90 }),
+            ("tunnel", new Allo.Bridge.SceneState { kind = "tunnel", moving = true, speedKph = 60 }),
+        };
+        foreach (var (name, s) in scenes)
+        {
+            world.Apply(s, reset: true);
+            foreach (var (view, yaw, pitch) in new[] { ("front", 0f, 2f), ("side", 70f, 0f) })
+            {
+                cam.transform.position = rig.rearAnchor.position;
+                cam.transform.rotation = Quaternion.Euler(-pitch, baseYaw + yaw, 0);
+                cam.Render();
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                File.WriteAllBytes(Path.Combine(outDir, $"world_{name}_{view}.png"), tex.EncodeToPNG());
+            }
+        }
+        cam.targetTexture = null;
+        RenderTexture.active = null;
+        Debug.Log($"[AlloBuild] captured world to {outDir}");
     }
 
     static Transform Find(Transform root, string name)
