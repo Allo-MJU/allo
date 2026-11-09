@@ -3,6 +3,7 @@ import 'package:allo_core/allo_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'explore/explore_screen.dart';
 import 'feed/vehicle_feed.dart';
 import 'game/game_controller.dart';
 import 'screens/companion_screen.dart';
@@ -63,6 +64,9 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
           builder: (_, __) => CompanionScreen(controller: controller)),
       GoRoute(
           path: '/dex', builder: (_, __) => DexScreen(controller: controller)),
+      GoRoute(
+          path: '/explore',
+          builder: (_, __) => ExploreScreen(controller: controller)),
     ],
   );
 
