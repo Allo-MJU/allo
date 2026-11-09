@@ -26,8 +26,8 @@ class SceneMotion extends InheritedWidget {
 
 /// 차 안에서 본 창밖. `/vehicle` 의 envTags·속도에 따라 장면이 바뀐다 (이슈 #45).
 ///
-/// 그림은 D 아트가 나오기 전까지 코드로 그린 임시 장면이다. 캐릭터(말랑한 비닐 토이)와
-/// 맞추려고 둥근 덩어리와 클레이 질감으로 그린다. 장면마다
+/// 그림은 D 아트가 나오기 전까지 코드로 그린 임시 장면이다. 지브리풍 배경처럼
+/// 현실적인 빛·대기 원근에 면 단위로 칠한 애니메이션 색을 섞는다. 장면마다
 /// 먼 배경·중간·가까운 배경 3겹을 서로 다른 속도로 흘려 원근감을 낸다.
 /// [child] 는 창 앞(차 안)에 놓이는 알·캐릭터다.
 class WindowView extends StatefulWidget {
@@ -236,150 +236,106 @@ void _repeat(double width, double period, double offset,
   }
 }
 
-/// 창밖 장면 팔레트. Figma ALLO Design System 변수와 같은 값을 쓴다.
-/// 아래 '파생' 색만 장면용으로 섞어 만든 값이다.
-abstract final class _Palette {
-  // Primitives
-  static const shellYellow = Color(0xFFFCCC44);
-  static const growthGreen = Color(0xFF1D9965);
-  static const actionGreen = Color(0xFF146B49);
-  static const logoYellow = Color(0xFFFFD34E);
-  static const logoMint = Color(0xFF58D8A0);
-  static const logoGround = Color(0xFF1E3A2F);
-  static const greenSoft = Color(0xFFF4F7F3);
-  // Species
-  static const seaBase = Color(0xFFA9DCDA); // sea_mist/base
-  static const seaDeep = Color(0xFF4F8790); // sea_mist/deep
-  static const rainBase = Color(0xFF4A90D0); // puddle_pip/base
-  static const rainTint = Color(0xFFE3EEF8); // puddle_pip/tint
-  static const sproutBase = Color(0xFF7F9140); // road_sprout/base
-  static const sproutDeep = Color(0xFF4E5A28); // road_sprout/deep
-  static const duneBase = Color(0xFFC8734A); // dune_roller/base
-  static const duneAccent = Color(0xFFF1C79E); // dune_roller/accent
-  static const duneDeep = Color(0xFF6E3D25); // dune_roller/deep
-  // 파생
-  static const skyTop = Color(0xFFCFEDE8); // sea_mist 를 옅게 푼 낮 하늘
-  static const skyBottom = Color(0xFFFCE8D6); // 캐릭터 시트 배경의 크림·피치
-  static const rainSkyTop = Color(0xFFC9D8E2); // 비 오는 낮: puddle_pip tint 를 흐리게
-  static const rainSkyBottom = Color(0xFFEDEFF0);
-  static const sand = Color(0xFFFBE3C2);
-  static const nightTop = Color(0xFF1B2A4A); // 따뜻한 남색
-  static const tunnelTop = Color(0xFF2E2822);
-  static const tunnelRib = Color(0xFF3D352E);
-  static const doorTop = Color(0xFF2F5444);
-  static const shoulder = Color(0xFF55615A);
+/// 0~1 사이의 부드러운 1차원 노이즈. 능선·숲 윤곽처럼 들쭉날쭉하지만 연속인 선을 만든다.
+double _noise(double x, int seed) {
+  final i = x.floor();
+  final f = x - i;
+  final t = f * f * (3 - 2 * f);
+  final a = _rand(i, seed);
+  return a + (_rand(i + 1, seed) - a) * t;
 }
 
-/// 말랑한 점토(클레이) 질감: 아래로 비낀 짙은 그림자 + 위가 밝은 몸통 + 왼쪽 위 광택.
-class _Clay {
-  _Clay(Color light, Color base, Color deep, {double shine = 0.35})
-      : body = Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [light, base],
-          ).createShader(_unit),
-        shadow = Paint()..color = deep,
-        gloss = Paint()..color = Colors.white.withValues(alpha: shine);
+/// 큰 굴곡 + 중간 굴곡 + 잔 굴곡을 섞은 능선 높이(0~1).
+double _ridge(double wx, int seed, {double scale = 1}) =>
+    0.6 * _noise(wx / (190 * scale), seed) +
+    0.3 * _noise(wx / (64 * scale), seed + 1) +
+    0.1 * _noise(wx / (19 * scale), seed + 2);
 
-  factory _Clay.of(Color base, Color deep, {double shine = 0.35}) =>
-      _Clay(Color.lerp(base, Colors.white, 0.3)!, base, deep, shine: shine);
-
-  static const _unit = Rect.fromLTWH(0, 0, 1, 1);
-
-  final Paint body;
-  final Paint shadow;
-  final Paint gloss;
-
-  static final cloud = _Clay(
-      Colors.white, const Color(0xFFFDF1E6), const Color(0xFFF2D3C4),
-      shine: 0.7);
-  static final cloudNight = _Clay(
-      const Color(0xFF3A4A6E), const Color(0xFF2C3B5C), const Color(0xFF1E2A44),
-      shine: 0.12);
-  static final cloudRain = _Clay(
-      const Color(0xFFF1F4F7), const Color(0xFFD5DEE6), const Color(0xFFAEBBC7),
-      shine: 0.4);
-  static final island = _Clay.of(
-      Color.lerp(_Palette.logoMint, _Palette.seaDeep, 0.35)!, _Palette.seaDeep);
-  static final ridge = _Clay.of(
-      Color.lerp(_Palette.sproutBase, _Palette.skyTop, 0.55)!,
-      Color.lerp(_Palette.sproutBase, _Palette.skyTop, 0.3)!,
-      shine: 0.25);
-  static final ridgeNight = _Clay.of(
-      Color.lerp(_Palette.sproutDeep, _Palette.nightTop, 0.45)!,
-      Color.lerp(_Palette.sproutDeep, _Palette.nightTop, 0.7)!,
-      shine: 0.1);
-  static final farHillNight = _Clay.of(
-      Color.lerp(_Palette.actionGreen, _Palette.nightTop, 0.45)!,
-      Color.lerp(_Palette.actionGreen, _Palette.nightTop, 0.7)!,
-      shine: 0.1);
-  static final meadow = _Clay.of(_Palette.sproutBase, _Palette.sproutDeep);
-  static final pine = _Clay.of(
-      Color.lerp(_Palette.sproutBase, _Palette.sproutDeep, 0.45)!,
-      Color.lerp(_Palette.sproutDeep, _Palette.logoGround, 0.5)!);
-  static final farHill = _Clay.of(
-      Color.lerp(_Palette.growthGreen, _Palette.skyBottom, 0.6)!,
-      Color.lerp(_Palette.growthGreen, _Palette.skyBottom, 0.35)!,
-      shine: 0.25);
-  static final leaf = _Clay.of(_Palette.growthGreen, _Palette.actionGreen);
-  static final towers = [
-    _Palette.duneBase,
-    _Palette.rainBase,
-    _Palette.seaDeep,
-    _Palette.sproutBase,
-  ].map((c) => _Clay.of(c, Color.lerp(c, Colors.black, 0.35)!)).toList();
-}
-
-/// 0~1 단위 상자 안에 한 번만 만들어 두는 모양. 그릴 때 캔버스 변환으로 크기를 맞춘다.
-abstract final class _Shapes {
-  static final oval = Path()..addOval(const Rect.fromLTWH(0, 0, 1, 1));
-
-  /// 위가 통통하게 둥근 언덕·섬
-  static final gumdrop = Path()
-    ..moveTo(0, 1)
-    ..cubicTo(0, 0.15, 0.22, 0, 0.5, 0)
-    ..cubicTo(0.78, 0, 1, 0.15, 1, 1)
+/// 화면 폭만큼 [yAt] 을 따라 위 윤곽을 그리고 [bottom] 까지 채우는 경로.
+Path _profile(double w, double bottom, double Function(double x) yAt,
+    {double step = 5}) {
+  final p = Path()..moveTo(-step, bottom);
+  for (var x = -step; x <= w + step; x += step) {
+    p.lineTo(x, yAt(x));
+  }
+  return p
+    ..lineTo(w + step, bottom)
     ..close();
-
-  static final cloud = Path()
-    ..addOval(const Rect.fromLTWH(0.0, 0.42, 0.42, 0.52))
-    ..addOval(const Rect.fromLTWH(0.18, 0.06, 0.44, 0.8))
-    ..addOval(const Rect.fromLTWH(0.46, 0.22, 0.38, 0.66))
-    ..addOval(const Rect.fromLTWH(0.64, 0.46, 0.36, 0.5))
-    ..addRRect(RRect.fromRectAndRadius(
-        const Rect.fromLTWH(0.12, 0.6, 0.76, 0.38),
-        const Radius.circular(0.19)));
-
-  /// 둥근 덩어리 세 개를 겹친 나무 머리
-  static final canopy = Path()
-    ..addOval(const Rect.fromLTWH(0.0, 0.34, 0.56, 0.62))
-    ..addOval(const Rect.fromLTWH(0.22, 0.0, 0.56, 0.64))
-    ..addOval(const Rect.fromLTWH(0.44, 0.32, 0.56, 0.64));
-
-  static final tower = Path()
-    ..addRRect(RRect.fromRectAndCorners(
-      const Rect.fromLTWH(0, 0, 1, 1),
-      topLeft: const Radius.elliptical(0.32, 0.12),
-      topRight: const Radius.elliptical(0.32, 0.12),
-    ));
 }
 
-const _defaultGloss = Rect.fromLTWH(0.24, 0.12, 0.26, 0.16);
+/// 창밖 장면 팔레트. 지브리풍 배경처럼 맑은 하늘색, 풀색, 크림빛 지평선을 쓴다.
+/// 앱 쪽 색(문·창틀·알)은 Figma ALLO Design System 변수 값을 그대로 쓴다.
+abstract final class _Palette {
+  // Figma 변수
+  static const logoGround = Color(0xFF1E3A2F);
+  static const doorTop = Color(0xFF2F5444);
 
-/// [unit] 모양을 [box] 크기로 늘려 클레이 질감으로 그린다.
-void _drawClay(Canvas canvas, Rect box, Path unit, _Clay clay,
-    {Rect gloss = _defaultGloss}) {
-  canvas
-    ..save()
-    ..translate(box.left, box.top)
-    ..scale(box.width, box.height)
-    ..translate(0, 0.06)
-    ..drawPath(unit, clay.shadow)
-    ..translate(0, -0.06)
-    ..drawPath(unit, clay.body)
-    ..drawOval(gloss, clay.gloss)
-    ..restore();
+  // 하늘 (위 → 가운데 → 지평선)
+  static const day = [Color(0xFF4F98D6), Color(0xFF93C6EA), Color(0xFFEFF3E2)];
+  static const rain = [Color(0xFF75879A), Color(0xFFA2B0BC), Color(0xFFD3D8D5)];
+  static const night = [
+    Color(0xFF0E1838),
+    Color(0xFF213565),
+    Color(0xFF4C5E8E)
+  ];
+
+  // 땅
+  static const farBlue = Color(0xFF6E97B4); // 먼 산: 대기 원근으로 푸르게 바랜다
+  static const midGreen = Color(0xFF5E9150);
+  static const forest = Color(0xFF355F3A);
+  static const forestLit = Color(0xFF6E9E4C);
+  static const meadow = Color(0xFF8CBF57);
+  static const meadowDeep = Color(0xFF5A8C3C);
+  static const trunk = Color(0xFF5B4434);
+  static const sea = Color(0xFF3B88B3);
+  static const seaHorizon = Color(0xFF9CCFDD);
+  static const sand = Color(0xFFF0DDB4);
+  static const sandDeep = Color(0xFFD9BC8A);
+  static const verge = Color(0xFF4E7F3A);
+  static const vergeDeep = Color(0xFF2F5228);
+
+  // 마을 건물 (밝은 면, 그늘 면)
+  static const walls = [
+    (Color(0xFFF1E6CF), Color(0xFFCDBFA4)),
+    (Color(0xFFE7B98F), Color(0xFFC08E68)),
+    (Color(0xFFB9CDB0), Color(0xFF8FA788)),
+    (Color(0xFFDCCB8E), Color(0xFFB3A26A)),
+    (Color(0xFFAFC2D2), Color(0xFF8699AC)),
+  ];
+  static const roof = Color(0xFFB8634A);
+  static const roofShade = Color(0xFF8E4836);
+  static const glassDay = Color(0xFF5E7E9C);
+  static const lamp = Color(0xFFFFD98A);
+
+  static const steel = Color(0xFFC9CED0);
+  static const steelShade = Color(0xFF7F888C);
+  static const tunnelWall = [Color(0xFF6B5E50), Color(0xFF2B2622)];
+  static const sodium = Color(0xFFFFB04A);
+}
+
+/// 지브리풍 나무: 그늘색 잎 덩어리 위에 해 쪽(왼쪽 위)으로 밝은 잎 덩어리를 얹는다.
+void _tree(Canvas canvas, double x, double base, double size, int seed,
+    Paint trunk, Paint dark, Paint lit) {
+  canvas.drawRect(
+      Rect.fromLTWH(
+          x - size * 0.05, base - size * 0.45, size * 0.1, size * 0.45),
+      trunk);
+  for (var k = 0; k < 6; k++) {
+    final a = k / 6 * math.pi * 2 + _rand(seed, k) * 0.6;
+    final r = size * (0.2 + _rand(seed, k + 10) * 0.1);
+    canvas.drawCircle(
+        Offset(x + math.cos(a) * size * 0.22,
+            base - size * 0.72 + math.sin(a) * size * 0.2),
+        r,
+        dark);
+  }
+  for (var k = 0; k < 4; k++) {
+    final r = size * (0.12 + _rand(seed, k + 20) * 0.07);
+    canvas.drawCircle(
+        Offset(x - size * (0.14 - k * 0.07), base - size * (0.88 - k * 0.04)),
+        r,
+        lit);
+  }
 }
 
 class _ScenePainter extends CustomPainter {
@@ -398,7 +354,8 @@ class _ScenePainter extends CustomPainter {
   final _bands = <String, Paint>{};
 
   /// 화면 크기에 묶인 세로 그라디언트. 크기가 같으면 매 프레임 다시 만들지 않는다.
-  Paint _band(String key, Size size, Rect r, List<Color> colors) {
+  Paint _band(String key, Size size, Rect r, List<Color> colors,
+      [List<double>? stops]) {
     if (_bandSize != size) {
       _bands.clear();
       _bandSize = size;
@@ -410,8 +367,20 @@ class _ScenePainter extends CustomPainter {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: colors,
+            stops: stops,
           ).createShader(r));
   }
+
+  List<Color> get _sky => scene.night
+      ? _Palette.night
+      : scene.rainLevel > 0
+          ? _Palette.rain
+          : _Palette.day;
+
+  /// 지평선 색. 먼 것일수록 이 색에 묻힌다(대기 원근).
+  Color get _haze => _sky[2];
+
+  Color _far(Color c, double t) => Color.lerp(c, _haze, t)!;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -425,23 +394,21 @@ class _ScenePainter extends CustomPainter {
     }
 
     final all = Offset.zero & size;
-    final rainy = scene.rainLevel > 0;
-    canvas.drawRect(
-        all,
-        _band(
-            scene.night
-                ? 'skyN'
-                : rainy
-                    ? 'skyR'
-                    : 'sky',
-            size,
-            all,
-            scene.night
-                ? const [_Palette.nightTop, _Palette.logoGround]
-                : rainy
-                    ? const [_Palette.rainSkyTop, _Palette.rainSkyBottom]
-                    : const [_Palette.skyTop, _Palette.skyBottom]));
-    if (scene.night) _stars(canvas, w, h);
+    canvas.drawRect(all, _band('sky', size, all, _sky, const [0, 0.45, 0.78]));
+    if (scene.night) {
+      _stars(canvas, w, h);
+    } else if (scene.rainLevel == 0) {
+      // 왼쪽 위 햇빛 번짐
+      canvas.drawCircle(
+          Offset(w * 0.12, h * 0.05),
+          h * 0.9,
+          Paint()
+            ..shader = RadialGradient(colors: [
+              const Color(0x66FFF6DA),
+              const Color(0x00FFF6DA),
+            ]).createShader(Rect.fromCircle(
+                center: Offset(w * 0.12, h * 0.05), radius: h * 0.9)));
+    }
     _clouds(canvas, w, h, m);
 
     switch (scene.kind) {
@@ -459,172 +426,414 @@ class _ScenePainter extends CustomPainter {
     _near(canvas, size, m);
 
     if (scene.night) {
-      // 하늘은 그대로 두고 땅 쪽만 어둡게 덮는다. 달·별이 탁해지지 않게 한다
+      // 땅 쪽을 푸른 밤빛으로 곱한다. 하늘 위쪽(흰색 = 변화 없음)은 그대로 둔다
       canvas.drawRect(
           all,
-          _band('veil', size, all, [
-            _Palette.nightTop.withValues(alpha: 0),
-            _Palette.nightTop.withValues(alpha: 0.5),
-          ]));
-      // 밤 도시 창문은 어둠 위에 다시 켜서 따뜻하게 빛나게 한다
-      if (scene.kind == SceneKind.city) {
-        _cityWindows(canvas, size, m, Paint()..color = _Palette.logoYellow);
-      }
+          _band('veil', size, all, const [
+            Color(0xFFFFFFFF),
+            Color(0xFF6B7BB8),
+            Color(0xFF3E4C86),
+          ], const [
+            0.2,
+            0.5,
+            1,
+          ])
+            ..blendMode = BlendMode.multiply);
+      if (scene.kind == SceneKind.city) _cityLights(canvas, size, m);
+    }
+    if (scene.rainLevel > 0) {
+      // 빗속 공기: 전체를 살짝 회색 안개로 덮는다
+      canvas.drawRect(
+          all,
+          Paint()
+            ..color = _haze.withValues(alpha: 0.08 + scene.rainLevel * 0.05));
     }
   }
 
   void _stars(Canvas canvas, double w, double h) {
-    final p = Paint()..color = _Palette.logoYellow.withValues(alpha: 0.85);
-    for (var i = 0; i < 34; i++) {
-      canvas.drawCircle(Offset(_rand(i, 3) * w, _rand(i, 4) * h * 0.45),
-          1 + _rand(i, 5) * 1.4, p);
+    final p = Paint()..color = const Color(0xFFFFF4D6);
+    for (var i = 0; i < 46; i++) {
+      final r = 0.6 + _rand(i, 5) * 1.3;
+      p.color =
+          const Color(0xFFFFF4D6).withValues(alpha: 0.4 + _rand(i, 6) * 0.6);
+      canvas.drawCircle(Offset(_rand(i, 3) * w, _rand(i, 4) * h * 0.5), r, p);
     }
-    final moon = Offset(w * 0.82, h * 0.17);
+    final moon = Offset(w * 0.8, h * 0.18);
     canvas
-      ..drawCircle(moon, 30,
-          Paint()..color = _Palette.shellYellow.withValues(alpha: 0.08))
-      ..drawCircle(moon, 21,
-          Paint()..color = _Palette.shellYellow.withValues(alpha: 0.12))
-      ..drawCircle(moon, 14, Paint()..color = _Palette.logoYellow)
-      // 초승달: 하늘색 원으로 한쪽을 가린다
       ..drawCircle(
-          moon + const Offset(6, -4), 11.5, Paint()..color = _Palette.nightTop);
+          moon,
+          h * 0.28,
+          Paint()
+            ..shader = RadialGradient(colors: [
+              const Color(0x40FFF1C8),
+              const Color(0x00FFF1C8),
+            ]).createShader(Rect.fromCircle(center: moon, radius: h * 0.28)))
+      ..drawCircle(moon, 13, Paint()..color = const Color(0xFFFFF3D0))
+      ..drawCircle(moon + const Offset(-3, -3), 4,
+          Paint()..color = const Color(0x22B8A57A))
+      ..drawCircle(moon + const Offset(4, 3), 2.6,
+          Paint()..color = const Color(0x22B8A57A));
   }
 
+  /// 뭉게구름: 밑이 평평한 덩어리를 그늘색으로 깔고, 해 쪽(왼쪽 위)으로 조금씩 밀어
+  /// 줄인 같은 덩어리를 밝은색으로 얹는다. 애니메이션 배경의 2단 셀 셰이딩이다.
   void _clouds(Canvas canvas, double w, double h, double m) {
-    final clay = scene.night
-        ? _Clay.cloudNight
-        : scene.rainLevel > 0
-            ? _Clay.cloudRain
-            : _Clay.cloud;
-    _repeat(w, 210, m * _cloudPx + motion.seconds * 3, (x, i) {
-      if (_rand(i, 11) < 0.3) return;
-      final cw = 64 + _rand(i, 12) * 48;
-      final y = h * (0.05 + _rand(i, 13) * 0.16);
-      _drawClay(canvas, Rect.fromLTWH(x + _rand(i, 14) * 60, y, cw, cw * 0.5),
-          _Shapes.cloud, clay,
-          gloss: const Rect.fromLTWH(0.26, 0.16, 0.22, 0.16));
+    final rainy = scene.rainLevel > 0;
+    final (lit, shade) = scene.night
+        ? (const Color(0xFF41548A), const Color(0xFF26355F))
+        : rainy
+            ? (const Color(0xFFBCC4CC), const Color(0xFF8C97A4))
+            : (const Color(0xFFFFFFFF), const Color(0xFFC3CCE2));
+    final shadePaint = Paint()..color = shade;
+    final litPaint = Paint()..color = lit;
+    // 지평선 근처의 옅은 띠구름: 멀리 있어서 느리게 흐르고 하늘색에 묻힌다
+    final wisp = Paint()
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5)
+      ..color =
+          Color.lerp(lit, _haze, 0.3)!.withValues(alpha: rainy ? 0.35 : 0.7);
+    _repeat(w, 190, m * _cloudPx * 0.5 + motion.seconds * 1.5, (x, i) {
+      if (_rand(i, 41) < 0.3) return;
+      final ww = 60 + _rand(i, 42) * 110;
+      final y = h * (0.46 + _rand(i, 43) * 0.1);
+      canvas
+        ..drawRRect(
+            RRect.fromRectAndRadius(
+                Rect.fromLTWH(x, y, ww, 5 + _rand(i, 44) * 4),
+                const Radius.circular(5)),
+            wisp)
+        ..drawRRect(
+            RRect.fromRectAndRadius(
+                Rect.fromLTWH(x + ww * 0.2, y - 4, ww * 0.45, 6),
+                const Radius.circular(4)),
+            wisp);
+    });
+    _repeat(w, rainy ? 230 : 280, m * _cloudPx + motion.seconds * 3, (x, i) {
+      if (!rainy && _rand(i, 11) < 0.3) return;
+      final cw = (rainy ? 210 : 100) + _rand(i, 12) * (rainy ? 110 : 90);
+      final ch = cw * (rainy ? 0.3 : 0.5);
+      final cx = x + _rand(i, 14) * 70;
+      final by = h * (rainy ? 0.3 : 0.33 + _rand(i, 13) * 0.1);
+      const n = 9;
+      final lobes = <(Offset, double)>[];
+      for (var k = 0; k < n; k++) {
+        // 가운데가 높은 돔 곡선을 따라 서로 겹치게 놓는다
+        final t = k / (n - 1);
+        final dome = math.sin(t * math.pi);
+        final j = 0.85 + _rand(i * 13 + k, 31) * 0.3;
+        lobes.add((
+          Offset(cx + cw * (0.1 + t * 0.8), by - ch * (0.25 + 0.45 * dome * j)),
+          ch * (0.22 + 0.25 * dome) * j,
+        ));
+      }
+      // 꼭대기에 작은 봉우리 두세 개를 더 얹어 뭉게뭉게하게 만든다
+      for (var k = 0; k < 3; k++) {
+        if (rainy) break;
+        final t = 0.3 + k * 0.2 + (_rand(i, k + 33) - 0.5) * 0.1;
+        lobes.add((
+          Offset(cx + cw * t, by - ch * (0.8 + _rand(i, k + 34) * 0.15)),
+          ch * (0.2 + _rand(i, k + 35) * 0.08),
+        ));
+      }
+      final body = Path()
+        ..addRRect(RRect.fromRectAndRadius(
+            Rect.fromLTRB(cx + cw * 0.04, by - ch * 0.32, cx + cw * 0.96, by),
+            Radius.circular(ch * 0.16)));
+      for (final (c, r) in lobes) {
+        body.addOval(Rect.fromCircle(center: c, radius: r));
+      }
+      canvas
+        ..save()
+        ..clipPath(body)
+        ..drawPath(body, shadePaint);
+      for (final (c, r) in lobes) {
+        canvas.drawCircle(c + Offset(-r * 0.22, -r * 0.24), r * 0.86, litPaint);
+      }
+      canvas.restore();
+    });
+  }
+
+  /// 먼 산 능선 한 겹. [top] 은 가장 높은 봉우리, [base] 는 능선이 끝나는 높이.
+  void _range(Canvas canvas, Size size, double offset, int seed, double top,
+      double base, Color color, String key,
+      {double scale = 1, double mistAt = 1, bool wooded = false}) {
+    final w = size.width;
+    final h = size.height;
+    final path = _profile(w, h,
+        (x) => base - (base - top) * _ridge(x + offset, seed, scale: scale));
+    final r = Rect.fromLTRB(0, top, w, base + (h - base) * mistAt);
+    canvas.drawPath(path, _band(key, size, r, [color, _far(color, 0.55)]));
+    if (wooded) {
+      // 산허리를 덮은 숲: 능선보다 조금 아래에서 잔 굴곡이 많은 더 짙은 면
+      final depth = (base - top) * 0.28;
+      canvas.drawPath(
+          _profile(
+              w,
+              h,
+              (x) =>
+                  base -
+                  (base - top) * _ridge(x + offset, seed, scale: scale) +
+                  depth +
+                  depth * 0.5 * _noise((x + offset) / 9, seed + 40),
+              step: 3),
+          Paint()
+            ..color = Color.lerp(color, _Palette.forest, 0.35)!
+                .withValues(alpha: 0.7));
+    }
+    // 해 쪽 능선에 가는 림라이트
+    canvas.drawPath(
+        _rim(
+            w,
+            (x) =>
+                base - (base - top) * _ridge(x + offset, seed, scale: scale)),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.4
+          ..color =
+              Color.lerp(color, Colors.white, 0.35)!.withValues(alpha: 0.6));
+  }
+
+  Path _rim(double w, double Function(double x) yAt) {
+    final p = Path()..moveTo(0, yAt(0));
+    for (var x = 5.0; x <= w; x += 5) {
+      p.lineTo(x, yAt(x));
+    }
+    return p;
+  }
+
+  /// 둥글둥글한 잎 덩어리가 이어진 숲 띠.
+  void _forestBand(Canvas canvas, Size size, double offset, double y,
+      double bump, Color dark, Color lit) {
+    final w = size.width;
+    final h = size.height;
+    final dp = Paint()..color = dark;
+    final mid = Paint()..color = Color.lerp(dark, lit, 0.45)!;
+    final lp = Paint()..color = lit;
+    canvas.drawRect(Rect.fromLTRB(0, y, w, h), dp);
+    _repeat(w, bump * 0.8, offset, (x, i) {
+      final r = bump * (0.5 + _rand(i, 61) * 0.6);
+      final c = Offset(x + _rand(i, 63) * bump * 0.4,
+          y - r * 0.25 + _rand(i, 62) * bump * 0.35);
+      canvas.drawCircle(c, r, dp);
+      // 잎 덩어리 위쪽만 햇빛을 받는다: 중간색 → 밝은색 두 단계
+      canvas
+        ..save()
+        ..clipRect(Rect.fromLTRB(c.dx - r, c.dy - r, c.dx + r, c.dy + r * 0.1))
+        ..drawCircle(c + Offset(-r * 0.18, -r * 0.12), r * 0.78, mid)
+        ..restore()
+        ..drawCircle(c + Offset(-r * (0.2 + _rand(i, 64) * 0.2), -r * 0.45),
+            r * (0.28 + _rand(i, 65) * 0.14), lp);
+    });
+  }
+
+  void _mountain(Canvas canvas, Size size, double m) {
+    final w = size.width;
+    final h = size.height;
+    _range(canvas, size, m * _farPx * 0.6, 7, h * 0.12, h * 0.56,
+        _far(_Palette.farBlue, 0.25), 'm1',
+        scale: 1.4);
+    _range(canvas, size, m * _farPx, 8, h * 0.3, h * 0.66,
+        _far(_Palette.midGreen, 0.25), 'm2',
+        wooded: true);
+    // 골짜기 안개
+    final mist = Rect.fromLTRB(0, h * 0.55, w, h * 0.72);
+    canvas.drawRect(
+        mist,
+        _band('mist', size, mist, [
+          _haze.withValues(alpha: 0),
+          _haze.withValues(alpha: 0.55),
+          _haze.withValues(alpha: 0)
+        ]));
+    _forestBand(canvas, size, m * _midPx * 0.5, h * 0.7, 18, _Palette.forest,
+        _Palette.forestLit);
+    final ground = Rect.fromLTRB(0, h * 0.8, w, h);
+    canvas.drawRect(
+        ground,
+        _band('meadow', size, ground,
+            const [_Palette.meadow, _Palette.meadowDeep]));
+    final trunk = Paint()..color = _Palette.trunk;
+    final dark = Paint()..color = _Palette.forest;
+    final lit = Paint()..color = _Palette.forestLit;
+    _repeat(w, 210, m * _midPx, (x, i) {
+      if (_rand(i, 2) < 0.2) return;
+      _tree(canvas, x + _rand(i, 3) * 80, h * 0.79, 58 + _rand(i, 4) * 30, i,
+          trunk, dark, lit);
     });
   }
 
   void _coast(Canvas canvas, Size size, double m) {
     final w = size.width;
     final h = size.height;
-    final horizon = h * 0.52;
-    // 먼 섬: 통통한 민트 언덕
-    _repeat(w, 260, m * _farPx, (x, i) {
-      final iw = 90 + _rand(i, 1) * 90;
-      final ih = iw * (0.32 + _rand(i, 2) * 0.14);
-      _drawClay(canvas, Rect.fromLTWH(x + 40, horizon - ih + 4, iw, ih),
-          _Shapes.gumdrop, _Clay.island,
-          gloss: const Rect.fromLTWH(0.28, 0.14, 0.24, 0.16));
+    final horizon = h * 0.55;
+    // 먼 섬
+    _repeat(w, 340, m * _farPx, (x, i) {
+      if (_rand(i, 9) < 0.35) return;
+      final iw = 90 + _rand(i, 1) * 140;
+      final ih = 14 + _rand(i, 2) * 26;
+      final p = _profile(iw, horizon + 1, (t) {
+        final u = t / iw;
+        return horizon -
+            ih *
+                math.sin(u.clamp(0, 1) * math.pi) *
+                (0.75 + 0.25 * _noise(t / 16, i));
+      });
+      canvas
+        ..save()
+        ..translate(x, 0)
+        ..drawPath(p, Paint()..color = _far(_Palette.midGreen, 0.4))
+        ..restore();
     });
     final sea = Rect.fromLTRB(0, horizon, w, h);
     canvas.drawRect(sea,
-        _band('sea', size, sea, const [_Palette.seaBase, _Palette.seaDeep]));
-    // 물결: 둥근 캡슐
-    final cap = Paint()..color = _Palette.greenSoft.withValues(alpha: 0.75);
-    for (var row = 0; row < 3; row++) {
-      final y = horizon + 12 + row * 16.0;
-      _repeat(w, 80, m * _midPx * (0.6 + row * 0.3), (x, i) {
-        final len = 14 + _rand(i, row) * 18;
-        canvas.drawRRect(
-            RRect.fromRectAndRadius(
-                Rect.fromLTWH(x + _rand(i, row + 5) * 40, y, len, 4.0 + row),
-                const Radius.circular(4)),
-            cap);
+        _band('sea', size, sea, const [_Palette.seaHorizon, _Palette.sea]));
+    canvas.drawLine(
+        Offset(0, horizon),
+        Offset(w, horizon),
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.5)
+          ..strokeWidth = 1);
+    // 반짝이는 물결: 가까울수록 굵고 빠르다
+    final glint = Paint()..strokeCap = StrokeCap.round;
+    for (var row = 0; row < 5; row++) {
+      final y = horizon + 6 + row * row * 4.5 + row * 4;
+      glint
+        ..strokeWidth = 1 + row * 0.5
+        ..color = Colors.white.withValues(alpha: 0.35 + row * 0.08);
+      _repeat(w, 46 + row * 14, m * _midPx * (0.3 + row * 0.25), (x, i) {
+        if (_rand(i, row + 70) < 0.35) return;
+        final len = 6 + _rand(i, row) * (8 + row * 5);
+        final xx = x + _rand(i, row + 5) * 30;
+        canvas.drawLine(Offset(xx, y), Offset(xx + len, y), glint);
       });
     }
-    // 모래사장: 위가 둥근 언덕
-    final beach = Rect.fromLTRB(-20, h * 0.76, w + 20, h + 20);
-    canvas.drawRRect(
-        RRect.fromRectAndCorners(beach,
-            topLeft: Radius.elliptical(w * 0.5, 26),
-            topRight: Radius.elliptical(w * 0.5, 26)),
-        _band('sand', size, beach, const [_Palette.sand, _Palette.duneAccent]));
+    // 앞쪽 모래 언덕과 풀
+    final dune =
+        _profile(w, h, (x) => h * 0.8 - 10 * _noise((x + m * _midPx) / 90, 31));
+    final duneR = Rect.fromLTRB(0, h * 0.76, w, h);
+    canvas.drawPath(dune,
+        _band('sand', size, duneR, const [_Palette.sand, _Palette.sandDeep]));
+    final grass = Paint()
+      ..color = _Palette.meadowDeep
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    _repeat(w, 26, m * _midPx, (x, i) {
+      if (_rand(i, 33) < 0.5) return;
+      final base = h * 0.8 - 10 * _noise((x + m * _midPx) / 90, 31) + 6;
+      for (var k = -1; k <= 1; k++) {
+        canvas.drawLine(Offset(x, base),
+            Offset(x + k * 5 + 2, base - 10 - _rand(i, k + 35) * 8), grass);
+      }
+    });
   }
 
-  void _mountain(Canvas canvas, Size size, double m) {
-    final w = size.width;
-    final h = size.height;
-    // 먼 능선: 둥근 봉우리
-    _repeat(w, 170, m * _farPx, (x, i) {
-      final rh = h * (0.3 + _rand(i, 1) * 0.18);
-      final rw = 200 + _rand(i, 3) * 60;
-      _drawClay(canvas, Rect.fromLTWH(x - 30, h * 0.64 - rh, rw, rh),
-          _Shapes.gumdrop, scene.night ? _Clay.ridgeNight : _Clay.ridge,
-          gloss: const Rect.fromLTWH(0.3, 0.1, 0.2, 0.14));
-    });
-    // 가까운 풀밭 언덕
-    _repeat(w, 260, m * _midPx * 0.5, (x, i) {
-      final r = 120 + _rand(i, 4) * 50;
-      _drawClay(
-          canvas,
-          Rect.fromCenter(
-              center: Offset(x + 130, h * 0.66 + r * 0.45),
-              width: r * 2.4,
-              height: r),
-          _Shapes.oval,
-          _Clay.meadow,
-          gloss: const Rect.fromLTWH(0.3, 0.06, 0.24, 0.1));
-    });
-    final ground = Rect.fromLTRB(0, h * 0.72, w, h);
-    canvas.drawRect(
-        ground,
-        _band('meadow', size, ground,
-            const [_Palette.sproutBase, _Palette.sproutDeep]));
-    // 숲: 산 장면에 섞는다 (이슈 #45 결정). 둥근 덩어리 나무
-    final trunk = Paint()..color = _Palette.duneDeep;
-    _repeat(w, 38, m * _midPx, (x, i) {
-      final s = 28 + _rand(i, 2) * 18;
-      final base = h * 0.78;
-      canvas.drawRRect(
-          RRect.fromRectAndRadius(
-              Rect.fromLTWH(x + s * 0.42, base - s * 0.34, s * 0.16, s * 0.34),
-              const Radius.circular(3)),
-          trunk);
-      _drawClay(canvas, Rect.fromLTWH(x, base - s * 1.1, s, s * 0.86),
-          _Shapes.canopy, _Clay.pine,
-          gloss: const Rect.fromLTWH(0.3, 0.1, 0.22, 0.16));
-    });
+  /// 마을 건물 한 채의 위치·크기. 밤 불빛도 같은 값을 쓴다.
+  (Rect, int, bool) _house(int i, double x, double h) {
+    final bw = 54 + _rand(i, 1) * 36;
+    final top = h * (0.32 + _rand(i, 2) * 0.24);
+    return (
+      Rect.fromLTRB(x + 6, top, x + 6 + bw, h * 0.88),
+      (_rand(i, 6) * _Palette.walls.length).floor() % _Palette.walls.length,
+      _rand(i, 7) < 0.45, // 박공지붕
+    );
   }
+
+  static const _housePeriod = 104.0;
 
   void _city(Canvas canvas, Size size, double m) {
     final w = size.width;
     final h = size.height;
-    final far = Paint()
-      ..color = scene.night
-          ? Color.lerp(_Palette.nightTop, _Palette.seaDeep, 0.45)!
-          : Color.lerp(_Palette.rainTint, _Palette.seaBase, 0.4)!;
-    _repeat(w, 48, m * _farPx, (x, i) {
-      final top = h * (0.22 + _rand(i, 1) * 0.28);
-      canvas.drawRRect(
-          RRect.fromRectAndCorners(Rect.fromLTRB(x, top, x + 40, h * 0.74),
-              topLeft: const Radius.circular(14),
-              topRight: const Radius.circular(14)),
-          far);
+    // 먼 시가지: 안개에 묻힌 사각 실루엣
+    final farA = Paint()..color = _far(const Color(0xFF8DA2B6), 0.45);
+    final farB = Paint()..color = _far(const Color(0xFF7D93A8), 0.3);
+    _repeat(w, 30, m * _farPx * 0.6, (x, i) {
+      final top = h * (0.3 + _rand(i, 1) * 0.22);
+      canvas.drawRect(Rect.fromLTRB(x, top, x + 26, h * 0.7), farA);
     });
-    _repeat(w, 92, m * _midPx, (x, i) {
-      final top = h * (0.3 + _rand(i, 2) * 0.22);
-      final clay = _Clay.towers[(_rand(i, 6) * 4).floor() % 4];
-      _drawClay(
-          canvas, Rect.fromLTRB(x, top, x + 72, h * 0.86), _Shapes.tower, clay,
-          gloss: const Rect.fromLTWH(0.1, 0.06, 0.14, 0.4));
+    _repeat(w, 44, m * _farPx, (x, i) {
+      final top = h * (0.38 + _rand(i, 3) * 0.2);
+      canvas.drawRect(Rect.fromLTRB(x, top, x + 38, h * 0.74), farB);
+      if (_rand(i, 4) < 0.3) {
+        canvas.drawLine(Offset(x + 20, top), Offset(x + 20, top - 12),
+            farB..strokeWidth = 1.2);
+      }
     });
-    if (!scene.night) {
-      _cityWindows(canvas, size, m,
-          Paint()..color = _Palette.greenSoft.withValues(alpha: 0.85));
-    }
+    // 가까운 마을: 밝은 정면 + 그늘진 옆면 + 지붕
+    final win = Paint()..color = _Palette.glassDay;
+    final winLit = Paint()..color = Colors.white.withValues(alpha: 0.35);
+    final roof = Paint()..color = _Palette.roof;
+    final roofShade = Paint()..color = _Palette.roofShade;
+    _repeat(w, _housePeriod, m * _midPx, (x, i) {
+      final (r, c, gable) = _house(i, x, h);
+      final (face, shade) = _Palette.walls[c];
+      final side = r.width * 0.22;
+      canvas
+        ..drawRect(Rect.fromLTRB(r.right - side, r.top, r.right, r.bottom),
+            Paint()..color = shade)
+        ..drawRect(Rect.fromLTRB(r.left, r.top, r.right - side, r.bottom),
+            Paint()..color = face);
+      if (gable) {
+        canvas
+          ..drawPath(
+              Path()
+                ..moveTo(r.left - 5, r.top + 2)
+                ..lineTo(r.left + (r.width - side) / 2, r.top - 20)
+                ..lineTo(r.right - side + 5, r.top + 2)
+                ..close(),
+              roof)
+          ..drawPath(
+              Path()
+                ..moveTo(r.left + (r.width - side) / 2, r.top - 20)
+                ..lineTo(r.right + 3, r.top - 14)
+                ..lineTo(r.right + 3, r.top + 2)
+                ..lineTo(r.right - side + 5, r.top + 2)
+                ..close(),
+              roofShade);
+      } else {
+        // 평지붕 난간과 물탱크
+        canvas.drawRect(
+            Rect.fromLTRB(r.left - 2, r.top - 4, r.right + 1, r.top),
+            Paint()..color = shade);
+        if (_rand(i, 8) < 0.5) {
+          canvas.drawRect(
+              Rect.fromLTWH(r.left + 10, r.top - 14, 14, 10), roofShade);
+        }
+      }
+      for (var wy = r.top + 12; wy < r.bottom - 16; wy += 20) {
+        for (var wx = r.left + 8; wx < r.right - side - 12; wx += 16) {
+          canvas
+            ..drawRect(Rect.fromLTWH(wx, wy, 8, 10), win)
+            ..drawRect(Rect.fromLTWH(wx, wy, 3, 10), winLit);
+        }
+      }
+    });
+    // 길가 가로수
+    final trunk = Paint()..color = _Palette.trunk;
+    final dark = Paint()..color = _Palette.forest;
+    final lit = Paint()..color = _Palette.forestLit;
+    _repeat(w, 170, m * _midPx, (x, i) {
+      if (_rand(i, 12) < 0.2) return;
+      _tree(canvas, x + 40, h * 0.9, 40, i + 300, trunk, dark, lit);
+    });
   }
 
-  /// 도시 건물의 둥근 창. 낮에는 크림색, 밤에는 어둠 위에 노랗게 켠다.
-  void _cityWindows(Canvas canvas, Size size, double m, Paint lit) {
+  /// 밤 마을: 창문 일부에 따뜻한 불을 켜고 번짐을 준다.
+  void _cityLights(Canvas canvas, Size size, double m) {
     final h = size.height;
-    _repeat(size.width, 92, m * _midPx, (x, i) {
-      final top = h * (0.3 + _rand(i, 2) * 0.22);
-      for (var wy = top + 16; wy < h * 0.8; wy += 18) {
-        for (var wx = x + 24; wx < x + 66; wx += 18) {
-          canvas.drawCircle(Offset(wx, wy), 4, lit);
+    final lamp = Paint()..color = _Palette.lamp;
+    final glow = Paint()
+      ..color = _Palette.lamp.withValues(alpha: 0.35)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+    _repeat(size.width, _housePeriod, m * _midPx, (x, i) {
+      final (r, _, _) = _house(i, x, h);
+      final side = r.width * 0.22;
+      var k = 0;
+      for (var wy = r.top + 12; wy < r.bottom - 16; wy += 20) {
+        for (var wx = r.left + 8; wx < r.right - side - 12; wx += 16) {
+          if (_rand(i * 31 + k++, 90) < 0.55) {
+            final win = Rect.fromLTWH(wx, wy, 8, 10);
+            canvas
+              ..drawRect(win.inflate(3), glow)
+              ..drawRect(win, lamp);
+          }
         }
       }
     });
@@ -633,141 +842,149 @@ class _ScenePainter extends CustomPainter {
   void _road(Canvas canvas, Size size, double m) {
     final w = size.width;
     final h = size.height;
-    _repeat(w, 220, m * _farPx, (x, i) {
-      final r = 80 + _rand(i, 1) * 60;
-      _drawClay(
-          canvas,
-          Rect.fromCircle(
-              center: Offset(x + 110, h * 0.66 + r * 0.55), radius: r),
-          _Shapes.oval,
-          scene.night ? _Clay.farHillNight : _Clay.farHill,
-          gloss: const Rect.fromLTWH(0.28, 0.08, 0.22, 0.1));
-    });
-    final ground = Rect.fromLTRB(0, h * 0.66, w, h);
+    _range(canvas, size, m * _farPx * 0.5, 17, h * 0.3, h * 0.6,
+        _far(_Palette.farBlue, 0.3), 'r1',
+        scale: 1.6);
+    _range(canvas, size, m * _farPx, 18, h * 0.46, h * 0.66,
+        _far(_Palette.midGreen, 0.25), 'r2',
+        scale: 1.2, wooded: true);
+    // 밭: 색이 다른 띠 두 줄
+    final field = Rect.fromLTRB(0, h * 0.64, w, h);
     canvas.drawRect(
-        ground,
-        _band('field', size, ground, [
-          Color.lerp(_Palette.growthGreen, _Palette.greenSoft, 0.45)!,
-          Color.lerp(_Palette.growthGreen, _Palette.greenSoft, 0.2)!,
-        ]));
-    // 막대사탕 나무와 둥근 덤불
-    final trunk = Paint()..color = _Palette.duneDeep;
-    _repeat(w, 150, m * _midPx, (x, i) {
-      final base = h * 0.8;
-      if (_rand(i, 4) > 0.55) {
-        _drawClay(canvas, Rect.fromLTWH(x + 56, base - 20, 44, 22),
-            _Shapes.oval, _Clay.leaf);
+        field,
+        _band('field', size, field,
+            const [Color(0xFFA9CB6A), _Palette.meadowDeep]));
+    final row = Paint()
+      ..color = const Color(0x22355F3A)
+      ..strokeWidth = 2;
+    for (var y = h * 0.68; y < h * 0.86; y += 7 + (y - h * 0.68) * 0.25) {
+      canvas.drawLine(Offset(0, y), Offset(w, y), row);
+    }
+    // 띄엄띄엄 선 나무
+    final trunk = Paint()..color = _Palette.trunk;
+    final dark = Paint()..color = _Palette.forest;
+    final lit = Paint()..color = _Palette.forestLit;
+    _repeat(w, 180, m * _midPx * 0.7, (x, i) {
+      if (_rand(i, 2) < 0.15) return;
+      _tree(canvas, x + _rand(i, 3) * 90, h * 0.74, 38 + _rand(i, 4) * 22,
+          i + 100, trunk, dark, lit);
+    });
+    // 전봇대와 늘어진 전선
+    const pole = 230.0;
+    final wood = Paint()..color = const Color(0xFF6A5A4C);
+    final wire = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = const Color(0xAA3A3A3A);
+    _repeat(w, pole, m * _midPx, (x, _) {
+      final top = h * 0.2;
+      final base = h * 0.84;
+      canvas
+        ..drawRect(Rect.fromLTRB(x - 2.5, top, x + 2.5, base), wood)
+        ..drawRect(Rect.fromLTRB(x - 14, top + 8, x + 14, top + 11), wood);
+      for (final dx in const [-11.0, 11.0]) {
+        canvas.drawPath(
+            Path()
+              ..moveTo(x + dx, top + 8)
+              ..quadraticBezierTo(
+                  x + pole / 2 + dx, top + 34, x + pole + dx, top + 8),
+            wire);
       }
-      if (_rand(i, 2) < 0.35) return;
-      canvas.drawRRect(
-          RRect.fromRectAndRadius(Rect.fromLTWH(x + 9, base - 26, 7, 26),
-              const Radius.circular(3.5)),
-          trunk);
-      _drawClay(
-          canvas,
-          Rect.fromCircle(center: Offset(x + 12.5, base - 36), radius: 17),
-          _Shapes.oval,
-          _Clay.leaf);
     });
   }
 
   void _near(Canvas canvas, Size size, double m) {
     final w = size.width;
     final h = size.height;
-    final edge = h * 0.9;
-    final shoulder = Rect.fromLTRB(0, edge, w, h);
-    canvas
-      ..drawRect(
-          shoulder,
-          _band('shoulder', size, shoulder,
-              const [_Palette.shoulder, _Palette.logoGround]))
-      ..drawLine(
-          Offset(0, edge + 1.5),
-          Offset(w, edge + 1.5),
-          Paint()
-            ..color = Colors.white.withValues(alpha: 0.18)
-            ..strokeWidth = 3);
+    final edge = h * 0.88;
+    final verge = Rect.fromLTRB(0, edge, w, h);
+    canvas.drawRect(
+        verge,
+        _band(
+            'verge', size, verge, const [_Palette.verge, _Palette.vergeDeep]));
+    // 빠르게 스치는 풀
+    final blade = Paint()
+      ..color = const Color(0xFF6F9F4A)
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    _repeat(w, 18, m * _nearPx, (x, i) {
+      canvas.drawLine(Offset(x, edge + 4),
+          Offset(x + 3, edge - 4 - _rand(i, 80) * 8), blade);
+    });
+    if (scene.rainLevel > 0) {
+      // 젖은 땅: 하늘빛이 비친다
+      canvas.drawRect(Rect.fromLTRB(0, h * 0.95, w, h),
+          Paint()..color = _haze.withValues(alpha: 0.25));
+    }
     if (scene.highway) {
-      // 고속도로: 둥근 반투명 방음벽 판
-      final panel = Paint()..color = _Palette.rainTint.withValues(alpha: 0.72);
-      final shine = Paint()..color = Colors.white.withValues(alpha: 0.55);
-      _repeat(w, 64, m * _nearPx, (x, _) {
+      // 고속도로 방음벽: 반투명 판 + 철 기둥
+      final panel = Paint()..color = const Color(0x77B7D3D6);
+      final post = Paint()..color = _Palette.steelShade;
+      final glare = Paint()..color = Colors.white.withValues(alpha: 0.28);
+      canvas.drawRect(Rect.fromLTRB(0, h * 0.58, w, edge), panel);
+      _repeat(w, 70, m * _nearPx, (x, _) {
         canvas
-          ..drawRRect(
-              RRect.fromRectAndRadius(
-                  Rect.fromLTRB(x + 3, h * 0.6, x + 61, edge + 2),
-                  const Radius.circular(10)),
-              panel)
-          ..drawRRect(
-              RRect.fromRectAndRadius(Rect.fromLTWH(x + 11, h * 0.6 + 6, 26, 5),
-                  const Radius.circular(3)),
-              shine);
+          ..drawRect(Rect.fromLTRB(x, h * 0.56, x + 5, edge + 4), post)
+          ..drawPath(
+              Path()
+                ..moveTo(x + 18, h * 0.58)
+                ..lineTo(x + 30, h * 0.58)
+                ..lineTo(x + 14, edge)
+                ..lineTo(x + 2, edge)
+                ..close(),
+              glare);
       });
+      canvas.drawRect(Rect.fromLTRB(0, h * 0.56, w, h * 0.58), post);
       return;
     }
-    // 일반 도로: 노란 모자를 쓴 둥근 가드레일
-    final post = Paint()..color = _Palette.greenSoft;
-    final cap = Paint()..color = _Palette.shellYellow;
-    final railShadow = Paint()
-      ..color = Color.lerp(_Palette.greenSoft, Colors.black, 0.35)!;
-    _repeat(w, 44, m * _nearPx, (x, _) {
-      canvas
-        ..drawRRect(
-            RRect.fromRectAndRadius(
-                Rect.fromLTWH(x, h * 0.8, 7, edge - h * 0.8 + 4),
-                const Radius.circular(3.5)),
-            post)
-        ..drawCircle(Offset(x + 3.5, h * 0.8), 5, cap);
+    // 가드레일: 철 기둥 + 빛을 받는 띠
+    final post = Paint()..color = _Palette.steelShade;
+    _repeat(w, 52, m * _nearPx, (x, _) {
+      canvas.drawRect(Rect.fromLTRB(x, h * 0.8, x + 5, edge + 4), post);
     });
-    final rail = Rect.fromLTRB(-10, h * 0.815, w + 10, h * 0.815 + 8);
+    final rail = Rect.fromLTRB(-10, h * 0.8, w + 10, h * 0.835);
     canvas
-      ..drawRRect(
-          RRect.fromRectAndRadius(
-              rail.shift(const Offset(0, 3)), const Radius.circular(4)),
-          railShadow)
-      ..drawRRect(
-          RRect.fromRectAndRadius(rail, const Radius.circular(4)), post);
+      ..drawRect(rail, Paint()..color = _Palette.steel)
+      ..drawRect(Rect.fromLTRB(-10, rail.top + 1, w + 10, rail.top + 3),
+          Paint()..color = Colors.white.withValues(alpha: 0.7))
+      ..drawRect(Rect.fromLTRB(-10, rail.bottom - 3, w + 10, rail.bottom),
+          Paint()..color = _Palette.steelShade);
   }
 
   void _tunnel(Canvas canvas, Size size, double m) {
     final w = size.width;
     final h = size.height;
     final all = Offset.zero & size;
+    canvas.drawRect(all, _band('tunnel', size, all, _Palette.tunnelWall));
+    // 벽 타일 이음매가 빠르게 지나간다
+    final seam = Paint()
+      ..color = const Color(0x33000000)
+      ..strokeWidth = 2;
+    _repeat(w, 40, m * _nearPx, (x, _) {
+      canvas.drawLine(Offset(x, h * 0.3), Offset(x, h * 0.9), seam);
+    });
+    // 주황 나트륨등과 벽에 번지는 빛
+    final band = Rect.fromLTRB(0, h * 0.08, w, h * 0.5);
     canvas.drawRect(
-        all,
-        _band('tunnel', size, all,
-            const [_Palette.tunnelTop, _Palette.logoGround]));
-    // 둥근 벽 갈비
-    final rib = Paint()..color = _Palette.tunnelRib;
-    _repeat(w, 34, m * _nearPx, (x, _) {
-      canvas.drawRRect(
-          RRect.fromRectAndRadius(Rect.fromLTWH(x, h * 0.3, 14, h * 0.62),
-              const Radius.circular(7)),
-          rib);
-    });
-    // 터널 조명이 빠르게 지나간다
-    final lamp = Paint()..color = _Palette.shellYellow;
-    final shine = Paint()..color = _Palette.logoYellow.withValues(alpha: 0.9);
+        band,
+        _band('sodiumWash', size, band, [
+          _Palette.sodium.withValues(alpha: 0.28),
+          _Palette.sodium.withValues(alpha: 0),
+        ]));
+    final lamp = Paint()..color = const Color(0xFFFFE2A8);
     final glow = Paint()
-      ..color = _Palette.shellYellow.withValues(alpha: 0.25)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
-    _repeat(w, 110, m * _midPx * 2, (x, _) {
-      final r = Rect.fromLTWH(x, h * 0.14, 50, 12);
+      ..color = _Palette.sodium.withValues(alpha: 0.55)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
+    _repeat(w, 120, m * _midPx * 2, (x, _) {
+      final r = Rect.fromLTWH(x, h * 0.13, 56, 9);
       canvas
-        ..drawRRect(
-            RRect.fromRectAndRadius(r.inflate(8), const Radius.circular(14)),
-            glow)
-        ..drawRRect(RRect.fromRectAndRadius(r, const Radius.circular(6)), lamp)
-        ..drawRRect(
-            RRect.fromRectAndRadius(Rect.fromLTWH(x + 8, h * 0.14 + 2, 18, 3),
-                const Radius.circular(2)),
-            shine);
+        ..drawRect(r.inflate(10), glow)
+        ..drawRect(r, lamp);
     });
-    canvas.drawRRect(
-        RRect.fromRectAndCorners(Rect.fromLTRB(0, h * 0.9, w, h),
-            topLeft: const Radius.circular(10),
-            topRight: const Radius.circular(10)),
-        Paint()..color = const Color(0xFF2A2A26));
+    canvas.drawRect(Rect.fromLTRB(0, h * 0.88, w, h),
+        Paint()..color = const Color(0xFF26231F));
+    canvas.drawRect(Rect.fromLTRB(0, h * 0.88, w, h * 0.89),
+        Paint()..color = _Palette.sodium.withValues(alpha: 0.4));
   }
 
   @override
@@ -786,28 +1003,33 @@ class _RainPainter extends CustomPainter {
     if (level <= 0) return;
     final w = size.width;
     final h = size.height;
-    // 창에 맺힌 동그란 물방울 (움직이지 않는다)
-    final bead = Paint()..color = _Palette.rainTint.withValues(alpha: 0.35);
-    final beadShine = Paint()..color = Colors.white.withValues(alpha: 0.8);
-    for (var i = 0; i < level * 6; i++) {
+    // 유리창에 맺힌 물방울: 바깥 풍경이 비쳐 아래가 어둡고 위에 반짝임이 있다
+    final body = Paint()..color = Colors.white.withValues(alpha: 0.16);
+    final rim = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = const Color(0x55203040);
+    final shine = Paint()..color = Colors.white.withValues(alpha: 0.85);
+    for (var i = 0; i < level * 9; i++) {
       final c = Offset(_rand(i, 21) * w, _rand(i, 22) * h);
-      final r = 3 + _rand(i, 23) * 3;
+      final r = 2 + _rand(i, 23) * 3.5;
       canvas
-        ..drawCircle(c, r, bead)
-        ..drawCircle(c + Offset(-r * 0.35, -r * 0.35), r * 0.3, beadShine);
+        ..drawCircle(c, r, body)
+        ..drawArc(Rect.fromCircle(center: c, radius: r), 0.3, 2.5, false, rim)
+        ..drawCircle(c + Offset(-r * 0.35, -r * 0.4), r * 0.28, shine);
     }
-    // 빗줄기: 둥근 끝의 짧은 캡슐. 빨리 달릴수록 더 눕는다
+    // 빗줄기: 가늘고 길다. 빨리 달릴수록 더 눕는다
     final p = Paint()
-      ..color = _Palette.rainTint.withValues(alpha: 0.8)
-      ..strokeWidth = 2.6
+      ..color = Colors.white.withValues(alpha: 0.45)
+      ..strokeWidth = 1.2
       ..strokeCap = StrokeCap.round;
     final slant = -(3 + speedKph / 100 * 12);
     final t = motion.seconds;
-    for (var i = 0; i < level * 28; i++) {
-      final fall = 420 + _rand(i, 7) * 220;
-      final y = (_rand(i, 8) * h + t * fall) % (h + 20) - 10;
+    for (var i = 0; i < level * 34; i++) {
+      final fall = 520 + _rand(i, 7) * 260;
+      final y = (_rand(i, 8) * h + t * fall) % (h + 30) - 15;
       final x = (_rand(i, 9) * w + t * slant * 20) % w;
-      canvas.drawLine(Offset(x, y), Offset(x + slant * 0.7, y + 10), p);
+      canvas.drawLine(Offset(x, y), Offset(x + slant * 1.2, y + 18), p);
     }
   }
 
