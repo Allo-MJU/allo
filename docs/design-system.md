@@ -15,7 +15,7 @@
 | 흰 면 위에 캐릭터가 주인공 | 바탕은 흰색. 알과 캐릭터 뒤에만 옅은 녹색 면을 깐다. 화면 장식으로 캐릭터와 경쟁하지 않는다 |
 | 색마다 맡은 일이 하나 | 알 노랑은 발견, 알 초록은 성장, 동작 초록은 다음 행동이다. 다른 용도로 쓰지 않는다 |
 | 색만으로 말하지 않는다 | 등급은 모양, 이름, 색을 함께 쓴다(8절). 환경 태그는 아이콘과 이름을 함께 쓴다 |
-| 아이 손가락과 흔들리는 차 | 주요 행동 버튼은 72, 최소 터치 영역은 56, 차 화면은 76이다 |
+| 아이 손가락과 흔들리는 차 | 폰의 모든 버튼은 높이 56 한 가지, 차 화면은 76이다 |
 | 멀미를 만들지 않는다 | 패럴랙스와 화면 전체 이동을 쓰지 않는다(10절) |
 | 차 화면은 한눈에 | 주행 중에는 한 줄만 보여 준다. 버튼을 두지 않는다(9절) |
 
@@ -147,8 +147,7 @@
 | --- | --- |
 | `spacing` | xxs 4 · xs 8 · sm 12 · md 16 · lg 24 · xl 32 · 2xl 48 · 3xl 64 |
 | `radius` | sm 8 · md 12 · lg 16 · xl 24 · full 999 |
-| `size.touch-min` | 56. 폰의 최소 터치 영역 |
-| `size.touch-kid` | 72. 아이용 주요 행동 버튼 |
+| `size.touch-min` | 56. 폰의 모든 버튼과 최소 터치 영역 |
 | `size.touch-car` | 76. 차 화면(Android for Cars 최소 기준) |
 | `size.border` / `size.border-control` | 1 / 2 |
 | `shadow.raised` | 0 4 12, 먹색 10%. 말풍선에만 쓴다 |
@@ -171,7 +170,7 @@ Figma `Components` 페이지에 있다. 모든 색, 간격, 모서리는 변수�
 
 | 컴포넌트 | 변형 | 규칙 |
 | --- | --- | --- |
-| **Button** | Style 4 × Size 2 × State 3 = 24 | Primary(동작 초록)는 다음 행동, Discovery(알 노랑)는 발견하는 순간에만 쓴다. Secondary는 흰색 + 입력 테두리, Ghost는 동작 초록 글자다. 한 화면에 Primary나 Discovery는 하나만 둔다. Large 72는 아이용, Medium 56은 보호자용이다 |
+| **Button** | Style 3 × State 3 = 9 | 높이는 56 하나다. Primary(동작 초록)는 다음 행동, Discovery(알 노랑)는 발견하는 순간에만 쓴다. Secondary는 흰색 + 입력 테두리이고, 선택된 상태는 완료 면 + 동작 초록 테두리다. 폭은 가로 전체이고 한 줄에 하나씩 쌓는다(예외: 먹이 주기·놀아 주기처럼 짝인 두 개는 반폭). 한 화면의 하단 버튼은 최대 둘이고 Primary나 Discovery는 하나만 둔다. 글자만 있는 Ghost 버튼은 쓰지 않는다 |
 | **Tier Badge** | Common · Rare · Epic · Special | 8절 |
 | **Tag Chip** | 환경 태그 7 | 옅은 녹색 면 + 보조 글자 한 가지 스타일. 아이콘이 의미를 맡는다. 누를 수 없다 |
 | **Egg Progress** | Early · Mid · Ready | 끝이 보이는 진행바. 남은 양은 말로 쓴다("앞으로 12분", "앞으로 8km"). 퍼센트와 상황 설명은 보조 글자다 |
@@ -244,3 +243,21 @@ Figma `Components` 페이지에 있다. 모든 색, 간격, 모서리는 변수�
 | Flutter 테마 | B | `phone/lib/app.dart`의 `colorSchemeSeed: 0xFF4FB3A9`를 이 토큰으로 교체. Asta Sans 번들 |
 | 로고 원본 | D | SVG 받아서 `art/design/logo/`에 추가 |
 | 캐릭터 이미지 | 전원 | 시트 24장의 레포 반입 여부(생성 도구 라이선스 확인 후). 지금은 Figma에만 있다 |
+
+## 화면 미리보기
+
+와이어프레임 v4 정상 흐름의 폰 화면이다. 전체 35화면 이미지는 [`art/design/preview/`](../art/design/preview/)에 번호순으로 있고, 원본은 [`wireframes.html`](../art/design/wireframes.html)이다. 화면을 고치면 이미지도 다시 뽑는다.
+
+| 1. 연결 | 2. 알 선택 | 3. 품기 | 4. 감싸기 |
+| --- | --- | --- | --- |
+| ![1. 연결](../art/design/preview/01.webp) | ![2. 알 선택](../art/design/preview/02.webp) | ![3. 품기](../art/design/preview/03.webp) | ![4. 감싸기](../art/design/preview/04.webp) |
+
+| 5. 부화 | 6. 동행·물어보기 | 7. 창밖 보기 | 8. 도착 |
+| --- | --- | --- | --- |
+| ![5. 부화](../art/design/preview/05.webp) | ![6. 동행·물어보기](../art/design/preview/06.webp) | ![7. 창밖 보기](../art/design/preview/07.webp) | ![8. 도착](../art/design/preview/08.webp) |
+
+| 9. 도감 | 10. 도감 상세 |
+| --- | --- |
+| ![9. 도감](../art/design/preview/09.webp) | ![10. 도감 상세](../art/design/preview/10.webp) |
+
+차 화면은 [`11.webp`](../art/design/preview/11.webp)~[`15.webp`](../art/design/preview/15.webp)에 있다.
