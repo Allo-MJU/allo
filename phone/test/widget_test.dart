@@ -8,13 +8,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   testWidgets('체험 시작 → 돌봄 → 부화 → 동행 → 도감', (tester) async {
     SharedPreferences.setMockInitialValues({});
+    // 실제 휴대폰 화면 크기(360×800). 기본 800×600 은 차 안 뷰 아래 버튼이 화면 밖으로 밀린다.
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(AlloApp(
         feed: FakeVehicleFeed(
             scenario: FakeScenario.rainyHighway, timeScale: 100)));
     await tester.pumpAndSettle();
     expect(find.text('차 없이 알로를 체험해 보세요'), findsOneWidget);
     expect(find.text('QR 스캔'), findsNothing);
-    await tester.runAsync(() => rootBundle.loadString('assets/data/species.json'));
+    await tester
+        .runAsync(() => rootBundle.loadString('assets/data/species.json'));
     await tester.tap(find.text('체험 시작'));
     await tester.pumpAndSettle();
     for (var i = 0; i < 20 && find.text('알 품기').evaluate().isEmpty; i++) {

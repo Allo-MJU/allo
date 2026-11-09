@@ -98,6 +98,7 @@ class _IncubatingScreenState extends State<IncubatingScreen>
                 const SizedBox(height: 16),
                 WindowView(
                   vehicle: c.vehicle,
+                  friends: c.collectedSpecies,
                   child: AnimatedBuilder(
                     animation: _shake,
                     builder: (_, child) => Transform.rotate(

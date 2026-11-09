@@ -9,7 +9,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('동행 상호작용은 부화 뒤에만 적용되고 등급·서버 계약을 바꾸지 않는다', () {
-    final c = GameController(feed: FakeVehicleFeed(scenario: FakeScenario.clear), dex: DexStore());
+    final c = GameController(
+        feed: FakeVehicleFeed(scenario: FakeScenario.clear), dex: DexStore());
     addTearDown(c.dispose);
     c.feedCompanion();
     c.playWithCompanion();
@@ -25,7 +26,8 @@ void main() {
   });
 
   test('창밖 문구는 현재 태그를 따르고 미확인 지역을 단정하지 않는다', () {
-    final c = GameController(feed: FakeVehicleFeed(scenario: FakeScenario.clear), dex: DexStore());
+    final c = GameController(
+        feed: FakeVehicleFeed(scenario: FakeScenario.clear), dex: DexStore());
     addTearDown(c.dispose);
     expect(c.lookOutPrompt.$2, 'window');
     c.vehicle = VehicleState.fromJson({
@@ -42,7 +44,8 @@ void main() {
 
   test('새 알을 시작하면 이전 동행 반응을 초기화한다', () async {
     SharedPreferences.setMockInitialValues({});
-    final c = GameController(feed: FakeVehicleFeed(scenario: FakeScenario.clear), dex: DexStore());
+    final c = GameController(
+        feed: FakeVehicleFeed(scenario: FakeScenario.clear), dex: DexStore());
     addTearDown(c.dispose);
     c.game = c.game.copyWith(stage: Stage.hatched);
     c.feedCompanion();

@@ -56,6 +56,18 @@ class GameController extends ChangeNotifier {
   int _resumeBrake = 0;
   int _resumeSteer = 0;
   RegionCollection _collection = const RegionCollection.unknown();
+  List<String> _collectedIds = const [];
+
+  /// 도감에 있는 캐릭터. 창밖에 친구로 지나갈 수 있다 (표시 전용, 판정에 쓰지 않는다).
+  List<Species> get collectedSpecies {
+    final table = _table;
+    if (table == null) return const [];
+    return [
+      for (final id in _collectedIds)
+        if (table.byId(id) case final s?) s,
+    ];
+  }
+
   int _collectionVersion = 0;
   RegionDurationAccumulator _regions = RegionDurationAccumulator();
   int? _regionSourceTs;
@@ -531,6 +543,7 @@ class GameController extends ChangeNotifier {
       final entries = await dex.all();
       if (_disposed || version != _collectionVersion) return;
       _collection = RegionCollection.fromEntries(entries);
+      _collectedIds = {for (final e in entries) e.speciesId}.toList();
     } catch (_) {
       if (_disposed || version != _collectionVersion) return;
       _collection = const RegionCollection.unknown();

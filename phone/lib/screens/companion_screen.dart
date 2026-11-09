@@ -30,6 +30,7 @@ class CompanionScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   WindowView(
                     vehicle: controller.vehicle,
+                    friends: controller.collectedSpecies,
                     child: AnimatedRotation(
                       turns: controller.playCount.isOdd ? 0.04 : -0.04,
                       duration: const Duration(milliseconds: 300),
