@@ -509,10 +509,13 @@ class _ScenePainter extends CustomPainter {
     });
     _repeat(w, rainy ? 230 : 280, m * _cloudPx + motion.seconds * 3, (x, i) {
       if (!rainy && _rand(i, 11) < 0.3) return;
-      final cw = (rainy ? 210 : 100) + _rand(i, 12) * (rainy ? 110 : 90);
+      // 크기는 창 높이에 비례한다. 창이 낮아도 구름 꼭대기가 잘리지 않게 한다
+      final cw =
+          h * (rainy ? 0.75 + _rand(i, 12) * 0.4 : 0.36 + _rand(i, 12) * 0.2);
       final ch = cw * (rainy ? 0.3 : 0.5);
       final cx = x + _rand(i, 14) * 70;
-      final by = h * (rainy ? 0.3 : 0.33 + _rand(i, 13) * 0.1);
+      final by = math.max(
+          h * (rainy ? 0.3 : 0.33 + _rand(i, 13) * 0.1), ch * 1.35 + 2);
       const n = 9;
       final lobes = <(Offset, double)>[];
       for (var k = 0; k < n; k++) {
@@ -643,8 +646,8 @@ class _ScenePainter extends CustomPainter {
           _haze.withValues(alpha: 0.55),
           _haze.withValues(alpha: 0)
         ]));
-    _forestBand(canvas, size, m * _midPx * 0.5, h * 0.7, 18, _Palette.forest,
-        _Palette.forestLit);
+    _forestBand(canvas, size, m * _midPx * 0.5, h * 0.7, h * 0.065,
+        _Palette.forest, _Palette.forestLit);
     final ground = Rect.fromLTRB(0, h * 0.8, w, h);
     canvas.drawRect(
         ground,
@@ -655,8 +658,8 @@ class _ScenePainter extends CustomPainter {
     final lit = Paint()..color = _Palette.forestLit;
     _repeat(w, 210, m * _midPx, (x, i) {
       if (_rand(i, 2) < 0.2) return;
-      _tree(canvas, x + _rand(i, 3) * 80, h * 0.79, 58 + _rand(i, 4) * 30, i,
-          trunk, dark, lit);
+      _tree(canvas, x + _rand(i, 3) * 80, h * 0.79,
+          h * (0.2 + _rand(i, 4) * 0.08), i, trunk, dark, lit);
     });
   }
 
@@ -811,7 +814,7 @@ class _ScenePainter extends CustomPainter {
     final lit = Paint()..color = _Palette.forestLit;
     _repeat(w, 170, m * _midPx, (x, i) {
       if (_rand(i, 12) < 0.2) return;
-      _tree(canvas, x + 40, h * 0.9, 40, i + 300, trunk, dark, lit);
+      _tree(canvas, x + 40, h * 0.9, h * 0.15, i + 300, trunk, dark, lit);
     });
   }
 
@@ -866,8 +869,8 @@ class _ScenePainter extends CustomPainter {
     final lit = Paint()..color = _Palette.forestLit;
     _repeat(w, 180, m * _midPx * 0.7, (x, i) {
       if (_rand(i, 2) < 0.15) return;
-      _tree(canvas, x + _rand(i, 3) * 90, h * 0.74, 38 + _rand(i, 4) * 22,
-          i + 100, trunk, dark, lit);
+      _tree(canvas, x + _rand(i, 3) * 90, h * 0.74,
+          h * (0.14 + _rand(i, 4) * 0.08), i + 100, trunk, dark, lit);
     });
     // 전봇대와 늘어진 전선
     const pole = 230.0;
