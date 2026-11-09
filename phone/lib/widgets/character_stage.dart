@@ -12,9 +12,18 @@ import 'window_view.dart';
 
 /// 동행 화면 안에서만 살아 있는 표현 상태. 게임 판정·서버 전송은 변경하지 않는다.
 class CharacterStage extends StatefulWidget {
-  const CharacterStage({super.key, required this.controller, this.nowMs});
+  const CharacterStage(
+      {super.key,
+      required this.controller,
+      this.nowMs,
+      this.sceneSize,
+      this.layoutBuilder});
   final GameController controller;
   final int Function()? nowMs;
+
+  /// 실제 장면 영역. null은 기존 세로 화면/독립 위젯의 기본 크기다.
+  final Size? sceneSize;
+  final Widget Function(Widget scene, Widget message)? layoutBuilder;
 
   @override
   State<CharacterStage> createState() => _CharacterStageState();
@@ -35,6 +44,7 @@ class _CharacterStageState extends State<CharacterStage>
   final _stageKey = GlobalKey();
   final _actorKey = GlobalKey();
   bool _dragging = false;
+  bool _snapPosition = false;
   bool _active = true;
   bool _reduceMotion = false;
   bool _awaitVehicleBaseline = false;
@@ -87,6 +97,16 @@ class _CharacterStageState extends State<CharacterStage>
   @override
   void didUpdateWidget(CharacterStage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.sceneSize != widget.sceneSize) {
+      _snapPosition = true;
+      if (_dragging) {
+        _dragging = false;
+        _drag = Offset.zero;
+        final revision = _behavior.revision;
+        _behavior.interact(CharacterEvent.dragEnd, _now);
+        _refresh(revision);
+      }
+    }
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_onController);
       widget.controller.addListener(_onController);
@@ -247,179 +267,184 @@ class _CharacterStageState extends State<CharacterStage>
       CharacterPose.surprised => ('놀람', Icons.priority_high),
       CharacterPose.sleep => ('휴식', Icons.bedtime),
     };
-    return Column(children: [
-      WindowView(
-          vehicle: c.vehicle,
-          child: SizedBox(
-            height: 184,
-            width: double.infinity,
-            child: LayoutBuilder(builder: (context, constraints) {
-              final size =
-                  math.min(112.0, math.max(56.0, constraints.maxWidth - 32));
-              final horizontal =
-                  math.max(0.0, (constraints.maxWidth - size) / 2 - 12);
-              final top = -(constraints.maxHeight - size - 20);
-              final anchor = switch (attachment) {
-                CharacterAttachment.none => Offset.zero,
-                CharacterAttachment.window => Offset(-horizontal * .65, top),
-                CharacterAttachment.seat => Offset(horizontal * .75, -20),
-              };
-              final desired = _dragging ? _drag : anchor;
-              final offset = Offset(desired.dx.clamp(-horizontal, horizontal),
-                  desired.dy.clamp(top, 0.0));
-              return Stack(
-                  key: _stageKey,
-                  clipBehavior: Clip.hardEdge,
-                  children: [
-                    Positioned(
-                      left: (constraints.maxWidth - size) / 2 +
-                          horizontal * .75 +
-                          size * .1,
-                      top: constraints.maxHeight - size - 12 - 20 + size * .18,
-                      width: size * .8,
-                      bottom: 0,
-                      child: ExcludeSemantics(
-                          child: DecoratedBox(
-                        key: const ValueKey('character-seat'),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD7C8B5),
-                          border: Border.all(
-                              color: const Color(0xFF9B8975), width: 3),
-                          borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(18)),
-                        ),
-                        child: const Align(
-                            alignment: Alignment.topCenter,
-                            child: Padding(
-                                padding: EdgeInsets.only(top: 16),
-                                child: SizedBox(
-                                    width: 50,
-                                    height: 3,
-                                    child:
-                                        ColoredBox(color: Color(0xFFB5A18A))))),
-                      )),
-                    ),
-                    AnimatedPositioned(
-                      duration: _dragging || _reduceMotion
-                          ? Duration.zero
-                          : AlloPresentation.fadeDuration,
-                      curve: AlloPresentation.standardCurve,
-                      left: (constraints.maxWidth - size) / 2 + offset.dx,
-                      bottom: 12 - offset.dy,
-                      width: size,
-                      height: size,
-                      child: Semantics(
-                        key: _actorKey,
-                        button: true,
-                        enabled: _enabled,
-                        label:
-                            '${c.hatched?.nameKo ?? "캐릭터"}, $label$attachmentLabel',
-                        hint: '누르면 반응해요. 길게 끌어 이동하고 놓아 보세요.',
+    final snapPosition = _snapPosition;
+    _snapPosition = false;
+    final sceneHeight = widget.sceneSize?.height ?? 240.0;
+    final scene = WindowView(
+        height: sceneHeight,
+        vehicle: c.vehicle,
+        child: SizedBox(
+          height:
+              widget.sceneSize == null ? 184 : math.max(96, sceneHeight - 24),
+          width: double.infinity,
+          child: LayoutBuilder(builder: (context, constraints) {
+            final size = widget.sceneSize == null
+                ? math.min(112.0, math.max(56.0, constraints.maxWidth - 32))
+                : math.max(
+                    32.0,
+                    math.min(
+                        160.0,
+                        math.min(constraints.maxWidth - 32,
+                            constraints.maxHeight * .62)));
+            final horizontal =
+                math.max(0.0, (constraints.maxWidth - size) / 2 - 12);
+            final top = -(constraints.maxHeight - size - 20);
+            final anchor = switch (attachment) {
+              CharacterAttachment.none => Offset.zero,
+              CharacterAttachment.window => Offset(-horizontal * .65, top),
+              CharacterAttachment.seat => Offset(horizontal * .75, -20),
+            };
+            final desired = _dragging ? _drag : anchor;
+            final offset = Offset(desired.dx.clamp(-horizontal, horizontal),
+                desired.dy.clamp(top, 0.0));
+            return Stack(
+                key: _stageKey,
+                clipBehavior: Clip.hardEdge,
+                children: [
+                  Positioned(
+                    left: (constraints.maxWidth - size) / 2 +
+                        horizontal * .75 +
+                        size * .1,
+                    top: constraints.maxHeight - size - 12 - 20 + size * .18,
+                    width: size * .8,
+                    bottom: 0,
+                    child: ExcludeSemantics(
+                        child: DecoratedBox(
+                      key: const ValueKey('character-seat'),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD7C8B5),
+                        border: Border.all(
+                            color: const Color(0xFF9B8975), width: 3),
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(18)),
+                      ),
+                      child: const Align(
+                          alignment: Alignment.topCenter,
+                          child: Padding(
+                              padding: EdgeInsets.only(top: 16),
+                              child: SizedBox(
+                                  width: 50,
+                                  height: 3,
+                                  child:
+                                      ColoredBox(color: Color(0xFFB5A18A))))),
+                    )),
+                  ),
+                  AnimatedPositioned(
+                    duration: _dragging || _reduceMotion || snapPosition
+                        ? Duration.zero
+                        : AlloPresentation.fadeDuration,
+                    curve: AlloPresentation.standardCurve,
+                    left: (constraints.maxWidth - size) / 2 + offset.dx,
+                    bottom: 12 - offset.dy,
+                    width: size,
+                    height: size,
+                    child: Semantics(
+                      key: _actorKey,
+                      button: true,
+                      enabled: _enabled,
+                      label:
+                          '${c.hatched?.nameKo ?? "캐릭터"}, $label$attachmentLabel',
+                      hint: '누르면 반응해요. 길게 끌어 이동하고 놓아 보세요.',
+                      onTap:
+                          _enabled ? () => _interact(CharacterEvent.tap) : null,
+                      child: GestureDetector(
+                        key: const ValueKey('character-touch-target'),
+                        behavior: HitTestBehavior.opaque,
+                        excludeFromSemantics: true,
                         onTap: _enabled
                             ? () => _interact(CharacterEvent.tap)
                             : null,
-                        child: GestureDetector(
-                          key: const ValueKey('character-touch-target'),
-                          behavior: HitTestBehavior.opaque,
-                          excludeFromSemantics: true,
-                          onTap: _enabled
-                              ? () => _interact(CharacterEvent.tap)
-                              : null,
-                          onPanStart: _enabled ? _startDrag : null,
-                          onPanUpdate: _enabled
-                              ? (details) {
-                                  if (!_dragging) return;
-                                  setState(() {
-                                    _drag = Offset(
-                                        (_drag.dx + details.delta.dx)
-                                            .clamp(-horizontal, horizontal),
-                                        (_drag.dy + details.delta.dy)
-                                            .clamp(top, 0.0));
-                                  });
-                                }
-                              : null,
-                          onPanEnd: _enabled ? (_) => _endDrag() : null,
-                          onPanCancel: _enabled ? _endDrag : null,
-                          child: ExcludeSemantics(
-                              child: AnimatedBuilder(
-                            animation: _feedback,
-                            builder: (_, child) {
-                              final wave = _reduceMotion || _dragging
-                                  ? 0.0
-                                  : math.sin(_feedback.value * math.pi * 2) *
-                                      (1 - _feedback.value);
-                              return Transform.translate(
-                                offset: Offset(
-                                    pose == CharacterPose.surprised
-                                        ? wave * 5
-                                        : 0,
-                                    pose == CharacterPose.happy &&
-                                            attachment ==
-                                                CharacterAttachment.none
-                                        ? -wave.abs() * 10
-                                        : pose == CharacterPose.move
-                                            ? -wave.abs() * 5
-                                            : 0),
-                                child: Transform.rotate(
-                                    angle: pose == CharacterPose.surprised
-                                        ? wave * .08
-                                        : 0,
-                                    child: Transform.scale(
-                                        scale: attachment ==
-                                                CharacterAttachment.window
-                                            ? 1.04
-                                            : pose == CharacterPose.happy &&
-                                                    attachment ==
-                                                        CharacterAttachment.none
-                                                ? 1 + wave.abs() * .06
-                                                : 1,
-                                        child: child)),
-                              );
-                            },
-                            child: Stack(children: [
-                              if (attachment != CharacterAttachment.none)
-                                Positioned.fill(
-                                    child: CustomPaint(
-                                        key: ValueKey(
-                                            'character-attachment-${attachment.name}'),
-                                        painter:
-                                            _AttachmentPainter(attachment))),
-                              Center(
-                                  child: c.hatched == null
-                                      ? Icon(Icons.pets,
-                                          size: size * .75,
-                                          color: AlloColors.actionPrimary)
-                                      : SpeciesArt(
-                                          species: c.hatched!,
-                                          size: size * .75)),
-                              Positioned(
-                                  right: 2,
-                                  bottom: 2,
-                                  child: DecoratedBox(
-                                      decoration: const BoxDecoration(
-                                          color: Colors.white,
-                                          shape: BoxShape.circle),
-                                      child: Padding(
-                                          padding: const EdgeInsets.all(5),
-                                          child: Icon(icon,
-                                              size: 22,
-                                              color:
-                                                  AlloColors.actionPrimary)))),
-                            ]),
-                          )),
-                        ),
+                        onPanStart: _enabled ? _startDrag : null,
+                        onPanUpdate: _enabled
+                            ? (details) {
+                                if (!_dragging) return;
+                                setState(() {
+                                  _drag = Offset(
+                                      (_drag.dx + details.delta.dx)
+                                          .clamp(-horizontal, horizontal),
+                                      (_drag.dy + details.delta.dy)
+                                          .clamp(top, 0.0));
+                                });
+                              }
+                            : null,
+                        onPanEnd: _enabled ? (_) => _endDrag() : null,
+                        onPanCancel: _enabled ? _endDrag : null,
+                        child: ExcludeSemantics(
+                            child: AnimatedBuilder(
+                          animation: _feedback,
+                          builder: (_, child) {
+                            final wave = _reduceMotion || _dragging
+                                ? 0.0
+                                : math.sin(_feedback.value * math.pi * 2) *
+                                    (1 - _feedback.value);
+                            return Transform.translate(
+                              offset: Offset(
+                                  pose == CharacterPose.surprised
+                                      ? wave * 5
+                                      : 0,
+                                  pose == CharacterPose.happy &&
+                                          attachment == CharacterAttachment.none
+                                      ? -wave.abs() * 10
+                                      : pose == CharacterPose.move
+                                          ? -wave.abs() * 5
+                                          : 0),
+                              child: Transform.rotate(
+                                  angle: pose == CharacterPose.surprised
+                                      ? wave * .08
+                                      : 0,
+                                  child: Transform.scale(
+                                      scale: attachment ==
+                                              CharacterAttachment.window
+                                          ? 1.04
+                                          : pose == CharacterPose.happy &&
+                                                  attachment ==
+                                                      CharacterAttachment.none
+                                              ? 1 + wave.abs() * .06
+                                              : 1,
+                                      child: child)),
+                            );
+                          },
+                          child: Stack(children: [
+                            if (attachment != CharacterAttachment.none)
+                              Positioned.fill(
+                                  child: CustomPaint(
+                                      key: ValueKey(
+                                          'character-attachment-${attachment.name}'),
+                                      painter: _AttachmentPainter(attachment))),
+                            Center(
+                                child: c.hatched == null
+                                    ? Icon(Icons.pets,
+                                        size: size * .75,
+                                        color: AlloColors.actionPrimary)
+                                    : SpeciesArt(
+                                        species: c.hatched!, size: size * .75)),
+                            Positioned(
+                                right: 2,
+                                bottom: 2,
+                                child: DecoratedBox(
+                                    decoration: const BoxDecoration(
+                                        color: Colors.white,
+                                        shape: BoxShape.circle),
+                                    child: Padding(
+                                        padding: const EdgeInsets.all(5),
+                                        child: Icon(icon,
+                                            size: 22,
+                                            color: AlloColors.actionPrimary)))),
+                          ]),
+                        )),
                       ),
                     ),
-                  ]);
-            }),
-          )),
-      const SizedBox(height: 12),
-      Semantics(
-          liveRegion: true,
-          child: Text(_enabled ? _message : '캐릭터 반응을 쉬고 있어요.',
-              key: const ValueKey('character-reaction-message'),
-              textAlign: TextAlign.center)),
-    ]);
+                  ),
+                ]);
+          }),
+        ));
+    final message = Semantics(
+        liveRegion: true,
+        child: Text(_enabled ? _message : '캐릭터 반응을 쉬고 있어요.',
+            key: const ValueKey('character-reaction-message'),
+            textAlign: TextAlign.center));
+    return widget.layoutBuilder?.call(scene, message) ??
+        Column(children: [scene, const SizedBox(height: 12), message]);
   }
 
   @override

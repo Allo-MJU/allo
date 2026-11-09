@@ -171,4 +171,4 @@ Android debug 빌드 후 `python3 tool/verify_apk_assets.py`로 APK 안의 실�
 동행 화면에서 비 시작·바다/산 진입 시 창문 붙기, 급제동·급조향 시 의자 매달리기를 확인한다.
 상세 표시 규칙은 [캐릭터 상호작용](../docs/character-interactions.md)을 참고한다.
 
-폰 게임의 가로 화면 전환은 [가로 게임 화면 설계](../docs/phone-landscape-design.md)를 기준으로 진행한다. 현재 세로 스크롤 화면의 전환은 아직 미구현이다.
+폰 게임의 가로 화면 전환은 [가로 게임 화면 설계](../docs/phone-landscape-design.md)를 기준으로 진행한다. 동행 화면은 가로 전환됐으며 진입 시 좌우 가로 방향을 요청한다. 도착·주행 종료는 상단 메뉴에서 실행한다. 품기·부화 등 다른 화면의 가로 전환은 후속 작업이다.
