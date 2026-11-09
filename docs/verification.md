@@ -454,7 +454,7 @@ Unity 6000.0.85f2, 휴대폰 에뮬레이터(Medium Phone API 37, arm64, 4코어
 | HUD (`Hud`, uGUI 코드 생성): 돌아가기 / 주행 종료(체험일 때만, `settings.canEndTrip`) / 먹이 주기 / 봤어!(창밖 친구 보일 때) / 안내 글(toast) | ✅ 에뮬레이터: 세 버튼과 한글 글자 표시, 체험 주행이라 "주행 종료" 보임 |
 | 탭 (`TapInput`): 캐릭터 → 폴짝+하트+`tap`, 창밖 친구 → 발견+`spotted`, 머리받침·쿠션·인형·물병·손잡이 → 흔들림(`Wobble`), 천장등 → 실내등 켜고 끄기, 유리 → 빗방울 튀기기/반짝 | ✅ 에뮬레이터: 캐릭터 탭 → `{"type":"tap","id":"sea_mist"}` 수신. 물체 흔들림·유리는 에디터 로직만 (기기 미확인) |
 | 먹이: 동행 옆에 사과 → 걸어가 세 입에 먹음 → 하트 (`CritterDirector.Feed`) | ✅ 에뮬레이터: 사과·하트, Flutter `feed` 수신 → 안내 글 "바다안개가 맛있게 먹었어요!" 표시 |
-| 창밖 친구 (`Passersby`): 모은 친구가 18~36초마다 길가에 서 있음, 앞 3~45m 에 보이면 "봤어!" | 아래 에뮬레이터 확인 참조 |
+| 창밖 친구 (`Passersby`): 모은 친구가 18~36초마다 길가에 서 있음, 앞 3~45m 에 보이면 "봤어!" | ⚠️ 기기 미확인: 도감에 종이 하나(동행)뿐이라 친구가 없어 등장 조건이 안 됨. 두 종 이상 모은 뒤 다시 확인 |
 | Unity → Flutter 의도 메시지: `tap`→놀아주기, `feed`→먹이, `endTrip`→체험 종료, `spotted`→`lookOut()` + toast. 주행이 끝나면 Flutter 가 Unity 를 내림 (`ExploreBridge.close`) | ✅ `explore_screen_test.dart` 11개, `explore_messages_test.dart`. 에뮬레이터: "주행 종료" → Unity 내려가고 Flutter "기록을 저장했어요" 화면 |
 | 테스트 | ✅ Unity EditMode 34개, `flutter test` 171개, `flutter analyze lib test` 문제 없음 |
 
