@@ -30,6 +30,7 @@ public static class AlloBuild
         // Unity 가 FBX 원본 재질을 푸는 Materials 폴더와 겹치지 않게 다른 폴더에 둔다 (두 번 변환 방지)
         var matDir = "Assets/Models/CabinMaterials";
         AssetDatabase.CreateFolder("Assets/Models", "CabinMaterials");
+        _fabric = null;
         var converted = new System.Collections.Generic.Dictionary<Material, Material>();
         foreach (var r in cabin.GetComponentsInChildren<Renderer>(true))
         {
@@ -44,7 +45,23 @@ public static class AlloBuild
                     var c = src.color;
                     // Linear 프로젝트에서 Material.color 는 이미 sRGB 값을 준다. 그대로 옮긴다
                     dst.color = new Color(c.r, c.g, c.b, 1);
-                    dst.SetFloat("_Glossiness", 0.35f);
+                    // 질감: 좌석은 천, 문·대시보드는 가죽·플라스틱 결, 천장은 부드러운 펠트
+                    var hex = src.name.Replace("M_", "").Split('_')[0];
+                    var (tex, tile, gloss) = hex switch
+                    {
+                        "6E5C50" or "5A4A40" => (Fabric(), 6f, 0.05f),
+                        "7A6553" or "5E4C3F" or "4A3D34" => (Grain(13, 0.07f), 4f, 0.2f),
+                        "3E3631" or "4A403A" => (Grain(29, 0.05f), 8f, 0.25f),
+                        "E4DACB" or "D8CBB7" or "B9AA96" => (Grain(41, 0.04f), 10f, 0.02f),
+                        _ => (null, 1f, 0.35f),
+                    };
+                    if (tex != null)
+                    {
+                        dst.mainTexture = tex;
+                        dst.mainTextureScale = new Vector2(tile, tile);
+                    }
+                    dst.SetFloat("_Glossiness", gloss);
+
                     AssetDatabase.CreateAsset(dst, $"{matDir}/Cabin_{src.name}.mat");
                     converted[src] = dst;
                 }
@@ -102,7 +119,7 @@ public static class AlloBuild
         var fill = fillGo.AddComponent<Light>();
         fill.type = LightType.Point;
         fill.range = 3f;
-        fill.intensity = 0.6f;
+        fill.intensity = 0.9f;
         fill.color = new Color(1f, 0.95f, 0.86f);
         fillGo.transform.position = (rearAnchor.position + frontAnchor.position) / 2 + Vector3.up * 0.25f;
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
@@ -332,6 +349,45 @@ public static class AlloBuild
             Object.DestroyImmediate(go);
         }
         return (prefabs.ToArray(), glows.ToArray());
+    }
+
+    static Texture2D _fabric;
+
+    /// 좌석 천: 가는 씨실·날실 무늬 + 얼룩. 색은 재질 색에 곱해진다 (흰색 = 그대로)
+    static Texture2D Fabric()
+    {
+        if (_fabric != null) return _fabric;
+        const int n = 128;
+        var t = new Texture2D(n, n, TextureFormat.RGB24, true) { wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Trilinear, anisoLevel = 4 };
+        var rng = new System.Random(3);
+        for (var y = 0; y < n; y++)
+        for (var x = 0; x < n; x++)
+        {
+            var weave = ((x / 2 + y / 2) % 2 == 0 ? 0.06f : -0.04f) + (x % 2 == 0 ? 0.02f : 0) + (y % 2 == 0 ? 0.02f : 0);
+            var blot = Mathf.PerlinNoise(x * 0.05f, y * 0.05f) * 0.08f;
+            var v = 0.9f + weave + blot + (float)rng.NextDouble() * 0.03f;
+            t.SetPixel(x, y, new Color(v, v, v));
+        }
+        t.Apply();
+        AssetDatabase.CreateAsset(t, "Assets/Models/CabinMaterials/Fabric.asset");
+        return _fabric = t;
+    }
+
+    /// 가죽·플라스틱 결: 잔 얼룩 노이즈
+    static Texture2D Grain(int seed, float amount)
+    {
+        const int n = 128;
+        var t = new Texture2D(n, n, TextureFormat.RGB24, true) { wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Trilinear };
+        var rng = new System.Random(seed);
+        for (var y = 0; y < n; y++)
+        for (var x = 0; x < n; x++)
+        {
+            var v = 1 - amount + Mathf.PerlinNoise(x * 0.12f + seed, y * 0.12f) * amount + (float)rng.NextDouble() * amount * 0.6f;
+            t.SetPixel(x, y, new Color(v, v, v));
+        }
+        t.Apply();
+        AssetDatabase.CreateAsset(t, $"Assets/Models/CabinMaterials/Grain{seed}.asset");
+        return t;
     }
 
     static Transform Find(Transform root, string name)
