@@ -32,6 +32,8 @@ class _CharacterStageState extends State<CharacterStage>
   );
   Timer? _deadline;
   Offset _drag = Offset.zero;
+  final _stageKey = GlobalKey();
+  final _actorKey = GlobalKey();
   bool _dragging = false;
   bool _active = true;
   bool _reduceMotion = false;
@@ -188,9 +190,18 @@ class _CharacterStageState extends State<CharacterStage>
   }
 
   void _startDrag(DragStartDetails details) {
+    final stage = _stageKey.currentContext?.findRenderObject() as RenderBox?;
+    final actor = _actorKey.currentContext?.findRenderObject() as RenderBox?;
+    var start = Offset.zero;
+    if (stage != null && actor != null) {
+      final position = actor.localToGlobal(Offset.zero, ancestor: stage);
+      start = Offset(position.dx - (stage.size.width - actor.size.width) / 2,
+          stage.size.height - actor.size.height - 12 - position.dy);
+    }
     if (_interact(CharacterEvent.dragStart)) {
       setState(() {
         _dragging = true;
+        _drag = start;
         _feedback.value = 1;
       });
     }
@@ -223,6 +234,12 @@ class _CharacterStageState extends State<CharacterStage>
   Widget build(BuildContext context) {
     final c = widget.controller;
     final pose = _behavior.pose;
+    final attachment = _behavior.attachment;
+    final attachmentLabel = switch (attachment) {
+      CharacterAttachment.none => '',
+      CharacterAttachment.window => ', 창문에 붙기',
+      CharacterAttachment.seat => ', 의자에 매달리기',
+    };
     final (label, icon) = switch (pose) {
       CharacterPose.idle => ('기본', Icons.sentiment_neutral),
       CharacterPose.move => ('이동', Icons.directions_run),
@@ -242,99 +259,158 @@ class _CharacterStageState extends State<CharacterStage>
               final horizontal =
                   math.max(0.0, (constraints.maxWidth - size) / 2 - 12);
               final top = -(constraints.maxHeight - size - 20);
-              final offset = Offset(_drag.dx.clamp(-horizontal, horizontal),
-                  _drag.dy.clamp(top, 0.0));
-              return Stack(clipBehavior: Clip.hardEdge, children: [
-                AnimatedPositioned(
-                  duration: _dragging || _reduceMotion
-                      ? Duration.zero
-                      : AlloPresentation.fadeDuration,
-                  curve: AlloPresentation.standardCurve,
-                  left: (constraints.maxWidth - size) / 2 + offset.dx,
-                  bottom: 12 - offset.dy,
-                  width: size,
-                  height: size,
-                  child: Semantics(
-                    button: true,
-                    enabled: _enabled,
-                    label: '${c.hatched?.nameKo ?? "캐릭터"}, $label',
-                    hint: '누르면 반응해요. 길게 끌어 이동하고 놓아 보세요.',
-                    onTap:
-                        _enabled ? () => _interact(CharacterEvent.tap) : null,
-                    child: GestureDetector(
-                      key: const ValueKey('character-touch-target'),
-                      behavior: HitTestBehavior.opaque,
-                      excludeFromSemantics: true,
-                      onTap:
-                          _enabled ? () => _interact(CharacterEvent.tap) : null,
-                      onPanStart: _enabled ? _startDrag : null,
-                      onPanUpdate: _enabled
-                          ? (details) {
-                              if (!_dragging) return;
-                              setState(() {
-                                _drag = Offset(
-                                    (_drag.dx + details.delta.dx)
-                                        .clamp(-horizontal, horizontal),
-                                    (_drag.dy + details.delta.dy)
-                                        .clamp(top, 0.0));
-                              });
-                            }
-                          : null,
-                      onPanEnd: _enabled ? (_) => _endDrag() : null,
-                      onPanCancel: _enabled ? _endDrag : null,
+              final anchor = switch (attachment) {
+                CharacterAttachment.none => Offset.zero,
+                CharacterAttachment.window => Offset(-horizontal * .65, top),
+                CharacterAttachment.seat => Offset(horizontal * .75, -20),
+              };
+              final desired = _dragging ? _drag : anchor;
+              final offset = Offset(desired.dx.clamp(-horizontal, horizontal),
+                  desired.dy.clamp(top, 0.0));
+              return Stack(
+                  key: _stageKey,
+                  clipBehavior: Clip.hardEdge,
+                  children: [
+                    Positioned(
+                      left: (constraints.maxWidth - size) / 2 +
+                          horizontal * .75 +
+                          size * .1,
+                      top: constraints.maxHeight - size - 12 - 20 + size * .18,
+                      width: size * .8,
+                      bottom: 0,
                       child: ExcludeSemantics(
-                          child: AnimatedBuilder(
-                        animation: _feedback,
-                        builder: (_, child) {
-                          final wave = _reduceMotion || _dragging
-                              ? 0.0
-                              : math.sin(_feedback.value * math.pi * 2) *
-                                  (1 - _feedback.value);
-                          return Transform.translate(
-                            offset: Offset(
-                                pose == CharacterPose.surprised ? wave * 5 : 0,
-                                pose == CharacterPose.happy
-                                    ? -wave.abs() * 10
-                                    : pose == CharacterPose.move
-                                        ? -wave.abs() * 5
-                                        : 0),
-                            child: Transform.rotate(
-                                angle: pose == CharacterPose.surprised
-                                    ? wave * .08
-                                    : 0,
-                                child: Transform.scale(
-                                    scale: pose == CharacterPose.happy
-                                        ? 1 + wave.abs() * .06
-                                        : 1,
-                                    child: child)),
-                          );
-                        },
-                        child: Stack(children: [
-                          Center(
-                              child: c.hatched == null
-                                  ? Icon(Icons.pets,
-                                      size: size * .85,
-                                      color: AlloColors.actionPrimary)
-                                  : SpeciesArt(
-                                      species: c.hatched!, size: size * .85)),
-                          Positioned(
-                              right: 2,
-                              bottom: 2,
-                              child: DecoratedBox(
-                                  decoration: const BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle),
-                                  child: Padding(
-                                      padding: const EdgeInsets.all(5),
-                                      child: Icon(icon,
-                                          size: 22,
-                                          color: AlloColors.actionPrimary)))),
-                        ]),
+                          child: DecoratedBox(
+                        key: const ValueKey('character-seat'),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD7C8B5),
+                          border: Border.all(
+                              color: const Color(0xFF9B8975), width: 3),
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(18)),
+                        ),
+                        child: const Align(
+                            alignment: Alignment.topCenter,
+                            child: Padding(
+                                padding: EdgeInsets.only(top: 16),
+                                child: SizedBox(
+                                    width: 50,
+                                    height: 3,
+                                    child:
+                                        ColoredBox(color: Color(0xFFB5A18A))))),
                       )),
                     ),
-                  ),
-                ),
-              ]);
+                    AnimatedPositioned(
+                      duration: _dragging || _reduceMotion
+                          ? Duration.zero
+                          : AlloPresentation.fadeDuration,
+                      curve: AlloPresentation.standardCurve,
+                      left: (constraints.maxWidth - size) / 2 + offset.dx,
+                      bottom: 12 - offset.dy,
+                      width: size,
+                      height: size,
+                      child: Semantics(
+                        key: _actorKey,
+                        button: true,
+                        enabled: _enabled,
+                        label:
+                            '${c.hatched?.nameKo ?? "캐릭터"}, $label$attachmentLabel',
+                        hint: '누르면 반응해요. 길게 끌어 이동하고 놓아 보세요.',
+                        onTap: _enabled
+                            ? () => _interact(CharacterEvent.tap)
+                            : null,
+                        child: GestureDetector(
+                          key: const ValueKey('character-touch-target'),
+                          behavior: HitTestBehavior.opaque,
+                          excludeFromSemantics: true,
+                          onTap: _enabled
+                              ? () => _interact(CharacterEvent.tap)
+                              : null,
+                          onPanStart: _enabled ? _startDrag : null,
+                          onPanUpdate: _enabled
+                              ? (details) {
+                                  if (!_dragging) return;
+                                  setState(() {
+                                    _drag = Offset(
+                                        (_drag.dx + details.delta.dx)
+                                            .clamp(-horizontal, horizontal),
+                                        (_drag.dy + details.delta.dy)
+                                            .clamp(top, 0.0));
+                                  });
+                                }
+                              : null,
+                          onPanEnd: _enabled ? (_) => _endDrag() : null,
+                          onPanCancel: _enabled ? _endDrag : null,
+                          child: ExcludeSemantics(
+                              child: AnimatedBuilder(
+                            animation: _feedback,
+                            builder: (_, child) {
+                              final wave = _reduceMotion || _dragging
+                                  ? 0.0
+                                  : math.sin(_feedback.value * math.pi * 2) *
+                                      (1 - _feedback.value);
+                              return Transform.translate(
+                                offset: Offset(
+                                    pose == CharacterPose.surprised
+                                        ? wave * 5
+                                        : 0,
+                                    pose == CharacterPose.happy &&
+                                            attachment ==
+                                                CharacterAttachment.none
+                                        ? -wave.abs() * 10
+                                        : pose == CharacterPose.move
+                                            ? -wave.abs() * 5
+                                            : 0),
+                                child: Transform.rotate(
+                                    angle: pose == CharacterPose.surprised
+                                        ? wave * .08
+                                        : 0,
+                                    child: Transform.scale(
+                                        scale: attachment ==
+                                                CharacterAttachment.window
+                                            ? 1.04
+                                            : pose == CharacterPose.happy &&
+                                                    attachment ==
+                                                        CharacterAttachment.none
+                                                ? 1 + wave.abs() * .06
+                                                : 1,
+                                        child: child)),
+                              );
+                            },
+                            child: Stack(children: [
+                              if (attachment != CharacterAttachment.none)
+                                Positioned.fill(
+                                    child: CustomPaint(
+                                        key: ValueKey(
+                                            'character-attachment-${attachment.name}'),
+                                        painter:
+                                            _AttachmentPainter(attachment))),
+                              Center(
+                                  child: c.hatched == null
+                                      ? Icon(Icons.pets,
+                                          size: size * .75,
+                                          color: AlloColors.actionPrimary)
+                                      : SpeciesArt(
+                                          species: c.hatched!,
+                                          size: size * .75)),
+                              Positioned(
+                                  right: 2,
+                                  bottom: 2,
+                                  child: DecoratedBox(
+                                      decoration: const BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle),
+                                      child: Padding(
+                                          padding: const EdgeInsets.all(5),
+                                          child: Icon(icon,
+                                              size: 22,
+                                              color:
+                                                  AlloColors.actionPrimary)))),
+                            ]),
+                          )),
+                        ),
+                      ),
+                    ),
+                  ]);
             }),
           )),
       const SizedBox(height: 12),
@@ -355,4 +431,39 @@ class _CharacterStageState extends State<CharacterStage>
     _clock.stop();
     super.dispose();
   }
+}
+
+/// 포즈 아트가 들어오기 전에도 접촉 지점을 읽을 수 있는 손·유리 접촉 표현.
+class _AttachmentPainter extends CustomPainter {
+  const _AttachmentPainter(this.attachment);
+  final CharacterAttachment attachment;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final window = attachment == CharacterAttachment.window;
+    final handY = size.height * (window ? .32 : .18);
+    final hand = Paint()..color = AlloColors.actionPrimary;
+    final arm = Paint()
+      ..color = AlloColors.actionPrimary
+      ..strokeWidth = 5
+      ..strokeCap = StrokeCap.round;
+    for (final x in [size.width * .16, size.width * .84]) {
+      canvas.drawLine(
+          Offset(size.width / 2, size.height * .55), Offset(x, handY), arm);
+      canvas.drawCircle(Offset(x, handY), 7, hand);
+      if (window) {
+        canvas.drawCircle(
+            Offset(x, handY),
+            12,
+            Paint()
+              ..color = Colors.white.withValues(alpha: .8)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_AttachmentPainter oldDelegate) =>
+      oldDelegate.attachment != attachment;
 }

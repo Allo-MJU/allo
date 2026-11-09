@@ -75,12 +75,27 @@ class FakeScenario {
     ],
   );
 
+  /// 8초마다 비/풍경 변화, 5초마다 차량 급변으로 두 부착 반응을 체험한다.
+  static const characterTour = FakeScenario(
+    name: 'character_tour',
+    tags: [],
+    speedKph: 70,
+    harshEverySec: 5,
+    stages: [
+      FakeStage([]),
+      FakeStage(['rain'], wiperLevel: 2),
+      FakeStage(['coast']),
+      FakeStage(['mountain']),
+    ],
+  );
+
   static FakeScenario byName(String n) => const [
         rainyHighway,
         tunnelRough,
         clear,
         rough,
-        sceneTour
+        sceneTour,
+        characterTour
       ].firstWhere((s) => s.name == n, orElse: () => rainyHighway);
 }
 

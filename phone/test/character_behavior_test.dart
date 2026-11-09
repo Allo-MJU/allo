@@ -205,4 +205,102 @@ void main() {
       expect(b.message!.length, lessThanOrEqualTo(50));
     }
   });
+
+  test('비 시작은 창문에 붙고 2400ms 뒤 기본 위치로 돌아온다', () {
+    for (final rainy in [
+      sample(2).copyWith(envTags: ['rain']),
+      sample(2).copyWith(wiperLevel: 1),
+    ]) {
+      final b = CharacterBehavior()..observe(sample(1), 0);
+      b.observe(rainy, 100);
+      expect(b.event, CharacterEvent.windowCling);
+      expect(b.attachment, CharacterAttachment.window);
+      expect(b.pose, CharacterPose.happy);
+      expect(b.message, '창문에 붙어서 구경할래!');
+      expect(b.nextDeadlineMs, 2500);
+      b.advance(2500);
+      expect(b.pose, CharacterPose.move);
+      expect(b.attachment, CharacterAttachment.none);
+    }
+  });
+
+  test('첫 환경 샘플과 역순·중복·카운터 초기화는 풍경 사건을 재생하지 않는다', () {
+    final b = CharacterBehavior()
+      ..observe(sample(10, brake: 5).copyWith(envTags: ['coast', 'rain']), 0);
+    expect(b.event, isNull);
+    b.observe(sample(10, brake: 5).copyWith(envTags: ['mountain']), 100);
+    b.observe(sample(9, brake: 5).copyWith(envTags: ['mountain']), 200);
+    b.observe(sample(11, brake: 5).copyWith(envTags: ['coast', 'rain']), 300);
+    expect(b.event, isNull);
+    b.observe(sample(12).copyWith(envTags: ['mountain']), 400);
+    b.observe(sample(13).copyWith(envTags: ['mountain']), 500);
+    expect(b.event, isNull);
+    b.observe(sample(14).copyWith(envTags: ['coast']), 600);
+    expect(b.event, CharacterEvent.windowCling);
+  });
+
+  test('풍경과 날씨는 8초 제한을 공유하고 제한 중 사건도 소비한다', () {
+    final b = CharacterBehavior()..observe(sample(1), 0);
+    b.observe(sample(2).copyWith(envTags: ['coast']), 100);
+    b.observe(sample(3).copyWith(envTags: ['mountain', 'rain']), 1000);
+    expect(b.nextDeadlineMs, 2500);
+    b.advance(8100);
+    b.observe(sample(4).copyWith(envTags: ['mountain', 'rain']), 8100);
+    expect(b.event, isNull);
+    b.observe(sample(5).copyWith(envTags: ['coast', 'rain']), 8200);
+    expect(b.event, CharacterEvent.windowCling);
+  });
+
+  test('비의 강도 변화와 익숙한 풍경은 반복 반응하지 않는다', () {
+    final b = CharacterBehavior()
+      ..observe(sample(1).copyWith(envTags: ['mountain', 'rain']), 0);
+    b.observe(
+        sample(2).copyWith(envTags: ['mountain', 'rain'], wiperLevel: 3), 9000);
+    expect(b.event, isNull);
+    b.observe(sample(3).copyWith(envTags: ['city']), 10000);
+    expect(b.event, isNull);
+    b.observe(sample(4).copyWith(envTags: ['mountain']), 11000);
+    expect(b.event, CharacterEvent.windowCling);
+  });
+
+  test('급변은 창문 사건보다 우선하며 거부된 풍경을 나중에 재생하지 않는다', () {
+    final b = CharacterBehavior()..observe(sample(1), 0);
+    b.observe(sample(2, brake: 1).copyWith(envTags: ['coast', 'rain']), 100);
+    expect(b.event, CharacterEvent.brake);
+    expect(b.attachment, CharacterAttachment.seat);
+    b.advance(1600);
+    b.observe(sample(3, brake: 1).copyWith(envTags: ['coast', 'rain']), 2000);
+    expect(b.event, isNull);
+    b.interact(CharacterEvent.steer, 2100);
+    expect(b.attachment, CharacterAttachment.seat);
+  });
+
+  test('터치와 드래그는 창문 반응을 중단하며 드래그 중 풍경은 소비한다', () {
+    for (final input in [CharacterEvent.tap, CharacterEvent.dragStart]) {
+      final b = CharacterBehavior()..observe(sample(1), 0);
+      b.observe(sample(2).copyWith(envTags: ['coast']), 100);
+      expect(b.interact(input, 200), isTrue);
+      expect(b.attachment, CharacterAttachment.none);
+    }
+    final b = CharacterBehavior()..observe(sample(1), 0);
+    b.interact(CharacterEvent.dragStart, 100);
+    b.observe(sample(2).copyWith(envTags: ['mountain']), 200);
+    expect(b.event, CharacterEvent.dragStart);
+    b.interact(CharacterEvent.dragEnd, 300);
+    b.observe(sample(3).copyWith(envTags: ['mountain']), 1000);
+    expect(b.event, isNull);
+  });
+
+  test('신호 복귀는 환경 기준만 잡고 reset은 환경과 제한을 모두 지운다', () {
+    final b = CharacterBehavior()..observe(sample(1), 0);
+    b.observe(sample(2).copyWith(envTags: ['coast']), 100);
+    b.observe(null, 200);
+    expect(b.attachment, CharacterAttachment.none);
+    b.observe(sample(3).copyWith(envTags: ['mountain', 'rain']), 9000);
+    expect(b.event, isNull);
+    b.reset();
+    b.observe(sample(1), 0);
+    b.observe(sample(2).copyWith(envTags: ['coast']), 100);
+    expect(b.event, CharacterEvent.windowCling);
+  });
 }

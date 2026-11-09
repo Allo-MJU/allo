@@ -166,3 +166,7 @@ Android debug 빌드 후 `python3 tool/verify_apk_assets.py`로 APK 안의 실�
 속도는 주행/정차 접근성 설명에만 쓰며 장면 이동에는 쓰지 않는다. 터널은 지역보다 우선하고 터널 안에서는 비·밤을 끈다.
 장면·날씨 변경만 200ms 페이드하며 품기 알은 창 앞에서 성장·돌봄·흔들림 상태를 유지한다.
 부화 이름은 v4의 700 굵기, 버튼은 56 높이의 `동행 시작`이다. 실제 차량/Firebase 및 배터리·프레임 실측은 별도다.
+
+캐릭터 환경 이벤트 체험: `flutter run --dart-define=FEED=fake --dart-define=SCENARIO=character_tour`.
+동행 화면에서 비 시작·바다/산 진입 시 창문 붙기, 급제동·급조향 시 의자 매달리기를 확인한다.
+상세 표시 규칙은 [캐릭터 상호작용](../docs/character-interactions.md)을 참고한다.

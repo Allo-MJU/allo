@@ -93,11 +93,79 @@ void main() {
     c.notifyListeners();
     await tester.pumpAndSettle();
     expect(find.text('앗, 깜짝 놀랐어!'), findsOneWidget);
-    expect(tester.getCenter(target), origin);
+    expect(find.byKey(const ValueKey('character-attachment-seat')),
+        findsOneWidget);
+    expect(tester.getCenter(target).dx, greaterThan(origin.dx));
     await gesture.up();
     await tester.tap(target);
     await tester.pump();
     expect(find.text('앗, 깜짝 놀랐어!'), findsOneWidget);
+    await finish(tester, c);
+  });
+
+  testWidgets('비가 시작되면 창에 붙고 만료되면 원위치로 돌아온다', (tester) async {
+    final c = controller();
+    await tester.pumpWidget(host(tester, c));
+    await tester.pumpAndSettle();
+    final origin = tester.getCenter(target);
+    c.vehicle = c.vehicle!.copyWith(ts: 2, wiperLevel: 2);
+    c.notifyListeners();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('character-attachment-window')),
+        findsOneWidget);
+    expect(tester.getCenter(target).dx, lessThan(origin.dx));
+    expect(tester.getCenter(target).dy, lessThan(origin.dy));
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(tester.getCenter(target), origin);
+    expect(find.byKey(const ValueKey('character-attachment-window')),
+        findsNothing);
+    await finish(tester, c);
+  });
+
+  testWidgets('창문 붙기 도중 드래그가 현재 자리에서 이어진다', (tester) async {
+    final c = controller();
+    await tester.pumpWidget(host(tester, c));
+    await tester.pumpAndSettle();
+    c.vehicle = c.vehicle!.copyWith(ts: 2, wiperLevel: 2);
+    c.notifyListeners();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    final atWindow = tester.getCenter(target);
+    final gesture = await tester.startGesture(atWindow);
+    await gesture.moveBy(const Offset(40, 10));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('character-attachment-window')),
+        findsNothing);
+    expect((tester.getCenter(target) - atWindow).distance, lessThan(45));
+    await gesture.up();
+    await tester.pumpAndSettle();
+    await finish(tester, c);
+  });
+
+  testWidgets('모션 감소에서도 창문과 의자 부착은 표시되고 급변이 우선한다', (tester) async {
+    final c = controller();
+    await tester.pumpWidget(host(tester, c, reduce: true));
+    await tester.pumpAndSettle();
+    c.vehicle = c.vehicle!.copyWith(ts: 2, wiperLevel: 2);
+    c.notifyListeners();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(find.byKey(const ValueKey('character-attachment-window')),
+        findsOneWidget);
+    c.vehicle = c.vehicle!.copyWith(ts: 3, harshSteer: 1);
+    c.notifyListeners();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(find.byKey(const ValueKey('character-attachment-seat')),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('character-attachment-window')),
+        findsNothing);
+    expect(tester.hasRunningAnimations, isFalse);
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    expect(
+        find.byKey(const ValueKey('character-attachment-seat')), findsNothing);
     await finish(tester, c);
   });
 
