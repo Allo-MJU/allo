@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:allo_core/allo_core.dart';
 
 import '../game/game_controller.dart';
+import '../ui_mode.dart';
 import '../widgets/window_view.dart';
 
 class IncubatingScreen extends StatefulWidget {
@@ -60,6 +61,46 @@ class _IncubatingScreenState extends State<IncubatingScreen>
     _shake.value = 0;
   }
 
+  /// 차 안 화면만 꽉 채운다. 알 탭 = 감싸기, 길게 누르기 = 노래.
+  Widget _fullscreen(GameController c, GameState g) => Scaffold(
+        backgroundColor: Colors.black,
+        body: LayoutBuilder(
+          builder: (context, box) => WindowView(
+            vehicle: c.vehicle,
+            friends: c.collectedSpecies,
+            height: box.maxHeight,
+            rounded: false,
+            child: Semantics(
+              container: true, // 차 안 화면 라벨과 합쳐지지 않게 따로 둔다
+              button: true,
+              label: '자라고 있는 알, 돌봄 ${g.careCount}회',
+              child: GestureDetector(
+                onTap: _care,
+                onLongPressStart: (_) {
+                  _care();
+                  setState(() => _singing = true);
+                },
+                onLongPressEnd: (_) => setState(() => _singing = false),
+                child: AnimatedBuilder(
+                  animation: _shake,
+                  builder: (_, child) => Transform.rotate(
+                    angle: math.sin(_shake.value * math.pi * 8) *
+                        0.15 *
+                        (1 - _shake.value),
+                    child: child,
+                  ),
+                  child: Icon(Icons.egg,
+                      size: box.maxHeight * 0.3,
+                      color: _singing
+                          ? Colors.teal.shade300
+                          : Colors.amber.shade300),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
   @override
   void dispose() {
     widget.controller.removeListener(_onSignal);
@@ -79,6 +120,7 @@ class _IncubatingScreenState extends State<IncubatingScreen>
             : g.hatchAtSec != null
                 ? '앞으로 ${((1 - g.progress) * g.hatchAtSec! / 60).ceil()}분'
                 : '앞으로 ${((1 - g.progress) * (g.hatchAtM ?? 0) / 1000).toStringAsFixed(1)}km';
+        if (fullscreenCabin) return _fullscreen(c, g);
         return Scaffold(
           appBar: AppBar(
               title: const Text('알 품기'),

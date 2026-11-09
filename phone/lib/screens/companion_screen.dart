@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../game/game_controller.dart';
+import '../ui_mode.dart';
 import '../widgets/species_art.dart';
 import '../widgets/window_view.dart';
 
@@ -17,6 +18,37 @@ class CompanionScreen extends StatelessWidget {
         builder: (context, _) {
           final species = controller.hatched;
           final prompt = controller.lookOutPrompt;
+          if (fullscreenCabin) {
+            // 차 안 화면만 꽉 채운다. 캐릭터 탭 = 놀아주기
+            return Scaffold(
+              backgroundColor: Colors.black,
+              body: LayoutBuilder(
+                builder: (context, box) => WindowView(
+                  vehicle: controller.vehicle,
+                  friends: controller.collectedSpecies,
+                  height: box.maxHeight,
+                  rounded: false,
+                  child: Semantics(
+                    container: true, // 차 안 화면 라벨과 합쳐지지 않게 따로 둔다
+                    button: true,
+                    label:
+                        '${species?.nameKo ?? '동행'}, 놀이 ${controller.playCount}회',
+                    child: GestureDetector(
+                      onTap: controller.playWithCompanion,
+                      child: AnimatedRotation(
+                        turns: controller.playCount.isOdd ? 0.04 : -0.04,
+                        duration: const Duration(milliseconds: 300),
+                        child: species == null
+                            ? Icon(Icons.pets, size: box.maxHeight * 0.3)
+                            : SpeciesArt(
+                                species: species, size: box.maxHeight * 0.3),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
           return Scaffold(
             appBar: AppBar(title: Text(species?.nameKo ?? '동행'), actions: [
               if (controller.isFake)

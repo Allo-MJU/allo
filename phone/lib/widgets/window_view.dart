@@ -48,7 +48,11 @@ class WindowView extends StatefulWidget {
     this.friends = const [],
     this.nowMs,
     this.random,
+    this.rounded = true,
   });
+
+  /// 모서리를 둥글게 깎을지. 화면을 꽉 채울 때는 끈다.
+  final bool rounded;
 
   final VehicleState? vehicle;
   final Widget? child;
@@ -151,7 +155,7 @@ class _WindowViewState extends State<WindowView>
         child: LayoutBuilder(builder: (context, box) {
           final layout = CabinLayout(Size(box.maxWidth, widget.height));
           return ClipRRect(
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(widget.rounded ? 24 : 0),
             child: Stack(
               children: [
                 for (final pane in Pane.values) _pane(layout, pane),

@@ -141,8 +141,7 @@ void main() {
     expect(unityExploreOpen.value, isFalse);
   });
 
-  testWidgets('close 가 두 번 오거나 시스템 뒤로 가기와 겹쳐도 탐험 화면 하나만 닫는다',
-      (tester) async {
+  testWidgets('close 가 두 번 오거나 시스템 뒤로 가기와 겹쳐도 탐험 화면 하나만 닫는다', (tester) async {
     final c = fakeController();
     addTearDown(c.dispose);
     void Function(String)? toFlutter;

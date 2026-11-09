@@ -1,0 +1,61 @@
+import 'package:allo_phone/app.dart';
+import 'package:allo_phone/feed/fake_feed.dart';
+import 'package:allo_phone/screens/incubating_screen.dart';
+import 'package:allo_phone/ui_mode.dart';
+import 'package:allo_phone/widgets/window_view.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+Future<void> startTrip(WidgetTester tester) async {
+  SharedPreferences.setMockInitialValues({});
+  tester.view.physicalSize = const Size(2400, 1080);
+  tester.view.devicePixelRatio = 3;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(AlloApp(
+      feed: FakeVehicleFeed(
+          scenario: FakeScenario.rainyHighway, timeScale: 100)));
+  await tester.pumpAndSettle();
+  await tester
+      .runAsync(() => rootBundle.loadString('assets/data/species.json'));
+  await tester.tap(find.text('체험 시작'));
+  await tester.pumpAndSettle();
+  for (var i = 0; i < 20 && find.byType(WindowView).evaluate().isEmpty; i++) {
+    await tester
+        .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+    await tester.pump();
+  }
+  await tester.pumpAndSettle(); // 화면 전환이 끝나야 알 품기 화면의 접근성 정보가 잡힌다
+}
+
+void main() {
+  setUp(() => fullscreenCabin = true);
+  tearDown(() => fullscreenCabin = false);
+
+  testWidgets('알 품기 화면은 차 안 화면만 꽉 채운다 (제목·버튼 없음)', (tester) async {
+    await startTrip(tester);
+    final view = tester.getSize(find.byType(WindowView));
+    expect(view.width, 800);
+    expect(view.height, 360);
+    // 아래에 깔린 첫 화면이 아니라 알 품기 화면 안에 제목줄이 없어야 한다
+    expect(
+        find.descendant(
+            of: find.byType(IncubatingScreen), matching: find.byType(AppBar)),
+        findsNothing);
+    expect(find.text('감싸기'), findsNothing);
+    expect(find.textContaining('성장'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('버튼이 없어도 알을 탭하면 감싸기가 된다', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await startTrip(tester);
+    await tester.tap(find.bySemanticsLabel(RegExp('자라고 있는 알')));
+    await tester.pump();
+    // 감싸기는 차 화면에 보내는 돌봄 횟수로 확인한다
+    expect(find.bySemanticsLabel(RegExp('돌봄 1회')), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    semantics.dispose();
+  });
+}
