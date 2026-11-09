@@ -8,6 +8,7 @@ import '../character/character_behavior.dart';
 import '../game/game_controller.dart';
 import '../theme/allo_colors.dart';
 import 'species_art.dart';
+import 'seat_back.dart';
 import 'window_view.dart';
 
 /// 동행 화면 안에서만 살아 있는 표현 상태. 게임 판정·서버 전송은 변경하지 않는다.
@@ -297,6 +298,9 @@ class _CharacterStageState extends State<CharacterStage>
             final desired = _dragging ? _drag : anchor;
             final offset = Offset(desired.dx.clamp(-horizontal, horizontal),
                 desired.dy.clamp(top, 0.0));
+            final seatShoulder = constraints.maxHeight - size - 32 + size * .18;
+            final headHeight =
+                math.min(size * .38, math.max(4.0, seatShoulder - 8));
             return Stack(
                 key: _stageKey,
                 clipBehavior: Clip.hardEdge,
@@ -304,30 +308,14 @@ class _CharacterStageState extends State<CharacterStage>
                   Positioned(
                     left: (constraints.maxWidth - size) / 2 +
                         horizontal * .75 +
-                        size * .1,
-                    top: constraints.maxHeight - size - 12 - 20 + size * .18,
-                    width: size * .8,
+                        size * .02,
+                    top: seatShoulder - headHeight,
+                    width: size * .96,
                     bottom: 0,
-                    child: ExcludeSemantics(
-                        child: DecoratedBox(
+                    child: SeatBack(
                       key: const ValueKey('character-seat'),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFD7C8B5),
-                        border: Border.all(
-                            color: const Color(0xFF9B8975), width: 3),
-                        borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(18)),
-                      ),
-                      child: const Align(
-                          alignment: Alignment.topCenter,
-                          child: Padding(
-                              padding: EdgeInsets.only(top: 16),
-                              child: SizedBox(
-                                  width: 50,
-                                  height: 3,
-                                  child:
-                                      ColoredBox(color: Color(0xFFB5A18A))))),
-                    )),
+                      headHeight: headHeight,
+                    ),
                   ),
                   AnimatedPositioned(
                     duration: _dragging || _reduceMotion || snapPosition
