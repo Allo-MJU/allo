@@ -71,7 +71,8 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
           path: '/explore',
           builder: (_, __) => ExploreScreen(
               controller: controller,
-              unityView: Platform.isAndroid ? androidUnityView : null)),
+              unityView: Platform.isAndroid ? androidUnityView : null,
+              closeUnity: Platform.isAndroid ? closeUnityExplore : null)),
     ],
   );
 

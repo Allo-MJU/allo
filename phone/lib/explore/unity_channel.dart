@@ -17,6 +17,17 @@ Future<bool> unityExploreAvailable() async {
   }
 }
 
+/// Flutter 가 먼저 Unity 화면을 내린다 (주행 종료·도착). Unity 는 종료하지 않고 뒤에 남는다.
+Future<void> closeUnityExplore() async {
+  try {
+    await _channel.invokeMethod<void>('close');
+  } on MissingPluginException {
+    // 호스트가 없는 곳
+  } on PlatformException {
+    // 이미 내려갔거나 Unity 가 없다
+  }
+}
+
 /// [ExploreScreen.unityView] 로 넘기는 안드로이드용 Unity 화면.
 Widget androidUnityView({
   required void Function(void Function(String json) send,

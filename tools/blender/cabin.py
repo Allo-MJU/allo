@@ -64,9 +64,26 @@ def shell():
         # 창 위 지붕 레일
         parts.append(b(f"RoofRail_{sx}", (0.08, BACK - FRONT, 0.07),
                        (x - sx * 0.01, (BACK + FRONT) / 2, ROOF - 0.03), P.TRIM, bevel=0.03))
-        # 손잡이 (창 위)
+        # 손잡이 (창 위): 고리 + 천장에 붙는 받침
         kit.torus(f"GrabHandle_{sx}", 0.06, 0.012, (sx * (HALF - 0.04), 0.0, ROOF - 0.1),
                   P.TRIM, rotation=(0, 90, 0))
+        parts.append(b(f"GrabHandleBase_{sx}", (0.05, 0.16, 0.03), (sx * (HALF - 0.04), 0.0, ROOF - 0.03),
+                       P.PILLAR, bevel=0.012))
+        # 천장 이음 줄: 헤드라이너를 세 폭으로 나눈 듯한 가는 홈
+        parts.append(b(f"RoofSeam_{sx}", (0.012, BACK - FRONT - 0.3, 0.012),
+                       (sx * 0.36, (BACK + FRONT) / 2 + 0.05, ROOF - 0.004), P.TRIM, bevel=0.004))
+        # 뒷좌석 천장 송풍구: 틀 + 어두운 살 3개
+        parts.append(b(f"RoofVent_{sx}", (0.14, 0.09, 0.022), (sx * 0.5, B_PILLAR + 0.02, ROOF - 0.011),
+                       P.TRIM, bevel=0.008))
+        for k in range(3):
+            parts.append(b(f"RoofVentSlot_{sx}{k}", (0.1, 0.012, 0.01),
+                           (sx * 0.5, B_PILLAR + 0.02 + (k - 1) * 0.024, ROOF - 0.024), P.RUBBER, bevel=0.003))
+        # 햇빛 가리개 (앞유리 위)
+        parts.append(b(f"SunVisor_{sx}", (0.52, 0.16, 0.02), (sx * 0.38, FRONT + 0.62, ROOF - 0.09),
+                       P.TRIM, bevel=0.01, rotation=(-14, 0, 0)))
+        # 옷걸이 고리 (C 기둥 위)
+        kit.cylinder(f"CoatHook_{sx}", 0.012, 0.05, (sx * (HALF - 0.05), BACK - 0.12, ROOF - 0.16),
+                     P.PILLAR, rotation=(0, 90, 0))
     # 뒤쪽 벽 (뒷유리 아래)
     parts.append(b("BackWall", (W, 0.06, BELT + 0.05), (0, BACK + 0.03, (BELT + 0.05) / 2),
                    P.DOOR, bevel=0.02))
@@ -234,6 +251,13 @@ def mirror_and_lights():
     kit.parent(string, charm)
     dome = b("DomeLight", (0.22, 0.12, 0.025), (0, -0.4, ROOF - 0.005), "#F3EDE2",
              bevel=0.01, emit=0.3)
+    frame = b("DomeLightFrame", (0.27, 0.17, 0.014), (0, -0.4, ROOF - 0.004), P.TRIM, bevel=0.006)
+    for k, dx in enumerate((-0.085, 0.085)):
+        kit.parent(b(f"DomeLightSwitch{k}", (0.03, 0.02, 0.012), (dx, -0.33, ROOF - 0.02), P.RUBBER, bevel=0.004), frame)
+    # 뒷좌석 독서등: 작은 등 두 개
+    for k, dx in enumerate((-0.3, 0.3)):
+        lamp = b(f"ReadingLight{k}", (0.07, 0.07, 0.02), (dx, 0.3, ROOF - 0.005), "#F3EDE2", bevel=0.01, emit=0.15)
+        kit.parent(b(f"ReadingLightFrame{k}", (0.09, 0.09, 0.012), (dx, 0.3, ROOF - 0.004), P.TRIM, bevel=0.005), lamp)
     shelf = b("RearShelf", (W - 0.1, 0.24, 0.025), (0, BACK - 0.06, BELT + 0.07), P.DOOR,
               bevel=0.01)
     return mirror, dome, shelf

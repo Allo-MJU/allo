@@ -37,6 +37,10 @@ object ExploreBridge {
                         send(call.arguments as String)
                         result.success(null)
                     }
+                    "close" -> { // Flutter 가 먼저 내린다 (주행 종료·도착)
+                        closeUnity()
+                        result.success(null)
+                    }
                     else -> result.notImplemented()
                 }
             }

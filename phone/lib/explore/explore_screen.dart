@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -33,18 +34,23 @@ const exploreUnityEnabled = bool.fromEnvironment('EXPLORE_UNITY');
 
 /// 차 안·밖 탐험 화면 (가로). Unity 가 없으면 기존 차 안 뷰([WindowView])로 대체한다.
 ///
-/// 판정은 하지 않는다. [GameController] 의 차 신호·캐릭터를 메시지로 옮겨 보낼 뿐이다.
+/// 판정은 하지 않는다. [GameController] 의 차 신호·캐릭터를 메시지로 옮겨 보내고,
+/// Unity 가 보낸 의도(tap·feed·endTrip·spotted)를 컨트롤러의 같은 동작으로 넘길 뿐이다.
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({
     super.key,
     required this.controller,
     this.unityAvailable,
     this.unityView,
+    this.closeUnity,
   });
 
   final GameController controller;
   final bool? unityAvailable;
   final UnityViewBuilder? unityView;
+
+  /// Flutter 쪽에서 Unity 화면을 내릴 때 (주행 종료·도착으로 이 화면이 닫힐 때). 없으면 아무것도 안 한다
+  final Future<void> Function()? closeUnity;
 
   @override
   State<ExploreScreen> createState() => _ExploreScreenState();
@@ -60,6 +66,8 @@ class _ExploreScreenState extends State<ExploreScreen>
   /// Unity 가 close 를 보냈다. 닫히는 동안 앱 복귀가 와도 Unity 를 다시 열지 않는다.
   bool _closing = false;
   late final _link = ExploreLink((json) => _send?.call(json));
+  int _toastSeq = 0;
+  (int, int)? _careKey; // (feedCount, playCount) — 바뀔 때만 동행 반응 문구를 보낸다
 
   bool get _useUnity =>
       (widget.unityAvailable ?? exploreUnityEnabled) &&
@@ -76,10 +84,26 @@ class _ExploreScreenState extends State<ExploreScreen>
   @override
   void dispose() {
     widget.controller.removeListener(_publish);
-    if (_useUnity) unityExploreOpen.value = false;
+    if (_useUnity) {
+      unityExploreOpen.value = false;
+      // Flutter 가 먼저 이 화면을 떠나면(주행 종료 → 종료 화면) 앞에 떠 있는 Unity 도 내린다
+      if (!_closing) {
+        _closing = true;
+        unawaited(widget.closeUnity?.call());
+      }
+    }
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
+
+  String _settings() => settingsMessage(
+        gyro: true,
+        reducedMotion:
+            mounted && (MediaQuery.maybeDisableAnimationsOf(context) ?? false),
+        canEndTrip: widget.controller.isFake &&
+            !widget.controller.sessionEnded &&
+            !widget.controller.endingSession,
+      );
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -98,6 +122,22 @@ class _ExploreScreenState extends State<ExploreScreen>
     if (v != null) {
       for (final kind in _jolts.update(v)) {
         _link.post('jolt', joltMessage(kind));
+      }
+    }
+    _link.post('settings', _settings());
+    // 동행 반응 문구(먹이·놀이)는 횟수가 바뀔 때 한 번
+    final key = (c.feedCount, c.playCount);
+    if (_careKey != null && key != _careKey && c.companionMessage != null) {
+      _link.post('toast', toastMessage(c.companionMessage!, ++_toastSeq));
+    }
+    _careKey = key;
+    // 주행이 끝나면(체험 종료·도착) Unity 를 내린다. 어느 화면으로 갈지는 앱 라우팅이 정한다
+    if (c.sessionEnded && _useUnity && !_closing) {
+      _closing = true;
+      unityExploreOpen.value = false;
+      unawaited(widget.closeUnity?.call());
+      if (mounted && (ModalRoute.of(context)?.isCurrent ?? false)) {
+        Navigator.of(context).pop();
       }
     }
   }
@@ -124,13 +164,27 @@ class _ExploreScreenState extends State<ExploreScreen>
     }
     if (msg is Map && msg['type'] == 'ready') {
       _publish();
-      _link.post(
-          'settings',
-          settingsMessage(
-              gyro: true,
-              reducedMotion:
-                  MediaQuery.maybeDisableAnimationsOf(context) ?? false));
+      _link.post('settings', _settings());
       _link.onReady();
+      return;
+    }
+    if (msg is! Map) return;
+    final c = widget.controller;
+    switch (msg['type']) {
+      case 'tap': // 동행 캐릭터 탭 = 놀아주기
+        c.playWithCompanion();
+      case 'feed':
+        c.feedCompanion();
+      case 'endTrip': // 체험 주행에서만 (Unity 는 settings.canEndTrip 일 때만 버튼을 보인다)
+        c.endFakeTrip();
+      case 'spotted': // 창밖 친구 발견 = "봤어!"
+        final id = msg['id'];
+        c.lookOut();
+        final name = c.collectedSpecies
+            .where((s) => s.id == id)
+            .map((s) => s.nameKo)
+            .firstOrNull;
+        _link.post('toast', toastMessage(spottedToast(name), ++_toastSeq));
     }
   }
 

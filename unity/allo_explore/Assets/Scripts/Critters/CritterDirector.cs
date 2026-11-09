@@ -2,7 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using Allo.Bridge;
 using UnityEngine;
-using UnityEngine.Networking;
 
 namespace Allo.Critters
 {
@@ -49,6 +48,73 @@ namespace Allo.Critters
         readonly Dictionary<string, CritterView> _views = new();
         Mood _mood = new Mood { moving = true };
         int _seed = 1;
+        bool _feeding;
+
+        /// 동행 캐릭터 id (cast.companion). 없으면 null
+        public string CompanionId { get; private set; }
+        public CritterView Companion => CompanionId != null && _views.TryGetValue(CompanionId, out var v) ? v : null;
+
+        /// 탭: 폴짝 + 하트. 동행 캐릭터면 Flutter 에 tap 을 알린다 (놀아주기 횟수는 Flutter 가 센다)
+        public void Poke(CritterView v)
+        {
+            if (v == null) return;
+            v.Brain.Poke();
+            Fx.Burst(v.Top, Fx.Heart, critterMaterial, 4, 0.06f);
+            if (v.Id == CompanionId) FlutterBridge.Send("tap", FlutterBridge.Field("id", v.Id));
+        }
+
+        /// 먹이: 동행 캐릭터 옆에 사과를 놓고, 걸어가 먹는다. 동행이 없거나 먹는 중이면 false
+        public bool Feed()
+        {
+            var c = Companion;
+            if (c == null || _feeding) return false;
+            StartCoroutine(FeedRoutine(c));
+            return true;
+        }
+
+        IEnumerator FeedRoutine(CritterView c)
+        {
+            _feeding = true;
+            var rng = new System.Random(_seed++ * 31);
+            var at = _graph.RandomPoint(c.Brain.Surface, rng);
+            var apple = new GameObject("Apple").transform;
+            apple.position = at;
+            var red = Fruit(apple, new Color(0.9f, 0.25f, 0.2f), 0.065f);
+            c.Brain.GoTo(at);
+            var waited = 0f;
+            while (c != null && !c.Brain.AtTarget && waited < 4f) { waited += Time.deltaTime; yield return null; }
+            // 세 입에 먹는다
+            for (var bite = 0; bite < 3 && c != null; bite++)
+            {
+                c.Brain.Poke();
+                Fx.Burst(apple.position + Vector3.up * 0.08f, Fx.Heart, critterMaterial, 2, 0.045f, 0.05f);
+                red.localScale *= 0.72f;
+                yield return new WaitForSeconds(0.45f);
+            }
+            Destroy(apple.gameObject);
+            if (c != null) Fx.Burst(c.Top, Fx.Heart, critterMaterial, 6, 0.07f);
+            _feeding = false;
+        }
+
+        static Transform Fruit(Transform parent, Color color, float d)
+        {
+            var body = GameObject.CreatePrimitive(PrimitiveType.Sphere).transform;
+            Destroy(body.GetComponent<Collider>());
+            body.SetParent(parent, false);
+            body.localPosition = Vector3.up * d * 0.5f;
+            body.localScale = new Vector3(d, d * 0.92f, d);
+            var m = new Material(Shader.Find("Allo/Toon")) { color = color };
+            m.SetFloat("_OutlineWidth", 0.003f);
+            m.SetFloat("_HiSize", 0.25f);
+            body.GetComponent<Renderer>().sharedMaterial = m;
+            var stem = GameObject.CreatePrimitive(PrimitiveType.Cylinder).transform;
+            Destroy(stem.GetComponent<Collider>());
+            stem.SetParent(body, false);
+            stem.localPosition = new Vector3(0, 0.5f, 0);
+            stem.localScale = new Vector3(0.08f, 0.16f, 0.08f);
+            stem.GetComponent<Renderer>().sharedMaterial = new Material(Shader.Find("Allo/Toon")) { color = new Color(0.35f, 0.22f, 0.12f) };
+            return body;
+        }
 
         void Awake()
         {
@@ -114,6 +180,7 @@ namespace Allo.Critters
         void OnCast(CastState cast)
         {
             if (_graph.Surfaces.Count == 0) return;
+            CompanionId = cast.companion != null && !string.IsNullOrEmpty(cast.companion.id) ? cast.companion.id : null;
             var (add, remove) = CastDiff.Compute(_views.Keys, cast);
             foreach (var id in remove)
             {
@@ -131,18 +198,9 @@ namespace Allo.Critters
                 view.Init(m.id, new CritterBrain(_graph, start, seed * 7919), PlaceholderFace.Make(m.attribute, seed),
                     critterMaterial, shadowMaterial);
                 _views[m.id] = view;
-                if (!string.IsNullOrEmpty(m.sprite)) StartCoroutine(LoadSprite(view, m.sprite));
+                if (!string.IsNullOrEmpty(m.sprite)) StartCoroutine(SpriteLoader.Load(m.sprite, tex => { if (view != null) view.SetTexture(tex); }));
             }
         }
 
-        /// Flutter 에셋은 같은 APK 안 assets/flutter_assets/ 에 있다. D 그림이 있으면 바꿔 끼운다.
-        IEnumerator LoadSprite(CritterView view, string sprite)
-        {
-            var url = $"{Application.streamingAssetsPath}/flutter_assets/assets/{sprite}";
-            using var req = UnityWebRequestTexture.GetTexture(url);
-            yield return req.SendWebRequest();
-            if (req.result == UnityWebRequest.Result.Success && view != null)
-                view.SetTexture(DownloadHandlerTexture.GetContent(req));
-        }
     }
 }

@@ -181,26 +181,53 @@ namespace Allo.World
                     {
                         var w = Rand(r, 7, 13) + row * 2;
                         if (row == 0 && crossing && z < 12) { z = 12; continue; }
-                        var h = Rand(r, lo, hi);
+                        var floors = Mathf.Max(2, Mathf.RoundToInt(Rand(r, lo, hi) / 3f));
+                        var h = floors * 3f;
                         var x = side * (x0 + depth / 2);
                         var wall = C(Walls[r.Next(Walls.Length)]);
-                        var go = k.Box(p, new Vector3(x, 0, z + w / 2), new Vector3(depth, h, w - 0.8f), wall);
-                        // 창문: 건물 앞면에 붙인 얇은 판 (창문 무늬 재질)
-                        var face = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                        Kill(face.GetComponent<Collider>());
-                        face.transform.SetParent(p, false);
-                        face.transform.localPosition = new Vector3(x - side * (depth / 2 + 0.02f), h / 2 + 1.5f, z + w / 2);
-                        face.transform.localRotation = Quaternion.Euler(0, side < 0 ? 90 : -90, 0);
-                        face.transform.localScale = new Vector3(w - 1.6f, h - 3.2f, 1);
-                        var fr = face.GetComponent<Renderer>();
-                        fr.sharedMaterial = windows;
-                        fr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                        var trim = wall * 0.82f; trim.a = 1;
+                        var bw = w - 0.8f;
+                        k.Box(p, new Vector3(x, 0, z + w / 2), new Vector3(depth, h, bw), wall);
+                        // 창문 판: 칸 크기가 건물 크기와 상관없이 일정 (Kit.Facade). 1층은 가게라 2층부터
+                        var faceX = x - side * (depth / 2 + 0.02f);
+                        var faceRot = Quaternion.Euler(0, side < 0 ? -90 : 90, 0); // 판의 앞(-z)이 도로를 보게
+                        var winH = h - 4.2f;
+                        if (winH > 1) k.Facade(p, new Vector3(faceX, 3.4f + winH / 2, z + w / 2), faceRot, bw - 1.2f, winH, windows);
+                        // 옥상 난간
+                        k.Box(p, new Vector3(x, h, z + w / 2), new Vector3(depth + 0.3f, 0.45f, bw + 0.3f), trim);
+                        if (row < 2)
+                        {
+                            // 옥상 물건: 계단실 / 물탱크 / 실외기
+                            var roofPick = r.NextDouble();
+                            if (roofPick < 0.4) k.Box(p, new Vector3(x + side * Rand(r, -1, 1), h + 0.45f, z + w / 2 + Rand(r, -w * 0.25f, w * 0.25f)), new Vector3(2.2f, 2.4f, 2.6f), trim);
+                            else if (roofPick < 0.75)
+                            {
+                                k.Pole(p, new Vector3(x, h + 0.45f, z + w * 0.35f), 0.9f, 1.4f, C("#8C8A80"));
+                                k.Pole(p, new Vector3(x, h + 1.85f, z + w * 0.35f), 1.0f, 0.3f, C("#6E6A62"));
+                            }
+                            else for (var i = 0; i < 2; i++) k.Box(p, new Vector3(x + side * (i - 0.5f) * 1.6f, h + 0.45f, z + w * 0.65f), new Vector3(0.9f, 0.8f, 0.9f), C("#B9BEC0"));
+                            // 층 띠: 3m 마다 얇은 돌출 (앞면만)
+                            for (var f = 2; f < floors; f++)
+                                k.Box(p, new Vector3(faceX - side * 0.08f, f * 3f, z + w / 2), new Vector3(0.18f, 0.14f, bw), trim);
+                            // 발코니 한 줄 (절반쯤의 건물)
+                            if (r.NextDouble() < 0.5)
+                            {
+                                var bz = z + w / 2 + Rand(r, -w * 0.3f, w * 0.3f);
+                                for (var f = 2; f < floors; f++)
+                                {
+                                    k.Box(p, new Vector3(faceX - side * 0.5f, f * 3f, bz), new Vector3(1.0f, 0.12f, 1.8f), trim);
+                                    k.Box(p, new Vector3(faceX - side * 0.95f, f * 3f + 0.12f, bz), new Vector3(0.06f, 0.9f, 1.8f), C("#DADDE0"));
+                                }
+                            }
+                        }
                         if (row == 0)
                         {
-                            // 1층 가게 간판과 차양
-                            var sign = C(new[] { "#E2614B", "#4A90D0", "#58D8A0", "#F2C14E", "#B487D8" }[r.Next(5)]);
-                            k.Box(p, new Vector3(side * (x0 - 0.1f), 3.0f, z + w / 2), new Vector3(0.2f, 0.9f, w - 2), sign);
-                            k.Box(p, new Vector3(side * (x0 - 0.6f), 2.5f, z + w / 2), new Vector3(1.2f, 0.12f, w - 2), sign);
+                            // 1층 가게: 간판(밤에 빛난다)·차양·출입문·진열창
+                            var sign = C(new[] { "#E2614B", "#4A90D0", "#58D8A0", "#F2C14E", "#B487D8", "#FF8FB8" }[r.Next(6)]);
+                            k.GlowBox(p, new Vector3(side * (x0 - 0.12f), 3.0f, z + w / 2), new Vector3(0.24f, 0.8f, bw - 1.6f), sign);
+                            k.Box(p, new Vector3(side * (x0 - 0.7f), 2.55f, z + w / 2), new Vector3(1.4f, 0.1f, bw - 1.6f), sign, Quaternion.Euler(0, 0, side * 12));
+                            k.Box(p, new Vector3(side * (x0 - 0.05f), 0, z + w / 2 - w * 0.28f), new Vector3(0.1f, 2.2f, 1.1f), C("#4A3D34"));
+                            k.Box(p, new Vector3(side * (x0 - 0.05f), 0.6f, z + w / 2 + w * 0.12f), new Vector3(0.08f, 1.5f, bw * 0.45f), C("#A9DCDA"));
                         }
                         z += w;
                     }
@@ -216,7 +243,7 @@ namespace Allo.World
                 }
                 if (r.NextDouble() < 0.4) k.Prop("Bench", p, new Vector3(walkX + side * 1.2f, 0, Rand(r, 2, L - 2)), side < 0 ? 90 : -90);
                 for (var i = 0; i < 4; i++)
-                    if (r.NextDouble() < 0.6) k.Person(p, new Vector3(walkX + Rand(r, -1.2f, 1.2f), 0, Rand(r, 0, L)), r);
+                    if (r.NextDouble() < 0.6) k.Person(p, new Vector3(walkX + side * Rand(r, 0.2f, 1.6f), 0, Rand(r, 0, L)), r); // 차도에서 떨어진 인도 안쪽
             }
             // 오른쪽 길가 주차 차
             for (var z = 4f; z < L - 4; z += 9)

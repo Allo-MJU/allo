@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:allo_core/allo_core.dart';
 import 'package:allo_phone/explore/explore_screen.dart';
 import 'package:allo_phone/feed/fake_feed.dart';
 import 'package:allo_phone/game/game_controller.dart';
@@ -181,5 +182,121 @@ void main() {
     toFlutter!('{"v":1,"type":"close"}');
     await tester.pumpAndSettle();
     expect(find.text('동행'), findsOneWidget, reason: '동행 화면까지 닫히면 안 된다');
+  });
+
+  testWidgets('Unity 의 tap·feed 는 동행 반응으로, spotted 는 창밖 발견으로 센다',
+      (tester) async {
+    final c = fakeController();
+    addTearDown(c.dispose);
+    c.game = c.game.copyWith(stage: Stage.hatched);
+    final sent = <String>[];
+    void Function(String)? toFlutter;
+    await tester.pumpWidget(MaterialApp(
+      home: ExploreScreen(
+        controller: c,
+        unityAvailable: true,
+        unityView: ({required onCreated, required onMessage}) {
+          toFlutter = onMessage;
+          onCreated(sent.add);
+          return const SizedBox.expand();
+        },
+      ),
+    ));
+    toFlutter!('{"v":1,"type":"ready"}');
+    toFlutter!('{"v":1,"type":"tap","id":"x"}');
+    toFlutter!('{"v":1,"type":"feed"}');
+    toFlutter!('{"v":1,"type":"spotted","id":"nobody"}');
+    expect(c.playCount, 1);
+    expect(c.feedCount, 1);
+    expect(c.lookOutCount, 1);
+    final toasts = [
+      for (final s in sent)
+        if ((jsonDecode(s) as Map)['type'] == 'toast')
+          (jsonDecode(s) as Map)['text']
+    ];
+    expect(toasts, contains('봤어!'));
+    expect(toasts, contains(c.companionMessage),
+        reason: '먹이·놀이 반응 문구도 Unity 에 보낸다');
+  });
+
+  testWidgets('체험 주행이면 settings 에 canEndTrip 이 켜진다', (tester) async {
+    final c = fakeController();
+    addTearDown(c.dispose);
+    final sent = <String>[];
+    void Function(String)? toFlutter;
+    await tester.pumpWidget(MaterialApp(
+      home: ExploreScreen(
+        controller: c,
+        unityAvailable: true,
+        unityView: ({required onCreated, required onMessage}) {
+          toFlutter = onMessage;
+          onCreated(sent.add);
+          return const SizedBox.expand();
+        },
+      ),
+    ));
+    toFlutter!('{"v":1,"type":"ready"}');
+    final settings = sent
+        .map((s) => jsonDecode(s) as Map)
+        .firstWhere((m) => m['type'] == 'settings');
+    expect(settings['canEndTrip'], isTrue);
+  });
+
+  testWidgets('Unity 의 endTrip 은 체험 주행을 끝내고 Unity 화면을 내린다', (tester) async {
+    final c = fakeController();
+    addTearDown(c.dispose);
+    expect(await c.startIncubating(EggTier.small), isTrue);
+    var closed = 0;
+    void Function(String)? toFlutter;
+    await tester.pumpWidget(MaterialApp(
+      home: ExploreScreen(
+        controller: c,
+        unityAvailable: true,
+        closeUnity: () async => closed++,
+        unityView: ({required onCreated, required onMessage}) {
+          toFlutter = onMessage;
+          onCreated((_) {});
+          return const SizedBox.expand();
+        },
+      ),
+    ));
+    toFlutter!('{"v":1,"type":"ready"}');
+    toFlutter!('{"v":1,"type":"endTrip"}');
+    for (var i = 0; i < 50 && !c.sessionEnded; i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+      await tester.pump();
+    }
+    expect(c.sessionEnded, isTrue);
+    expect(closed, 1, reason: '주행이 끝나면 Flutter 가 Unity 를 내린다');
+    expect(unityExploreOpen.value, isFalse);
+    await tester.pumpWidget(const SizedBox());
+    expect(closed, 1, reason: '이미 내렸으면 dispose 에서 또 내리지 않는다');
+    // 종료 저장이 끝날 때까지 시계를 돌린다 (위젯 테스트의 가짜 시간)
+    for (var i = 0; i < 100 && !c.sessionSaved; i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(c.sessionSaved, isTrue);
+  });
+
+  testWidgets('Flutter 가 먼저 탐험 화면을 떠나면 Unity 를 내린다', (tester) async {
+    final c = fakeController();
+    addTearDown(c.dispose);
+    var closed = 0;
+    await tester.pumpWidget(MaterialApp(
+      home: ExploreScreen(
+        controller: c,
+        unityAvailable: true,
+        closeUnity: () async => closed++,
+        unityView: ({required onCreated, required onMessage}) {
+          onCreated((_) {});
+          return const SizedBox.expand();
+        },
+      ),
+    ));
+    await tester.pumpWidget(const SizedBox());
+    expect(closed, 1);
   });
 }

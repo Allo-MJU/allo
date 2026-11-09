@@ -436,3 +436,30 @@ Unity 6.0.85f2 LTS, 공식 "Unity as a Library"(별도 안드로이드 화면) �
 2. Flutter 화면이 다시 보일 때(resume) Unity 를 다시 엶 → resume 으로 열지 않음
 3. 뒤로 가기 한 번에 탐험 화면과 동행 화면이 함께 닫힘 → 탐험 화면이 맨 위일 때 한 번만 닫기, Unity 는 키를 뗄 때 close
 4. Unity 가 앞에 있으면 Flutter 가 백그라운드로 판단해 알 성장·신호 처리가 멈춤 → Unity 탐험 화면이 열린 동안은 활성으로 (`appActiveFor`)
+
+## 탐험 화면 — 비주얼 다듬기·화면 안 조작 (2026-11-09, A) — #80 #78
+
+Unity 6000.0.85f2, 휴대폰 에뮬레이터(Medium Phone API 37, arm64, 4코어/4GB), debug, `FEED=fake SCENARIO=scene_tour EXPLORE_UNITY=true`.
+이 Mac 에는 Blender 가 없어 #80 의 건물·사람은 Blender 모델 대신 Unity 코드(기본 도형)로 만들었다. Blender 가 생기면 `tools/blender/props.py` 로 옮길 수 있다.
+
+| 항목 | 결과 |
+| --- | --- |
+| 툰 셰이더: 그림자 경계 또렷 (`_RampSoft` 0.12→0.05), 외곽선 거리 비례 (`_OutlineDist`, 10m 기준 1배~6배), 2단 하이라이트 (`_HiSize`, 구름·차·유리) | ✅ `world_*.png` 캡처. 세상 물체(건물·차)에도 외곽선 0.02m |
+| 후처리 (`Hidden/Allo/Post`, `AlloPost`): 1/4 해상도 블룸 + 채도·대비·비네트, 장면별 값 (`WorldDirector.Atmosphere`) | ✅ 낮 채도 1.22, 밤·터널 블룸 1.4/0.9. 전체 해상도 패스는 합성 1회 |
+| 건물: 층 띠·옥상 난간·물탱크/실외기/계단실·발코니·1층 간판(밤에 빛남)·차양·문·진열창, 창문 칸 크기 일정 (`Kit.Facade`) | ✅ `world_city_*.png`. **창문 판이 처음부터 뒤집혀(법선이 건물 쪽) 안 보이던 버그**도 고침 |
+| 사람: 다리·신발·몸통·팔·머리·머리카락·묶은 머리/모자·치마·가방, 아이 (`Kit.Person`) | ✅ 도형 12개 안팎, 인도 안쪽에 선다 |
+| 비: 유리창 빗방울·물줄기 (`Allo/Glass`, `_Rain` 0~1), 앞유리 와이퍼 2개 (`Wipers`, 비 단계별 속도) | ✅ `world_highway_rain_front.png` |
+| 차 안: 좌석 천 무늬 반복 완화 (256px, 큰 얼룩·올 자국, 타일 6→3.5) | ✅ `unity_*.png`. 천장 디테일은 Blender(cabin.py) 필요 → 미반영 |
+| 캐릭터 D 그림 연결 | ✅ 경로 일치 확인: Flutter `assets/${sprite}` ↔ Unity `flutter_assets/assets/{sprite}` (`SpriteLoader`). `phone/assets/species/` 가 비어 있어 실제 그림은 미확인 |
+| HUD (`Hud`, uGUI 코드 생성): 돌아가기 / 주행 종료(체험일 때만, `settings.canEndTrip`) / 먹이 주기 / 봤어!(창밖 친구 보일 때) / 안내 글(toast) | ✅ 에뮬레이터: 세 버튼과 한글 글자 표시, 체험 주행이라 "주행 종료" 보임 |
+| 탭 (`TapInput`): 캐릭터 → 폴짝+하트+`tap`, 창밖 친구 → 발견+`spotted`, 머리받침·쿠션·인형·물병·손잡이 → 흔들림(`Wobble`), 천장등 → 실내등 켜고 끄기, 유리 → 빗방울 튀기기/반짝 | ✅ 에뮬레이터: 캐릭터 탭 → `{"type":"tap","id":"sea_mist"}` 수신. 물체 흔들림·유리는 에디터 로직만 (기기 미확인) |
+| 먹이: 동행 옆에 사과 → 걸어가 세 입에 먹음 → 하트 (`CritterDirector.Feed`) | ✅ 에뮬레이터: 사과·하트, Flutter `feed` 수신 → 안내 글 "바다안개가 맛있게 먹었어요!" 표시 |
+| 창밖 친구 (`Passersby`): 모은 친구가 18~36초마다 길가에 서 있음, 앞 3~45m 에 보이면 "봤어!" | 아래 에뮬레이터 확인 참조 |
+| Unity → Flutter 의도 메시지: `tap`→놀아주기, `feed`→먹이, `endTrip`→체험 종료, `spotted`→`lookOut()` + toast. 주행이 끝나면 Flutter 가 Unity 를 내림 (`ExploreBridge.close`) | ✅ `explore_screen_test.dart` 11개, `explore_messages_test.dart`. 에뮬레이터: "주행 종료" → Unity 내려가고 Flutter "기록을 저장했어요" 화면 |
+| 테스트 | ✅ Unity EditMode 34개, `flutter test` 171개, `flutter analyze lib test` 문제 없음 |
+
+기기에서 찾아 고친 것:
+1. **물리 모듈이 빌드에서 제거**되어 기본 도형의 충돌체를 못 붙이던 오류(`Can't add component because class 'BoxCollider' doesn't exist`)가 이전 빌드부터 있었다 → `Assets/link.xml` 로 Physics·UI 모듈 보존
+2. **Props.fbx 메시가 읽기 불가**라 기기에서 조각 메시 합치기가 실패(`Cannot combine mesh that does not allow access`)해 나무·바위 등이 안 보였다 → 장면 빌드가 `isReadable` 을 켠다
+3. 후처리 셰이더 `#pragma` 를 한 줄에 몰아 써 기기에서 검은 화면 → 줄 나눔 + 지원 안 되는 셰이더면 후처리 건너뜀
+4. 성능: 에뮬레이터(4코어/4GB) 3.5~4.8fps. 전 빌드도 2~22fps 라 에뮬레이터로는 판단 불가 (#77 실기기)

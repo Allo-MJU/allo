@@ -25,6 +25,7 @@ namespace Allo.Bridge
                     "cast" => Normalize(JsonUtility.FromJson<CastState>(json)),
                     "jolt" => JsonUtility.FromJson<JoltState>(json),
                     "settings" => JsonUtility.FromJson<SettingsState>(json),
+                    "toast" => JsonUtility.FromJson<ToastState>(json),
                     _ => null,
                 };
                 return true;

@@ -22,6 +22,10 @@ namespace Allo.World
         public Material ground;
         public Material sky;
         public Light sun;
+        [Tooltip("차 유리 재질 (Allo/Glass). 비 오면 빗방울을 켠다")] public Material cabinGlass;
+        [Tooltip("캐릭터·창밖 친구 그림 재질")] public Material sprite;
+        public Wipers wipers;
+        public AlloPost post;
 
         [Header("Blender 물체 (Props.fbx 에서 장면 빌드가 채운다)")]
         public GameObject[] props = new GameObject[0];
@@ -42,6 +46,20 @@ namespace Allo.World
         Light _headlights;
         float _trafficTimer = 2;
         readonly List<(Transform t, float speed)> _cars = new();
+        Passersby _passersby;
+        float _glassPulse, _rainLevel;
+
+        /// 창밖에 보이는, 아직 안 본 친구 (HUD 의 "봤어!" 버튼)
+        public Passerby Spottable => _passersby != null ? _passersby.Spottable : null;
+        public bool Spot(Passerby p) => _passersby != null && _passersby.Spot(p);
+
+        /// 유리창을 두드리면: 비 오면 빗방울이 튀고, 아니면 반짝인다
+        public void TapGlass(Vector3 at)
+        {
+            var rainy = _scene.rain > 0 && _scene.kind != "tunnel";
+            if (rainy) _glassPulse = 1;
+            Fx.Burst(at, Fx.Spark, sprite, rainy ? 5 : 3, 0.05f, 0.06f);
+        }
 
         public SceneState Scene => _scene;
 
@@ -64,6 +82,12 @@ namespace Allo.World
             _windows = new Material(windows);
             MakeRain();
             MakeHeadlights();
+            if (sprite != null)
+            {
+                _passersby = new GameObject("Passersby").AddComponent<Passersby>();
+                _passersby.transform.SetParent(_root, false);
+                _passersby.Init(_root, sprite);
+            }
         }
 
         void OnEnable() => FlutterBridge.SceneChanged += OnScene;
@@ -115,6 +139,12 @@ namespace Allo.World
             for (var n = 0; n < BuildsPerFrame && _pending.Count > 0; n++) Build(_pending.Dequeue());
             foreach (var (i, t) in _chunks) t.localPosition = new Vector3(0, 0, _track.StartOf(i));
             Traffic(meters);
+            if (_passersby != null) _passersby.Tick(meters, _scene, Camera.main);
+            if (_glassPulse > 0 && cabinGlass != null)
+            {
+                _glassPulse = Mathf.MoveTowards(_glassPulse, 0, Time.deltaTime * 1.5f);
+                cabinGlass.SetFloat("_Rain", Mathf.Clamp01(_rainLevel + _glassPulse * 0.6f));
+            }
             _backdrop.localRotation = Quaternion.Euler(0, Time.time * 0.15f, 0); // 구름이 천천히 흐른다
         }
 
@@ -158,6 +188,7 @@ namespace Allo.World
         {
             var groups = new Dictionary<Material, List<CombineInstance>>();
             var parts = new List<GameObject>();
+            var custom = new List<Mesh>(); // 건물 창문 판처럼 코드로 만든 메시는 합친 뒤 지운다
             var toLocal = chunk.worldToLocalMatrix;
             foreach (var mf in chunk.GetComponentsInChildren<MeshFilter>())
             {
@@ -170,6 +201,7 @@ namespace Allo.World
                     list.Add(new CombineInstance { mesh = mf.sharedMesh, subMeshIndex = sub, transform = toLocal * mf.transform.localToWorldMatrix });
                 }
                 parts.Add(mf.gameObject);
+                if (mf.sharedMesh.name == "Facade") custom.Add(mf.sharedMesh);
             }
             foreach (var g in parts) Kill(g);
             foreach (var (m, list) in groups)
@@ -184,6 +216,7 @@ namespace Allo.World
                 r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 r.receiveShadows = false;
             }
+            foreach (var m in custom) Kill(m);
         }
 
         /// 조각을 지울 때 합친 메시도 같이 지운다 (메모리 누수 방지)
@@ -291,6 +324,18 @@ namespace Allo.World
                 var e = _rain.emission;
                 e.rateOverTime = rainy ? 120 * s.rain : 0;
                 if (rainy && !_rain.isPlaying) _rain.Play();
+            }
+            _rainLevel = rainy ? s.rain / 3f : 0;
+            if (cabinGlass != null) cabinGlass.SetFloat("_Rain", _rainLevel);
+            if (wipers != null) wipers.SetRain(rainy ? s.rain : 0);
+            if (post != null)
+            {
+                // 밤·터널은 불빛이 번지게, 낮은 쨍하게
+                if (tunnel) { post.bloom = 0.9f; post.threshold = 0.55f; post.saturation = 1.05f; post.contrast = 1.08f; post.lift = new Color(0.02f, 0.01f, 0); }
+                else if (s.night) { post.bloom = 1.4f; post.threshold = 0.42f; post.saturation = 1.1f; post.contrast = 1.1f; post.lift = new Color(0, 0.004f, 0.02f); }
+                else if (rainy) { post.bloom = 0.3f; post.threshold = 0.85f; post.saturation = 0.95f; post.contrast = 1.05f; post.lift = new Color(0, 0.008f, 0.016f); }
+                else { post.bloom = 0.28f; post.threshold = 0.88f; post.saturation = 1.22f; post.contrast = 1.08f; post.lift = new Color(0.014f, 0.008f, 0); }
+                post.vignette = 0.16f;
             }
             if (Camera.main != null)
             {

@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using UnityEngine;
 
 namespace Allo.Bridge
@@ -16,6 +17,7 @@ namespace Allo.Bridge
         public static event Action<CastState> CastChanged;
         public static event Action<string> Jolted;
         public static event Action<SettingsState> SettingsChanged;
+        public static event Action<ToastState> Toasted;
 
         public static SceneState LastScene { get; private set; }
         public static CastState LastCast { get; private set; }
@@ -30,7 +32,7 @@ namespace Allo.Bridge
 
         void Update()
         {
-            if (Input.GetKeyUp(KeyCode.Escape)) AndroidHost.Send("{\"v\":1,\"type\":\"close\"}");
+            if (Input.GetKeyUp(KeyCode.Escape)) RequestClose();
         }
 
         public void OnFlutterMessage(string json)
@@ -57,15 +59,46 @@ namespace Allo.Bridge
                     LastSettings = st;
                     SettingsChanged?.Invoke(st);
                     break;
+                case ToastState t:
+                    Toasted?.Invoke(t);
+                    break;
                 default:
                     Debug.Log($"[FlutterBridge] 무시: {type}");
                     break;
             }
         }
 
-        static void SendReady() => AndroidHost.Send("{\"v\":1,\"type\":\"ready\"}");
+        static void SendReady() => Send("ready");
 
-        /// 탐험 화면 안의 닫기 버튼 등에서 부른다
-        public static void RequestClose() => AndroidHost.Send("{\"v\":1,\"type\":\"close\"}");
+        /// 탐험 화면 안의 닫기 버튼·뒤로 가기에서 부른다
+        public static void RequestClose() => Send("close");
+
+        /// Unity → Flutter 한 줄. fields 는 `"id":"x"` 처럼 이미 JSON 조각이어야 한다 (Field 로 만든다)
+        public static void Send(string type, string fields = null) =>
+            AndroidHost.Send(string.IsNullOrEmpty(fields)
+                ? $"{{\"v\":1,\"type\":\"{type}\"}}"
+                : $"{{\"v\":1,\"type\":\"{type}\",{fields}}}");
+
+        /// JSON 문자열 필드 한 개 (따옴표·역슬래시·제어문자만 피한다)
+        public static string Field(string name, string value)
+        {
+            var sb = new StringBuilder("\"").Append(name).Append("\":\"");
+            foreach (var ch in value ?? "")
+            {
+                switch (ch)
+                {
+                    case '"': sb.Append("\\\""); break;
+                    case '\\': sb.Append("\\\\"); break;
+                    case '\n': sb.Append("\\n"); break;
+                    case '\r': sb.Append("\\r"); break;
+                    case '\t': sb.Append("\\t"); break;
+                    default:
+                        if (ch < ' ') sb.Append("\\u").Append(((int)ch).ToString("x4"));
+                        else sb.Append(ch);
+                        break;
+                }
+            }
+            return sb.Append('"').ToString();
+        }
     }
 }

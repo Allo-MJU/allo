@@ -37,7 +37,14 @@ namespace Allo.Critters
             _shadow.localRotation = Quaternion.Euler(90, 0, 0);
             _shadow.GetComponent<Renderer>().sharedMaterial = shadowMat;
             _last = brain.Position;
+            // 탭으로 고를 수 있게 몸 크기만 한 상자
+            var col = gameObject.AddComponent<BoxCollider>();
+            col.center = Vector3.up * Height * 0.5f;
+            col.size = Vector3.one * Height * 1.3f;
         }
+
+        /// 머리 위 (하트·음표가 뜨는 자리)
+        public Vector3 Top => transform.position + Vector3.up * (Height * 1.05f);
 
         static void Kill(Object o)
         {

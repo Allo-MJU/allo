@@ -127,6 +127,32 @@ namespace Allo.World
                 Quaternion.FromToRotation(Vector3.up, d.normalized));
         }
 
+        /// 건물 앞면 창문 판. 창 칸 크기가 건물 크기와 상관없이 일정하도록 UV 를 칸 수로 늘린다
+        /// (재질 텍스처 한 장 = 가로 4 × 세로 4 칸). center 는 판 가운데, rot 은 판이 바라보는 방향.
+        /// 메시 이름 "Facade" 는 조각을 합칠 때(WorldDirector.Combine) 같이 지운다
+        public GameObject Facade(Transform p, Vector3 center, Quaternion rot, float w, float h, Material m, float cellW = 2.2f, float cellH = 2.9f)
+        {
+            var go = new GameObject("Facade");
+            go.transform.SetParent(p, false);
+            go.transform.localPosition = center;
+            go.transform.localRotation = rot;
+            var mesh = new Mesh { name = "Facade" };
+            float hw = w / 2, hh = h / 2;
+            mesh.vertices = new[] { new Vector3(-hw, -hh, 0), new Vector3(hw, -hh, 0), new Vector3(-hw, hh, 0), new Vector3(hw, hh, 0) };
+            var u = Mathf.Max(0.25f, Mathf.Round(w / cellW) / 4f);
+            var v = Mathf.Max(0.25f, Mathf.Round(h / cellH) / 4f);
+            mesh.uv = new[] { new Vector2(0, 0), new Vector2(u, 0), new Vector2(0, v), new Vector2(u, v) };
+            mesh.normals = new[] { -Vector3.forward, -Vector3.forward, -Vector3.forward, -Vector3.forward };
+            mesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
+            mesh.RecalculateBounds();
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            var r = go.AddComponent<MeshRenderer>();
+            r.sharedMaterial = m;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            return go;
+        }
+
         /// 잎이 뭉친 활엽수
         public void Tree(Transform p, Vector3 at, float h, System.Random r)
         {
@@ -173,15 +199,47 @@ namespace Allo.World
             }
         }
 
+        /// 길 가는 사람: 다리·신발·몸통·팔·머리·머리카락, 가끔 묶은 머리·모자·치마·가방. 아이는 작다.
+        /// 기본 도형 12개 안팎이라 조각 메시에 합쳐도 가볍다
         public void Person(Transform p, Vector3 at, System.Random r)
         {
-            var shirt = new[] { "#E2614B", "#4A90D0", "#F2C14E", "#58D8A0", "#F1E6CF", "#B487D8" }[r.Next(6)];
-            var pants = new[] { "#3B4A5C", "#2E3440", "#6B5B4A" }[r.Next(3)];
-            var kid = r.NextDouble() < 0.2;
-            var h = kid ? 1.1f : 1.7f;
-            foreach (var x in new[] { -0.08f, 0.08f }) Pole(p, at + new Vector3(x, 0, 0), 0.06f * h / 1.7f, h * 0.47f, C(pants));
-            Prim(PrimitiveType.Capsule, p, at + Vector3.up * h * 0.66f, new Vector3(0.36f, 0.28f, 0.24f) * h / 1.7f, Solid(C(shirt)));
-            Ball(p, at + Vector3.up * h * 0.92f, Vector3.one * 0.22f * h / 1.7f, C(new[] { "#F1C7A5", "#E0A97E", "#C68A5E", "#8D5A3B" }[r.Next(4)]));
+            var shirt = C(new[] { "#E2614B", "#4A90D0", "#F2C14E", "#58D8A0", "#F1E6CF", "#B487D8", "#FF8FB8", "#3F7D5A" }[r.Next(8)]);
+            var pants = C(new[] { "#3B4A5C", "#2E3440", "#6B5B4A", "#8A6A4C", "#5A6B8C" }[r.Next(5)]);
+            var skin = C(new[] { "#F1C7A5", "#E0A97E", "#C68A5E", "#8D5A3B" }[r.Next(4)]);
+            var hair = C(new[] { "#2B2320", "#4A2E1E", "#7A4A2A", "#D9A066", "#8C8C8C", "#C8654F" }[r.Next(6)]);
+            var kid = r.NextDouble() < 0.22;
+            var h = kid ? Rand(r, 1.0f, 1.2f) : Rand(r, 1.6f, 1.85f);
+            var s = h / 1.75f;
+            var g = new GameObject("Person").transform;
+            g.SetParent(p, false);
+            g.localPosition = at;
+            g.localRotation = Quaternion.Euler(0, Rand(r, 0, 360), 0);
+            var skirt = !kid && r.NextDouble() < 0.3;
+            foreach (var x in new[] { -0.09f, 0.09f })
+            {
+                Pole(g, new Vector3(x * s, 0, 0), 0.065f * s, h * 0.46f, skirt ? skin : pants);
+                Box(g, new Vector3(x * s, 0, 0.03f * s), new Vector3(0.11f, 0.06f, 0.24f) * s, C("#2E2A28"));
+            }
+            if (skirt) Prim(PrimitiveType.Cylinder, g, new Vector3(0, h * 0.42f, 0), new Vector3(0.46f * s, h * 0.07f, 0.4f * s), Solid(pants));
+            // 몸통·팔 (캡슐은 기본 높이 2)
+            Prim(PrimitiveType.Capsule, g, new Vector3(0, h * 0.63f, 0), new Vector3(0.4f * s, h * 0.17f, 0.26f * s), Solid(shirt));
+            foreach (var x in new[] { -0.25f, 0.25f })
+            {
+                Prim(PrimitiveType.Capsule, g, new Vector3(x * s, h * 0.6f, 0), new Vector3(0.1f * s, h * 0.14f, 0.1f * s), Solid(shirt), Quaternion.Euler(0, 0, x < 0 ? 8 : -8));
+                Ball(g, new Vector3(x * 1.05f * s, h * 0.46f, 0), Vector3.one * 0.09f * s, skin);
+            }
+            var headY = h * 0.9f;
+            Ball(g, new Vector3(0, headY, 0), Vector3.one * 0.25f * s, skin);
+            Ball(g, new Vector3(0, headY + 0.035f * s, -0.02f * s), new Vector3(0.27f, 0.2f, 0.27f) * s, hair);
+            var style = r.NextDouble();
+            if (style < 0.25) Ball(g, new Vector3(0, headY - 0.02f * s, -0.14f * s), new Vector3(0.1f, 0.18f, 0.1f) * s, hair);
+            else if (style < 0.45)
+            {
+                Prim(PrimitiveType.Cylinder, g, new Vector3(0, headY + 0.1f * s, 0), new Vector3(0.36f * s, 0.01f * s, 0.36f * s), Solid(shirt));
+                Prim(PrimitiveType.Cylinder, g, new Vector3(0, headY + 0.14f * s, 0), new Vector3(0.24f * s, 0.05f * s, 0.24f * s), Solid(shirt));
+            }
+            if (!kid && r.NextDouble() < 0.35)
+                Box(g, new Vector3(0.27f * s, h * 0.42f, 0), new Vector3(0.08f, 0.22f, 0.18f) * s, C(new[] { "#6B4A35", "#2E3440", "#C8654F" }[r.Next(3)]));
         }
 
         /// Blender 차는 -Y 가 앞이다. FBX 를 Unity 로 옮긴 뒤 앞이 +z 가 되도록 돌리는 각도 (캡처로 확인)

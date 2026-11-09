@@ -71,8 +71,25 @@ void main() {
   test('jolt·settings 메시지 형식', () {
     expect(
         dec(joltMessage('brake')), {'v': 1, 'type': 'jolt', 'kind': 'brake'});
-    expect(dec(settingsMessage(gyro: true, reducedMotion: false)),
-        {'v': 1, 'type': 'settings', 'gyro': true, 'reducedMotion': false});
+    expect(dec(settingsMessage(gyro: true, reducedMotion: false)), {
+      'v': 1,
+      'type': 'settings',
+      'gyro': true,
+      'reducedMotion': false,
+      'canEndTrip': false,
+    });
+    expect(
+        dec(settingsMessage(
+            gyro: false, reducedMotion: true, canEndTrip: true))['canEndTrip'],
+        isTrue);
+  });
+
+  test('toast 메시지는 글과 번호를 담고, 발견 문구는 받침에 맞는 조사를 고른다', () {
+    expect(dec(toastMessage('맛있게 먹었어요!', 3)),
+        {'v': 1, 'type': 'toast', 'text': '맛있게 먹었어요!', 'seq': 3});
+    expect(spottedToast('타이드키퍼'), '타이드키퍼를 봤어!');
+    expect(spottedToast('퍼들핍'), '퍼들핍을 봤어!');
+    expect(spottedToast(null), '봤어!');
   });
 
   test('jolt 는 누적값이 늘 때만 한 번', () {

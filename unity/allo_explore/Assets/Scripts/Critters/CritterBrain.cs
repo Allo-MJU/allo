@@ -67,6 +67,24 @@ namespace Allo.Critters
             Target = Clamp(p, s);
         }
 
+        /// 탭 반응: 제자리에서 폴짝 뛴다 (구르는 중이면 무시)
+        public void Poke()
+        {
+            if (State == CritterState.Tumble) return;
+            var s = _g.Surfaces[Surface];
+            JumpFrom = Position;
+            Enter(CritterState.Jump, Clamp(Position + new Vector3(Range(-0.1f, 0.1f), 0, Range(-0.1f, 0.1f)), s), JumpSeconds);
+        }
+
+        /// 같은 면 안의 한 점으로 걸어간다 (먹이 쪽). 도착하면 평소 행동으로 돌아간다
+        public void GoTo(Vector3 target)
+        {
+            if (State == CritterState.Tumble) return;
+            Enter(CritterState.Walk, Clamp(target, _g.Surfaces[Surface]), 0);
+        }
+
+        public bool AtTarget => Position == Target;
+
         public void Tick(float dt, Mood mood)
         {
             _stateTime += dt;

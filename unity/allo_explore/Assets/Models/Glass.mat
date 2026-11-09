@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Glass
-  m_Shader: {fileID: 30, guid: 0000000000000000f000000000000000, type: 0}
+  m_Shader: {fileID: 4800000, guid: fe2010c7557e243f1be0ebd0be16c71a, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -22,14 +22,13 @@ Material:
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
-    m_TexEnvs:
-    - _MainTex:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
+    m_TexEnvs: []
     m_Ints: []
-    m_Floats: []
+    m_Floats:
+    - _Rain: 0
     m_Colors:
     - _Color: {r: 0.66, g: 0.86, b: 0.85, a: 0.12}
+    - _DropColor: {r: 0.9, g: 0.95, b: 1, a: 0.36}
+    - _Tiling: {r: 40, g: 18, b: 0, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

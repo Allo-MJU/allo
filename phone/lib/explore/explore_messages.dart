@@ -6,7 +6,8 @@ import '../scene/window_scene.dart';
 
 /// Flutter → Unity 탐험 화면 메시지 (v1). 설계: docs/superpowers/specs/2026-11-09-car-explore-design.md 3.1
 ///
-/// Unity 는 표시 전용이다. 판정 결과나 좌표는 보내지 않고, 장면·등장 캐릭터·흔들림만 보낸다.
+/// Unity 는 표시 전용이다. 판정 결과나 좌표는 보내지 않고, 장면·등장 캐릭터·흔들림·안내 글만 보낸다.
+/// Unity → Flutter 는 의도만 온다: ready · close · tap{id} · feed · endTrip · spotted{id}
 const exploreMessageVersion = 1;
 
 /// 함께 보일 수 있는 친구 수 (동행 캐릭터 제외)
@@ -41,8 +42,29 @@ String castMessage({Species? companion, required List<Species> friends}) =>
 /// [kind] 는 `brake` 또는 `steer`
 String joltMessage(String kind) => _msg('jolt', {'kind': kind});
 
-String settingsMessage({required bool gyro, required bool reducedMotion}) =>
-    _msg('settings', {'gyro': gyro, 'reducedMotion': reducedMotion});
+/// [canEndTrip]: 체험(Fake) 주행이라 Unity 안에 "주행 종료" 버튼을 보여도 되는지
+String settingsMessage(
+        {required bool gyro,
+        required bool reducedMotion,
+        bool canEndTrip = false}) =>
+    _msg('settings', {
+      'gyro': gyro,
+      'reducedMotion': reducedMotion,
+      'canEndTrip': canEndTrip,
+    });
+
+/// Unity 화면 위에 잠깐 보일 글. [seq] 가 다르면 같은 글도 다시 보낸다 (ExploreLink 는 같은 문자열을 거른다)
+String toastMessage(String text, int seq) =>
+    _msg('toast', {'text': text, 'seq': seq});
+
+/// "OO를/을 봤어!" — 받침 유무로 조사를 고른다
+String spottedToast(String? nameKo) {
+  if (nameKo == null || nameKo.isEmpty) return '봤어!';
+  final code = nameKo.codeUnitAt(nameKo.length - 1);
+  final hangul = code >= 0xAC00 && code <= 0xD7A3;
+  final particle = hangul && (code - 0xAC00) % 28 != 0 ? '을' : '를';
+  return '$nameKo$particle 봤어!';
+}
 
 /// 급제동·급조향 누적값이 늘었을 때만 한 번 알린다.
 ///

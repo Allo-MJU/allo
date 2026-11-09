@@ -40,11 +40,17 @@ namespace Allo.CameraRig
             Apply();
         }
 
+        bool _uiTouch; // 버튼 위에서 시작한 터치는 둘러보기로 치지 않는다
+
         void Update()
         {
             var degPerPixel = 180f / Mathf.Max(1, Screen.width);
             var dragging = false;
-            if (Input.touchCount == 1 && Input.GetTouch(0).phase == TouchPhase.Moved)
+            if (Input.touchCount == 1 && Input.GetTouch(0).phase == TouchPhase.Began)
+                _uiTouch = UnityEngine.EventSystems.EventSystem.current != null &&
+                           UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject(Input.GetTouch(0).fingerId);
+            if (Input.touchCount == 0) _uiTouch = false;
+            if (!_uiTouch && Input.touchCount == 1 && Input.GetTouch(0).phase == TouchPhase.Moved)
             {
                 var d = Input.GetTouch(0).deltaPosition * degPerPixel;
                 Turn(new Vector2(-d.x, -d.y));

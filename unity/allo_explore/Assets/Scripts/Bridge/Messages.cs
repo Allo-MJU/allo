@@ -4,6 +4,9 @@ namespace Allo.Bridge
 {
     // Flutter → Unity 메시지 (v1). 설계: docs/superpowers/specs/2026-11-09-car-explore-design.md 3.1
     // JsonUtility 는 필드 이름으로 읽고, 모르는 필드는 무시한다.
+    //
+    // Unity → Flutter (FlutterBridge.Send): ready · close · tap{id} · feed · endTrip · spotted{id}
+    // 판정은 모두 Flutter(allo_core) 가 한다. Unity 는 의도만 보내고 보이는 반응만 그린다.
 
     [Serializable]
     sealed class Envelope
@@ -49,5 +52,14 @@ namespace Allo.Bridge
     {
         public bool gyro;
         public bool reducedMotion;
+        public bool canEndTrip;  // 체험(Fake) 주행이라 Unity 안 "주행 종료" 버튼을 보여도 되는지
+    }
+
+    /// Flutter 가 보여 달라는 짧은 문구 (동행 반응 "맛있게 먹었어요!" 등). 글은 Flutter 가 정한다
+    [Serializable]
+    public sealed class ToastState
+    {
+        public string text;
+        public int seq;          // 같은 글이 연달아 와도 다시 보이게 하는 번호
     }
 }

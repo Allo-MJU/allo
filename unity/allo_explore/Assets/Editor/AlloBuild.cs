@@ -46,6 +46,7 @@ public static class AlloBuild
                     // 차 안은 바깥보다 어둡다 (창밖이 밝게 보이게). 그림자는 따뜻한 갈색 쪽
                     dst.SetColor("_ShadowTint", new Color(0.52f, 0.47f, 0.5f));
                     dst.SetFloat("_RimStrength", 0.06f);
+                    dst.SetFloat("_RampSoft", 0.1f);
                     var c = src.color;
                     // Linear 프로젝트에서 Material.color 는 이미 sRGB 값을 준다. 그대로 옮긴다
                     dst.color = new Color(c.r * 0.78f, c.g * 0.76f, c.b * 0.74f, 1);
@@ -53,7 +54,7 @@ public static class AlloBuild
                     var hex = src.name.Replace("M_", "").Split('_')[0];
                     var (tex, tile, gloss) = hex switch
                     {
-                        "6E5C50" or "5A4A40" => (Fabric(), 6f, 0.05f),
+                        "6E5C50" or "5A4A40" => (Fabric(), 3.5f, 0.05f),
                         "7A6553" or "5E4C3F" or "4A3D34" => (Grain(13, 0.07f), 4f, 0.2f),
                         "3E3631" or "4A403A" => (Grain(29, 0.05f), 8f, 0.25f),
                         "E4DACB" or "D8CBB7" or "B9AA96" => (Grain(41, 0.04f), 10f, 0.02f),
@@ -74,19 +75,19 @@ public static class AlloBuild
             r.sharedMaterials = mats;
         }
 
+        // 유리: 옅은 색 + 비 오면 빗방울 (Allo/Glass)
+        var glassMat = new Material(Shader.Find("Allo/Glass")) { color = new Color(0.66f, 0.86f, 0.85f, 0.12f) };
+        AssetDatabase.CreateAsset(glassMat, "Assets/Models/Glass.mat");
         foreach (var r in cabin.GetComponentsInChildren<Renderer>(true))
         {
-            if (r.name.StartsWith("Walk_")) r.enabled = false; // 걷는 면: 위치만 쓰고 보이지 않는다
-            else if (r.name.StartsWith("Glass_"))
-            {
-                var glass = new Material(Shader.Find("Legacy Shaders/Transparent/Diffuse"));
-                glass.color = new Color(0.66f, 0.86f, 0.85f, 0.12f);
-                r.sharedMaterial = glass;
-            }
+            if (r.name.StartsWith("Walk_")) { r.enabled = false; continue; } // 걷는 면: 위치만 쓰고 보이지 않는다
+            // 탭할 수 있는 물체 (TapInput): 유리는 빗방울, 나머지는 흔들림
+            if (r.name.StartsWith("Glass_")) { r.sharedMaterial = glassMat; Tappable(r, null); }
+            else if (r.name.StartsWith("Headrest") || r.name.StartsWith("RearHeadrest")) Tappable(r, (5, 0.04f));
+            else if (r.name.StartsWith("Plush") || r.name.StartsWith("Cushion") || r.name.StartsWith("Bottle")) Tappable(r, (14, 0.12f));
+            else if (r.name.StartsWith("GrabHandle")) Tappable(r, (18, 0.02f));
+            else if (r.name.StartsWith("DomeLight") || r.name.StartsWith("Armrest")) Tappable(r, (3, 0.03f));
         }
-        AssetDatabase.CreateAsset(new Material(Shader.Find("Legacy Shaders/Transparent/Diffuse")) { color = new Color(0.66f, 0.86f, 0.85f, 0.12f) }, "Assets/Models/Glass.mat");
-        foreach (var r in cabin.GetComponentsInChildren<Renderer>(true))
-            if (r.name.StartsWith("Glass_")) r.sharedMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Models/Glass.mat");
 
         Bounds B(string name) => Find(cabin.transform, name).GetComponent<Renderer>().bounds;
         var rear = B("RearSeat");
@@ -133,6 +134,8 @@ public static class AlloBuild
 
         // 창밖 3D: 재질은 에셋으로 만들어 앱 빌드에 셰이더 변형이 빠지지 않게 한다
         var solid = new Material(Shader.Find("Allo/Toon")) { enableInstancing = true };
+        solid.SetFloat("_OutlineWidth", 0.02f);
+        solid.SetFloat("_OutlineDist", 0.1f);
         AssetDatabase.CreateAsset(solid, "Assets/Models/WorldSolid.mat");
         var glow = new Material(Shader.Find("Standard"));
         glow.EnableKeyword("_EMISSION");
@@ -141,7 +144,7 @@ public static class AlloBuild
         AssetDatabase.CreateAsset(glow, "Assets/Models/WorldGlow.mat");
         var winTex = Allo.World.WorldDirector.WindowTexture();
         AssetDatabase.CreateAsset(winTex, "Assets/Models/WindowTex.asset");
-        var windows = new Material(Shader.Find("Standard")) { mainTexture = winTex, mainTextureScale = new Vector2(3, 4) };
+        var windows = new Material(Shader.Find("Standard")) { mainTexture = winTex, mainTextureScale = new Vector2(1, 1) };
         windows.SetFloat("_Mode", 1);
         windows.SetFloat("_Cutoff", 0.5f);
         windows.EnableKeyword("_ALPHATEST_ON");
@@ -171,6 +174,11 @@ public static class AlloBuild
         RenderSettings.skybox = skyMat;
         cam.clearFlags = CameraClearFlags.Skybox;
         cam.farClipPlane = 900;
+        // 후처리 (블룸·색감). 재질을 에셋으로 두어 셰이더가 빌드에 들어가게 한다
+        var postMat = new Material(Shader.Find("Hidden/Allo/Post"));
+        AssetDatabase.CreateAsset(postMat, "Assets/Models/Post.mat");
+        var post = camGo.AddComponent<Allo.AlloPost>();
+        post.material = postMat;
         var floorY = Find(cabin.transform, "Shell").GetComponent<Renderer>().bounds.min.y; // Shell 이 바닥판이다 (cabin.py shell())
         var world = new GameObject("World").AddComponent<Allo.World.WorldDirector>();
         // 차체 축: 뒷좌석 가운데 → 앞좌석 사이
@@ -187,6 +195,9 @@ public static class AlloBuild
         world.sky = skyMat;
         world.ground = groundMat;
         world.sun = sun;
+        world.post = post;
+        world.cabinGlass = glassMat;
+        world.wipers = MakeWipers(cabin.transform, carAxis, rear.center);
         (world.props, world.propGlows) = BuildProps(glow);
 
         new GameObject("FlutterBridge").AddComponent<FlutterBridge>();
@@ -212,6 +223,17 @@ public static class AlloBuild
         director.Bake();
         director.critterMaterial = critterMat;
         director.shadowMaterial = shadowMat;
+        world.sprite = critterMat;
+
+        // 화면 안 버튼(돌아가기·주행 종료·먹이·봤어!)과 탭 입력
+        var hud = new GameObject("Hud").AddComponent<Allo.Hud>();
+        hud.cam = cam;
+        hud.critters = director;
+        hud.world = world;
+        var tap = camGo.AddComponent<Allo.TapInput>();
+        tap.critters = director;
+        tap.world = world;
+        tap.cabinLight = fill;
 
         EditorSceneManager.SaveScene(scene, ScenePath);
         EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -315,6 +337,12 @@ public static class AlloBuild
     static (GameObject[], Material[]) BuildProps(Material glowBase)
     {
         const string fbx = "Assets/Models/Props.fbx";
+        // 조각을 합칠 때(WorldDirector.Combine) 메시를 읽어야 한다. 기기 빌드에서는 Read/Write 를 켜 둔 메시만 읽힌다
+        if (AssetImporter.GetAtPath(fbx) is ModelImporter importer && !importer.isReadable)
+        {
+            importer.isReadable = true;
+            importer.SaveAndReimport();
+        }
         var src = AssetDatabase.LoadAssetAtPath<GameObject>(fbx);
         if (src == null) return (new GameObject[0], new Material[0]);
         AssetDatabase.DeleteAsset("Assets/Models/Props");
@@ -338,7 +366,11 @@ public static class AlloBuild
                     {
                         var isGlow = m.name.StartsWith("Glow_");
                         dst = isGlow ? new Material(glowBase) : new Material(Shader.Find("Allo/Toon"));
-                        if (!isGlow) dst.SetFloat("_OutlineWidth", m.name.StartsWith("Cloud") ? 0 : m.name.StartsWith("Grass") || m.name.StartsWith("Petal") ? 0 : 0.025f);
+                        if (!isGlow)
+                        {
+                            dst.SetFloat("_OutlineWidth", m.name.StartsWith("Cloud") ? 0 : m.name.StartsWith("Grass") || m.name.StartsWith("Petal") ? 0 : 0.025f);
+                            dst.SetFloat("_OutlineDist", 0.1f);
+                        }
                         dst.name = "Prop_" + m.name;
                         dst.color = new Color(m.color.r, m.color.g, m.color.b, 1);
                         dst.enableInstancing = true;
@@ -348,7 +380,17 @@ public static class AlloBuild
                             dst.SetColor("_EmissionColor", dst.color);
                             glows.Add(dst);
                         }
-                        else if (m.name.StartsWith("Cloud")) { dst.SetColor("_ShadowTint", new Color(0.8f, 0.84f, 0.95f)); dst.SetFloat("_RimStrength", 0.6f); }
+                        else if (m.name.StartsWith("Cloud"))
+                        {
+                            // 구름: 그림자 2단 또렷하게 + 윗면 하이라이트 한 단
+                            dst.SetColor("_ShadowTint", new Color(0.74f, 0.8f, 0.96f));
+                            dst.SetFloat("_RimStrength", 0.5f);
+                            dst.SetFloat("_RampSoft", 0.02f);
+                            dst.SetFloat("_HiSize", 0.5f);
+                            dst.SetFloat("_HiStrength", 0.45f);
+                        }
+                        else if (m.name.StartsWith("Car") || m.name.StartsWith("Chrome") || m.name.StartsWith("Bus")) { dst.SetFloat("_HiSize", 0.14f); dst.SetFloat("_HiStrength", 0.7f); }
+                        else if (m.name.StartsWith("Glass")) { dst.SetFloat("_HiSize", 0.25f); dst.SetFloat("_HiStrength", 0.8f); }
                         AssetDatabase.CreateAsset(dst, $"Assets/Models/Props/Prop_{m.name}.mat");
                         converted[m.name] = dst;
                     }
@@ -392,21 +434,38 @@ public static class AlloBuild
 
     static Texture2D _fabric;
 
-    /// 좌석 천: 가는 씨실·날실 무늬 + 얼룩. 색은 재질 색에 곱해진다 (흰색 = 그대로)
+    /// 좌석 천: 가는 씨실·날실 무늬 + 큰 얼룩 + 드문 올 자국. 색은 재질 색에 곱해진다 (흰색 = 그대로).
+    /// 256px 한 장을 3.5번만 반복해 같은 무늬가 눈에 띄게 되풀이되지 않는다
     static Texture2D Fabric()
     {
         if (_fabric != null) return _fabric;
-        const int n = 128;
+        const int n = 256;
         var t = new Texture2D(n, n, TextureFormat.RGB24, true) { wrapMode = TextureWrapMode.Repeat, filterMode = FilterMode.Trilinear, anisoLevel = 4 };
         var rng = new System.Random(3);
+        var px = new Color[n * n];
         for (var y = 0; y < n; y++)
         for (var x = 0; x < n; x++)
         {
-            var weave = ((x / 2 + y / 2) % 2 == 0 ? 0.06f : -0.04f) + (x % 2 == 0 ? 0.02f : 0) + (y % 2 == 0 ? 0.02f : 0);
-            var blot = Mathf.PerlinNoise(x * 0.05f, y * 0.05f) * 0.08f;
-            var v = 0.9f + weave + blot + (float)rng.NextDouble() * 0.03f;
-            t.SetPixel(x, y, new Color(v, v, v));
+            var weave = ((x / 2 + y / 2) % 2 == 0 ? 0.05f : -0.035f) + (x % 2 == 0 ? 0.015f : 0) + (y % 2 == 0 ? 0.015f : 0);
+            // 큰 얼룩 두 겹 (타일 경계가 안 보이게 주기를 타일에 맞춘다: 좌표를 원 위로 보낸다)
+            var ax = x / (float)n * Mathf.PI * 2; var ay = y / (float)n * Mathf.PI * 2;
+            var blot = Mathf.PerlinNoise(3 + Mathf.Cos(ax) * 1.2f + Mathf.Sin(ay) * 0.7f, 7 + Mathf.Sin(ax) * 1.2f + Mathf.Cos(ay) * 0.7f) * 0.09f
+                     + Mathf.PerlinNoise(11 + Mathf.Cos(ax) * 3.1f, 13 + Mathf.Sin(ay) * 3.1f) * 0.04f;
+            var v = 0.88f + weave + blot + (float)rng.NextDouble() * 0.025f;
+            px[y * n + x] = new Color(v, v, v);
         }
+        // 올 자국: 가로로 짧게 밝거나 어두운 줄
+        for (var k = 0; k < 90; k++)
+        {
+            int x0 = rng.Next(n), y0 = rng.Next(n), len = 6 + rng.Next(18);
+            var d = rng.NextDouble() < 0.5 ? 0.05f : -0.05f;
+            for (var j = 0; j < len; j++)
+            {
+                var i = y0 * n + (x0 + j) % n;
+                px[i] = new Color(px[i].r + d, px[i].g + d, px[i].b + d);
+            }
+        }
+        t.SetPixels(px);
         t.Apply();
         AssetDatabase.CreateAsset(t, "Assets/Models/CabinMaterials/Fabric.asset");
         return _fabric = t;
@@ -427,6 +486,70 @@ public static class AlloBuild
         t.Apply();
         AssetDatabase.CreateAsset(t, $"Assets/Models/CabinMaterials/Grain{seed}.asset");
         return t;
+    }
+
+    /// 탭할 수 있는 물체: 메시 크기만 한 상자 충돌체 (+ 흔들림)
+    static void Tappable(Renderer r, (float angle, float scale)? wobble)
+    {
+        var mf = r.GetComponent<MeshFilter>();
+        if (mf == null || mf.sharedMesh == null) return;
+        var b = mf.sharedMesh.bounds;
+        var col = r.gameObject.AddComponent<BoxCollider>();
+        col.center = b.center;
+        col.size = Vector3.Max(b.size, Vector3.one * 0.03f);
+        if (wobble.HasValue)
+        {
+            var w = r.gameObject.AddComponent<Allo.Wobble>();
+            w.angle = wobble.Value.angle;
+            w.scale = wobble.Value.scale;
+        }
+    }
+
+    /// 앞유리 아래 가장자리에 와이퍼 두 개. 유리 평면의 기울기는 바운드(높이·깊이)에서 읽는다.
+    /// 날개 pivot 의 로컬 +y 는 유리면을 따라 위, +z 는 유리 바깥쪽 법선 (Wipers 가 z 축으로 돌린다)
+    static Allo.World.Wipers MakeWipers(Transform cabin, Vector3 carAxis, Vector3 cabinCenter)
+    {
+        var glassT = Find(cabin, "Glass_Front");
+        var glass = glassT != null ? glassT.GetComponent<Renderer>() : null;
+        if (glass == null) return null;
+        var b = glass.bounds;
+        var f = carAxis.normalized;
+        var right = Vector3.Cross(Vector3.up, f);
+        var depth = Mathf.Abs(Vector3.Dot(b.size, f));
+        var bottom = b.center - Vector3.up * b.size.y / 2 - f * depth / 2; // 아래 가장자리는 차 안쪽
+        var along = (Vector3.up * b.size.y + f * depth).normalized;      // 유리면을 따라 위로
+        var normal = Vector3.Cross(right, along).normalized;
+        if (Vector3.Dot(normal, b.center - cabinCenter) < 0) normal = -normal; // 바깥쪽
+        var root = new GameObject("Wipers");
+        root.transform.SetParent(cabin, true);
+        var w = root.AddComponent<Allo.World.Wipers>();
+        var dark = new Material(Shader.Find("Allo/Toon")) { color = new Color(0.12f, 0.12f, 0.13f) };
+        AssetDatabase.CreateAsset(dark, "Assets/Models/Wiper.mat");
+        Transform Blade(string name, float side)
+        {
+            var baseT = new GameObject(name + "Base").transform;
+            baseT.SetParent(root.transform, true);
+            baseT.position = bottom + right * side * 0.34f + normal * 0.012f + along * 0.04f;
+            baseT.rotation = Quaternion.LookRotation(normal, along);
+            var pivot = new GameObject(name).transform;
+            pivot.SetParent(baseT, false);
+            foreach (var (len, wid, off) in new[] { (0.46f, 0.016f, 0f), (0.5f, 0.03f, 0.012f) })
+            {
+                var part = GameObject.CreatePrimitive(PrimitiveType.Cube).transform;
+                Object.DestroyImmediate(part.GetComponent<Collider>());
+                part.SetParent(pivot, false);
+                part.localPosition = new Vector3(0, len / 2, off);
+                part.localScale = new Vector3(wid, len, 0.01f);
+                var r = part.GetComponent<Renderer>();
+                r.sharedMaterial = dark;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+            return pivot;
+        }
+        w.left = Blade("WiperL", -1);
+        w.right = Blade("WiperR", 1);
+        w.Pose(0);
+        return w;
     }
 
     static Transform Find(Transform root, string name)
