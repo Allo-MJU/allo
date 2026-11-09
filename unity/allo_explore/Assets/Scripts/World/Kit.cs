@@ -10,10 +10,33 @@ namespace Allo.World
         readonly Dictionary<Color, Material> _solids = new();
         readonly Dictionary<Color, Material> _glows = new();
 
-        public Kit(Material solid, Material glow)
+        readonly Dictionary<string, GameObject> _props = new();
+
+        public Kit(Material solid, Material glow, IEnumerable<GameObject> props = null)
         {
             _solid = solid;
             _glow = glow;
+            if (props != null)
+                foreach (var p in props)
+                    if (p != null) _props[p.name] = p;
+        }
+
+        public bool Has(string prop) => _props.ContainsKey(prop);
+
+        /// Blender 로 만든 물체(Props.fbx)를 놓는다. 없으면 null (기본 도형으로 대신 그린다)
+        public GameObject Prop(string name, Transform p, Vector3 at, float yaw = 0, float scale = 1)
+        {
+            if (!_props.TryGetValue(name, out var src)) return null;
+            var go = Object.Instantiate(src, p, false);
+            go.transform.localPosition = at;
+            go.transform.localRotation = Quaternion.Euler(0, yaw, 0);
+            go.transform.localScale = Vector3.one * scale;
+            foreach (var r in go.GetComponentsInChildren<Renderer>())
+            {
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                r.receiveShadows = false;
+            }
+            return go;
         }
 
         public static Color C(string hex) => ColorUtility.TryParseHtmlString(hex, out var c) ? c : Color.magenta;
@@ -89,6 +112,7 @@ namespace Allo.World
         /// 잎이 뭉친 활엽수
         public void Tree(Transform p, Vector3 at, float h, System.Random r)
         {
+            if (Prop("Tree_Round", p, at, Rand(r, 0, 360), h / 5f * Rand(r, 0.85f, 1.15f)) != null) return;
             Pole(p, at, h * 0.05f, h * 0.45f, C("#5B4434"));
             var dark = C("#355F3A");
             var lit = C("#6E9E4C");
@@ -103,6 +127,7 @@ namespace Allo.World
         /// 산에 많은 바늘잎 나무
         public void Pine(Transform p, Vector3 at, float h, System.Random r)
         {
+            if (Prop("Tree_Pine", p, at, Rand(r, 0, 360), h / 5.5f) != null) return;
             Pole(p, at, h * 0.04f, h * 0.3f, C("#4A3628"));
             var c = Color.Lerp(C("#2F5233"), C("#3E6B3A"), (float)r.NextDouble());
             for (var k = 0; k < 3; k++)
@@ -112,8 +137,10 @@ namespace Allo.World
             }
         }
 
-        public void Car(Transform p, Vector3 at, Color body, bool lights)
+        /// 차 앞이 +z(우리와 같은 방향)를 보게 놓는다. 마주 오는 차는 부모를 180도 돌린다
+        public void Car(Transform p, Vector3 at, Color body, bool lights, int seed = 0)
         {
+            if (Prop(seed % 3 == 0 ? "Car_SUV" : "Car_Sedan", p, at, CarYaw) != null) return;
             Box(p, at + Vector3.up * 0.25f, new Vector3(1.8f, 0.7f, 4.2f), body);
             Box(p, at + new Vector3(0, 0.95f, -0.2f), new Vector3(1.6f, 0.55f, 2.2f), C("#3B4650"));
             foreach (var x in new[] { -0.75f, 0.75f })
@@ -138,6 +165,9 @@ namespace Allo.World
             Prim(PrimitiveType.Capsule, p, at + Vector3.up * h * 0.66f, new Vector3(0.36f, 0.28f, 0.24f) * h / 1.7f, Solid(C(shirt)));
             Ball(p, at + Vector3.up * h * 0.92f, Vector3.one * 0.22f * h / 1.7f, C(new[] { "#F1C7A5", "#E0A97E", "#C68A5E", "#8D5A3B" }[r.Next(4)]));
         }
+
+        /// Blender 차는 -Y 가 앞이다. FBX 를 Unity 로 옮긴 뒤 앞이 +z 가 되도록 돌리는 각도 (캡처로 확인)
+        public static float CarYaw = 180;
 
         public static float Rand(System.Random r, float a, float b) => a + (float)r.NextDouble() * (b - a);
     }

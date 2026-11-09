@@ -160,6 +160,7 @@ public static class AlloBuild
         world.rain = rainMat;
         world.sky = skyMat;
         world.sun = sun;
+        (world.props, world.propGlows) = BuildProps(glow);
 
         new GameObject("FlutterBridge").AddComponent<FlutterBridge>();
 
@@ -281,6 +282,56 @@ public static class AlloBuild
         cam.targetTexture = null;
         RenderTexture.active = null;
         Debug.Log($"[AlloBuild] captured world to {outDir}");
+    }
+
+    /// Props.fbx 의 물체마다 프리팹을 만든다. 재질은 Standard 로 바꾸고, Glow_ 재질은 빛나게 한다
+    static (GameObject[], Material[]) BuildProps(Material glowBase)
+    {
+        const string fbx = "Assets/Models/Props.fbx";
+        var src = AssetDatabase.LoadAssetAtPath<GameObject>(fbx);
+        if (src == null) return (new GameObject[0], new Material[0]);
+        AssetDatabase.DeleteAsset("Assets/Models/Props");
+        AssetDatabase.CreateFolder("Assets/Models", "Props");
+        var converted = new System.Collections.Generic.Dictionary<string, Material>();
+        var glows = new System.Collections.Generic.List<Material>();
+        var prefabs = new System.Collections.Generic.List<GameObject>();
+        foreach (Transform child in src.transform)
+        {
+            var go = Object.Instantiate(child.gameObject);
+            go.name = child.name;
+            go.transform.position = Vector3.zero;
+            foreach (var r in go.GetComponentsInChildren<Renderer>())
+            {
+                var mats = r.sharedMaterials;
+                for (var i = 0; i < mats.Length; i++)
+                {
+                    var m = mats[i];
+                    if (m == null) continue;
+                    if (!converted.TryGetValue(m.name, out var dst))
+                    {
+                        var isGlow = m.name.StartsWith("Glow_");
+                        dst = isGlow ? new Material(glowBase) : new Material(Shader.Find("Standard"));
+                        dst.name = "Prop_" + m.name;
+                        dst.color = new Color(m.color.r, m.color.g, m.color.b, 1);
+                        dst.enableInstancing = true;
+                        if (isGlow)
+                        {
+                            dst.EnableKeyword("_EMISSION");
+                            dst.SetColor("_EmissionColor", dst.color);
+                            glows.Add(dst);
+                        }
+                        else dst.SetFloat("_Glossiness", m.name.StartsWith("Car") || m.name == "Glass" ? 0.55f : 0.12f);
+                        AssetDatabase.CreateAsset(dst, $"Assets/Models/Props/Prop_{m.name}.mat");
+                        converted[m.name] = dst;
+                    }
+                    mats[i] = dst;
+                }
+                r.sharedMaterials = mats;
+            }
+            prefabs.Add(PrefabUtility.SaveAsPrefabAsset(go, $"Assets/Models/Props/{go.name}.prefab"));
+            Object.DestroyImmediate(go);
+        }
+        return (prefabs.ToArray(), glows.ToArray());
     }
 
     static Transform Find(Transform root, string name)

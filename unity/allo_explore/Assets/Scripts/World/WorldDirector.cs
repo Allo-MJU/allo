@@ -22,6 +22,10 @@ namespace Allo.World
         public Material sky;
         public Light sun;
 
+        [Header("Blender 물체 (Props.fbx 에서 장면 빌드가 채운다)")]
+        public GameObject[] props = new GameObject[0];
+        [Tooltip("밤에 켜지는 물체 재질 (전조등·가로등·등대)")] public Material[] propGlows = new Material[0];
+
         Kit _kit;
         ChunkTrack _track;
         Transform _root, _backdrop, _traffic;
@@ -43,7 +47,7 @@ namespace Allo.World
         void Setup()
         {
             if (_kit != null) return;
-            _kit = new Kit(solid, glow);
+            _kit = new Kit(solid, glow, props);
             _track = new ChunkTrack();
             var fwd = forward;
             fwd.y = 0;
@@ -91,6 +95,8 @@ namespace Allo.World
             _scene = s;
             Sync(_track.SetScene(Key(s)), now: reset || !Application.isPlaying);
             if (_builtBackdrop != Key(s)) BuildBackdrop(Key(s));
+            foreach (var r in _backdrop.GetComponentsInChildren<Renderer>())
+                if (r.name.StartsWith("Cloud")) r.enabled = !s.night && s.kind != "tunnel"; // 밤에는 구름을 숨긴다
             Atmosphere(s);
         }
 
@@ -107,6 +113,7 @@ namespace Allo.World
             for (var n = 0; n < BuildsPerFrame && _pending.Count > 0; n++) Build(_pending.Dequeue());
             foreach (var (i, t) in _chunks) t.localPosition = new Vector3(0, 0, _track.StartOf(i));
             Traffic(meters);
+            _backdrop.localRotation = Quaternion.Euler(0, Time.time * 0.15f, 0); // 구름이 천천히 흐른다
         }
 
         void Sync((List<ChunkInfo> spawn, List<int> despawn) d, bool now = false)
@@ -152,9 +159,14 @@ namespace Allo.World
             var toLocal = chunk.worldToLocalMatrix;
             foreach (var mf in chunk.GetComponentsInChildren<MeshFilter>())
             {
-                var m = mf.GetComponent<MeshRenderer>().sharedMaterial;
-                if (!groups.TryGetValue(m, out var list)) groups[m] = list = new List<CombineInstance>();
-                list.Add(new CombineInstance { mesh = mf.sharedMesh, transform = toLocal * mf.transform.localToWorldMatrix });
+                // Blender 물체는 한 메시에 재질이 여러 개다 (줄기·잎). 재질 칸마다 따로 모은다
+                var mats = mf.GetComponent<MeshRenderer>().sharedMaterials;
+                for (var sub = 0; sub < mf.sharedMesh.subMeshCount && sub < mats.Length; sub++)
+                {
+                    var m = mats[sub];
+                    if (!groups.TryGetValue(m, out var list)) groups[m] = list = new List<CombineInstance>();
+                    list.Add(new CombineInstance { mesh = mf.sharedMesh, subMeshIndex = sub, transform = toLocal * mf.transform.localToWorldMatrix });
+                }
                 parts.Add(mf.gameObject);
             }
             foreach (var g in parts) Kill(g);
@@ -186,6 +198,13 @@ namespace Allo.World
             for (var i = _backdrop.childCount - 1; i >= 0; i--) Kill(_backdrop.GetChild(i).gameObject);
             var r = new System.Random(key.GetHashCode());
             if (key == "tunnel") return;
+            // 하늘의 뭉게구름: 아주 멀리 있어 차가 달려도 거의 안 움직인다 (천천히 흐르게만 한다)
+            for (var i = 0; i < 16; i++)
+            {
+                var a = Rand(r, 0, Mathf.PI * 2);
+                var d = Rand(r, 240, 420);
+                _kit.Prop("Cloud", _backdrop, new Vector3(Mathf.Cos(a) * d, Rand(r, 55, 120), Mathf.Sin(a) * d), Rand(r, 0, 360), Rand(r, 2.5f, 5f));
+            }
             var hill = key == "mountain" ? C("#4F7A5A") : C("#6E9A6A");
             var count = key == "mountain" ? 26 : key == "city" ? 0 : 14;
             for (var i = 0; i < count; i++)
@@ -254,6 +273,7 @@ namespace Allo.World
             }
             var glowBoost = s.night || tunnel ? 1.6f : 0.35f;
             foreach (var m in _kit.Glows) m.SetColor("_EmissionColor", m.color / 0.6f * glowBoost);
+            foreach (var m in propGlows) m.SetColor("_EmissionColor", m.color * glowBoost * 1.6f);
             _windows.SetColor("_EmissionColor", s.night ? C("#FFD98A") * 0.9f : Color.black);
             _windows.color = s.night ? C("#3A4660") : C("#9FB4C8");
             if (_headlights != null) _headlights.enabled = s.night || tunnel;
@@ -282,7 +302,7 @@ namespace Allo.World
                 var x = _scene.highway ? -7 : -3.5f;
                 t.localPosition = new Vector3(x, 0, 320);
                 t.localRotation = Quaternion.Euler(0, 180, 0);
-                _kit.Car(t, Vector3.zero, C(new[] { "#E9E4DA", "#7FA6C9", "#C8654F", "#59615E", "#F2C14E", "#3F7D5A" }[Random.Range(0, 6)]), true);
+                _kit.Car(t, Vector3.zero, C(new[] { "#E9E4DA", "#7FA6C9", "#C8654F", "#59615E", "#F2C14E", "#3F7D5A" }[Random.Range(0, 6)]), true, Random.Range(0, 9));
                 _cars.Add((t, Random.Range(40f, 80f) / 3.6f));
             }
             for (var i = _cars.Count - 1; i >= 0; i--)

@@ -21,7 +21,7 @@ namespace Allo.World
             {
                 case "tunnel": Tunnel(k, root, c, L); return;
                 case "highway": Road(k, root, L, true); Highway(k, root, L, r); break;
-                case "coast": Road(k, root, L, false); Coast(k, root, L, r); break;
+                case "coast": Road(k, root, L, false); Coast(k, root, c, L, r); break;
                 case "mountain": Road(k, root, L, false); Mountain(k, root, L, r); break;
                 case "city": Road(k, root, L, false); City(k, root, c, L, r, windows); break;
                 default: Road(k, root, L, false); Country(k, root, L, r); break;
@@ -70,6 +70,7 @@ namespace Allo.World
                 var x = side < 0 ? Rand(r, -45, -8) : Rand(r, 5, 45);
                 k.Tree(p, new Vector3(x, 0, Rand(r, 0, L)), Rand(r, 4, 8), r);
             }
+            for (var i = 0; i < 3; i++) k.Prop("Bush", p, new Vector3(r.NextDouble() < 0.5 ? Rand(r, -30, -7) : Rand(r, 5, 30), 0, Rand(r, 0, L)), Rand(r, 0, 360), Rand(r, 0.7f, 1.3f));
             // 전봇대와 다음 전봇대로 이어지는 전선
             k.Pole(p, new Vector3(4.2f, 0, 0), 0.14f, 8, Wood);
             k.Box(p, new Vector3(4.2f, 7.5f, 0), new Vector3(1.6f, 0.12f, 0.12f), Wood);
@@ -89,6 +90,11 @@ namespace Allo.World
 
         static void Farmhouse(Kit k, Transform p, Vector3 at, System.Random r)
         {
+            if (k.Prop(r.NextDouble() < 0.6 ? "House_A" : "House_B", p, at, Rand(r, 0, 360), Rand(r, 0.9f, 1.3f)) != null)
+            {
+                if (r.NextDouble() < 0.7) k.Prop("Bush", p, at + new Vector3(Rand(r, 4, 6), 0, Rand(r, -3, 3)), Rand(r, 0, 360));
+                return;
+            }
             k.Box(p, at, new Vector3(8, 3, 6), C("#F1E6CF"));
             var roof = r.NextDouble() < 0.5 ? C("#B8634A") : C("#4A7FB0");
             k.Box(p, at + Vector3.up * 3.3f, new Vector3(8.6f, 0.5f, 4.6f), roof, Quaternion.Euler(0, 0, 0));
@@ -96,7 +102,7 @@ namespace Allo.World
             k.Box(p, at + new Vector3(0, 3.0f, 1.5f), new Vector3(8.6f, 0.3f, 3.6f), roof, Quaternion.Euler(28, 0, 0));
         }
 
-        static void Coast(Kit k, Transform p, float L, System.Random r)
+        static void Coast(Kit k, Transform p, ChunkInfo c, float L, System.Random r)
         {
             Ground(k, p, L, -300, -5.4f, Grass);
             Ground(k, p, L, 2.6f, 14, Sand, -0.15f);
@@ -105,12 +111,15 @@ namespace Allo.World
             // 방파제 테트라포드
             for (var z = 1f; z < L; z += 2.4f) k.Ball(p, new Vector3(Rand(r, 9, 12), 0.2f, z), new Vector3(1.2f, 0.9f, 1.2f), Concrete);
             for (var i = 0; i < 3; i++) k.Tree(p, new Vector3(Rand(r, -30, -8), 0, Rand(r, 0, L)), Rand(r, 4, 7), r);
-            if (r.NextDouble() < 0.35)
+            if (r.NextDouble() < 0.35 && k.Prop("Sailboat", p, new Vector3(Rand(r, 40, 180), -0.4f, Rand(r, 0, L)), Rand(r, 0, 360), Rand(r, 1.2f, 2f)) != null) { }
+            else if (r.NextDouble() < 0.35)
             {
                 var at = new Vector3(Rand(r, 40, 180), -0.4f, Rand(r, 0, L));
                 k.Box(p, at, new Vector3(1.6f, 0.6f, 4.5f), C("#5A4636"));
                 k.Box(p, at + new Vector3(0, 0.6f, 0.3f), new Vector3(0.08f, 4.5f, 2.6f), White);
             }
+            if (c.index % 9 == 4) k.Prop("Lighthouse", p, new Vector3(Rand(r, 60, 90), -0.4f, L / 2), 0, 1.4f);
+            for (var i = 0; i < 2; i++) k.Prop("Bush", p, new Vector3(Rand(r, -20, -7), 0, Rand(r, 0, L)), Rand(r, 0, 360), Rand(r, 0.8f, 1.4f));
             // 반짝이는 물결
             for (var i = 0; i < 6; i++)
                 k.Box(p, new Vector3(Rand(r, 16, 120), -0.33f, Rand(r, 0, L)), new Vector3(Rand(r, 1, 3), 0.01f, 0.15f), C("#BFE3F0"));
@@ -130,7 +139,9 @@ namespace Allo.World
             for (var i = 0; i < 3; i++)
             {
                 var s = Rand(r, 0.8f, 2.4f);
-                k.Ball(p, new Vector3(r.NextDouble() < 0.5 ? Rand(r, -12, -6) : Rand(r, 4, 10), 0.2f, Rand(r, 0, L)), new Vector3(s * 1.4f, s, s), C("#8C8A80"));
+                var at = new Vector3(r.NextDouble() < 0.5 ? Rand(r, -12, -6) : Rand(r, 4, 10), 0, Rand(r, 0, L));
+                if (k.Prop("Rock", p, at, Rand(r, 0, 360), s) == null)
+                    k.Ball(p, at + Vector3.up * 0.2f, new Vector3(s * 1.4f, s, s), C("#8C8A80"));
             }
         }
 
@@ -179,15 +190,19 @@ namespace Allo.World
                 var walkX = side < 0 ? -7.4f : 4.6f;
                 for (var z = 3f; z < L; z += 14)
                     if (!(crossing && z < 12)) k.Tree(p, new Vector3(walkX, 0, z), 5, r);
-                k.Pole(p, new Vector3(walkX + side * -0.8f, 0, L * 0.6f), 0.08f, 7, C("#7B8287"));
-                k.GlowBall(p, new Vector3(walkX - side * 0.2f, 7, L * 0.6f), 0.5f, C("#FFD98A"));
+                if (k.Prop("StreetLamp", p, new Vector3(walkX - side * 0.6f, 0, L * 0.6f), side < 0 ? 90 : -90) == null)
+                {
+                    k.Pole(p, new Vector3(walkX + side * -0.8f, 0, L * 0.6f), 0.08f, 7, C("#7B8287"));
+                    k.GlowBall(p, new Vector3(walkX - side * 0.2f, 7, L * 0.6f), 0.5f, C("#FFD98A"));
+                }
+                if (r.NextDouble() < 0.4) k.Prop("Bench", p, new Vector3(walkX + side * 1.2f, 0, Rand(r, 2, L - 2)), side < 0 ? 90 : -90);
                 for (var i = 0; i < 4; i++)
                     if (r.NextDouble() < 0.6) k.Person(p, new Vector3(walkX + Rand(r, -1.2f, 1.2f), 0, Rand(r, 0, L)), r);
             }
             // 오른쪽 길가 주차 차
             for (var z = 4f; z < L - 4; z += 9)
                 if (r.NextDouble() < 0.45 && !(crossing && z < 12))
-                    k.Car(p, new Vector3(2.0f, 0, z), C(new[] { "#E9E4DA", "#7FA6C9", "#C8654F", "#59615E", "#F2C14E" }[r.Next(5)]), false);
+                    k.Car(p, new Vector3(2.0f, 0, z), C(new[] { "#E9E4DA", "#7FA6C9", "#C8654F", "#59615E", "#F2C14E" }[r.Next(5)]), false, r.Next(9));
             if (crossing)
             {
                 for (var x = -5f; x < 2.6f; x += 0.9f) k.Box(p, new Vector3(x + 0.25f, 0.005f, 6), new Vector3(0.5f, 0.01f, 3), White);
