@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &4699698750763218984
+--- !u!1 &8557910545187586545
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 6652465000898490701}
-  - component: {fileID: 1081417513146603855}
-  - component: {fileID: 7641587470561641668}
+  - component: {fileID: 8066697584171770150}
+  - component: {fileID: 5176442630933793895}
+  - component: {fileID: 7107492565165849079}
   m_Layer: 0
   m_Name: Car_Sedan
   m_TagString: Untagged
@@ -18,13 +18,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &6652465000898490701
+--- !u!4 &8066697584171770150
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4699698750763218984}
+  m_GameObject: {fileID: 8557910545187586545}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -33,21 +33,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &1081417513146603855
+--- !u!33 &5176442630933793895
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4699698750763218984}
+  m_GameObject: {fileID: 8557910545187586545}
   m_Mesh: {fileID: 4702077021089865709, guid: 8ff7599f6202e474ba19494e1bee8f28, type: 3}
---- !u!23 &7641587470561641668
+--- !u!23 &7107492565165849079
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4699698750763218984}
+  m_GameObject: {fileID: 8557910545187586545}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1

@@ -48,6 +48,7 @@ namespace Allo.World
         readonly List<(Transform t, float speed)> _cars = new();
         Passersby _passersby;
         float _glassPulse, _rainLevel;
+        static readonly int WorldToRoot = Shader.PropertyToID("_AlloWorldToRoot"), Travel = Shader.PropertyToID("_AlloTravel");
 
         /// 창밖에 보이는, 아직 안 본 친구 (HUD 의 "봤어!" 버튼)
         public Passerby Spottable => _passersby != null ? _passersby.Spottable : null;
@@ -75,6 +76,9 @@ namespace Allo.World
             _root.SetParent(transform, false);
             _root.position = new Vector3(carCenter.x, roadY, carCenter.z);
             _root.rotation = Quaternion.LookRotation(fwd.normalized, Vector3.up);
+            // 땅 무늬가 조각과 같이 흐르도록 (Allo/Toon 의 _WorldUV 참조)
+            Shader.SetGlobalMatrix(WorldToRoot, _root.worldToLocalMatrix);
+            Shader.SetGlobalFloat(Travel, 0);
             _backdrop = new GameObject("Backdrop").transform;
             _backdrop.SetParent(_root, false);
             _traffic = new GameObject("Traffic").transform;
@@ -138,6 +142,7 @@ namespace Allo.World
             Sync(_track.Advance(meters));
             for (var n = 0; n < BuildsPerFrame && _pending.Count > 0; n++) Build(_pending.Dequeue());
             foreach (var (i, t) in _chunks) t.localPosition = new Vector3(0, 0, _track.StartOf(i));
+            Shader.SetGlobalFloat(Travel, _track.Offset);
             Traffic(meters);
             if (_passersby != null) _passersby.Tick(meters, _scene, Camera.main);
             if (_glassPulse > 0 && cabinGlass != null)

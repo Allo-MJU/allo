@@ -1,6 +1,8 @@
 // 툰 셰이딩: 빛·그림자 2단(또렷한 경계), 그림자는 푸른 기운, 2단 하이라이트(광택), 가장자리 빛(림), 선택적 외곽선.
 // 외곽선은 _OutlineDist > 0 이면 멀수록 굵게 그려 화면에서 비슷한 두께로 보인다 (가까운 물체만 두껍고 먼 물체는 사라지는 것을 막는다).
-// _WorldUV > 0 이면 텍스처를 월드 xz 로 깐다 (넓은 땅에 풀 무늬가 늘어나지 않게).
+// _WorldUV > 0 이면 텍스처를 도로 좌표(xz)로 깐다 (넓은 땅에 풀 무늬가 늘어나지 않게).
+//   도로 좌표 = 세상 뿌리(WorldRoot) 기준 로컬 xz + 달린 거리(_AlloTravel). 차는 제자리고 조각이 뒤로 흐르므로
+//   월드 xz 그대로 쓰면 무늬가 제자리에 멈춰 보인다. WorldDirector 가 _AlloWorldToRoot·_AlloTravel 을 전역으로 넣는다.
 Shader "Allo/Toon"
 {
     Properties
@@ -66,6 +68,8 @@ Shader "Allo/Toon"
         fixed4 _Color, _ShadowTint, _RimColor, _EmissionColor, _HiColor;
         half _RampSoft, _RimPower, _RimStrength, _HiSize, _HiStrength;
         float _WorldUV;
+        float4x4 _AlloWorldToRoot;
+        float _AlloTravel;
 
         struct Input { float2 uv_MainTex; float3 worldPos; float3 viewDir; };
 
@@ -97,7 +101,12 @@ Shader "Allo/Toon"
 
         void surf (Input IN, inout SurfaceOutput o)
         {
-            float2 uv = _WorldUV > 0 ? IN.worldPos.xz * _WorldUV : IN.uv_MainTex;
+            float2 uv = IN.uv_MainTex;
+            if (_WorldUV > 0)
+            {
+                float3 lp = mul(_AlloWorldToRoot, float4(IN.worldPos, 1)).xyz;
+                uv = (lp.xz + float2(0, _AlloTravel)) * _WorldUV;
+            }
             fixed4 t = tex2D(_MainTex, uv) * _Color;
             o.Albedo = t.rgb;
             half rim = pow(1 - saturate(dot(normalize(IN.viewDir), o.Normal)), _RimPower);

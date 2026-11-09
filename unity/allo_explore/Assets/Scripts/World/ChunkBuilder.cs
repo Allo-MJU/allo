@@ -20,11 +20,11 @@ namespace Allo.World
             switch (c.kind)
             {
                 case "tunnel": Tunnel(k, root, c, L); return;
-                case "highway": Road(k, root, L, true); Highway(k, root, L, r); break;
-                case "coast": Road(k, root, L, false); Coast(k, root, c, L, r); break;
-                case "mountain": Road(k, root, L, false); Mountain(k, root, L, r); break;
-                case "city": Road(k, root, L, false); City(k, root, c, L, r, windows); break;
-                default: Road(k, root, L, false); Country(k, root, L, r); break;
+                case "highway": Road(k, root, L, true, r); Highway(k, root, L, r); break;
+                case "coast": Road(k, root, L, false, r); Coast(k, root, c, L, r); break;
+                case "mountain": Road(k, root, L, false, r); Mountain(k, root, L, r); break;
+                case "city": Road(k, root, L, false, r); City(k, root, c, L, r, windows); break;
+                default: Road(k, root, L, false, r); Country(k, root, L, r); break;
             }
             if (c.exit) Portal(k, root, 0.5f, false);
         }
@@ -45,11 +45,18 @@ namespace Allo.World
             }
         }
 
-        static void Road(Kit k, Transform p, float L, bool highway)
+        static void Road(Kit k, Transform p, float L, bool highway, System.Random r)
         {
             var left = highway ? -9.4f : -5.4f;
             var right = highway ? 4.2f : 2.6f;
             k.GroundBox(p, new Vector3((left + right) / 2, -0.1f, L / 2), new Vector3(right - left, 0.1f, L), Asphalt);
+            // 노면 디테일: 보수 자국·맨홀·이음매. 차와 함께 흘러가 달리는 느낌을 준다
+            for (var i = 0; i < 2; i++)
+                if (r.NextDouble() < 0.7)
+                    k.Box(p, new Vector3(Rand(r, left + 1, right - 1), 0.002f, Rand(r, 1, L - 1)), new Vector3(Rand(r, 0.8f, 2.2f), 0.01f, Rand(r, 1.5f, 4f)), C("#4A4D51"));
+            if (r.NextDouble() < 0.5)
+                k.Pole(p, new Vector3(Rand(r, -1.2f, 1.6f), 0.0f, Rand(r, 2, L - 2)), 0.32f, 0.012f, C("#3E4044"));
+            k.Box(p, new Vector3((left + right) / 2, 0.002f, Rand(r, 3, L - 3)), new Vector3(right - left, 0.01f, 0.08f), C("#45484C"));
             k.Box(p, new Vector3(right - 0.45f, 0.0f, L / 2), new Vector3(0.14f, 0.01f, L), White);
             if (highway)
             {
