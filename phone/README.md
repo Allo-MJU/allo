@@ -170,3 +170,5 @@ Android debug 빌드 후 `python3 tool/verify_apk_assets.py`로 APK 안의 실�
 캐릭터 환경 이벤트 체험: `flutter run --dart-define=FEED=fake --dart-define=SCENARIO=character_tour`.
 동행 화면에서 비 시작·바다/산 진입 시 창문 붙기, 급제동·급조향 시 의자 매달리기를 확인한다.
 상세 표시 규칙은 [캐릭터 상호작용](../docs/character-interactions.md)을 참고한다.
+
+폰 게임의 가로 화면 전환은 [가로 게임 화면 설계](../docs/phone-landscape-design.md)를 기준으로 진행한다. 현재 세로 스크롤 화면의 전환은 아직 미구현이다.
