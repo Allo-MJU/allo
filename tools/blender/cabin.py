@@ -3,6 +3,7 @@
 실행:
   blender -b -P tools/blender/cabin.py -- --out unity/allo_explore/Assets/Models/Cabin.glb \
       --preview docs/work-results/explore/
+  blender -b -P tools/blender/cabin.py -- --fbx unity/allo_explore/Assets/Models/Cabin.fbx
   blender -b -P tools/blender/cabin.py -- --check     (이름 검사만)
 
 좌표는 kit.py 머리말 참고 (원점: 뒷좌석 가운데 바닥, -Y 가 앞).
@@ -296,6 +297,7 @@ def check():
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     out = argv[argv.index("--out") + 1] if "--out" in argv else None
+    fbx = argv[argv.index("--fbx") + 1] if "--fbx" in argv else None
     preview = argv[argv.index("--preview") + 1] if "--preview" in argv else None
     build()
     check()
@@ -305,6 +307,14 @@ def main():
         os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
         kit.export_glb(os.path.abspath(out))
         print(f"exported {out}")
+    if fbx:
+        import bpy
+        os.makedirs(os.path.dirname(os.path.abspath(fbx)), exist_ok=True)
+        # Unity 는 FBX 를 패키지 없이 읽는다. 단위·축은 Unity 기준(Y 위)으로 굽는다
+        bpy.ops.export_scene.fbx(filepath=os.path.abspath(fbx), apply_scale_options="FBX_SCALE_ALL",
+                                 axis_forward="-Z", axis_up="Y", bake_space_transform=True,
+                                 use_mesh_modifiers=True, mesh_smooth_type="FACE")
+        print(f"exported {fbx}")
     if preview:
         import bpy
         for o in bpy.data.objects:

@@ -20,7 +20,7 @@ object ExploreBridge {
     private const val TAG = "ExploreBridge"
     private const val CHANNEL = "allo/explore"
     private const val UNITY_PLAYER = "com.unity3d.player.UnityPlayer"
-    private const val UNITY_ACTIVITY = "com.unity3d.player.UnityPlayerGameActivity"
+    private const val UNITY_ACTIVITY = "com.unity3d.player.UnityPlayerActivity"
 
     private val main = Handler(Looper.getMainLooper())
     private var channel: MethodChannel? = null

@@ -9,7 +9,7 @@ LOG="${TMPDIR:-/tmp}/allo_unity_export.log"
 
 run() { "$UNITY" -batchmode -quit -projectPath "$PROJECT" -executeMethod "$1" -logFile "$LOG" || { tail -40 "$LOG"; exit 1; }; }
 
-[ -f "$PROJECT/Assets/Scenes/Explore.unity" ] || run AlloBuild.CreateSpikeScene
+run AlloBuild.CreateExploreScene  # 장면은 매번 코드로 다시 만든다 (Assets/Editor/AlloBuild.cs)
 run AlloBuild.ExportAndroid
 
 # unityLibrary 는 ../shared/*.gradle 과 루트 gradle.properties 의 unity.* 값을 쓴다
