@@ -25,6 +25,9 @@ enum PasserbyKind {
   bus,
   oncomingCar,
   umbrella,
+
+  /// 걸어가는 사람 (맑은 날 도시·시골길)
+  walker,
   friend,
 }
 
@@ -89,6 +92,9 @@ List<PasserbyKind> creaturesFor(WindowScene s) {
     if (!rain && s.kind != SceneKind.city && !s.highway) {
       out.add(PasserbyKind.firefly);
     }
+    if (!s.highway && s.kind == SceneKind.city) {
+      out.add(rain ? PasserbyKind.umbrella : PasserbyKind.walker);
+    }
     return out.toList();
   }
   switch (s.kind) {
@@ -100,17 +106,23 @@ List<PasserbyKind> creaturesFor(WindowScene s) {
     case SceneKind.city:
       out.add(PasserbyKind.bus);
       out.add(rain ? PasserbyKind.umbrella : PasserbyKind.cyclist);
+      if (!rain) out.add(PasserbyKind.walker);
     case SceneKind.road:
     case SceneKind.tunnel:
       out.add(PasserbyKind.flock);
       out.add(rain ? PasserbyKind.umbrella : PasserbyKind.butterfly);
-      if (!rain) out.add(PasserbyKind.cyclist);
+      if (!rain) {
+        out
+          ..add(PasserbyKind.cyclist)
+          ..add(PasserbyKind.walker);
+      }
   }
   if (s.highway) {
     // 고속도로에는 사람·자전거가 없다
     out
       ..remove(PasserbyKind.cyclist)
       ..remove(PasserbyKind.umbrella)
+      ..remove(PasserbyKind.walker)
       ..remove(PasserbyKind.butterfly);
   }
   return out.toList();
@@ -218,6 +230,7 @@ class PasserbySpawner {
       PasserbyKind.bus => (2.0, 3.0),
       PasserbyKind.oncomingCar => (2.2, 3.6),
       PasserbyKind.umbrella => (2.5, 3.5),
+      PasserbyKind.walker => (3.0, 4.5),
       PasserbyKind.friend => (5.0, 9.0),
     };
     return Passerby(

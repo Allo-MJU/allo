@@ -10,6 +10,7 @@ import 'cabin_geometry.dart';
 import 'species_art.dart';
 
 part 'window/cabin.dart';
+part 'window/figures.dart';
 part 'window/passersby_painter.dart';
 part 'window/side_scene.dart';
 part 'window/windshield.dart';

@@ -77,11 +77,16 @@ class _PasserbyPainter extends CustomPainter {
     final x = w + s * 6 - pr * (w + s * 12);
     switch (p.kind) {
       case PasserbyKind.cyclist:
-        _cyclist(canvas, Offset(x, base), s * 1.3, age, p.seed);
+        _cyclistSide(canvas, Offset(x, base), s * 1.3, age, p.seed);
       case PasserbyKind.bus:
         _bus(canvas, Offset(x, base), s * 1.6);
       case PasserbyKind.umbrella:
-        _umbrella(canvas, Offset(x, base), s * 1.2, p.seed);
+        _walkerSide(canvas, Offset(x, base), s * 3.4, age * 5.5, p.seed,
+            facing: p.seed.isEven ? 1 : -1, umbrella: true);
+      case PasserbyKind.walker:
+        _walkerSide(
+            canvas, Offset(x, base), s * 3.4, age * 5.5 + p.seed, p.seed,
+            facing: p.seed.isEven ? 1 : -1);
       default:
     }
   }
@@ -176,49 +181,6 @@ class _PasserbyPainter extends CustomPainter {
     }
   }
 
-  void _cyclist(Canvas canvas, Offset base, double s, double age, int seed) {
-    final wheel = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = math.max(1, s * 0.09)
-      ..color = const Color(0xFF2E2E2E);
-    final r = s * 0.42;
-    final back = base + Offset(-s * 0.6, -r);
-    final front = base + Offset(s * 0.6, -r);
-    final seat = base + Offset(-s * 0.15, -s * 1.15);
-    final bar = base + Offset(s * 0.45, -s * 1.25);
-    final shirt = const [
-      Color(0xFFE2614B),
-      Color(0xFF4A90D0),
-      Color(0xFFF2C14E),
-    ][seed % 3];
-    canvas
-      ..drawCircle(back, r, wheel)
-      ..drawCircle(front, r, wheel)
-      ..drawLine(back, seat, wheel)
-      ..drawLine(seat, front, wheel)
-      ..drawLine(front, bar, wheel)
-      ..drawLine(back, base + Offset(s * 0.1, -r), wheel)
-      // 사람: 몸통·머리
-      ..drawLine(
-          seat + Offset(0, -s * 0.05),
-          bar + Offset(-s * 0.2, -s * 0.55),
-          Paint()
-            ..color = shirt
-            ..strokeWidth = s * 0.32
-            ..strokeCap = StrokeCap.round)
-      ..drawCircle(bar + Offset(-s * 0.18, -s * 0.85), s * 0.2,
-          Paint()..color = const Color(0xFF3B2E26));
-    // 페달 밟는 다리
-    final k = math.sin(age * 9);
-    canvas.drawLine(
-        seat,
-        base + Offset(k * s * 0.25, -r),
-        Paint()
-          ..color = const Color(0xFF3B4A5C)
-          ..strokeWidth = s * 0.16
-          ..strokeCap = StrokeCap.round);
-  }
-
   void _bus(Canvas canvas, Offset base, double s) {
     final body = RRect.fromRectAndRadius(
         Rect.fromLTRB(base.dx - s * 3, base.dy - s * 2.1, base.dx + s * 3,
@@ -242,36 +204,6 @@ class _PasserbyPainter extends CustomPainter {
     for (final x in [-1.9, 1.9]) {
       canvas.drawCircle(base + Offset(x * s, -s * 0.3), s * 0.38, tire);
     }
-  }
-
-  void _umbrella(Canvas canvas, Offset base, double s, int seed) {
-    final color = const [
-      Color(0xFFE2614B),
-      Color(0xFFFFD34E),
-      Color(0xFF4A90D0),
-      Color(0xFF58D8A0),
-    ][seed % 4];
-    canvas
-      ..drawLine(
-          base + Offset(0, -s * 0.05),
-          base + Offset(0, -s * 0.9),
-          Paint()
-            ..color = const Color(0xFF3B4A5C)
-            ..strokeWidth = s * 0.3
-            ..strokeCap = StrokeCap.round)
-      ..drawLine(
-          base + Offset(0, -s * 1.0),
-          base + Offset(0, -s * 1.7),
-          Paint()
-            ..color = const Color(0xFF2E2E2E)
-            ..strokeWidth = math.max(1, s * 0.06))
-      ..drawArc(
-          Rect.fromCenter(
-              center: base + Offset(0, -s * 1.6), width: s * 1.6, height: s),
-          math.pi,
-          math.pi,
-          true,
-          Paint()..color = color);
   }
 
   @override

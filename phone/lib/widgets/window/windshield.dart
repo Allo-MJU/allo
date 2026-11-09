@@ -265,41 +265,11 @@ class _WindshieldPainter extends CustomPainter {
   }
 
   void _person(Canvas canvas, double x, double d, int seed) {
-    final t = motion.seconds;
-    final bob = (math.sin(t * 6 + seed)).abs() * 0.05;
-    final shirt = const [
-      Color(0xFFE2614B),
-      Color(0xFF4A90D0),
-      Color(0xFFF2C14E),
-      Color(0xFF58D8A0),
-      Color(0xFFF1E6CF),
-    ][seed % 5];
-    final k = _f / d;
-    canvas
-      ..drawLine(
-          _p(x, 0, d),
-          _p(x, 0.85, d),
-          Paint()
-            ..color = _air(const Color(0xFF3B4A5C), d)
-            ..strokeWidth = math.max(0.8, 0.28 * k))
-      ..drawLine(
-          _p(x, 0.85 + bob, d),
-          _p(x, 1.4 + bob, d),
-          Paint()
-            ..color = _air(shirt, d)
-            ..strokeWidth = math.max(1, 0.42 * k)
-            ..strokeCap = StrokeCap.round)
-      ..drawCircle(_p(x, 1.62 + bob, d), math.max(0.6, 0.14 * k),
-          Paint()..color = _air(const Color(0xFF3B2E26), d));
-    if (scene.rainLevel > 0) {
-      final c = _p(x, 1.85 + bob, d);
-      canvas.drawArc(
-          Rect.fromCenter(center: c, width: 0.9 * k, height: 0.6 * k),
-          math.pi,
-          math.pi,
-          true,
-          Paint()..color = _air(shirt, d));
-    }
+    _walkerFront(
+        canvas, _p(x, 0, d), 1.7 * _f / d, motion.seconds * 6 + seed, seed,
+        umbrella: scene.rainLevel > 0,
+        back: seed.isOdd,
+        tint: (c) => _air(c, d));
   }
 
   void _car(Canvas canvas, double x, double d, int seed, {bool rear = true}) {
