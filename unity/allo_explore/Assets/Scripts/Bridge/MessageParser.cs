@@ -26,6 +26,7 @@ namespace Allo.Bridge
                     "jolt" => JsonUtility.FromJson<JoltState>(json),
                     "settings" => JsonUtility.FromJson<SettingsState>(json),
                     "toast" => JsonUtility.FromJson<ToastState>(json),
+                    "route" => NormalizeRoute(JsonUtility.FromJson<RouteState>(json)),
                     _ => null,
                 };
                 return true;
@@ -34,6 +35,12 @@ namespace Allo.Bridge
             {
                 return false;
             }
+        }
+
+        static RouteState NormalizeRoute(RouteState r)
+        {
+            r.turns ??= Array.Empty<TurnInfo>();
+            return r;
         }
 
         static CastState Normalize(CastState c)

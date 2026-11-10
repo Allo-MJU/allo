@@ -22,6 +22,7 @@ Shader "Allo/Toon"
         _OutlineDist ("Outline Distance Scale (0 = constant)", Range(0, 1)) = 0
         _WorldUV ("World UV Scale (0 = mesh UV)", Float) = 0
         _EmissionColor ("Emission", Color) = (0,0,0,1)
+        [Enum(UnityEngine.Rendering.CullMode)] _Cull ("Cull (0 = 양면: 얇은 잎)", Float) = 2
     }
     SubShader
     {
@@ -61,6 +62,7 @@ Shader "Allo/Toon"
             ENDCG
         }
 
+        Cull [_Cull]
         CGPROGRAM
         #pragma surface surf Toon fullforwardshadows
         #pragma target 3.0

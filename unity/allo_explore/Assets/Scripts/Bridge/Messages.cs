@@ -26,6 +26,21 @@ namespace Allo.Bridge
         public bool moving;
     }
 
+    /// 내비 경로의 다음 회전 (schema.md 3.3 turns). type: left | right | uturn | keepLeft | keepRight
+    [Serializable]
+    public sealed class TurnInfo
+    {
+        public string type;
+        public float inM;        // 그 회전까지 남은 거리 m
+    }
+
+    [Serializable]
+    public sealed class RouteState
+    {
+        public TurnInfo[] turns; // 가까운 순 최대 3개. 없으면 빈 배열
+        public float heading = -1; // 차 진행 방향(도, 0~360). 모르면 -1
+    }
+
     [Serializable]
     public sealed class CastMember
     {

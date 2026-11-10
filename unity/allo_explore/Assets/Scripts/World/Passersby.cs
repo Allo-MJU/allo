@@ -11,7 +11,9 @@ namespace Allo.World
     {
         public string id;
         public bool spotted;
-        public float z;          // 차 기준 앞(+) 거리 m
+        public float d;          // 경로 거리 m (트랙 공간)
+        public float x;          // 길 가운데에서 오른쪽(+) 거리 m
+        public float z;          // 차 기준 앞(+) 거리 m (매 프레임 d 에서 계산)
         public Transform body;
         public float hop;        // 폴짝 남은 시간
         public float t;
@@ -23,6 +25,7 @@ namespace Allo.World
 
         Transform _root;
         Material _mat;
+        ChunkTrack _track;
         readonly List<CastMember> _friends = new();
         readonly Dictionary<string, Texture2D> _tex = new();
         readonly List<Passerby> _live = new();
@@ -33,10 +36,11 @@ namespace Allo.World
         /// 보이는 거리 안에 있고 아직 안 본 친구. 없으면 null (HUD 가 "봤어!" 버튼을 보인다)
         public Passerby Spottable { get; private set; }
 
-        public void Init(Transform root, Material spriteMat)
+        public void Init(Transform root, Material spriteMat, ChunkTrack track)
         {
             _root = root;
             _mat = spriteMat;
+            _track = track;
         }
 
         void OnEnable() => FlutterBridge.CastChanged += OnCast;
@@ -70,7 +74,7 @@ namespace Allo.World
         }
 
         /// 매 프레임. meters 는 이번 프레임에 차가 간 거리
-        public void Tick(float meters, SceneState s, Camera cam)
+        public void Tick(float meters, SceneState s, bool inTunnel, Camera cam)
         {
             var dt = Time.deltaTime;
             _timer -= dt;
@@ -84,16 +88,17 @@ namespace Allo.World
             for (var i = _live.Count - 1; i >= 0; i--)
             {
                 var p = _live[i];
-                p.z -= meters;
+                p.z = p.d - _track.Offset;
                 p.t += dt;
-                if (p.z < -30 || s.kind == "tunnel")
+                if (p.z < -30 || inTunnel)
                 {
                     Destroy(p.gameObject);
                     _live.RemoveAt(i);
                     continue;
                 }
-                var lp = p.transform.localPosition;
-                p.transform.localPosition = new Vector3(lp.x, lp.y, p.z);
+                var pose = _track.PoseAt(p.d);
+                p.transform.localPosition = pose.pos + pose.Right * p.x;
+                p.transform.localRotation = pose.Rot;
                 // 서서 손 흔들듯 좌우로 살짝, 발견되면 폴짝
                 var sway = Mathf.Sin(p.t * 2.2f) * 4f;
                 var lift = 0f;
@@ -125,15 +130,21 @@ namespace Allo.World
 
         void Spawn(SceneState s)
         {
+            // 다음 교차로 너머에는 세우지 않는다 (회전하면 엉뚱한 곳에 남는다)
+            var at = Mathf.Min(_track.Offset + 110, _track.NextTurnStart(_track.Offset) - 5);
+            if (at < _track.Offset + 50) return;
             var f = _friends[_next++ % _friends.Count];
             var go = new GameObject($"Passerby_{f.id}");
             go.transform.SetParent(_root, false);
             var p = go.AddComponent<Passerby>();
             p.id = f.id;
-            p.z = 110;
+            p.d = at;
+            p.z = at - _track.Offset;
             // 오른쪽 길가(인도·모래밭)에 선다. 고속도로는 방음벽 너머 멀리
             var x = s.highway ? 7.5f : s.kind == "city" ? 4.6f : s.kind == "coast" ? 5.5f : 4.2f;
-            go.transform.localPosition = new Vector3(x + (float)_rng.NextDouble() * 1.5f, 0, p.z);
+            p.x = x + (float)_rng.NextDouble() * 1.5f;
+            var pose = _track.PoseAt(at);
+            go.transform.localPosition = pose.pos + pose.Right * p.x;
             var body = GameObject.CreatePrimitive(PrimitiveType.Quad).transform;
             Destroy(body.GetComponent<Collider>());
             body.name = "Body";

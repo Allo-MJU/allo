@@ -1,3 +1,4 @@
+using System.Linq;
 using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -89,14 +90,17 @@ public static class AlloBuild
             else if (r.name.StartsWith("DomeLight") || r.name.StartsWith("Armrest")) Tappable(r, (3, 0.03f));
         }
 
+        // 앞좌석 머리받침을 끝까지 내린다: 뒷좌석 가운데 아이 눈에 앞유리가 보이게 (천장이 낮아 눈을 더 올릴 수 없다)
+        foreach (var t in cabin.GetComponentsInChildren<Transform>())
+            if (t.name.StartsWith("Headrest_F") || t.name.StartsWith("HeadrestPost_F")) t.position += Vector3.down * 0.1f;
         Bounds B(string name) => Find(cabin.transform, name).GetComponent<Renderer>().bounds;
         var rear = B("RearSeat");
         var seatL = B("Seat_FL");
         var seatR = B("Seat_FR");
-        var eyeY = rear.max.y + 0.55f;  // 카시트에 앉은 아이 눈높이
-        // 아이는 뒷좌석 한쪽에 앉는다. 가운데·반대쪽 자리와 팔걸이에서 캐릭터가 논다
+        var eyeY = rear.max.y + 0.45f;  // 뒷좌석 아이 눈높이 (옆 창 밖이 넓게 보이게)
+        // 아이는 뒷좌석 가운데 가까이 앉는다 (머리받침 사이로 앞유리가 보이게). 양옆 자리와 팔걸이에서 캐릭터가 논다
         var rearAnchor = new GameObject("RearEye").transform;
-        rearAnchor.position = new Vector3(rear.center.x - rear.size.x * 0.3f, eyeY, rear.center.z);
+        rearAnchor.position = new Vector3(rear.center.x - rear.size.x * 0.12f, eyeY, rear.center.z);
         var frontAnchor = new GameObject("FrontEye").transform;
         var between = (seatL.center + seatR.center) / 2 + (rear.center - (seatL.center + seatR.center) / 2) * 0.35f;
         frontAnchor.position = new Vector3(between.x, eyeY + 0.05f, between.z);
@@ -199,6 +203,7 @@ public static class AlloBuild
         world.cabinGlass = glassMat;
         world.wipers = MakeWipers(cabin.transform, carAxis, rear.center);
         (world.props, world.propGlows) = BuildProps(glow);
+        world.props = world.props.Concat(BuildThirdParty()).ToArray();
 
         new GameObject("FlutterBridge").AddComponent<FlutterBridge>();
 
@@ -303,6 +308,7 @@ public static class AlloBuild
         var outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../../../docs/work-results/explore"));
         var rt = new RenderTexture(1600, 720, 24);
         cam.targetTexture = rt;
+        var cabinGo = GameObject.Find("Cabin"); // 숨기면 Find 로 다시 못 찾으니 한 번만 찾는다
         var scenes = new (string name, Allo.Bridge.SceneState s)[]
         {
             ("road", new Allo.Bridge.SceneState { kind = "road", moving = true, speedKph = 60 }),
@@ -316,8 +322,51 @@ public static class AlloBuild
         foreach (var (name, s) in scenes)
         {
             world.Apply(s, reset: true);
-            foreach (var (view, yaw, pitch) in new[] { ("front", 0f, 2f), ("side", 70f, 0f) })
+            var named = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None).Where(t => t.name.StartsWith("Animal_")).GroupBy(t => t.name).Select(g => $"{g.Key}×{g.Count()}");
+            Debug.Log($"[AlloBuild] {name} animals: {string.Join(", ", named)}");
+            // 들판: 목장이 오른쪽 창 앞(6~12m)에 올 때까지 달려서 옆 창을 찍는다
+            if (name == "road")
+                for (var k = 0; k < 20; k++)
+                {
+                    var near = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None).Count(t => t.name.StartsWith("Animal_")
+                        && Vector3.Distance(t.position, rig.rearAnchor.position) < 16 && Vector3.Dot(t.position - rig.rearAnchor.position, Quaternion.Euler(0, baseYaw + 70, 0) * Vector3.forward) > 3);
+                    if (near >= 2)
+                    {
+                        if (cabinGo != null) cabinGo.SetActive(true);
+                        cam.transform.position = rig.rearAnchor.position;
+                        cam.transform.rotation = Quaternion.Euler(0, baseYaw + 70, 0);
+                        cam.Render();
+                        RenderTexture.active = rt;
+                        var pt = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                        pt.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                        pt.Apply();
+                        File.WriteAllBytes(Path.Combine(outDir, "world_road_pasture_side.png"), pt.EncodeToPNG());
+                        Debug.Log($"[AlloBuild] pasture after {k * 15}m, animals near={near}");
+                        break;
+                    }
+                    world.EditorStep(15);
+                }
+            // 동물 가까이에서 한 장 (모양·색 확인용)
+            var pet = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None).Where(t => t.name.StartsWith("Animal_")).OrderBy(t => t.position.sqrMagnitude).FirstOrDefault();
+            if (pet != null)
             {
+                if (cabinGo != null) cabinGo.SetActive(false);
+                var b = pet.GetComponentInChildren<Renderer>().bounds;
+                cam.transform.position = b.center + new Vector3(-1, 0.5f, -1).normalized * Mathf.Max(2.5f, b.size.magnitude * 2.2f);
+                cam.transform.LookAt(b.center);
+                cam.Render();
+                RenderTexture.active = rt;
+                var ptex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                ptex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                ptex.Apply();
+                File.WriteAllBytes(Path.Combine(outDir, $"world_{name}_animal.png"), ptex.EncodeToPNG());
+                if (cabinGo != null) cabinGo.SetActive(true);
+            }
+            // 도시는 차 실내를 숨기고 건물이 다 보이게 올려다본 사진도 찍는다 (에셋·셰이더 비교용)
+            var views = name.StartsWith("city") ? new[] { ("front", 0f, 2f), ("side", 70f, 0f), ("out_right", 80f, 18f), ("out_left", -80f, 18f), ("out_ahead", 0f, 10f) } : new[] { ("front", 0f, 2f), ("side", 70f, 0f) };
+            foreach (var (view, yaw, pitch) in views)
+            {
+                if (cabinGo != null) cabinGo.SetActive(!view.StartsWith("out"));
                 cam.transform.position = rig.rearAnchor.position;
                 cam.transform.rotation = Quaternion.Euler(-pitch, baseYaw + yaw, 0);
                 cam.Render();
@@ -331,6 +380,161 @@ public static class AlloBuild
         cam.targetTexture = null;
         RenderTexture.active = null;
         Debug.Log($"[AlloBuild] captured world to {outDir}");
+    }
+
+    /// 체험 투어를 에디터에서 흉내 내 단계별 시간을 잰다 (멈춤·느려짐 찾기). 가짜 피드와 같은 경로·장면 순서
+    public static void SimTour()
+    {
+        EditorSceneManager.OpenScene(ScenePath);
+        var world = Object.FindFirstObjectByType<Allo.World.WorldDirector>();
+        var kinds = new[] { ("road", false), ("coast", false), ("mountain", false), ("city", false), ("tunnel", false), ("city", false), ("road", true) };
+        var route = new (string t, float at)[] { ("right", 220), ("left", 560), ("uturn", 900), ("keepRight", 1200), ("left", 1500) };
+        const float loop = 1800;
+        float road = 0, prevScene = -1;
+        var sw = new System.Diagnostics.Stopwatch();
+        world.Apply(new Allo.Bridge.SceneState { kind = "road", moving = true, speedKph = 70 }, reset: true);
+        for (var sec = 0; sec < 110; sec++)
+        {
+            var stage = (sec / 15) % kinds.Length;
+            if (stage != prevScene)
+            {
+                prevScene = stage;
+                world.Apply(new Allo.Bridge.SceneState { kind = kinds[stage].Item1, highway = kinds[stage].Item2, moving = true, speedKph = 70 });
+            }
+            var turns = new System.Collections.Generic.List<Allo.Bridge.TurnInfo>();
+            var lap = Mathf.FloorToInt(road / loop);
+            for (var l = lap; l <= lap + 1 && turns.Count < 3; l++)
+                foreach (var (t, at) in route)
+                {
+                    var inM = l * loop + at - road;
+                    if (inM >= 0 && turns.Count < 3) turns.Add(new Allo.Bridge.TurnInfo { type = t, inM = Mathf.Round(inM) });
+                }
+            var heading = (12 * Mathf.Sin(2 * Mathf.PI * road / 700) + 3600) % 360;
+            sw.Restart();
+            world.OnRoute(new Allo.Bridge.RouteState { turns = turns.ToArray(), heading = heading });
+            var tRoute = sw.ElapsedMilliseconds;
+            sw.Restart();
+            // 1초를 20 프레임으로 나눠 달린다 (Unity 쪽 감속은 EditorStep 이 하지 않으므로 70km/h 그대로)
+            for (var f = 0; f < 20; f++) world.EditorStep(70 / 3.6f / 20);
+            var tStep = sw.ElapsedMilliseconds;
+            road += 70 / 3.6f;
+            if (tRoute + tStep > 300 || sec % 10 == 0) Debug.Log($"[Sim] t={sec}s road={road:F0} route={tRoute}ms steps={tStep}ms scene={kinds[stage].Item1}");
+        }
+        Debug.Log("[Sim] done");
+    }
+
+    /// 회전 하나를 차 안에서 0.5초마다 찍는다 (감속·도는 모습이 자연스러운지). ALLO_STRIP=right|left|uturn, 결과는 scratch 폴더
+    public static void CaptureTurnStrip()
+    {
+        EditorSceneManager.OpenScene(ScenePath);
+        var turn = System.Environment.GetEnvironmentVariable("ALLO_STRIP") ?? "right";
+        var outDir = System.Environment.GetEnvironmentVariable("ALLO_STRIP_OUT") ?? "/tmp";
+        Directory.CreateDirectory(outDir);
+        var cam = Camera.main;
+        var rig = cam.GetComponent<Allo.CameraRig.CameraRig>();
+        var world = Object.FindFirstObjectByType<Allo.World.WorldDirector>();
+        var dir = rig.lookTarget.position - rig.rearAnchor.position;
+        var baseYaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+        var rt = new RenderTexture(800, 360, 24);
+        cam.targetTexture = rt;
+        world.Apply(new Allo.Bridge.SceneState { kind = "city", moving = true, speedKph = 70 }, reset: true);
+        world.OnRoute(new Allo.Bridge.RouteState { turns = new[] { new Allo.Bridge.TurnInfo { type = turn, inM = 150 } } });
+        float kph = 70;
+        for (var i = 0; i < 40; i++)
+        {
+            // 0.5초 = 10 프레임. WorldDirector 와 같은 규칙으로 속도를 바꾼다
+            for (var f = 0; f < 10; f++)
+            {
+                var target = Mathf.Min(70, world.SpeedCapNow);
+                kph = Mathf.MoveTowards(kph, target, (target > kph ? 2f : 3f) * 3.6f * 0.05f);
+                world.EditorStep(kph / 3.6f * 0.05f);
+            }
+            cam.transform.position = rig.rearAnchor.position;
+            cam.transform.rotation = Quaternion.Euler(-2, baseYaw + 25, 0);
+            cam.Render();
+            RenderTexture.active = rt;
+            var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+            tex.Apply();
+            File.WriteAllBytes(Path.Combine(outDir, $"f_{i * 0.5f:000.0}.jpg"), tex.EncodeToJPG(70));
+            Debug.Log($"[Strip] {i * 0.5f:F1}s kph={kph:F0} travelled={world.Travelled:F0}");
+        }
+        cam.targetTexture = null;
+        RenderTexture.active = null;
+    }
+
+    /// 회전·유턴 확인 사진: 교차로 앞(40m), 도는 중, 돈 뒤 30m 에서 앞·옆을 찍는다
+    public static void CaptureTurns()
+    {
+        EditorSceneManager.OpenScene(ScenePath);
+        var cam = Camera.main;
+        var rig = cam.GetComponent<Allo.CameraRig.CameraRig>();
+        var world = Object.FindFirstObjectByType<Allo.World.WorldDirector>();
+        var dir = rig.lookTarget.position - rig.rearAnchor.position;
+        var baseYaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+        var outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../../../docs/work-results/explore"));
+        var rt = new RenderTexture(1600, 720, 24);
+        cam.targetTexture = rt;
+        void Shot(string file, float yaw, float pitch)
+        {
+            cam.transform.position = rig.rearAnchor.position;
+            cam.transform.rotation = Quaternion.Euler(-pitch, baseYaw + yaw, 0);
+            cam.Render();
+            RenderTexture.active = rt;
+            var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+            tex.Apply();
+            File.WriteAllBytes(Path.Combine(outDir, file), tex.EncodeToPNG());
+        }
+        // late: 경로가 늦게 바뀌어 교차로 자리가 60m 당겨진 경우 (이미 지은 조각과 겹치는지)
+        var cases = new (string kind, string turn, bool late)[] { ("road", "right", false), ("road", "left", false), ("road", "uturn", false), ("city", "right", false), ("city", "left", false), ("city", "right", true), ("city", "left", true), ("highway", "keepRight", false), ("road", "keepLeft", false), ("road", "steer", false) };
+        foreach (var (kind0, turn, late) in cases)
+        {
+            var kind = kind0;
+            world.Apply(new Allo.Bridge.SceneState { kind = kind, moving = true, speedKph = 40 }, reset: true);
+            if (turn == "steer")
+            {
+                // 차가 오른쪽으로 20도 꺾었다고 알려 준다 (처음 방향 0도)
+                world.OnRoute(new Allo.Bridge.RouteState { turns = new Allo.Bridge.TurnInfo[0], heading = 0 });
+                world.OnRoute(new Allo.Bridge.RouteState { turns = new Allo.Bridge.TurnInfo[0], heading = 20 });
+            }
+            else world.OnRoute(new Allo.Bridge.RouteState { turns = new[] { new Allo.Bridge.TurnInfo { type = turn, inM = 160 } } });
+            if (late)
+            {
+                world.EditorStep(20);
+                world.OnRoute(new Allo.Bridge.RouteState { turns = new[] { new Allo.Bridge.TurnInfo { type = turn, inM = 80 } } });
+                kind += "_late";
+            }
+            var start = world.NextFeatureStart;
+            if (float.IsInfinity(start)) { Debug.LogWarning($"[AlloBuild] {kind}/{turn}: 교차로가 놓이지 않았다"); continue; }
+            var len = turn.StartsWith("keep") ? 60 : turn == "steer" ? 30 : Allo.World.ChunkTrack.TurnLength(turn);
+            var stops = new (string tag, float at)[] { ("before", start - 40), ("mid", start + len * 0.5f), ("after", start + len + 30) };
+            foreach (var (tag, at) in stops)
+            {
+                world.EditorStep(at - world.Travelled);
+                Shot($"turn_{kind}_{turn}_{tag}_front.png", 0, 2);
+                Shot($"turn_{kind}_{turn}_{tag}_side.png", 70, 0);
+                var cabin = GameObject.Find("Cabin");
+                if (cabin != null) cabin.SetActive(false);
+                Shot($"turn_{kind}_{turn}_{tag}_out.png", 30, -25);
+                if (tag == "before")
+                {
+                    // 위에서 내려다본 교차로 (도로 위에 건물·나무가 걸치는지)
+                    cam.transform.position = rig.rearAnchor.position + Vector3.up * 70 + Quaternion.Euler(0, baseYaw, 0) * Vector3.forward * 45;
+                    cam.transform.rotation = Quaternion.Euler(90, baseYaw, 0);
+                    cam.Render();
+                    RenderTexture.active = rt;
+                    var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                    tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                    tex.Apply();
+                    File.WriteAllBytes(Path.Combine(outDir, $"turn_{kind}_{turn}_top.png"), tex.EncodeToPNG());
+                }
+                if (cabin != null) cabin.SetActive(true);
+            }
+        }
+        cam.targetTexture = null;
+        RenderTexture.active = null;
+        Debug.Log($"[AlloBuild] captured turns to {outDir}");
     }
 
     /// Props.fbx 의 물체마다 프리팹을 만든다. 재질은 Standard 로 바꾸고, Glow_ 재질은 빛나게 한다
@@ -402,6 +606,240 @@ public static class AlloBuild
             Object.DestroyImmediate(go);
         }
         return (prefabs.ToArray(), glows.ToArray());
+    }
+
+    /// 외부 무료 에셋(Assets/ThirdParty, Kenney CC0 등)의 FBX 마다 프리팹 "K_파일명" 을 만든다.
+    /// 바닥 가운데를 원점으로, 높이를 1m 로 맞춰서 Kit.Prop 의 scale 이 곧 높이(m)가 되게 한다.
+    /// 재질은 Allo/Toon 으로 바꾸고(색·텍스처 유지), 이름과 텍스처가 같은 재질은 하나로 묶는다(조각 합치기 때 배칭)
+    static GameObject[] BuildThirdParty()
+    {
+        const string outDir = "Assets/Models/ThirdParty";
+        AssetDatabase.DeleteAsset(outDir);
+        AssetDatabase.CreateFolder("Assets/Models", "ThirdParty");
+        var converted = new System.Collections.Generic.Dictionary<string, Material>();
+        var prefabs = new System.Collections.Generic.List<GameObject>();
+        // Kenney (CC0): FBX, 높이 1m 로 맞춘다
+        if (AssetDatabase.IsValidFolder("Assets/ThirdParty"))
+            foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { "Assets/ThirdParty" }))
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                if (path.Contains("/Quaternius/")) continue; // 동물은 BuildAnimals 가 애니메이션을 살려 따로 만든다
+                MakeReadable(path);
+                var p = MakeThirdParty(AssetDatabase.LoadAssetAtPath<GameObject>(path), "K_" + Path.GetFileNameWithoutExtension(path), true, false, outDir, converted);
+                if (p != null) prefabs.Add(p);
+            }
+        // ithappy Cartoon City FREE (Asset Store EULA): 프리팹, 원래 크기(m) 그대로. 밤 조명판(NightLight)·바퀴 조각은 뺀다.
+        // ALLO_CC_ORIGINAL=1 이면 원래 재질(Standard)을 그대로 쓴다 (툰 셰이더와 비교용)
+        const string cc = "Assets/ithappy/Cartoon_City_Free";
+        if (AssetDatabase.IsValidFolder(cc))
+        {
+            foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { cc + "/Meshes" })) MakeReadable(AssetDatabase.GUIDToAssetPath(guid));
+            var keep = System.Environment.GetEnvironmentVariable("ALLO_CC_ORIGINAL") == "1";
+            foreach (var folder in new[] { "Buildings", "Props", "Vegetation", "Billboards" })
+                foreach (var guid in AssetDatabase.FindAssets("t:Prefab", new[] { $"{cc}/Prefabs/{folder}" }))
+                {
+                    var path = AssetDatabase.GUIDToAssetPath(guid);
+                    var name = Path.GetFileNameWithoutExtension(path);
+                    if (name.Contains("NightLight") || name.Contains("Wheel")) continue;
+                    var p = MakeThirdParty(AssetDatabase.LoadAssetAtPath<GameObject>(path), "C_" + name, false, keep, outDir, converted);
+                    if (p != null) prefabs.Add(p);
+                }
+        }
+        prefabs.AddRange(BuildAnimals(outDir, converted));
+        Debug.Log($"[AlloBuild] third-party props: {prefabs.Count}, materials: {converted.Count}");
+        return prefabs.ToArray();
+    }
+
+    /// 동물 실제 높이(m). 프리팹 이름은 A_이름
+    static readonly (string name, float height)[] AnimalHeights =
+    {
+        ("Horse", 1.6f), ("Deer", 1.3f), ("Dog", 0.6f), ("Kitty", 0.32f), ("Chicken", 0.4f), ("Pinguin", 0.6f), ("Tiger", 1.0f),
+        ("Cow", 1.4f), ("Sheep", 0.9f), ("Pig", 0.7f), ("Llama", 1.8f), ("Pug", 0.35f), ("Zebra", 1.5f),
+    };
+
+    /// 동물: ithappy Animals FREE(Asset Store EULA, 프리팹·Animator 포함)와 Quaternius Farm Animals(CC0, FBX).
+    /// 걷기·서 있기 애니메이션을 살리고(메시 합치기 대상이 아닌 SkinnedMesh), 재질만 Allo/Toon 으로 바꾼다
+    static System.Collections.Generic.List<GameObject> BuildAnimals(string outDir, System.Collections.Generic.Dictionary<string, Material> converted)
+    {
+        var list = new System.Collections.Generic.List<GameObject>();
+        const string ih = "Assets/ithappy/Animals_FREE/Prefabs";
+        if (AssetDatabase.IsValidFolder(ih))
+            foreach (var guid in AssetDatabase.FindAssets("t:Prefab", new[] { ih }))
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var name = Path.GetFileNameWithoutExtension(path).Split('_')[0];
+                var p = MakeAnimal(AssetDatabase.LoadAssetAtPath<GameObject>(path), name, null, outDir, converted);
+                if (p != null) list.Add(p);
+            }
+        const string q = "Assets/ThirdParty/Quaternius/FarmAnimals";
+        if (AssetDatabase.IsValidFolder(q))
+            foreach (var guid in AssetDatabase.FindAssets("t:Model", new[] { q }))
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var name = Path.GetFileNameWithoutExtension(path);
+                if (list.Any(a => a.name == "A_" + name)) continue; // 같은 종(말)은 ithappy 것을 쓴다
+                if (AssetImporter.GetAtPath(path) is ModelImporter imp && (imp.animationType != ModelImporterAnimationType.Generic || !imp.importAnimation))
+                {
+                    imp.animationType = ModelImporterAnimationType.Generic;
+                    imp.importAnimation = true;
+                    imp.SaveAndReimport();
+                }
+                var clips = AssetDatabase.LoadAllAssetsAtPath(path).OfType<AnimationClip>().Where(c => !c.name.StartsWith("__preview")).ToArray();
+                // 서 있기 > 천천히 걷기. (이름에 eat 이 든 Death 를 고르지 않게 이름 끝으로 찾는다)
+                var clip = clips.FirstOrDefault(c => c.name.EndsWith("|Idle")) ?? clips.FirstOrDefault(c => c.name.EndsWith("|WalkSlow")) ?? clips.FirstOrDefault(c => !c.name.Contains("Death"));
+                Debug.Log($"[AlloBuild] {name} clips: {string.Join(", ", clips.Select(c => c.name))} → {clip?.name}");
+                RuntimeAnimatorController ctrl = null;
+                if (clip != null)
+                {
+                    var settings = AnimationUtility.GetAnimationClipSettings(clip);
+                    if (!settings.loopTime) { settings.loopTime = true; AnimationUtility.SetAnimationClipSettings(clip, settings); }
+                    ctrl = UnityEditor.Animations.AnimatorController.CreateAnimatorControllerAtPathWithClip($"{outDir}/A_{name}.controller", clip);
+                }
+                var p = MakeAnimal(AssetDatabase.LoadAssetAtPath<GameObject>(path), name, ctrl, outDir, converted);
+                if (p != null) list.Add(p);
+            }
+        Debug.Log($"[AlloBuild] animals: {string.Join(", ", list.Select(a => a.name))}");
+        return list;
+    }
+
+    static GameObject MakeAnimal(GameObject src, string name, RuntimeAnimatorController ctrl, string outDir,
+        System.Collections.Generic.Dictionary<string, Material> converted)
+    {
+        if (src == null) return null;
+        var h = AnimalHeights.FirstOrDefault(a => a.name == name).height;
+        if (h <= 0) return null;
+        var model = Object.Instantiate(src);
+        model.transform.position = Vector3.zero;
+        model.transform.rotation = Quaternion.identity;
+        // 키보드·카메라로 움직이게 하는 팩 스크립트는 뗀다 (Animator 기본 상태가 서 있기)
+        foreach (var mb in model.GetComponentsInChildren<MonoBehaviour>(true)) Object.DestroyImmediate(mb);
+        foreach (var cc in model.GetComponentsInChildren<CharacterController>(true)) Object.DestroyImmediate(cc);
+        foreach (var rb in model.GetComponentsInChildren<Rigidbody>(true)) Object.DestroyImmediate(rb);
+        foreach (var col in model.GetComponentsInChildren<Collider>(true)) Object.DestroyImmediate(col);
+        var anim = model.GetComponentInChildren<Animator>();
+        if (anim == null && ctrl != null) anim = model.AddComponent<Animator>();
+        if (anim != null)
+        {
+            if (ctrl != null) anim.runtimeAnimatorController = ctrl;
+            anim.applyRootMotion = false;
+            anim.cullingMode = AnimatorCullingMode.CullCompletely; // 안 보이면 계산하지 않는다
+        }
+        var rs = model.GetComponentsInChildren<Renderer>();
+        if (rs.Length == 0) { Object.DestroyImmediate(model); return null; }
+        var b = rs[0].bounds;
+        foreach (var r in rs) b.Encapsulate(r.bounds);
+        var root = new GameObject("A_" + name);
+        var s = h / Mathf.Max(0.01f, b.size.y);
+        model.transform.SetParent(root.transform, false);
+        model.transform.localScale *= s;
+        model.transform.localPosition = new Vector3(-b.center.x, -b.min.y, -b.center.z) * s;
+        foreach (var r in rs)
+        {
+            if (r is SkinnedMeshRenderer smr) smr.updateWhenOffscreen = false;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            var mats = r.sharedMaterials;
+            for (var i = 0; i < mats.Length; i++)
+            {
+                var m = mats[i];
+                if (m == null) continue;
+                var tex = m.HasProperty("_MainTex") ? m.mainTexture : m.HasProperty("_BaseMap") ? m.GetTexture("_BaseMap") : null;
+                var col = m.HasProperty("_BaseColor") ? m.GetColor("_BaseColor") : m.color;
+                var key = "animal|" + m.name + "|" + (tex != null ? AssetDatabase.GetAssetPath(tex) : ColorUtility.ToHtmlStringRGB(col));
+                if (!converted.TryGetValue(key, out var dst))
+                {
+                    dst = new Material(Shader.Find("Allo/Toon")) { name = "T_" + m.name };
+                    dst.color = tex != null ? Color.white : new Color(col.r, col.g, col.b, 1);
+                    if (tex != null) dst.mainTexture = tex;
+                    dst.SetFloat("_OutlineWidth", 0.02f);
+                    dst.SetFloat("_OutlineDist", 0.1f);
+                    AssetDatabase.CreateAsset(dst, $"{outDir}/T_{converted.Count:000}_{Sanitize(m.name)}.mat");
+                    converted[key] = dst;
+                }
+                mats[i] = dst;
+            }
+            r.sharedMaterials = mats;
+        }
+        var prefab = PrefabUtility.SaveAsPrefabAsset(root, $"{outDir}/A_{name}.prefab");
+        Debug.Log($"[AlloBuild] A_{name} size={b.size * s}");
+        Object.DestroyImmediate(root);
+        return prefab;
+    }
+
+    static void MakeReadable(string path)
+    {
+        if (AssetImporter.GetAtPath(path) is ModelImporter imp && (!imp.isReadable || imp.importAnimation))
+        {
+            imp.isReadable = true; // 조각 합치기(WorldDirector.Combine)에서 메시를 읽는다
+            imp.importAnimation = false;
+            imp.SaveAndReimport();
+        }
+    }
+
+    /// 바닥 가운데를 원점으로 옮긴 프리팹을 만든다. unitHeight 면 높이 1m 로 맞춘다.
+    /// keepMats 가 아니면 재질을 Allo/Toon 으로 바꾼다(색·텍스처 유지, 이름·텍스처가 같으면 하나로 묶어 배칭)
+    static GameObject MakeThirdParty(GameObject src, string name, bool unitHeight, bool keepMats, string outDir,
+        System.Collections.Generic.Dictionary<string, Material> converted)
+    {
+        if (src == null) return null;
+        var model = Object.Instantiate(src);
+        model.transform.position = Vector3.zero;
+        model.transform.rotation = Quaternion.identity;
+        var rs = model.GetComponentsInChildren<Renderer>();
+        if (rs.Length == 0 || rs[0].bounds.size.y <= 0) { Object.DestroyImmediate(model); return null; }
+        var b = rs[0].bounds;
+        foreach (var r in rs) b.Encapsulate(r.bounds);
+        var root = new GameObject(name);
+        var s = unitHeight ? 1f / b.size.y : 1f;
+        model.transform.SetParent(root.transform, false);
+        model.transform.localScale *= s;
+        model.transform.localPosition = new Vector3(-b.center.x, -b.min.y, -b.center.z) * s;
+        foreach (var lod in model.GetComponentsInChildren<LODGroup>()) Object.DestroyImmediate(lod);
+        if (!keepMats)
+            foreach (var r in rs)
+            {
+                var mats = r.sharedMaterials;
+                for (var i = 0; i < mats.Length; i++)
+                {
+                    var m = mats[i];
+                    if (m == null) continue;
+                    var tex = m.HasProperty("_MainTex") ? m.mainTexture : null;
+                    // 팩마다 텍스처 이름이 같아(colormap) 경로로 구분한다. 텍스처가 없으면 색까지 본다
+                    var key = m.name + "|" + (tex != null ? AssetDatabase.GetAssetPath(tex) : ColorUtility.ToHtmlStringRGB(m.color));
+                    if (!converted.TryGetValue(key, out var dst))
+                    {
+                        dst = new Material(Shader.Find("Allo/Toon")) { name = "T_" + m.name, enableInstancing = true };
+                        dst.color = KenneyPalette.TryGetValue(m.name, out var hex) && ColorUtility.TryParseHtmlString(hex, out var pc)
+                            ? pc : new Color(m.color.r, m.color.g, m.color.b, 1);
+                        if (tex != null) dst.mainTexture = tex;
+                        var thin = m.name.Contains("grass") || m.name.Contains("flower") || m.name.Contains("petal");
+                        dst.SetFloat("_OutlineWidth", thin ? 0 : 0.025f);
+                        dst.SetFloat("_OutlineDist", 0.1f);
+                        if (m.name.ToLower().Contains("leaf")) dst.SetFloat("_Cull", 0); // 야자수 잎처럼 얇은 판은 아래에서도 보이게
+                        AssetDatabase.CreateAsset(dst, $"{outDir}/T_{converted.Count:000}_{Sanitize(m.name)}.mat");
+                        converted[key] = dst;
+                    }
+                    mats[i] = dst;
+                }
+                r.sharedMaterials = mats;
+            }
+        var prefab = PrefabUtility.SaveAsPrefabAsset(root, $"{outDir}/{name}.prefab");
+        if (name.StartsWith("C_")) Debug.Log($"[AlloBuild] {name} size={b.size}");
+        Object.DestroyImmediate(root);
+        return prefab;
+    }
+
+    /// Kenney Nature Kit 기본색(청록 잎·분홍 줄기)을 창밖 팔레트(ChunkBuilder 의 풀색·Blender 나무)에 맞춘다
+    static readonly System.Collections.Generic.Dictionary<string, string> KenneyPalette = new()
+    {
+        ["leafsGreen"] = "#5FA845", ["leafsDark"] = "#3F7D3A", ["grass"] = "#6CB847",
+        ["wood"] = "#7A5A40", ["woodBark"] = "#6B4A35", ["woodBarkDark"] = "#5B4434", ["woodDark"] = "#5B4434",
+        ["woodInner"] = "#D9B98A", ["dirt"] = "#8A6A4C", ["colorTan"] = "#E8C89A", ["stone"] = "#B9B6AC", ["stoneDark"] = "#8F8C84",
+    };
+
+    static string Sanitize(string s)
+    {
+        foreach (var c in Path.GetInvalidFileNameChars()) s = s.Replace(c, '_');
+        return s.Replace(' ', '_');
     }
 
     /// 땅 무늬: 풀잎 같은 짧은 획과 얼룩. 흰색 기준이라 재질 색(풀·모래·아스팔트)이 곱해진다
