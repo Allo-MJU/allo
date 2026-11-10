@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../game/game_controller.dart';
 import '../pairing/pairing_credentials.dart';
 import 'qr_pairing_screen.dart';
+import '../screen_share/screen_share_button.dart';
 
 /// QR 스캔 또는 6자리 코드. 이름·생년월일·연락처 입력란은 만들지 않는다.
 class PairingScreen extends StatefulWidget {
@@ -31,7 +32,8 @@ class _PairingScreenState extends State<PairingScreen> {
   Widget build(BuildContext context) {
     final c = widget.controller;
     return Scaffold(
-      appBar: AppBar(title: const Text('알로')),
+      appBar:
+          AppBar(title: const Text('알로'), actions: const [ScreenShareButton()]),
       body: ListenableBuilder(
         listenable: c,
         builder: (_, __) => Padding(

@@ -1,12 +1,20 @@
 package ai.allo.car
 
 import android.content.pm.PackageManager
+import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import ai.allo.car.vehicle.AaosPropertyReader
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.Alignment
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.runtime.getValue
@@ -14,6 +22,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import ai.allo.car.model.CarScreen
+import ai.allo.car.model.CarDisplayPolicy
+import ai.allo.car.model.ParkedShareTransition
+import ai.allo.car.mirror.ParkedMirrorGate
 import ai.allo.car.ui.AlloTheme
 import ai.allo.car.ui.DrivingScreen
 import ai.allo.car.ui.PairingScreen
@@ -21,6 +32,20 @@ import ai.allo.car.ui.ParkedScreen
 import ai.allo.car.ui.SpeedNoticeScreen
 
 class MainActivity : ComponentActivity() {
+    private val main = Handler(Looper.getMainLooper())
+    private var parkingGate: ParkedMirrorGate? = null
+    private var parkedAllowed by mutableStateOf(false)
+    private var parkingVerifiedAt = -1L
+    private var visible = false
+    private val shareTransition = ParkedShareTransition()
+    private val checkParkingFreshness = object : Runnable {
+        override fun run() {
+            if (!visible) return
+            if (SystemClock.elapsedRealtime() - parkingVerifiedAt >= ParkedMirrorGate.MAX_STATUS_AGE_MS) parkedAllowed = false
+            main.postDelayed(this, 100)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val session = (application as AlloApp).session
@@ -33,17 +58,27 @@ class MainActivity : ComponentActivity() {
         showSpeedNotice = checkSelfPermission(AaosPropertyReader.SPEED_PERMISSION) != PackageManager.PERMISSION_GRANTED
 
         setContent {
-            val screen by session.screen.collectAsStateWithLifecycle()
             val game by session.game.collectAsStateWithLifecycle()
             val meta by session.meta.collectAsStateWithLifecycle()
+            val connected by session.gameConnected.collectAsStateWithLifecycle()
+            val screen = CarDisplayPolicy.screen(meta.paired, parkedAllowed)
             // 테마 없이 그리면 Text 가 기본 검정이 되어 DeviceDefault(어두운) 창 배경에 묻힌다 (AlloTheme = 어두운 차량용 테마)
             AlloTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    if (showSpeedNotice) SpeedNoticeScreen(onContinue = { speedPermission.launch(AaosPropertyReader.SPEED_PERMISSION) })
-                    else when (screen) {
-                        CarScreen.Pairing -> PairingScreen(meta = meta, dbUrl = BuildConfig.ALLO_DB_URL, sessionId = session.sessionId)
-                        CarScreen.Driving -> DrivingScreen(game = game)
-                        CarScreen.Parked -> ParkedScreen(game = game)
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        if (showSpeedNotice && parkedAllowed) SpeedNoticeScreen(onContinue = { speedPermission.launch(AaosPropertyReader.SPEED_PERMISSION) })
+                        else when (screen) {
+                            CarScreen.Pairing -> PairingScreen(meta = meta, dbUrl = BuildConfig.ALLO_DB_URL, sessionId = session.sessionId)
+                            CarScreen.Driving -> DrivingScreen(game = game, connected = connected && meta.paired)
+                            CarScreen.Parked -> ParkedScreen(game = game, connected = connected,
+                                onShare = if (BuildConfig.DEBUG) ({ openShare() }) else null)
+                        }
+                        if (BuildConfig.DEBUG && parkedAllowed && (screen == CarScreen.Pairing || showSpeedNotice)) {
+                            TextButton(
+                                modifier = Modifier.align(Alignment.BottomEnd),
+                                onClick = { openShare() },
+                            ) { Text("폰 화면 공유") }
+                        }
                     }
                 }
             }
@@ -54,6 +89,37 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         (application as AlloApp).session.ensureForeground()
+        visible = true
+        parkedAllowed = false
+        // The receiver may see D then close before this activity's first P read.
+        val returnedFromDriving = BuildConfig.DEBUG && runCatching {
+            Class.forName("ai.allo.car.mirror.MirrorActivity").getMethod("takeDrivingTransition").invoke(null) as Boolean
+        }.getOrDefault(false)
+        if (returnedFromDriving) shareTransition.update(true, false, null, false)
+        parkingGate = ParkedMirrorGate(this) { connected, parked, uxAllowed ->
+            if (!visible) return@ParkedMirrorGate
+            parkingVerifiedAt = SystemClock.elapsedRealtime()
+            parkedAllowed = connected && parked == true && uxAllowed == true
+            val configured = BuildConfig.DEBUG && runCatching {
+                Class.forName("ai.allo.car.mirror.MirrorActivity").getMethod("hasConnection").invoke(null) as Boolean
+            }.getOrDefault(false)
+            if (shareTransition.update(connected, parked, uxAllowed, configured)) openShare()
+        }.also { it.start() }
+        main.post(checkParkingFreshness)
+    }
+
+    private fun openShare() {
+        if (!BuildConfig.DEBUG || !visible || !parkedAllowed) return
+        startActivity(Intent().setClassName(this, "ai.allo.car.mirror.MirrorActivity"))
+    }
+
+    override fun onStop() {
+        visible = false
+        parkedAllowed = false
+        main.removeCallbacks(checkParkingFreshness)
+        parkingGate?.close()
+        parkingGate = null
+        super.onStop()
     }
 
     /**

@@ -72,6 +72,7 @@ class GameController extends ChangeNotifier {
   RegionDurationAccumulator _regions = RegionDurationAccumulator();
   int? _regionSourceTs;
   Future<void> _publishTail = Future.value();
+  int? _lastPublishedAt;
   String? get eggId => _eggId;
 
   final VehicleFeed feed;
@@ -440,6 +441,7 @@ class GameController extends ChangeNotifier {
     vehicle = v;
     final t = _timer;
     if (t == null) {
+      if (!finalSnapshot) _publishHeartbeat();
       notifyListeners();
       return;
     }
@@ -462,7 +464,8 @@ class GameController extends ChangeNotifier {
       _sessionDistances[_activeSessionId!] = _lastDistance;
     }
     if (game.stage == Stage.hatched) {
-      _grantNextEgg(v, finalSnapshot: finalSnapshot);
+      final granted = _grantNextEgg(v, finalSnapshot: finalSnapshot);
+      if (!granted && !finalSnapshot) _publishHeartbeat();
       notifyListeners();
       return;
     }
@@ -559,6 +562,7 @@ class GameController extends ChangeNotifier {
 
   // Serialize full game writes and discard queued work for an old connection.
   void _publish() {
+    _lastPublishedAt = activeClockMs;
     _applyCollection();
     final snapshot = game;
     final connection = _connection;
@@ -569,6 +573,18 @@ class GameController extends ChangeNotifier {
       }
       await _send(() => feed.publishGame(snapshot));
     });
+  }
+
+  // A companion may remain visually unchanged for minutes. Keep its current
+  // state live on the vehicle without inventing a new field or changing game rules.
+  void _publishHeartbeat() {
+    final now = activeClockMs;
+    if (_disposed || !_appActive || sessionEnded || endingSession) return;
+    if (_lastPublishedAt != null &&
+        now >= _lastPublishedAt! &&
+        now - _lastPublishedAt! < 3000) return;
+    game = game.copyWith(ts: _now);
+    _publish();
   }
 
   int get _regionAtMs =>

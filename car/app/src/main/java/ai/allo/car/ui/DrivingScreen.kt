@@ -6,26 +6,46 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import ai.allo.car.R
+import androidx.compose.ui.unit.sp
 import ai.allo.car.model.GameState
 
-/** 주행 중: 알 + 한 줄 상태 + 진행바만. 게임 화면은 절대 띄우지 않는다 (주행 규제). */
+/** Driving summary: static image + identity + one factual status, no controls or animation. */
 @Composable
-fun DrivingScreen(game: GameState) {
-    val p = game.progress.toFloat()
-    Row(
-        modifier = Modifier.fillMaxSize().padding(64.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
-    ) {
-        EggMark(size = 220.dp, fill = p)
-        Spacer(Modifier.width(72.dp))
-        Column(Modifier.widthIn(max = 900.dp)) {
-            Text(stringResource(R.string.driving_status, (p * 100).toInt()), style = MaterialTheme.typography.displaySmall)
-            Spacer(Modifier.height(32.dp))
-            ThickProgress(p, Modifier.fillMaxWidth())
+fun DrivingScreen(game: GameState, connected: Boolean = true, modifier: Modifier = Modifier) {
+    val summary = PetSummary.from(game, connected, rememberSpeciesCatalog())
+    BoxWithConstraints(modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+        val narrow = maxWidth < 560.dp
+        val artSize = if (narrow) 112.dp else 156.dp
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Text("알로 · 주행 중", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 18.sp)
+            Spacer(Modifier.height(20.dp))
+            if (narrow) {
+                PetArt(summary, artSize)
+                Spacer(Modifier.height(16.dp))
+                SummaryText(summary, centered = true)
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(32.dp)) {
+                    PetArt(summary, artSize)
+                    SummaryText(summary, centered = false)
+                }
+            }
         }
+    }
+}
+
+@Composable
+internal fun SummaryText(summary: PetSummary, centered: Boolean) {
+    Column(horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start) {
+        Text(summary.title, fontSize = 30.sp, lineHeight = 38.sp, fontWeight = FontWeight.SemiBold,
+            maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Spacer(Modifier.height(8.dp))
+        Text(summary.status, fontSize = 22.sp, lineHeight = 30.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = if (centered) TextAlign.Center else TextAlign.Start,
+            maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }

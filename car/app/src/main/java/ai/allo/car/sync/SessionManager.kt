@@ -52,6 +52,9 @@ class SessionManager(private val context: Context) {
     val meta: StateFlow<SessionMeta> = _meta
     private val _game = MutableStateFlow(GameState())
     val game: StateFlow<GameState> = _game
+    private val _gameConnected = MutableStateFlow(false)
+    /** True only while advancing, recent phone game snapshots arrive on the current session. */
+    val gameConnected: StateFlow<Boolean> = _gameConnected
     private val _vehicle = MutableStateFlow<VehicleSnapshot?>(null)
     val vehicle: StateFlow<VehicleSnapshot?> = _vehicle
     /** 내비 ETA. 경로 안내 중이 아니면 null → 폰은 거리 폴백 */
@@ -156,6 +159,7 @@ class SessionManager(private val context: Context) {
         sessionReady = ready
         _sessionId.value = id
         _game.value = GameState()
+        _gameConnected.value = false
         _regions.value = RegionSummary.Unknown
         _meta.value = SessionMeta(createdAt = sessionStartedAt, pairCode = newPairCode(), carAppVersion = BuildConfig.CAR_APP_VERSION)
         _ended.value = false
@@ -296,17 +300,53 @@ class SessionManager(private val context: Context) {
     private suspend fun subscribeGame(id: String, ready: CompletableDeferred<Unit>) {
         if (!rest.isConfigured) return
         ready.await()
-        var current: JsonObject = JsonObject(emptyMap())
-        while (currentCoroutineContext().isActive) {
-            runCatching {
-                rest.stream("sessions/$id/game").collect { ev ->
-                    if (id != sessionId) return@collect   // 이미 다음 세션
-                    current = GameMerge.apply(current, ev.type, ev.path, ev.data)
-                    updateRegions(RegionSummary.parse(current))
-                    runCatching { rest.json.decodeFromJsonElement<GameState>(current) }.onSuccess { _game.value = it }
+        val freshness = GameFreshness()
+        coroutineScope {
+            launch {
+                while (isActive) {
+                    synchronized(this@SessionManager) {
+                        if (id == sessionId) _gameConnected.value = freshness.isFresh(android.os.SystemClock.elapsedRealtime())
+                    }
+                    delay(1000)
                 }
             }
-            delay(2_000)   // 끊기면 재연결
+            while (currentCoroutineContext().isActive) {
+                var current: JsonObject = JsonObject(emptyMap())
+                try {
+                    rest.stream("sessions/$id/game").collect { ev ->
+                        synchronized(this@SessionManager) {
+                            if (id == sessionId) {
+                                current = GameMerge.apply(current, ev.type, ev.path, ev.data)
+                                val decoded = runCatching { rest.json.decodeFromJsonElement<GameState>(current) }.getOrNull()
+                                val valid = decoded != null && decoded.ts > 0 &&
+                                    decoded.stage in setOf("idle", "incubating", "hatched") && decoded.progress.isFinite()
+                                if (!valid) {
+                                    freshness.disconnect()
+                                    _gameConnected.value = false
+                                    _game.value = GameState()
+                                    updateRegions(RegionSummary.Unknown)
+                                } else if (freshness.observe(decoded!!.ts, System.currentTimeMillis(), android.os.SystemClock.elapsedRealtime())) {
+                                    _game.value = decoded
+                                    _gameConnected.value = true
+                                    updateRegions(RegionSummary.parse(current))
+                                } else {
+                                    _gameConnected.value = false
+                                }
+                            }
+                        }
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    // Keep the last image/status but explicitly mark it as no longer live.
+                } finally {
+                    freshness.disconnect()
+                    synchronized(this@SessionManager) {
+                        if (id == sessionId) _gameConnected.value = false
+                    }
+                }
+                delay(2_000)
+            }
         }
     }
 

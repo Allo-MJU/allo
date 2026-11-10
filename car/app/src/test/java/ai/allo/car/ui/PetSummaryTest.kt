@@ -1,0 +1,47 @@
+package ai.allo.car.ui
+
+import ai.allo.car.model.GameState
+import kotlin.test.*
+
+class PetSummaryTest {
+    private val catalog = SpeciesCatalog.parse("""{"species":[{"id":"tide_keeper","nameKo":"물결지기","attribute":"water","sprite":"species/tide_keeper.png"}]}""")
+
+    @Test fun `hatched state uses species identity instead of showing an egg`() {
+        val result = PetSummary.from(GameState(stage = "hatched", speciesId = "tide_keeper"), true, catalog)
+        assertEquals("물결지기", result.title)
+        assertEquals("함께 가는 중", result.status)
+        assertFalse(result.showEgg)
+        assertEquals("species/tide_keeper.png", result.species?.sprite)
+    }
+
+    @Test fun `incubating state only shows bounded factual progress`() {
+        assertEquals("알을 품는 중 · 42%", PetSummary.from(GameState(stage = "incubating", progress = 0.42), true, catalog).status)
+        for ((value, percent) in listOf(Double.NaN to 0, Double.POSITIVE_INFINITY to 0, -2.0 to 0, 1.5 to 100)) {
+            val result = PetSummary.from(GameState(stage = "incubating", progress = value), true, catalog)
+            assertEquals("알을 품는 중 · $percent%", result.status)
+            assertTrue(result.showEgg)
+        }
+    }
+
+    @Test fun `disconnected snapshot does not claim current companion state`() {
+        val result = PetSummary.from(GameState(ts = 1, stage = "hatched", speciesId = "tide_keeper"), false, catalog)
+        assertEquals("물결지기", result.title)
+        assertEquals("마지막으로 받은 상태", result.status)
+        assertFalse(result.showEgg)
+        val empty = PetSummary.from(GameState(), false, catalog)
+        assertEquals("폰 연결을 기다리고 있어요", empty.status)
+    }
+
+    @Test fun `unknown species and stages never expose raw IDs or invented pet needs`() {
+        val pet = PetSummary.from(GameState(stage = "hatched", speciesId = "unexpected-secret"), true, catalog)
+        assertEquals("함께하는 친구", pet.title)
+        assertNull(pet.species)
+        assertEquals("폰에서 시작을 기다려요", PetSummary.from(GameState(stage = "unexpected"), true, catalog).status)
+    }
+
+    @Test fun `catalog excludes paths outside the species asset folder`() {
+        val invalid = SpeciesCatalog.parse("""{"species":[{"id":"bad","nameKo":"친구","sprite":"../secret.png"}]}""")
+        assertNull(invalid["bad"]?.sprite)
+        assertTrue(SpeciesCatalog.parse("not json").entries.isEmpty())
+    }
+}

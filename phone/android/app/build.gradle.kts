@@ -5,6 +5,7 @@ plugins {
 }
 
 android {
+    sourceSets["debug"].java.srcDir("../../../mirror-common/src/main/kotlin")
     namespace = "ai.allo.allo_phone"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion

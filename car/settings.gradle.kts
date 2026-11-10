@@ -24,3 +24,6 @@ dependencyResolutionManagement {
 
 rootProject.name = "allo-car"
 include(":app")
+
+// Explicit UI capture harness; not included in ordinary vehicle builds.
+if (providers.gradleProperty("includePreview").orNull == "true") include(":preview")

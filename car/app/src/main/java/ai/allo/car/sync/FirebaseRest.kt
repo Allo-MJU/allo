@@ -88,14 +88,25 @@ class FirebaseRest(
         val req = Request.Builder().url(url(path)).header("Accept", "text/event-stream").build()
         val source = EventSources.createFactory(client).newEventSource(req, object : EventSourceListener() {
             override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
-                if (type != "put" && type != "patch") return   // keep-alive, cancel, auth_revoked 무시
-                val obj = runCatching { json.parseToJsonElement(data).jsonObject }.getOrNull() ?: return
+                if (type == "cancel" || type == "auth_revoked") {
+                    close(IOException("SSE access ended"))
+                    return
+                }
+                if (type != "put" && type != "patch") return
+                val obj = runCatching { json.parseToJsonElement(data).jsonObject }.getOrNull()
+                if (obj == null || obj["data"] == null) {
+                    close(IOException("Invalid SSE envelope"))
+                    return
+                }
                 val p = obj["path"]?.toString()?.trim('"') ?: "/"
                 val d = obj["data"] ?: return
                 trySend(SseEvent(type, p, d))
             }
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
                 close(t ?: IOException("SSE closed ${response?.code}"))
+            }
+            override fun onClosed(eventSource: EventSource) {
+                close(IOException("SSE stream closed"))
             }
         })
         awaitClose { source.cancel() }
