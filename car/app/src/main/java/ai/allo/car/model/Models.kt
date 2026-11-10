@@ -32,7 +32,19 @@ data class VehicleSnapshot(
     val seatRow2: Boolean,            // 반전 처리 후
     val etaSec: Long? = null,         // 내비 미사용 시 null
     val envTags: List<String>,
+    val turns: List<Turn> = emptyList(), // 내비 다음 회전, 가까운 순 최대 3개. 안내 중이 아니면 빈 목록
+    val headingDeg: Double? = null,   // 차 진행 방향(도, 0~360, 북쪽 0·시계 방향). 모르면 null. 좌표는 보내지 않는다
     val capabilities: List<String>,
+)
+
+/**
+ * /vehicle/turns 원소 — docs/schema.md 3.3. 차 창밖이 회전을 그리는 데만 쓴다 (판정 아님).
+ * ⚠️ 도로명·교차로명(TBTInfo.description)과 좌표는 넣지 않는다.
+ */
+@Serializable
+data class Turn(
+    val type: String,                 // "left" | "right" | "uturn" | "keepLeft" | "keepRight"
+    val inM: Int,                     // 그 회전까지 남은 거리(m), 0 이상
 )
 
 /** /sessions/{sid}/game — docs/schema.md 3.4. 폰이 쓰고 차는 읽기만 한다. */
@@ -71,4 +83,5 @@ object Capability {
     const val SPEED = "speed"
     const val GEAR = "gear"
     const val ETA = "eta"
+    const val TURNS = "turns"
 }
