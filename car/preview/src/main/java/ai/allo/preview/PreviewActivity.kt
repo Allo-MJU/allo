@@ -15,6 +15,7 @@ import ai.allo.car.model.GameState
 import ai.allo.car.ui.AlloTheme
 import ai.allo.car.ui.DrivingScreen
 import ai.allo.car.ui.ParkedScreen
+import org.json.JSONObject
 
 /** Real production composables with explicit fixture data; no vehicle/Firebase emulation. */
 class PreviewActivity : ComponentActivity() {
@@ -22,8 +23,14 @@ class PreviewActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val mode = intent.getStringExtra("mode") ?: "driving"
         val connected = !intent.getBooleanExtra("disconnected", false)
+        val speciesId = intent.getStringExtra("species") ?: "road_sprout"
+        val catalog = JSONObject(assets.open("species.json").bufferedReader().use { it.readText() })
+            .getJSONArray("species")
+        val species = (0 until catalog.length()).map { catalog.getJSONObject(it) }
+            .firstOrNull { it.getString("id") == speciesId }
+            ?: error("Unknown preview species: $speciesId")
         val game = GameState(ts = System.currentTimeMillis(), stage = "hatched", progress = 1.0,
-            speciesId = "tide_keeper", attribute = "water", tier = 3)
+            speciesId = speciesId, attribute = species.getString("attribute"), tier = species.getInt("tier"))
         setContent {
             AlloTheme {
                 Surface(Modifier.fillMaxSize()) {

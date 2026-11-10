@@ -15,6 +15,8 @@ adb shell am start -n ai.allo.preview/ai.allo.preview.PreviewActivity --es mode 
 adb exec-out screencap -p > ../tasks/screenshots/parked.png
 ```
 
+The default fixture is `road_sprout` (normal, tier 1). Use `--es species tide_keeper`
+to select another catalog species with its matching attribute and tier.
 Wait for the app to finish drawing before capturing. `--ez disconnected true` displays
 the disconnected-state fixture. The parked capture is the actual sharing-entry UI,
 not a claim that phone video has been received. Normal vehicle builds do not include

@@ -24,12 +24,12 @@ fun DrivingScreen(game: GameState, connected: Boolean = true, modifier: Modifier
             Text("알로 · 주행 중", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 18.sp)
             Spacer(Modifier.height(20.dp))
             if (narrow) {
-                PetArt(summary, artSize)
+                PetArt(summary, artSize, pose = PetPose.Move)
                 Spacer(Modifier.height(16.dp))
                 SummaryText(summary, centered = true)
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-                    PetArt(summary, artSize)
+                    PetArt(summary, artSize, pose = PetPose.Move)
                     SummaryText(summary, centered = false)
                 }
             }

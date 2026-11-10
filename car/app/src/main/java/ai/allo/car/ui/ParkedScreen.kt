@@ -6,7 +6,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.material3.FilterChip
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -23,6 +25,8 @@ fun ParkedScreen(
     modifier: Modifier = Modifier,
 ) {
     val summary = PetSummary.from(game, connected, rememberSpeciesCatalog())
+    var fishing by rememberSaveable { mutableStateOf(false) }
+    val pose = if (fishing) PetPose.Fishing else PetPose.Sleep
     BoxWithConstraints(modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
         val narrow = maxWidth < 560.dp
         Column(
@@ -32,12 +36,19 @@ fun ParkedScreen(
         ) {
             Text("알로 · 주차 중", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 18.sp)
             if (narrow) {
-                PetArt(summary, 100.dp)
+                PetArt(summary, 140.dp, pose = pose, parked = true, connected = connected)
                 SummaryText(summary, centered = true)
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                    PetArt(summary, 132.dp)
+                    PetArt(summary, 180.dp, pose = pose, parked = true, connected = connected)
                     SummaryText(summary, centered = false)
+                }
+            }
+            if (!summary.showEgg) {
+                Text("쉬는 모습 고르기", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FilterChip(selected = !fishing, onClick = { fishing = false }, label = { Text("잠자기") })
+                    FilterChip(selected = fishing, onClick = { fishing = true }, label = { Text("낚시") })
                 }
             }
             Text("주차 중에는 폰 화면을 함께 볼 수 있어요.", fontSize = 18.sp, lineHeight = 26.sp,
