@@ -117,6 +117,10 @@ class _ExploreScreenState extends State<ExploreScreen>
         DateTime.now().millisecondsSinceEpoch);
     _link.post('scene', sceneMessage(scene));
     _link.post(
+        'route',
+        routeMessage(c.vehicle?.turns ?? const [],
+            headingDeg: c.vehicle?.headingDeg));
+    _link.post(
         'cast', castMessage(companion: c.hatched, friends: c.collectedSpecies));
     final v = c.vehicle;
     if (v != null) {

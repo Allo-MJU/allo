@@ -25,6 +25,13 @@ String sceneMessage(WindowScene s) => _msg('scene', {
       'moving': s.moving,
     });
 
+/// 내비 경로의 다음 회전들과 진행 방향. Unity 가 교차로·회전·유턴을 그 거리에 놓고,
+/// 진행 방향이 바뀌는 만큼 앞길을 휘게 한다 (schema.md 3.3 `turns`·`headingDeg`). 방향을 모르면 -1
+String routeMessage(List<Turn> turns, {double? headingDeg}) => _msg('route', {
+      'turns': [for (final t in turns) t.toJson()],
+      'heading': headingDeg == null ? -1.0 : (headingDeg * 10).roundToDouble() / 10,
+    });
+
 Map<String, Object?> _member(Species s) =>
     {'id': s.id, 'sprite': s.sprite, 'attribute': s.attribute.name};
 

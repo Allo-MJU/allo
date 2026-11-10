@@ -123,10 +123,10 @@ void main() {
   group('FakeScenario.sceneTour', () {
     test('구간마다 태그가 바뀌고 처음으로 돌아온다', () {
       const t = FakeScenario.sceneTour;
-      expect(t.stageAt(0).tags, ['coast']);
-      expect(t.stageAt(t.stageEverySec).tags, ['coast', 'rain']);
-      expect(t.stageAt(t.stageEverySec * 3).headlightOn, isTrue);
-      expect(t.stageAt(t.stageEverySec * t.stages.length).tags, ['coast']);
+      expect(t.stageAt(0).tags, isEmpty); // 들판
+      expect(t.stageAt(t.stageEverySec).tags, ['coast']);
+      expect(t.stageAt(t.stageEverySec * 4).headlightOn, isTrue); // 터널
+      expect(t.stageAt(t.stageEverySec * t.stages.length).tags, isEmpty);
       expect(FakeScenario.byName('scene_tour'), same(t));
     });
 
