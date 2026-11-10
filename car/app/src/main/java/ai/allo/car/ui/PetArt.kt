@@ -51,6 +51,13 @@ fun PetArt(
         EggMark(size = size, fill = summary.eggFill, modifier = modifier.semantics { contentDescription = "알" })
         return
     }
+    val animate = ambientMotionAllowed(pose, parked, connected, previewRunning)
+    val sheetSpec = PetSpriteSheets.forDisplay(summary.species?.id, pose, parked, previewRunning)
+    val sheet = rememberPetSpriteSheet(sheetSpec)
+    if (sheet != null && sheetSpec != null) {
+        PetSpriteSheet(sheet, sheetSpec, animate, "${summary.title} · ${pose.label}", size, modifier)
+        return
+    }
     val assets = LocalContext.current.assets
     val sprite = PetPoses.assetPath(summary.species?.id, pose) ?: summary.species?.sprite
     val bitmap = remember(assets, sprite) {
@@ -61,7 +68,6 @@ fun PetArt(
             assets.open(path).use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
         }.getOrNull() }
     }
-    val animate = ambientMotionAllowed(pose, parked, connected, previewRunning)
     val phase = if (animate) {
         val transition = rememberInfiniteTransition(label = "parked pet")
         val duration = when (pose) { PetPose.Move -> 800; PetPose.Fishing -> 7600; else -> 3200 }
