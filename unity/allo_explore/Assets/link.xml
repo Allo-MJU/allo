@@ -1,0 +1,6 @@
+<linker>
+  <!-- 기본 도형(GameObject.CreatePrimitive)이 붙이는 충돌체와 탭 입력(Physics.Raycast)이 엔진 코드 제거로 빠지지 않게 -->
+  <assembly fullname="UnityEngine.PhysicsModule" preserve="all" />
+  <assembly fullname="UnityEngine.UIModule" preserve="all" />
+  <assembly fullname="UnityEngine.UI" preserve="all" />
+</linker>

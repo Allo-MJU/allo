@@ -93,7 +93,7 @@ class SessionManager(private val context: Context) {
         if (!aaos.start()) caps.mark(Capability.SPEED, false) // 권한 허용 후 onSpeedPermissionGranted 에서 다시 true
         vehicleReader.start()
         voice.start()
-        naviEta.start { ok -> caps.mark(Capability.ETA, ok) }
+        naviEta.start { ok -> caps.mark(Capability.ETA, ok); caps.mark(Capability.TURNS, ok) }
         scope.launch { announceHatch() }
         beginSession()
         scope.launch { publishLoop() }
@@ -264,6 +264,8 @@ class SessionManager(private val context: Context) {
                 seatRow2 = r.seatRow2Occupied,
                 etaSec = naviEta.etaSec.value,
                 envTags = envTagger.tags(now, a.speedKph, r.wiperLevel, r.headlightOn, naviEta.position.value.let { regionTagger.tag(it?.lat, it?.lng) }),
+                turns = naviEta.turns.value,
+                headingDeg = naviEta.headingDeg.value,
                 capabilities = caps.snapshot(),
             )
             if (BuildConfig.DEBUG && snap.copy(ts = 0) != _vehicle.value?.copy(ts = 0)) {

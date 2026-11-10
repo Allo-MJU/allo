@@ -60,3 +60,18 @@ CLAUDE.local.md
 
 # Local Firebase runtime configuration
 /phone/config/*.local.json
+
+# Unity (탐험 게임) — 생성물은 넣지 않는다
+/unity/allo_explore/[Ll]ibrary/
+/unity/allo_explore/[Tt]emp/
+/unity/allo_explore/[Ll]ogs/
+/unity/allo_explore/[Oo]bj/
+/unity/allo_explore/[Bb]uild/
+/unity/allo_explore/[Uu]ser[Ss]ettings/
+/unity/allo_explore/*.csproj
+/unity/allo_explore/*.sln
+# Unity 내보내기 결과 (scripts/export_unity.sh 로 만든다)
+/phone/unity/
+
+# Python bytecode (Blender 스크립트)
+__pycache__/

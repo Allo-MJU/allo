@@ -88,7 +88,9 @@ QR은 `allo://pair?sid={UUID}&code={6자리}`다. 수동 연결도 세션 ID와 
   "seatRow2": true,
   "etaSec": 2280,
   "envTags": ["rain", "highway"],
-  "capabilities": ["wiper", "light", "seat", "odometer", "speed", "gear", "eta"]
+  "turns": [{ "type": "right", "inM": 230 }, { "type": "uturn", "inM": 910 }],
+  "headingDeg": 87.5,
+  "capabilities": ["wiper", "light", "seat", "odometer", "speed", "gear", "eta", "turns"]
 }
 ```
 
@@ -104,9 +106,11 @@ QR은 `allo://pair?sid={UUID}&code={6자리}`다. 수동 연결도 세션 ID와 
 | `seatRow2` | boolean | SDK 극성 보정 후 2열 점유 |
 | `etaSec` | number 또는 null/누락 | 사용할 수 있는 양수 ETA(초). 안내/ETA가 없으면 null |
 | `envTags` | string[] | 관측 환경 태그. 누락은 빈 목록 |
+| `headingDeg` | number 또는 null/누락 | 차의 진행 방향(도, 0~360, 북쪽 0·시계 방향). 내비 현재 위치 콜백의 heading. 모르면 null |
+| `turns` | object[] 또는 누락 | 내비 경로 안내의 다음 회전들. 가까운 순 최대 3개. 안내 중이 아니거나 없으면 빈 목록 또는 누락 |
 | `capabilities` | string[] | 실제 지원하는 신호 목록 |
 
-지원 이름은 `wiper`, `light`, `seat`, `odometer`, `brake`, `steering`, `speed`, `gear`, `eta`다. 차량 앱 내부의 `steerDeg`, `brakePressed`, `odometerM`를 별도 전송 필드로 추가하지 않는다.
+지원 이름은 `wiper`, `light`, `seat`, `odometer`, `brake`, `steering`, `speed`, `gear`, `eta`, `turns`다. 차량 앱 내부의 `steerDeg`, `brakePressed`, `odometerM`를 별도 전송 필드로 추가하지 않는다.
 
 현재 파생 기준을 유지한다. 급제동은 속도 감소율 12km/h/s 이상, 급조향은 속도 15km/h 이상에서 조향각 변화율 90도/s 이상이며 각각 2초 쿨다운을 둔다. 거리는 Odometer의 양수 증가분을 사용하고, 없거나 정체/감소하면 이전 속도를 적분한다. SDK 거리 km→m 변환은 차량 안에서 한다.
 
@@ -119,6 +123,24 @@ QR은 `allo://pair?sid={UUID}&code={6자리}`다. 수동 연결도 세션 ID와 
 | `coast`, `mountain`, `city` | 차량의 기준점·반경 lookup. 겹치면 coast→mountain→city 순, 미분류면 지역 태그 없음 |
 
 위 태그는 센서 기반 추정이다. 실제 비·터널·고속도로·일몰을 확인한 사실로 확대하지 않는다. 현재 GPS는 최근 SDK 좌표 캐시를 사용하며 **새로운 GPS 30초 TTL은 채택하지 않는다.** SDK 관측 시각/정차 중 갱신 주기는 A의 실측 대상으로 남기되, 이 때문에 나머지 wire 계약을 보류하지 않는다.
+
+`turns` 원소는 `{type, inM}`이다. 차 창밖(Unity)이 경로대로 교차로·회전·유턴을 그리는 데만 쓰며 게임 판정에 쓰지 않는다.
+
+- 출처는 Pleos NaviHelper `onTBTInfo(List<TBTInfo>)`다. 차량 앱이 받은 목록을 정규화해 다음 스냅샷에 싣는다.
+- `inM`은 그 회전까지 남은 거리(m, 0 이상 정수)다. `TBTInfo.distance`를 반올림한다.
+- `type`은 아래 다섯 가지로 정규화한다. 그 밖의 안내(직진, 터널, 톨게이트, 휴게소, 고가·지하차도, 합류, 경유지, 알 수 없음)는 싣지 않는다.
+
+| `type` | `TurnType` 원본 |
+| --- | --- |
+| `left` | `TURN_LEFT`, `TURN_SHARP_L` |
+| `right` | `TURN_RIGHT`, `TURN_SHARP_R` |
+| `uturn` | `TURN_UTURN` |
+| `keepLeft` | `TURN_KEEP_L`, `TURN_ENTER_IC_L`, `TURN_EXIT_IC_L` |
+| `keepRight` | `TURN_KEEP_R`, `TURN_ENTER_IC_R`, `TURN_EXIT_IC_R` |
+
+`headingDeg`는 Pleos NaviHelper `CurrentLocationInfo.heading`이다. 창밖 도로를 차가 실제로 꺾는 만큼 휘게 하는 데만 쓰고 판정에 쓰지 않는다. 같은 콜백의 위도·경도·주소는 보내지 않는다(절대 규칙 2). heading 이 NaN·무한대이거나 위치 정보를 아직 받지 못했으면 null 이다.
+
+`TBTInfo.description`(도로명·교차로명)과 좌표는 위치를 드러내므로 보내지 않는다. 내비가 경로 안내 중이 아니면(`Guidance` 가 GUIDING 이 아니면) 빈 목록을 보낸다. `turns` 수신 여부는 기기에서 확인할 항목이다(에뮬레이터 내비가 `onTBTInfo`를 보내는지 미확인).
 
 Debug 지역 override는 좌표 미수신·lookup을 우회하는 시연 기능이다. debug 빌드에서 활성화한 지역 태그도 정상 `envTags`로 전송되고 폰 로컬 도감에 저장된다. 그 기록을 실측 위치 증거로 사용하지 않는다.
 

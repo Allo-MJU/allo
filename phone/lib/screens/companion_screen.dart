@@ -1,8 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../game/game_controller.dart';
+import '../ui_mode.dart';
 import '../widgets/species_art.dart';
+import '../widgets/window_view.dart';
 
 class CompanionScreen extends StatelessWidget {
   const CompanionScreen({super.key, required this.controller});
@@ -14,6 +18,37 @@ class CompanionScreen extends StatelessWidget {
         builder: (context, _) {
           final species = controller.hatched;
           final prompt = controller.lookOutPrompt;
+          if (fullscreenCabin) {
+            // 차 안 화면만 꽉 채운다. 캐릭터 탭 = 놀아주기
+            return Scaffold(
+              backgroundColor: Colors.black,
+              body: LayoutBuilder(
+                builder: (context, box) => WindowView(
+                  vehicle: controller.vehicle,
+                  friends: controller.collectedSpecies,
+                  height: box.maxHeight,
+                  rounded: false,
+                  child: Semantics(
+                    container: true, // 차 안 화면 라벨과 합쳐지지 않게 따로 둔다
+                    button: true,
+                    label:
+                        '${species?.nameKo ?? '동행'}, 놀이 ${controller.playCount}회',
+                    child: GestureDetector(
+                      onTap: controller.playWithCompanion,
+                      child: AnimatedRotation(
+                        turns: controller.playCount.isOdd ? 0.04 : -0.04,
+                        duration: const Duration(milliseconds: 300),
+                        child: species == null
+                            ? Icon(Icons.pets, size: box.maxHeight * 0.3)
+                            : SpeciesArt(
+                                species: species, size: box.maxHeight * 0.3),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
           return Scaffold(
             appBar: AppBar(title: Text(species?.nameKo ?? '동행'), actions: [
               if (controller.isFake)
@@ -26,14 +61,19 @@ class CompanionScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 children: [
                   if (controller.error != null) Text(controller.error!),
-                  const SizedBox(height: 24),
-                  Center(
+                  const SizedBox(height: 12),
+                  WindowView(
+                    vehicle: controller.vehicle,
+                    friends: controller.collectedSpecies,
+                    // 가로 화면에서 버튼이 밀려나지 않게 화면 높이의 절반까지만 (가로 2단 개편 전 임시)
+                    height:
+                        math.min(300, MediaQuery.sizeOf(context).height * 0.5),
                     child: AnimatedRotation(
                       turns: controller.playCount.isOdd ? 0.04 : -0.04,
                       duration: const Duration(milliseconds: 300),
                       child: species == null
-                          ? const Icon(Icons.pets, size: 140)
-                          : SpeciesArt(species: species, size: 140),
+                          ? const Icon(Icons.pets, size: 120)
+                          : SpeciesArt(species: species, size: 120),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -63,6 +103,10 @@ class CompanionScreen extends StatelessWidget {
                     spacing: 12,
                     runSpacing: 12,
                     children: [
+                      FilledButton.icon(
+                          onPressed: () => context.push('/explore'),
+                          icon: const Icon(Icons.threed_rotation),
+                          label: const Text('차 안 둘러보기')),
                       FilledButton.tonal(
                           onPressed: controller.feedCompanion,
                           child: const Text('먹이')),

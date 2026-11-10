@@ -16,6 +16,47 @@ enum Attribute { normal, water, dark }
 
 enum Stage { idle, incubating, hatched }
 
+/// 내비 경로의 다음 회전 하나. schema.md 3.3 `turns`. 창밖 표시 전용이며 판정에 쓰지 않는다.
+class Turn {
+  /// left | right | uturn | keepLeft | keepRight
+  final String type;
+
+  /// 그 회전까지 남은 거리(m)
+  final int inM;
+
+  const Turn(this.type, this.inM);
+
+  static const types = {'left', 'right', 'uturn', 'keepLeft', 'keepRight'};
+
+  /// 모르는 type 이나 깨진 값은 null (버린다)
+  static Turn? tryParse(Object? j) {
+    if (j is! Map) return null;
+    final type = j['type'];
+    final inM = j['inM'];
+    if (type is! String || !types.contains(type) || inM is! num || !inM.isFinite) return null;
+    return Turn(type, inM.round().clamp(0, 1 << 30));
+  }
+
+  /// 가까운 순 최대 3개
+  static List<Turn> parseList(Object? j) {
+    if (j is! List) return const [];
+    final out = [for (final e in j) Turn.tryParse(e)].whereType<Turn>().toList()
+      ..sort((a, b) => a.inM.compareTo(b.inM));
+    return out.take(3).toList();
+  }
+
+  Map<String, Object?> toJson() => {'type': type, 'inM': inM};
+
+  @override
+  bool operator ==(Object other) => other is Turn && other.type == type && other.inM == inM;
+
+  @override
+  int get hashCode => Object.hash(type, inM);
+
+  @override
+  String toString() => 'Turn($type, ${inM}m)';
+}
+
 /// /sessions/{sid}/vehicle — 차량 앱이 1초마다 쓴다.
 class VehicleState {
   final int ts;
@@ -29,6 +70,8 @@ class VehicleState {
   final bool seatRow2;
   final int? etaSec; // null = 내비 미사용
   final List<String> envTags;
+  final List<Turn> turns; // 누락 = 빈 목록
+  final double? headingDeg; // 진행 방향 0~360 (북 0, 시계 방향). null = 모름
   final List<String> capabilities;
 
   const VehicleState({
@@ -43,6 +86,8 @@ class VehicleState {
     required this.seatRow2,
     required this.etaSec,
     required this.envTags,
+    this.turns = const [],
+    this.headingDeg,
     required this.capabilities,
   });
 
@@ -58,13 +103,15 @@ class VehicleState {
         seatRow2: j['seatRow2'] as bool? ?? false,
         etaSec: (j['etaSec'] as num?)?.toInt(),
         envTags: (j['envTags'] as List?)?.cast<String>() ?? const [],
+        turns: Turn.parseList(j['turns']),
+        headingDeg: _heading(j['headingDeg']),
         capabilities: (j['capabilities'] as List?)?.cast<String>() ?? const [],
       );
 
   VehicleState copyWith({
     int? ts, String? gear, double? speedKph, double? distanceM, int? harshBrake, int? harshSteer,
     int? wiperLevel, bool? headlightOn, bool? seatRow2, int? etaSec, bool clearEta = false,
-    List<String>? envTags, List<String>? capabilities,
+    List<String>? envTags, List<Turn>? turns, double? headingDeg, List<String>? capabilities,
   }) =>
       VehicleState(
         ts: ts ?? this.ts, gear: gear ?? this.gear, speedKph: speedKph ?? this.speedKph,
@@ -72,8 +119,17 @@ class VehicleState {
         harshSteer: harshSteer ?? this.harshSteer, wiperLevel: wiperLevel ?? this.wiperLevel,
         headlightOn: headlightOn ?? this.headlightOn, seatRow2: seatRow2 ?? this.seatRow2,
         etaSec: clearEta ? null : (etaSec ?? this.etaSec),
-        envTags: envTags ?? this.envTags, capabilities: capabilities ?? this.capabilities,
+        envTags: envTags ?? this.envTags, turns: turns ?? this.turns,
+        headingDeg: headingDeg ?? this.headingDeg,
+        capabilities: capabilities ?? this.capabilities,
       );
+}
+
+/// 0~360 으로 맞춘 진행 방향. 숫자가 아니거나 NaN·무한대면 null
+double? _heading(Object? v) {
+  if (v is! num || !v.isFinite) return null;
+  final d = v.toDouble() % 360;
+  return d < 0 ? d + 360 : d;
 }
 
 /// /sessions/{sid}/game — 폰 앱이 계산해서 쓴다.

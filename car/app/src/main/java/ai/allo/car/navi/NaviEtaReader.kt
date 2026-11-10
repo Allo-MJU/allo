@@ -9,15 +9,17 @@ import ai.pleos.playground.navi.data.DestinationInfo
 import ai.pleos.playground.navi.data.DrivingInfo
 import ai.pleos.playground.navi.data.RouteInfo
 import ai.pleos.playground.navi.data.RouteStateInfo
+import ai.pleos.playground.navi.data.TBTInfo
 import ai.pleos.playground.navi.data.TripInfo
 import ai.pleos.playground.navi.helper.NaviHelper
 import ai.pleos.playground.navi.helper.listener.NaviHelperEventListener
+import ai.allo.car.model.Turn
 import ai.allo.car.vehicle.GeoPoint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * NaviHelper → 남은 시간(etaSec) + 현재 위치(차 안 전용). 판정하지 않는다 — 폰의 HatchTimer 가 ETA 50% 지점을 계산한다.
+ * NaviHelper → 남은 시간(etaSec) + 다음 회전(turns) + 진행 방향(headingDeg) + 현재 위치(차 안 전용). 판정하지 않는다 — 폰의 HatchTimer 가 ETA 50% 지점을 계산한다.
  * ⚠️ 좌표(현재 위치·DestinationInfo.latitude 등)는 읽어도 밖으로 내보내지 않는다 (CLAUDE.md 규칙 2).
  *    현재 위치는 RegionTagger(지역 태그)와 DestinationSuggester(가까운 목적지)에만 쓴다. 로그에도 찍지 않는다.
  * 남은 시간 출처는 DestinationInfo.remainTime. 단위·갱신 주기는 docs/verification.md #3 실측 기준.
@@ -39,6 +41,17 @@ class NaviEtaReader(context: Context) {
     /** 경로 안내 상태. ETA 와 독립 ([Guidance]). 처음과 내비 연결 전에는 UNKNOWN */
     private val _guidance = MutableStateFlow(Guidance.UNKNOWN)
     val guidance: StateFlow<Guidance> = _guidance
+
+    /** 다음 회전, 가까운 순 최대 3개 ([NaviTurns]). 경로 안내 중이 아니면 빈 목록. 도로명(description)은 담지 않는다 */
+    private val _turns = MutableStateFlow<List<Turn>>(emptyList())
+    val turns: StateFlow<List<Turn>> = _turns
+
+    /** 차 진행 방향(도, 0~360, 북쪽 0) ([NaviHeading]). 위치 콜백 전·NaN·내비 중지 시 null. 좌표는 담지 않는다 */
+    private val _headingDeg = MutableStateFlow<Double?>(null)
+    val headingDeg: StateFlow<Double?> = _headingDeg
+
+    /** onTBTInfo 원본에서 (TurnType 이름, 거리)만 남긴 것. 경로가 끝나거나 취소되면 비운다 */
+    @Volatile private var rawTurns: List<Pair<String?, Double>> = emptyList()
 
     @Volatile private var status: String? = null
     @Volatile private var remainSec: Int? = null
@@ -62,10 +75,15 @@ class NaviEtaReader(context: Context) {
             Log.d(TAG, "tripInfo eta=${info.eta} distance=${info.distance}")
         }
         override fun onRouteStarted(info: ai.pleos.playground.navi.data.RouteStartInfo) { setGuidance(Guidance.GUIDING); Log.d(TAG, "route started") }
-        override fun onRouteEnded() { status = null; remainSec = null; setGuidance(Guidance.IDLE); publish("route ended") }
-        override fun onRouteCancelled() { status = null; remainSec = null; setGuidance(Guidance.IDLE); publish("route cancelled") }
+        override fun onRouteEnded() { status = null; remainSec = null; clearTurns(); setGuidance(Guidance.IDLE); publish("route ended") }
+        override fun onRouteCancelled() { status = null; remainSec = null; clearTurns(); setGuidance(Guidance.IDLE); publish("route cancelled") }
         override fun onDestinationArrived(info: ai.pleos.playground.navi.data.DestinationArrivedInfo) {
-            remainSec = null; _arrivedAt.value = System.currentTimeMillis(); publish("arrived")
+            remainSec = null; clearTurns(); _arrivedAt.value = System.currentTimeMillis(); publish("arrived")
+        }
+        /** 회전 안내. description(도로명·교차로명)은 여기서 버린다 — 저장·로그 모두 하지 않는다 */
+        override fun onTBTInfo(list: List<TBTInfo>) {
+            rawTurns = list.map { it.type.name to it.distance }
+            publishTurns()
         }
         /**
          * 앱이 켜지기 전에 시작된 안내는 onNavigationStatus 가 다시 오지 않는다 → poll 의 getRouteStateInfo 로 채운다.
@@ -83,6 +101,7 @@ class NaviEtaReader(context: Context) {
         }
         override fun onCurrentLocationInfo(info: CurrentLocationInfo) {
             _position.value = GeoPoint(info.latitude, info.longitude)
+            _headingDeg.value = NaviHeading.deg(info.heading)
         }
         override fun onError(code: NaviErrorCode) { Log.w(TAG, "navi error $code") }
     }
@@ -105,6 +124,7 @@ class NaviEtaReader(context: Context) {
         runCatching { navi.getRouteStateInfo() }.onFailure { Log.w(TAG, "getRouteStateInfo failed", it) }
         runCatching { navi.getDestinationInfo() }.onFailure { Log.w(TAG, "getDestinationInfo failed", it) }
         runCatching { navi.getCurrentLocationInfo() }.onFailure { Log.w(TAG, "getCurrentLocationInfo failed", it) }
+        if (_guidance.value == Guidance.GUIDING) runCatching { navi.getTBTInfo() }.onFailure { Log.w(TAG, "getTBTInfo failed", it) }
     }
 
     /** 목적지 설정. 목적지 제안(A-5)과 디버그 확인에 쓴다. 좌표는 내비에만 넘기고 Firebase 로 보내지 않는다. */
@@ -125,12 +145,24 @@ class NaviEtaReader(context: Context) {
     fun stop() {
         runCatching { navi.removeListener(listener); navi.release() }
         ready = false
+        _headingDeg.value = null
+        clearTurns()
         setGuidance(Guidance.UNKNOWN)
     }
 
     private fun setGuidance(g: Guidance) {
         if (_guidance.value != g) Log.d(TAG, "guidance ${_guidance.value} → $g")
         _guidance.value = g
+        if (g != Guidance.GUIDING) rawTurns = emptyList()   // 다음 안내에 지난 경로의 회전이 섞이지 않게
+        publishTurns()
+    }
+
+    private fun clearTurns() { rawTurns = emptyList(); publishTurns() }
+
+    private fun publishTurns() {
+        val next = NaviTurns.turns(guiding = _guidance.value == Guidance.GUIDING, raw = rawTurns)
+        if (next != _turns.value) Log.d(TAG, "turns ${next.joinToString { "${it.type}@${it.inM}" }}") // 종류·거리만. 도로명 없음
+        _turns.value = next
     }
 
     private fun publish(why: String) {

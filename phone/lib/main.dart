@@ -1,11 +1,13 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'app.dart';
 import 'config/firebase_config.dart';
 import 'feed/fake_feed.dart';
 import 'feed/firebase_feed.dart';
 import 'feed/vehicle_feed.dart';
+import 'widgets/window_view.dart';
 
 /// --dart-define=FEED=fake → 차 없이 가짜 신호로 실행 (기본값).
 /// Firebase 설정은 --dart-define-from-file=config/firebase.local.json 으로 주입.
@@ -15,7 +17,13 @@ const _scenario =
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(await createApp());
+  // 앱 전체 가로 고정 (탐험 게임 설계 5절)
+  await SystemChrome.setPreferredOrientations(
+      [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
+  // 차 안 화면을 꽉 채우려고 상태 표시줄·내비게이션 바를 숨긴다 (가장자리를 쓸면 잠깐 나온다)
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  // 창밖 스크롤은 실제 실행에서만 켠다. 위젯 테스트는 정지 장면으로 본다.
+  runApp(SceneMotion(enabled: true, child: await createApp()));
 }
 
 /// 초기화 성공 전에는 Firebase feed를 만들지 않는다.

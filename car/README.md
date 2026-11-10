@@ -6,7 +6,7 @@
 
 | 항목 | 값 |
 | --- | --- |
-| 에뮬레이터 | Pleos Connect Emulator 2.1.0 (Android 14, API 34, x86_64) |
+| 에뮬레이터 | Pleos Connect Emulator 2.1.0 (Android 14, API 34, x86_64 / arm64 이미지 별도) |
 | Pleos SDK | Vehicle 2.3.2 · NaviHelper 3.0.5 · TextToSpeech 3.3.1 |
 | 빌드 | JDK **17** (Android Studio 번들 JBR 25는 Gradle 8.10.2를 못 돌림) · AGP 8.8.2 · Kotlin 2.0.0 · compileSdk 35 / minSdk 28 |
 

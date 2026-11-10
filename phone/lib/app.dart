@@ -3,6 +3,10 @@ import 'package:allo_core/allo_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'dart:io' show Platform;
+
+import 'explore/explore_screen.dart';
+import 'explore/unity_channel.dart';
 import 'feed/vehicle_feed.dart';
 import 'game/game_controller.dart';
 import 'screens/companion_screen.dart';
@@ -63,6 +67,12 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
           builder: (_, __) => CompanionScreen(controller: controller)),
       GoRoute(
           path: '/dex', builder: (_, __) => DexScreen(controller: controller)),
+      GoRoute(
+          path: '/explore',
+          builder: (_, __) => ExploreScreen(
+              controller: controller,
+              unityView: Platform.isAndroid ? androidUnityView : null,
+              closeUnity: Platform.isAndroid ? closeUnityExplore : null)),
     ],
   );
 
@@ -70,16 +80,26 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unityExploreOpen.addListener(_syncActive);
     unawaited(controller.restorePairing());
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    unawaited(controller.setAppActive(state == AppLifecycleState.resumed));
+    _lastLifecycle = state;
+    _syncActive();
+  }
+
+  AppLifecycleState _lastLifecycle = AppLifecycleState.resumed;
+
+  void _syncActive() {
+    unawaited(controller.setAppActive(
+        appActiveFor(_lastLifecycle, unityOpen: unityExploreOpen.value)));
   }
 
   @override
   void dispose() {
+    unityExploreOpen.removeListener(_syncActive);
     WidgetsBinding.instance.removeObserver(this);
     _router.dispose();
     controller.dispose();
