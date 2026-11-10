@@ -21,3 +21,9 @@ Wait for the app to finish drawing before capturing. `--ez disconnected true` di
 the disconnected-state fixture. The parked capture is the actual sharing-entry UI,
 not a claim that phone video has been received. Normal vehicle builds do not include
 this module unless `-PincludePreview=true` is supplied.
+
+Driving in this harness explicitly enables the running-motion concept. Its banner
+marks it as a preview, not an approved in-vehicle behavior. The vehicle app never
+opts into `previewRunning` and continues to display a static driving pose.
+Parked sleep uses breathing/floating Z; fishing loops through lifting, catching,
+escaping and splashing. These are decorative states, not game rewards.

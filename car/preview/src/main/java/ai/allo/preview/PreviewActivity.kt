@@ -36,14 +36,15 @@ class PreviewActivity : ComponentActivity() {
                 Surface(Modifier.fillMaxSize()) {
                     Column(Modifier.windowInsetsPadding(WindowInsets.safeDrawing)) {
                         Text(
-                            "UI 미리보기 · ${if (mode == "parked") "주차" else "주행"} · 테스트 데이터 (실차 연동 아님)",
+                            if (mode == "parked") "UI 미리보기 · 주차 · 테스트 데이터 (실차 연동 아님)"
+                            else "주행 모션 시안 · 실차 적용 아님 · 테스트 데이터",
                             color = Color(0xFFA9ACC6), fontSize = 14.sp,
                             modifier = Modifier.fillMaxWidth().background(Color(0xFF1D2142)).padding(12.dp),
                         )
                         if (mode == "parked") {
                             ParkedScreen(game = game, connected = connected, onShare = {})
                         } else {
-                            DrivingScreen(game = game, connected = connected)
+                            DrivingScreen(game = game, connected = connected, previewRunning = true)
                         }
                     }
                 }

@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -35,7 +36,7 @@ fun rememberSpeciesCatalog(): SpeciesCatalog {
     }
 }
 
-/** Driving poses remain static. Only verified parking callers opt into ambient motion. */
+/** Vehicle driving stays static; parked motion and the explicit running preview are separate. */
 @Composable
 fun PetArt(
     summary: PetSummary,
@@ -44,6 +45,7 @@ fun PetArt(
     pose: PetPose = PetPose.Idle,
     parked: Boolean = false,
     connected: Boolean = true,
+    previewRunning: Boolean = false,
 ) {
     if (summary.showEgg) {
         EggMark(size = size, fill = summary.eggFill, modifier = modifier.semantics { contentDescription = "알" })
@@ -59,19 +61,37 @@ fun PetArt(
             assets.open(path).use { BitmapFactory.decodeStream(it)?.asImageBitmap() }
         }.getOrNull() }
     }
-    val animate = ambientMotionAllowed(pose, parked, connected)
+    val animate = ambientMotionAllowed(pose, parked, connected, previewRunning)
     val phase = if (animate) {
         val transition = rememberInfiniteTransition(label = "parked pet")
+        val duration = when (pose) { PetPose.Move -> 800; PetPose.Fishing -> 7600; else -> 3200 }
         val value by transition.animateFloat(0f, 1f,
-            infiniteRepeatable(tween(2400, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "breathing")
+            infiniteRepeatable(tween(duration, easing = LinearEasing), RepeatMode.Restart), label = "ambient action")
         value
     } else 0f
+    val motion = petMotion(phase, animate)
     val artModifier = Modifier.size(size).graphicsLayer {
-        if (pose == PetPose.Sleep) {
-            scaleY = 1f + phase * .025f
-            scaleX = 1f + phase * .012f
-        } else if (pose == PetPose.Fishing) {
-            rotationZ = phase * 1.5f
+        when (pose) {
+            PetPose.Sleep -> {
+                scaleY = 1f + motion.breathe * .075f
+                scaleX = 1f + motion.breathe * .025f
+                translationY = -this.size.height * .025f * motion.breathe
+                rotationZ = -2f * motion.breathe
+            }
+            PetPose.Fishing -> {
+                scaleX = .83f
+                scaleY = .83f
+                translationX = -this.size.width * .09f
+                translationY = this.size.height * .06f
+                rotationZ = -7f * motion.lift + if (motion.stage == FishingStage.Caught) kotlin.math.sin(phase * 80f) * 2f else 0f
+            }
+            PetPose.Move -> if (animate) {
+                translationY = -this.size.height * .13f * motion.bounce
+                rotationZ = -5f + kotlin.math.sin(phase * 2f * Math.PI.toFloat()) * 5f
+                scaleX = 1.06f - .08f * motion.bounce
+                scaleY = .93f + .11f * motion.bounce
+            }
+            else -> Unit
         }
     }
     Box(modifier.size(size), contentAlignment = Alignment.Center) {
@@ -80,14 +100,14 @@ fun PetArt(
         } else {
             PlaceholderPet(summary, size, artModifier, pose)
         }
-        if (pose == PetPose.Sleep || pose == PetPose.Fishing) {
-            RestScene(pose, phase, size)
+        if (pose == PetPose.Sleep || pose == PetPose.Fishing || previewRunning) {
+            RestScene(pose, phase, motion, size, animate)
         }
     }
 }
 
 @Composable
-private fun ambientMotionAllowed(pose: PetPose, parked: Boolean, connected: Boolean): Boolean {
+private fun ambientMotionAllowed(pose: PetPose, parked: Boolean, connected: Boolean, previewRunning: Boolean): Boolean {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val resolver = LocalContext.current.contentResolver
     var resumed by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
@@ -102,7 +122,7 @@ private fun ambientMotionAllowed(pose: PetPose, parked: Boolean, connected: Bool
         refresh()
         onDispose { lifecycle.removeObserver(observer) }
     }
-    return PetPoses.animates(pose, parked, connected, resumed, motionEnabled)
+    return PetPoses.animates(pose, parked, connected, resumed, motionEnabled, previewRunning)
 }
 
 @Composable
@@ -133,27 +153,71 @@ private fun PlaceholderPet(summary: PetSummary, size: Dp, modifier: Modifier, po
 }
 
 
-/** Small vector props around existing art; no fishing sprite is implied. */
+/** Illustrated props animate around the supplied PNG poses; the character art is preserved. */
 @Composable
-private fun RestScene(pose: PetPose, phase: Float, size: Dp) {
+private fun RestScene(pose: PetPose, phase: Float, motion: PetMotion, size: Dp, animate: Boolean) {
     Canvas(Modifier.size(size)) {
         val w = this.size.width
         val h = this.size.height
         if (pose == PetPose.Fishing) {
-            val tip = Offset(w * .87f, h * (.16f + phase * .015f))
-            val bob = Offset(w * .91f, h * (.82f + phase * .025f))
-            drawOval(Color(0xFF7CCEDB).copy(alpha = .24f), Offset(w * .69f, h * .82f), Size(w * .30f, h * .10f))
-            drawLine(Color(0xFFD3AC76), Offset(w * .57f, h * .64f), tip, w * .023f)
-            drawLine(Color(0xFFE5E6EF), tip, bob, w * .007f)
+            val pond = Color(0xFF7CCEDB)
+            val tip = Offset(w * (.87f - .11f * motion.lift), h * (.23f - .13f * motion.lift))
+            val bob = Offset(w * (.89f - .04f * motion.lift), h * (.81f - .45f * motion.lift))
+            drawOval(pond.copy(alpha = .32f), Offset(w * .63f, h * .80f), Size(w * .36f, h * .15f))
+            drawOval(pond.copy(alpha = .6f), Offset(w * .68f, h * .83f), Size(w * .26f, h * .07f), style = Stroke(w * .01f))
+            drawLine(Color(0xFFD3AC76), Offset(w * .49f, h * .63f), tip, w * .025f)
+            drawLine(Color(0xFFE5E6EF), tip, bob, w * .008f)
             drawCircle(Color(0xFFFFCC55), w * .025f, bob)
-        } else {
-            // Quiet sleep mark, with no blinking or textual game-state claim.
-            val x = w * .77f
-            val y = h * (.18f - phase * .025f)
-            val c = Color(0xFFB8BCD5).copy(alpha = .7f)
-            drawLine(c, Offset(x, y), Offset(x + w * .1f, y), w * .015f)
-            drawLine(c, Offset(x + w * .1f, y), Offset(x, y + h * .1f), w * .015f)
-            drawLine(c, Offset(x, y + h * .1f), Offset(x + w * .1f, y + h * .1f), w * .015f)
+            if (motion.fish) {
+                val wiggle = kotlin.math.sin(phase * 95f) * .018f
+                val escape = motion.escape
+                val center = Offset(bob.x + w * (wiggle + escape * .09f), bob.y + h * (.08f + escape * .39f))
+                val fishColor = Color(0xFFFFBA70)
+                val tail = Path().apply {
+                    moveTo(center.x - w * .045f, center.y)
+                    lineTo(center.x - w * .10f, center.y - h * .045f)
+                    lineTo(center.x - w * .10f, center.y + h * .045f)
+                    close()
+                }
+                drawPath(tail, fishColor)
+                drawOval(fishColor, Offset(center.x - w * .055f, center.y - h * .035f), Size(w * .13f, h * .075f))
+                drawCircle(AlloColors.Night, w * .009f, Offset(center.x + w * .04f, center.y - h * .008f))
+            }
+            if (motion.stage == FishingStage.Splash) {
+                val splash = motion.splash
+                val fade = (1f - splash).coerceIn(0f, 1f)
+                repeat(5) { i ->
+                    val spread = (i - 2) * .04f
+                    val y = .85f - kotlin.math.sin(splash * Math.PI).toFloat() * (.12f - kotlin.math.abs(spread) * .3f)
+                    drawCircle(pond.copy(alpha = fade), w * .013f,
+                        Offset(w * (.87f + spread * (1f + splash)), h * y))
+                }
+                drawOval(pond.copy(alpha = fade), Offset(w * (.77f - .1f * splash), h * .85f),
+                    Size(w * (.20f + .2f * splash), h * .07f), style = Stroke(w * .009f))
+            }
+        } else if (pose == PetPose.Sleep) {
+            repeat(3) { i ->
+                val drift = if (animate) (phase + i / 3f) % 1f else i / 3f
+                val x = w * (.64f + drift * .20f)
+                val y = h * (.34f - drift * .30f)
+                val length = w * (.045f + drift * .04f)
+                val alpha = if (animate) kotlin.math.sin(drift * Math.PI).toFloat().coerceIn(0f, 1f) else .6f
+                val c = Color(0xFFCCD6F6).copy(alpha = alpha)
+                drawLine(c, Offset(x, y), Offset(x + length, y), w * .012f)
+                drawLine(c, Offset(x + length, y), Offset(x, y + length), w * .012f)
+                drawLine(c, Offset(x, y + length), Offset(x + length, y + length), w * .012f)
+            }
+        } else if (pose == PetPose.Move && animate) {
+            val ground = Color(0xFFB5DCCD)
+            drawOval(ground.copy(alpha = .16f), Offset(w * (.22f + .05f * motion.bounce), h * .91f),
+                Size(w * (.56f - .10f * motion.bounce), h * .07f))
+            repeat(3) { i ->
+                val travel = (phase + i / 3f) % 1f
+                drawCircle(ground.copy(alpha = (1f - travel) * .45f), w * (.015f + travel * .025f),
+                    Offset(w * (.35f - travel * .28f), h * (.91f - travel * .09f)))
+                drawLine(ground.copy(alpha = .26f), Offset(w * (1f - travel), h * .985f),
+                    Offset(w * (1f - travel) - w * .1f, h * .985f), w * .008f)
+            }
         }
     }
 }

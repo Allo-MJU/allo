@@ -13,9 +13,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ai.allo.car.model.GameState
 
-/** Driving summary: static image + identity + one factual status, no controls or animation. */
+/** Vehicle summary is static. Only the isolated preview harness opts into running motion. */
 @Composable
-fun DrivingScreen(game: GameState, connected: Boolean = true, modifier: Modifier = Modifier) {
+fun DrivingScreen(game: GameState, connected: Boolean = true, modifier: Modifier = Modifier, previewRunning: Boolean = false) {
     val summary = PetSummary.from(game, connected, rememberSpeciesCatalog())
     BoxWithConstraints(modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
         val narrow = maxWidth < 560.dp
@@ -24,12 +24,12 @@ fun DrivingScreen(game: GameState, connected: Boolean = true, modifier: Modifier
             Text("알로 · 주행 중", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 18.sp)
             Spacer(Modifier.height(20.dp))
             if (narrow) {
-                PetArt(summary, artSize, pose = PetPose.Move)
+                PetArt(summary, artSize, pose = PetPose.Move, connected = connected, previewRunning = previewRunning)
                 Spacer(Modifier.height(16.dp))
                 SummaryText(summary, centered = true)
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-                    PetArt(summary, artSize, pose = PetPose.Move)
+                    PetArt(summary, artSize, pose = PetPose.Move, connected = connected, previewRunning = previewRunning)
                     SummaryText(summary, centered = false)
                 }
             }
