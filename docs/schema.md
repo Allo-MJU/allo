@@ -292,3 +292,13 @@ DB 규칙의 원본은 [`firebase/database.rules.json`](../firebase/database.rul
 - **통합 확인:** 정상/미확인/빈 후보/손상 요약, 새 알 전후 필드 유지, 반복 경계·저장 실패·중단 복구, 최종 종료·새 세션, 실제 차량/Firebase 왕복을 확인한다. 로컬 테스트 통과를 실기 검증으로 표시하지 않는다.
 
 현재 기준의 측정 한계는 GPS 캐시 신선도, 종료 이벤트 배달, 실제 내비 안내 시작 확인이다. 미측정 값을 임의의 TTL이나 성공 보장으로 바꾸지 않고 현재 의미로 구현한다. 문제가 확인되면 C가 이 문서를 갱신하고 A/B가 따라 수정한다.
+
+## 6. 호감도 부화 데모 계약 2026-11-11
+
+사용자 확정 규칙은 [호감도 부화 구현 기준](affinity-hatching.md)을 따른다. 기존 3주제/3점 초안 대신 0~100 호감도, 발화 +12/60초·-12·중립0, 쓰다듬기 +3/10초, 구역 놓기 +7/15초, 50점 필수 사진 업로드(+15), 100점 즉시 부화를 사용한다. 다음 알은 실제 부화 후 활성30분을 기준으로 한다. C API의 `startIncubating(tier, useAffinity:true)`에서 명시적으로 선택한다. 기본 호출과 기존 저장 알은 현행 시간/거리 동작을 유지한다.
+
+새 모드의 `/game`은 `contractVersion:2`와 `affinity:{score:number,target:100,phase:string,photoCompleted:boolean}`을 추가한다. phase는 incubating/photoRequired/resultPending/hatched/failed/discarded다. photoRequired는 stage=incubating, 저장 성공 후만 stage=hatched, 실패/버리기는 stage=failed로 표시한다. progress는 시간/거리 진행률이다. 앱-local 체크포인트에는 별도의 affinity 회차 상태를 저장한다. 사진 ID·원문·발화·인증토큰은 `/game`에 넣지 않는다. 구버전 차량에 신규 UI가 구현됐다고 가정하지 않으며 새모드는 입력UI와 연결한 데모에서 선택한다.
+
+`DexEntry.sourceEggId`는 신규 결과의 로컬 중복 방지 키이며 기존 행에는 없어도 된다. 같은 키 결과 재시도에서 도감 중복을 만들지 않는다. 결과를 선택한 pending 회차를 먼저 저장한 뒤 도감에 적용하고 최종 체크포인트를 저장한다.
+
+발화 내용 판정과 사진 저장은 RTDB와 별도인 데모 API다. 텍스트는 API 판정 후 앱/서버에 기록하지 않고, 사진은 데모방 인증 하에 서버에 저장·조회한다. 엔드포인트와 제한은 구현 기준 문서를 따른다. 새 API를 공개 서버에 배포하거나 기존 운영 DB 규칙을 적용했다는 뜻이 아니다.

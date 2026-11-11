@@ -8,3 +8,5 @@ export 'src/species_table.dart';
 export 'src/incubation_schedule.dart';
 export 'src/region_collection.dart';
 export 'src/region_duration_accumulator.dart';
+
+export 'src/affinity_round.dart';

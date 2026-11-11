@@ -21,7 +21,21 @@ class DexStore {
     final p = await SharedPreferences.getInstance();
     final raw = List<String>.from(p.getStringList(_kDex) ?? const []);
     final encoded = jsonEncode(e.toJson());
-    if (!raw.contains(encoded)) raw.add(encoded);
+    var sameEgg = false;
+    if (e.sourceEggId != null) {
+      for (final value in raw) {
+        final previous =
+            DexEntry.fromJson(jsonDecode(value) as Map<String, dynamic>);
+        if (previous.sourceEggId == e.sourceEggId) {
+          if (jsonEncode(previous.toJson()) != encoded) {
+            throw StateError('Conflicting result for source egg');
+          }
+          sameEgg = true;
+        }
+      }
+    }
+    if (!sameEgg && !raw.contains(encoded)) raw.add(encoded);
+    // Retry the write even when the cache already contains a failed prior write.
     final saved = await p.setStringList(_kDex, raw);
     if (!saved) throw StateError('Could not save dex entry');
   }

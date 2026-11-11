@@ -117,4 +117,30 @@ void main() {
           throwsFormatException);
     }
   });
+  test('snapshots preserve live observation and independently project totals',
+      () {
+    final a = RegionDurationAccumulator()..observe(atMs: 0, envTags: ['coast']);
+    expect(a.snapshot(0)['durations'], {'coast': 0, 'mountain': 0, 'city': 0});
+    expect(a.snapshot(4000)['durations'],
+        {'coast': 4000, 'mountain': 0, 'city': 0});
+    expect(a.snapshot(7000)['unknownMs'], 2000);
+    expect(a.snapshot(4000)['durations'],
+        {'coast': 4000, 'mountain': 0, 'city': 0});
+    expect(a.activeMs, 0);
+    expect(a.finish(4000), 'coast');
+    expect(a.durationMs['coast'], 4000);
+    expect(a.unknownMs, 0);
+    expect(a.snapshot(9000)['unknownMs'], 0);
+    expect(a.finish(9000), 'coast');
+  });
+  test('restored snapshot does not retain the previous open observation', () {
+    final a = RegionDurationAccumulator()..observe(atMs: 0, envTags: ['coast']);
+    final snapshot = a.snapshot(2000);
+    final restored = RegionDurationAccumulator.restore(snapshot, atMs: 10000);
+    restored.finish(12000);
+    expect(restored.durationMs['coast'], 2000);
+    expect(restored.unknownMs, 2000);
+    expect(a.finish(4000), 'coast');
+    expect(a.durationMs['coast'], 4000);
+  });
 }

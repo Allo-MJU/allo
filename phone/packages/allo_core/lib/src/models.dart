@@ -14,7 +14,7 @@ enum EggTier {
 
 enum Attribute { normal, water, dark }
 
-enum Stage { idle, incubating, hatched }
+enum Stage { idle, incubating, hatched, failed }
 
 /// 내비 경로의 다음 회전 하나. schema.md 3.3 `turns`. 창밖 표시 전용이며 판정에 쓰지 않는다.
 class Turn {
@@ -145,6 +145,9 @@ class GameState {
   final int lookOutCount;
   final double? hatchAtM;
   final int? hatchAtSec;
+  final double? affinityScore;
+  final String? affinityPhase;
+  final bool photoQuestCompleted;
   final bool regionCollectionKnown;
   final List<String> uncollectedRegions;
 
@@ -160,6 +163,9 @@ class GameState {
     this.lookOutCount = 0,
     this.hatchAtM,
     this.hatchAtSec,
+    this.affinityScore,
+    this.affinityPhase,
+    this.photoQuestCompleted = false,
     this.regionCollectionKnown = false,
     this.uncollectedRegions = const [],
   });
@@ -176,22 +182,55 @@ class GameState {
         'lookOutCount': lookOutCount,
         'hatchAtM': hatchAtM,
         'hatchAtSec': hatchAtSec,
+        if (affinityScore != null) ...{
+          'contractVersion': 2,
+          'affinity': {
+            'score': affinityScore,
+            'target': 100,
+            'phase': affinityPhase,
+            'photoCompleted': photoQuestCompleted
+          },
+        },
         'regionCollectionKnown': regionCollectionKnown,
-        if (regionCollectionKnown) 'uncollectedRegions': List<String>.of(uncollectedRegions),
+        if (regionCollectionKnown)
+          'uncollectedRegions': List<String>.of(uncollectedRegions),
       };
 
   GameState copyWith({
-    int? ts, EggTier? eggTier, Stage? stage, double? progress, String? speciesId, Attribute? attribute,
-    int? tier, int? careCount, int? lookOutCount, double? hatchAtM, int? hatchAtSec,
-    bool? regionCollectionKnown, List<String>? uncollectedRegions,
+    int? ts,
+    EggTier? eggTier,
+    Stage? stage,
+    double? progress,
+    String? speciesId,
+    Attribute? attribute,
+    int? tier,
+    int? careCount,
+    int? lookOutCount,
+    double? hatchAtM,
+    int? hatchAtSec,
+    double? affinityScore,
+    String? affinityPhase,
+    bool? photoQuestCompleted,
+    bool? regionCollectionKnown,
+    List<String>? uncollectedRegions,
   }) =>
       GameState(
-        ts: ts ?? this.ts, eggTier: eggTier ?? this.eggTier, stage: stage ?? this.stage,
-        progress: progress ?? this.progress, speciesId: speciesId ?? this.speciesId,
-        attribute: attribute ?? this.attribute, tier: tier ?? this.tier,
-        careCount: careCount ?? this.careCount, lookOutCount: lookOutCount ?? this.lookOutCount,
-        hatchAtM: hatchAtM ?? this.hatchAtM, hatchAtSec: hatchAtSec ?? this.hatchAtSec,
-        regionCollectionKnown: regionCollectionKnown ?? this.regionCollectionKnown,
+        ts: ts ?? this.ts,
+        eggTier: eggTier ?? this.eggTier,
+        stage: stage ?? this.stage,
+        progress: progress ?? this.progress,
+        speciesId: speciesId ?? this.speciesId,
+        attribute: attribute ?? this.attribute,
+        tier: tier ?? this.tier,
+        careCount: careCount ?? this.careCount,
+        lookOutCount: lookOutCount ?? this.lookOutCount,
+        hatchAtM: hatchAtM ?? this.hatchAtM,
+        hatchAtSec: hatchAtSec ?? this.hatchAtSec,
+        affinityScore: affinityScore ?? this.affinityScore,
+        affinityPhase: affinityPhase ?? this.affinityPhase,
+        photoQuestCompleted: photoQuestCompleted ?? this.photoQuestCompleted,
+        regionCollectionKnown:
+            regionCollectionKnown ?? this.regionCollectionKnown,
         uncollectedRegions: uncollectedRegions ?? this.uncollectedRegions,
       );
 }
@@ -238,6 +277,7 @@ class Species {
 
 /// 도감 한 칸. 폰 로컬에만 저장한다 (서버 X).
 class DexEntry {
+  final String? sourceEggId;
   final String speciesId;
   final DateTime obtainedAt;
   final List<String> envTags; // 그날의 날씨·환경
@@ -245,6 +285,7 @@ class DexEntry {
   final int tier;
 
   const DexEntry({
+    this.sourceEggId,
     required this.speciesId,
     required this.obtainedAt,
     required this.envTags,
@@ -255,12 +296,14 @@ class DexEntry {
   Map<String, dynamic> toJson() => {
         'speciesId': speciesId,
         'obtainedAt': obtainedAt.toIso8601String(),
+        if (sourceEggId != null) 'sourceEggId': sourceEggId,
         'envTags': envTags,
         'regionTag': regionTag,
         'tier': tier,
       };
 
   factory DexEntry.fromJson(Map<String, dynamic> j) => DexEntry(
+        sourceEggId: j['sourceEggId'] as String?,
         speciesId: j['speciesId'] as String,
         obtainedAt: DateTime.parse(j['obtainedAt'] as String),
         envTags: (j['envTags'] as List).cast<String>(),

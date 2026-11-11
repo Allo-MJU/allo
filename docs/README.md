@@ -8,6 +8,7 @@
 
 | 문서 | 내용 | 주로 보는 사람 |
 | --- | --- | --- |
+| [affinity-hatching.md](./affinity-hatching.md) | 사용자 확정 호감도 부화 규칙과 C API·사진 퀘스트·데모 서버 연결 | A·B·C |
 | [color-and-app-references.md](./color-and-app-references.md) | 알로 색상값과 참고 앱 | 전원 |
 | [proposal.md](./proposal.md) | 기획서. 문제 정의, 서비스 상세, 차량특화성, 기술 활용성, 사업성, 경쟁 분석 | 전원 |
 | [dev-plan.md](./dev-plan.md) | 개발 계획. 일정, 역할, 마일스톤 게이트, 리스크 | 전원 |
