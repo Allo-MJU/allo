@@ -10,13 +10,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
-/** Actual v2 phone contract has no fishing gameplay capability: never fabricate rewards here. */
+/** Actions are enabled only by the live, selected phone fishing capability. */
 @Composable
 fun ParkedScreen(
     game: GameState, connected: Boolean = true, onShare: (() -> Unit)? = null,
     modifier: Modifier = Modifier, transferMessage: String? = null,
     onCallCompanion: (() -> Unit)? = null, onRetryTransfer: (() -> Unit)? = null,
     exitSerial: Long = 0, travelContent: (@Composable () -> Unit)? = null,
+    onStartFishing: (() -> Unit)? = null, fishingMessage: String? = null, onRetryFishing: (() -> Unit)? = null,
+    fishingMotionAllowed: Boolean = false, onPauseFishing: (() -> Unit)? = null,
 ) {
     val catalog = rememberSpeciesCatalog()
     val summary = PetSummary.from(game, connected, catalog)
@@ -28,13 +30,15 @@ fun ParkedScreen(
     // Selection/connection changes reset transient navigation and never auto-start an activity.
     var tab by remember(game.companion?.displayId, game.companion?.displayRevision, game.companion?.location, connected) { mutableStateOf("홈") }
     var resting by remember(game.companion?.displayId, game.companion?.displayRevision, game.companion?.location, connected) { mutableStateOf(false) }
-    if (resting && hasCarPet && connected) {
+    val fishingRunning = game.fishing?.takeIf { it.appliesTo(game) }?.state in setOf("running", "reward", "saving")
+    if (resting && hasCarPet && connected && !fishingRunning) {
         PleosStatusScreen(PleosRoute.Paused, game, connected, onPrimary = { resting = false })
         return
     }
     ScreenFrame("주차 홈", if (connected) "폰 상태 연결됨" else "마지막으로 받은 상태", modifier) {
         ScreenColumns(art = {
-            if (summary.showArt) PetArt(summary, 240.dp, pose = PetPose.Sleep, parked = true, connected = connected)
+            if (summary.showArt) PetArt(summary, 240.dp, pose = if (fishingRunning) PetPose.Fishing else PetPose.Sleep,
+                parked = true, connected = connected && (!fishingRunning || fishingMotionAllowed && game.fishing?.state == "running"))
             else AlloWordmark(Modifier.width(180.dp))
         }, details = {
             when (tab) {
@@ -58,9 +62,14 @@ fun ParkedScreen(
                         }
                     }
                     if (hasCarPet) {
-                        ScreenAction("쉬는 시간", { resting = true }, enabled = connected, secondary = true)
-                        ScreenAction("낚시 시작", {}, enabled = false)
-                        Text("연결된 폰이 주차 낚시를 지원하면 시작할 수 있어요.", style = MaterialTheme.typography.bodyMedium,
+                        ScreenAction("쉬는 시간", { if (fishingRunning) onPauseFishing?.invoke() else resting = true },
+                            enabled = connected && (!fishingRunning || onPauseFishing != null && game.fishing?.state != "saving"), secondary = true)
+                        ScreenAction(when (game.fishing?.state) {
+                            "paused" -> "낚시 이어하기"; "saveFailed" -> "저장 다시 확인"
+                            "running", "saving", "reward" -> "낚시 상태 보기"; else -> "낚시 시작"
+                        }, { onStartFishing?.invoke() }, enabled = connected && onStartFishing != null)
+                        onRetryFishing?.let { ScreenAction("낚시 요청 다시 확인", it, secondary = true) }
+                        Text(fishingMessage ?: if (onStartFishing != null) "폰에서 진행과 관찰 기록을 저장해요." else "연결된 폰이 주차 낚시를 지원하면 시작할 수 있어요.", style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (hasCarPet) {

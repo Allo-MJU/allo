@@ -292,3 +292,7 @@ DB 규칙의 원본은 [`firebase/database.rules.json`](../firebase/database.rul
 - **통합 확인:** 정상/미확인/빈 후보/손상 요약, 새 알 전후 필드 유지, 반복 경계·저장 실패·중단 복구, 최종 종료·새 세션, 실제 차량/Firebase 왕복을 확인한다. 로컬 테스트 통과를 실기 검증으로 표시하지 않는다.
 
 현재 기준의 측정 한계는 GPS 캐시 신선도, 종료 이벤트 배달, 실제 내비 안내 시작 확인이다. 미측정 값을 임의의 TTL이나 성공 보장으로 바꾸지 않고 현재 의미로 구현한다. 문제가 확인되면 C가 이 문서를 갱신하고 A/B가 따라 수정한다.
+
+## 주차 낚시 capability v1 (2026-11-11)
+
+차량 #92 구현의 추가 계약은 [차량 주차 낚시와 폰 저장 계약 v1](vehicle/fishing-integration.md)을 따른다. 폰 단일 전체 `/game` writer를 유지하며 v2 동행·gameRevision과 별도 `fishing.version=1` 요약을 합성한다. 차량 `/vehicle/fishingPresence`는 주차·화면 활성 증거 및 lease echo를 보낸다. `fishingRequested` 이벤트는 폰에 의도를 전달하며 저장 완료나 보상 확정을 의미하지 않는다. 구버전/누락 시 낚시 시작은 비활성화한다. 공용 예시는 `data/fixtures/fishing-v1.json`이다. 개발용 Firebase 권한 규칙은 변경하지 않는다.

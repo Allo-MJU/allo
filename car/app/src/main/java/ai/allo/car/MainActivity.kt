@@ -76,6 +76,7 @@ class MainActivity : ComponentActivity() {
             val meta by session.meta.collectAsStateWithLifecycle()
             val connected by session.gameConnected.collectAsStateWithLifecycle()
             val transfer by session.transferUi.collectAsStateWithLifecycle()
+            val fishingUi by session.fishingUi.collectAsStateWithLifecycle()
             val travelOffer by session.travelOffer.collectAsStateWithLifecycle()
             val travelMessage by session.travelMessage.collectAsStateWithLifecycle()
             val ended by session.ended.collectAsStateWithLifecycle()
@@ -83,8 +84,9 @@ class MainActivity : ComponentActivity() {
             val sid by session.sessionIdentity.collectAsStateWithLifecycle()
             val resultKey = "$sid:${game.transferResult?.requestId}:${transfer.status}"
             var dismissed by remember(resultKey) { mutableStateOf(false) }
+            var fishingDismissed by remember(sid, game.companion?.displayId, game.companion?.displayRevision) { mutableStateOf(false) }
             val route = PleosFlow.route(parkingChecked, parkedAllowed, showSpeedNotice,
-                meta.paired, connected, ended, game, transfer, dismissed)
+                meta.paired, connected, ended, game, transfer, dismissed, fishingDismissed)
             val catalog = rememberSpeciesCatalog()
             var previousCarGame by remember(sid) { mutableStateOf<GameState?>(null) }
             var departing by remember(sid) { mutableStateOf<GameState?>(null) }
@@ -128,8 +130,20 @@ class MainActivity : ComponentActivity() {
                         })
                     PleosRoute.Home, PleosRoute.Empty -> key(sid) {
                         ParkedScreen(game, connected,
+                            onStartFishing = if (fishingUi.available && fishingUi.pending == null) ({
+                                fishingDismissed = false
+                                when (game.fishing?.state) {
+                                    "ready" -> session.requestFishing("start")
+                                    "paused" -> session.requestFishing("resume")
+                                    "saveFailed" -> session.requestFishing("retry")
+                                }
+                            }) else null,
+                            fishingMotionAllowed = fishingUi.available && fishingUi.pending == null,
+                            onPauseFishing = if (fishingUi.available && fishingUi.pending == null) ({ session.requestFishing("pause") }) else null,
+                            fishingMessage = fishingUi.message.takeIf { game.fishing != null || "fishing" in game.invalidBlocks },
+                            onRetryFishing = if (fishingUi.unconfirmed) ({ session.retryFishing() }) else null,
                             onShare = if (BuildConfig.DEBUG) ({ openShare() }) else null,
-                            onCallCompanion = if (game.hasV2Contract && game.companion?.location == "car" && transfer.pending == null && !ended)
+                            onCallCompanion = if (game.hasV2Contract && game.companion?.location == "car" && transfer.pending == null && fishingUi.pending == null && !ended)
                                 ({ session.requestCompanionTransfer(); Unit }) else null,
                             travelContent = {
                                 TravelRequestCard(game, connected && !ended, travelOffer, travelMessage,
@@ -137,6 +151,13 @@ class MainActivity : ComponentActivity() {
                             })
                     }
                     else -> PleosStatusScreen(route, game, connected && !ended,
+                        fishing = game.fishing?.takeIf { it.appliesTo(game) }?.display(),
+                        motionAllowed = fishingUi.available && fishingUi.pending == null,
+                        requestMessage = if (route in setOf(PleosRoute.Fishing, PleosRoute.Paused, PleosRoute.Saving, PleosRoute.SaveFailed, PleosRoute.Reward)) fishingUi.message else null,
+                        onRetryRequest = if (fishingUi.unconfirmed) ({ session.retryFishing() }) else null,
+                        onHome = if (route in setOf(PleosRoute.Fishing, PleosRoute.Paused, PleosRoute.Saving, PleosRoute.SaveFailed, PleosRoute.Reward)) ({ fishingDismissed = true }) else null,
+                        onSecondary = if (route in setOf(PleosRoute.Fishing, PleosRoute.Paused, PleosRoute.Reward) && fishingUi.available && fishingUi.pending == null)
+                            ({ session.requestCompanionTransfer(); Unit }) else null,
                         transferMessage = transfer.message.takeIf { it.isNotBlank() },
                         departure = departing?.let { PetSummary.from(it, true, catalog) }, departureFraction = exit.value,
                         onPrimary = when (route) {
@@ -144,6 +165,9 @@ class MainActivity : ComponentActivity() {
                             PleosRoute.Ended -> ({ session.prepareNextSession() })
                             PleosRoute.TransferComplete, PleosRoute.TransferRejected -> ({ dismissed = true })
                             PleosRoute.TransferPending -> if (transfer.status == TransferStatus.Unconfirmed) ({ session.retryCompanionTransfer() }) else null
+                            PleosRoute.Fishing, PleosRoute.Reward -> if (fishingUi.available && fishingUi.pending == null) ({ session.requestFishing("pause") }) else null
+                            PleosRoute.Paused -> if (fishingUi.available && fishingUi.pending == null) ({ session.requestFishing("resume") }) else null
+                            PleosRoute.SaveFailed -> if (fishingUi.available && fishingUi.pending == null) ({ session.requestFishing("retry") }) else null
                             else -> null
                         })
                 }
@@ -184,6 +208,16 @@ class MainActivity : ComponentActivity() {
     private fun openShare() {
         if (!BuildConfig.DEBUG || !visible || !parkedAllowed) return
         startActivity(Intent().setClassName(this, "ai.allo.car.mirror.MirrorActivity"))
+    }
+
+    override fun onResume() {
+        super.onResume()
+        (application as AlloApp).session.updateActivityResumed(true)
+    }
+
+    override fun onPause() {
+        (application as AlloApp).session.updateActivityResumed(false)
+        super.onPause()
     }
 
     override fun onStop() {

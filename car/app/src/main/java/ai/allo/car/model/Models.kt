@@ -35,6 +35,7 @@ data class VehicleSnapshot(
     val turns: List<Turn> = emptyList(), // 내비 다음 회전, 가까운 순 최대 3개. 안내 중이 아니면 빈 목록
     val headingDeg: Double? = null,   // 차 진행 방향(도, 0~360, 북쪽 0·시계 방향). 모르면 null. 좌표는 보내지 않는다
     val capabilities: List<String>,
+    val fishingPresence: FishingPresence? = null,
 )
 
 /**
@@ -69,6 +70,7 @@ data class GameState(
     val transferResult: TransferResult? = null,
     val baseSummary: BaseSummary? = null,
     val travelRequest: TravelRequest? = null,
+    val fishing: FishingSnapshot? = null,
     @kotlinx.serialization.Transient val invalidBlocks: Set<String> = emptySet(),
 ) {
     val hasV2Contract: Boolean get() = contractVersion == 2 && gameRevision != null && gameRevision >= 0

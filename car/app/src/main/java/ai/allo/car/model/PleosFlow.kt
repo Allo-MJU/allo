@@ -14,6 +14,7 @@ object PleosFlow {
         parkingChecked: Boolean, parkedAllowed: Boolean, permissionNotice: Boolean,
         paired: Boolean, connected: Boolean, ended: Boolean, game: GameState,
         transfer: TransferUiState = TransferUiState(), dismissTransfer: Boolean = false,
+        dismissFishing: Boolean = false,
     ): PleosRoute = when {
         !parkingChecked -> PleosRoute.Starting
         !parkedAllowed -> PleosRoute.Driving
@@ -27,7 +28,7 @@ object PleosFlow {
         !dismissTransfer && transfer.appliesTo(game) && transfer.status in setOf(TransferStatus.Busy, TransferStatus.StaleSelection, TransferStatus.NoCompanion, TransferStatus.Unsupported) -> PleosRoute.TransferRejected
         game.hasV2Contract && "companion" !in game.invalidBlocks &&
             (game.companion?.location == "phone" || game.companion == null && game.stage != "incubating") -> PleosRoute.Empty
-        else -> PleosRoute.Home
+        else -> game.fishing?.takeIf { !dismissFishing && it.appliesTo(game) }?.route() ?: PleosRoute.Home
     }
 }
 

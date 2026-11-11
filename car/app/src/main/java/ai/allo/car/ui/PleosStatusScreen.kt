@@ -16,6 +16,8 @@ fun PleosStatusScreen(
     fishing: FishingDisplay? = null, transferMessage: String? = null,
     onPrimary: (() -> Unit)? = null, onSecondary: (() -> Unit)? = null,
     departure: PetSummary? = null, departureFraction: Float = 1f,
+    motionAllowed: Boolean = true, requestMessage: String? = null, onRetryRequest: (() -> Unit)? = null,
+    onHome: (() -> Unit)? = null,
 ) {
     val summary = PetSummary.from(game, connected, rememberSpeciesCatalog())
     val name = summary.title
@@ -91,7 +93,7 @@ fun PleosStatusScreen(
                 route == PleosRoute.TransferComplete -> Text("✓", style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.secondary)
                 route == PleosRoute.Empty -> Text("함께할 친구", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 summary.showArt -> PetArt(summary, 240.dp, pose = if (route == PleosRoute.Paused) PetPose.Sleep else PetPose.Fishing,
-                    parked = true, connected = connected && route in setOf(PleosRoute.Fishing, PleosRoute.Paused))
+                    parked = true, connected = connected && motionAllowed && route in setOf(PleosRoute.Fishing, PleosRoute.Paused))
                 else -> AlloWordmark(Modifier.width(180.dp))
             }
         }, details = {
@@ -103,6 +105,7 @@ fun PleosStatusScreen(
                         Text("${fishing.elapsedSeconds} / ${fishing.targetSeconds}초", style = MaterialTheme.typography.titleLarge)
                         LinearProgressIndicator(progress = { fishing.progress }, modifier = Modifier.fillMaxWidth())
                         Text("폰에서 확인된 진행", style = MaterialTheme.typography.bodyMedium)
+                        fishing.totalRecords?.let { Text("저장된 관찰 기록 ${it}건", style = MaterialTheme.typography.bodyMedium) }
                     }
                 }
             }
@@ -113,8 +116,11 @@ fun PleosStatusScreen(
                 } }
             }
             note?.let { Card(Modifier.fillMaxWidth()) { Text(it, Modifier.padding(20.dp), style = MaterialTheme.typography.bodyLarge) } }
+            requestMessage?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+            onRetryRequest?.let { ScreenAction("낚시 요청 다시 확인", it, secondary = true) }
             action?.let { label -> ScreenAction(label, { onPrimary?.invoke() }, enabled = onPrimary != null) }
             if (onSecondary != null) ScreenAction("폰으로 부르기", onSecondary, secondary = true)
+            onHome?.let { ScreenAction("주차 홈으로", it, secondary = true) }
         }, modifier = Modifier.weight(1f))
     }
 }

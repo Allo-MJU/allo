@@ -84,6 +84,13 @@ class SessionManager(private val context: Context) {
     private val _travelMessage = MutableStateFlow("")
     val travelMessage: StateFlow<String> = _travelMessage
     private var lastTravelContext: TravelRequestFlow.Context? = null
+    private val fishingController = FishingController()
+    private val _fishingUi = MutableStateFlow(FishingUiState())
+    val fishingUi: StateFlow<FishingUiState> = _fishingUi
+    private var fishingFreshness = FishingFreshness()
+    private var fishingEpoch = UUID.randomUUID().toString()
+    private var fishingSequence = 0L
+    private var activityResumed = false
     private var parkingAllowed = false
     private var parkingVerifiedAt = -1L
 
@@ -107,6 +114,8 @@ class SessionManager(private val context: Context) {
     private fun syncFeatureState() {
         transfers.observe(sessionId, _game.value, _gameConnected.value && _meta.value.paired, _ended.value)
         _transferUi.value = transfers.state
+        fishingController.observe(sessionId, _game.value, fishingPermitted(), android.os.SystemClock.elapsedRealtime())
+        _fishingUi.value = fishingController.ui
         val next = travelContext()
         travel.update(next)
         if (lastTravelContext != next) {
@@ -114,6 +123,56 @@ class SessionManager(private val context: Context) {
             _travelMessage.value = ""
         }
         lastTravelContext = next
+    }
+
+    @Synchronized
+    fun updateActivityResumed(resumed: Boolean) {
+        activityResumed = resumed
+        syncFeatureState()
+    }
+
+    private fun fishingConnected(): Boolean = _gameConnected.value && _meta.value.paired && !_ended.value &&
+        fishingFreshness.isFresh(android.os.SystemClock.elapsedRealtime())
+
+    private fun fishingPermitted(): Boolean = activityResumed && hasParkingPermission() && fishingConnected() &&
+        transfers.state.pending == null
+
+    @Synchronized
+    private fun fishingPresence(): FishingPresence? {
+        val f = _game.value.fishing?.takeIf { it.appliesTo(_game.value) } ?: return null
+        // Empty lease explicitly breaks old eligibility without echoing stale phone state.
+        return FishingPresence(leaseId = if (fishingConnected()) f.leaseId else "",
+            epoch = fishingEpoch, sequence = ++fishingSequence,
+            active = activityResumed && !_ended.value, parkedAllowed = hasParkingPermission() && !_ended.value)
+    }
+
+    @Synchronized
+    fun requestFishing(action: String) {
+        syncFeatureState()
+        val request = fishingController.request(sessionId, _game.value, fishingPermitted(), action,
+            android.os.SystemClock.elapsedRealtime())
+        _fishingUi.value = fishingController.ui
+        request?.let { sendFishing(sessionId, sessionReady, it) }
+    }
+
+    @Synchronized
+    fun retryFishing() {
+        syncFeatureState()
+        val request = fishingController.retry(sessionId, _game.value, fishingPermitted(), android.os.SystemClock.elapsedRealtime())
+        _fishingUi.value = fishingController.ui
+        request?.let { sendFishing(sessionId, sessionReady, it) }
+    }
+
+    private fun sendFishing(id: String, ready: CompletableDeferred<Unit>, request: FishingRequest) {
+        scope.launch {
+            val permitted = synchronized(this@SessionManager) {
+                id == sessionId && fishingPermitted() && fishingController.ui.pending == request
+            }
+            if (!permitted || !rest.isConfigured || !ready.isCompleted) return@launch
+            try { rest.post("sessions/$id/events", fishingRequestEvent(request, System.currentTimeMillis()).toString()) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { debugLog("fishing request awaiting phone confirmation") }
+        }
     }
 
     @Synchronized
@@ -320,6 +379,8 @@ class SessionManager(private val context: Context) {
         val ready = CompletableDeferred<Unit>()
         derivation.reset(); endDetector.reset(); destinations.reset(); travel.reset(); gameReducer.reset()
         gameRaw = JsonObject(emptyMap())
+        fishingFreshness = FishingFreshness()
+        fishingEpoch = UUID.randomUUID().toString(); fishingSequence = 0
         gameConnectionGeneration++
         sessionStartedAt = System.currentTimeMillis()
         sessionReady = ready
@@ -361,7 +422,7 @@ class SessionManager(private val context: Context) {
         if (!rest.isConfigured || !ready.isCompleted) { debugLog("session end not sent sid=$id: session not created"); return }
         if (last != null) {
             val wrote = retrying(5, onFailure = { i, e -> debugLog("final vehicle write failed #$i: ${e.message}") }) {
-                rest.put("sessions/$id/vehicle", rest.json.encodeToString(last))
+                rest.put("sessions/$id/vehicle", rest.json.encodeToString(last.copy(fishingPresence = last.fishingPresence?.copy(active = false, parkedAllowed = false))))
             }
             if (!wrote) debugLog("final vehicle write gave up sid=$id")
         }
@@ -440,6 +501,7 @@ class SessionManager(private val context: Context) {
                 turns = naviEta.turns.value,
                 headingDeg = naviEta.headingDeg.value,
                 capabilities = caps.snapshot(),
+                fishingPresence = fishingPresence(),
             )
             if (BuildConfig.DEBUG && snap.copy(ts = 0) != _vehicle.value?.copy(ts = 0)) {
                 android.util.Log.d("SessionManager", "vehicle $snap") // 디버그 빌드만. 값이 바뀔 때만
@@ -472,6 +534,7 @@ class SessionManager(private val context: Context) {
         if (gameReducer.apply(raw, root)) {
             gameRaw = raw
             _game.value = gameReducer.game
+            fishingFreshness.observe(gameReducer.game.gameRevision, android.os.SystemClock.elapsedRealtime())
             updateRegions(RegionSummary.parse(raw))
         }
         _gameConnected.value = gameReducer.connected
@@ -502,6 +565,7 @@ class SessionManager(private val context: Context) {
                 synchronized(this@SessionManager) {
                     if (id == sessionId) {
                         gameReducer.disconnect()
+                        fishingFreshness.disconnect()
                         gameConnectionGeneration++
                         _gameConnected.value = false
                         syncFeatureState()

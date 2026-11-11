@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../feed/vehicle_feed.dart';
+import '../fishing/fishing_controller.dart';
+import '../fishing/fishing_store.dart';
 import '../feed/fake_feed.dart';
 import '../storage/dex_store.dart';
 import '../storage/pairing_store.dart';
@@ -18,11 +20,85 @@ class GameController extends ChangeNotifier {
       required this.dex,
       RarityEngine? engine,
       PairingStore? pairingStore,
-      int Function()? monotonicMs})
+      int Function()? monotonicMs,
+      FishingStore? fishingStore})
       : engine = engine ?? const RarityEngine(),
         pairingStore = pairingStore ?? PairingStore(),
         _monotonicMs = monotonicMs {
     _stopwatch.start();
+    fishing = FishingController(
+      store: fishingStore,
+      clockMs: () => _monotonicMs?.call() ?? _stopwatch.elapsedMilliseconds,
+      onChanged: _onFishingChanged,
+    );
+  }
+
+  late final FishingController fishing;
+
+  void _onFishingChanged() {
+    if (_disposed) return;
+    if (fishing.error != null) error = fishing.error;
+    if (paired && !busy && !sessionEnded && !endingSession) {
+      if (fishing.initialized && fishing.selectedSpeciesId != null) {
+        _ensureCompanionVehicleSubscription();
+      }
+      _publish();
+    }
+    notifyListeners();
+  }
+
+  /// Selection is only from this phone's persisted collection, never a species ID alone.
+  Future<bool> selectCarCompanion(DexEntry entry) async {
+    if (!paired || sessionEnded || endingSession || busy) return false;
+    final connection = _connection;
+    busy = true;
+    error = null;
+    notifyListeners();
+    try {
+      final entries = await dex.all();
+      if (_disposed || connection != _connection || !paired || sessionEnded) {
+        return false;
+      }
+      if (!entries.any((owned) =>
+          jsonEncode(owned.toJson()) == jsonEncode(entry.toJson()))) {
+        error = '이 폰의 도감에 있는 친구를 선택해 주세요.';
+        return false;
+      }
+      await fishing.select(entry);
+      if (_disposed ||
+          connection != _connection ||
+          !paired ||
+          sessionEnded ||
+          endingSession) {
+        return false;
+      }
+      if (fishing.error != null) {
+        error = fishing.error;
+        return false;
+      }
+      _ensureCompanionVehicleSubscription();
+      _publish();
+      return true;
+    } catch (_) {
+      error = '친구 선택을 저장하지 못했어요. 다시 확인해 주세요.';
+      return false;
+    } finally {
+      busy = false;
+      notifyListeners();
+    }
+  }
+
+  void _ensureCompanionVehicleSubscription() {
+    if (_sub != null || !paired || sessionEnded || _disposed) return;
+    final connection = _connection;
+    _sub = feed.watch().listen((v) {
+      if (connection == _connection) _onVehicle(v);
+    }, onError: (Object _) {
+      if (_disposed || connection != _connection) return;
+      fishing.observePresence(null);
+      error = '차량 신호를 받지 못했어요. 연결을 확인해 주세요.';
+      notifyListeners();
+    });
   }
 
   final Stopwatch _stopwatch = Stopwatch();
@@ -243,6 +319,12 @@ class GameController extends ChangeNotifier {
     _remoteSaved = false;
     _finalSnapshotRead = false;
     paired = true;
+    await fishing.attach(credentials.sessionId);
+    await fishing.setActive(_appActive);
+    if (_disposed || connection != _connection) return;
+    if (fishing.selectedSpeciesId != null) {
+      _ensureCompanionVehicleSubscription();
+    }
     _eventsSub = feed.events().listen(
       (event) => _onCarEvent(event, connection),
       onError: (Object _) {
@@ -265,10 +347,15 @@ class GameController extends ChangeNotifier {
     if (_disposed ||
         connection != _connection ||
         sessionEnded ||
-        event['by'] != 'car' ||
-        event['type'] != 'sessionEnd') {
+        event['by'] != 'car') {
       return;
     }
+    if (event['type'] == 'fishingRequested' ||
+        event['type'] == 'companionTransferRequested') {
+      unawaited(fishing.handleEvent(event));
+      return;
+    }
+    if (event['type'] != 'sessionEnd') return;
     _remoteEnded = true;
     _endedSessionId = _sessionId;
     paired = false;
@@ -287,6 +374,11 @@ class GameController extends ChangeNotifier {
       if (isFake) {
         await feed.pair(sessionId, pairCode: pairCode);
         paired = true;
+        _sessionId = sessionId;
+        await fishing.attach(sessionId);
+        await fishing.setActive(_appActive);
+        _eventsSub ??=
+            feed.events().listen((event) => _onCarEvent(event, _connection));
         await _refreshCollection();
         _publish();
       } else {
@@ -429,6 +521,7 @@ class GameController extends ChangeNotifier {
 
   void _onVehicle(VehicleState v, {bool finalSnapshot = false}) {
     if (_disposed || (!finalSnapshot && (sessionEnded || !_appActive))) return;
+    if (!finalSnapshot) fishing.observePresence(v.fishingPresence);
     // Distance snapshots in older feeds may share a ts. Preserve their high-water
     // distance handling, while ETA rounds reject duplicate/out-of-order samples.
     if (_hatchSec != null &&
@@ -564,6 +657,10 @@ class GameController extends ChangeNotifier {
   void _publish() {
     _lastPublishedAt = activeClockMs;
     _applyCollection();
+    game = game.copyWith(
+        ts: _now,
+        vehicleFeatures:
+            fishing.initialized ? fishing.snapshotFields : const {});
     final snapshot = game;
     final connection = _connection;
     final sessionId = _sessionId;
@@ -582,7 +679,9 @@ class GameController extends ChangeNotifier {
     if (_disposed || !_appActive || sessionEnded || endingSession) return;
     if (_lastPublishedAt != null &&
         now >= _lastPublishedAt! &&
-        now - _lastPublishedAt! < 3000) return;
+        now - _lastPublishedAt! < 3000) {
+      return;
+    }
     game = game.copyWith(ts: _now);
     _publish();
   }
@@ -712,6 +811,13 @@ class GameController extends ChangeNotifier {
     subscription?.pause();
     var subscriptionClosed = false;
     try {
+      // Start stopping fishing now, but read the vehicle's final snapshot without
+      // waiting for unrelated local storage. Both saves must succeed before closing.
+      final fishingStop = () async {
+        if (fishing.hasPendingWrite) await fishing.retrySave();
+        await fishing.setActive(false);
+        if (!sessionEnded) await fishing.setActive(_appActive);
+      }();
       bool closingRemote;
       do {
         closingRemote = sessionEnded;
@@ -723,6 +829,11 @@ class GameController extends ChangeNotifier {
           if (_disposed || connection != _connection) return false;
           if (last != null) _onVehicle(last, finalSnapshot: true);
           _finalSnapshotRead = true;
+        }
+        await fishingStop;
+        if (fishing.hasPendingWrite) {
+          error = fishing.error;
+          return false;
         }
         await _pendingSave;
         if (_disposed || connection != _connection) return false;
@@ -755,6 +866,12 @@ class GameController extends ChangeNotifier {
       } while (sessionEnded && !closingRemote);
       if (_disposed || connection != _connection) return false;
       if (sessionEnded) {
+        // Preserve the v2 composer while final egg/collection saves publish.
+        await fishing.detach();
+        if (fishing.hasPendingWrite) {
+          error = fishing.error;
+          return false;
+        }
         try {
           await _pairingSave;
         } catch (_) {/* 실패한 재연결 정보도 아래에서 제거한다. */}
@@ -917,6 +1034,7 @@ class GameController extends ChangeNotifier {
     if (_appActive == active) return true;
     _advanceClock();
     _appActive = active;
+    await fishing.setActive(active);
     _clockAt = activeClockMs;
     if (active || _timer == null || sessionSaved) return true;
     _regions.breakContinuity(_regionAtMs);
@@ -942,6 +1060,7 @@ class GameController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    fishing.dispose();
     _connection++;
     _sub?.cancel();
     _eventsSub?.cancel();

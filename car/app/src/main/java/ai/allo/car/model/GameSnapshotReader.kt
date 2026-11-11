@@ -4,7 +4,7 @@ import kotlinx.serialization.json.*
 
 object GameSnapshotReader {
     private val json = Json { ignoreUnknownKeys = true }
-    private val blocks = setOf("affinity", "companion", "transferResult", "baseSummary", "travelRequest")
+    private val blocks = setOf("affinity", "companion", "transferResult", "baseSummary", "travelRequest", "fishing")
     private fun JsonObject.number(k: String): Long = (get(k) as? JsonPrimitive)?.takeUnless { it.isString }?.longOrNull?.takeIf { it >= 0 } ?: error(k)
     private fun JsonObject.word(k: String): String = (get(k) as? JsonPrimitive)?.takeIf { it.isString }?.content?.takeIf { it.isNotBlank() } ?: error(k)
     private fun JsonObject.optional(k: String): String? = if (get(k) == null || get(k) == JsonNull) null else word(k)
@@ -35,8 +35,22 @@ object GameSnapshotReader {
             BaseSummary(it.optional("builderSpeciesId"), it.optional("cookSpeciesId"), it.optional("trainerSpeciesId"), structures, it.optional("lastMealId"), it.optional("activeTaskKind"))
         }
         val travel = block("travelRequest") { TravelRequest(it.word("wishId"), it.word("targetRegion").also { v -> require(v in setOf("coast", "mountain", "city")) }) }
+        val fishing = block("fishing") {
+            require(it.int("version") == 1)
+            val activity = (it["activityId"] as? JsonPrimitive)?.takeIf { p -> p.isString }?.content ?: error("activityId")
+            val state = it.word("state").also { v -> require(v in setOf("ready", "running", "paused", "saving", "reward", "saveFailed")) }
+            val elapsed = it.number("elapsedMs"); val target = it.number("targetMs")
+            require(target == 60_000L && elapsed <= target)
+            require(state in setOf("ready", "saving", "saveFailed") || activity.isNotBlank())
+            val total = it.number("totalRecords"); val reward = it.optional("rewardName")
+            require(state != "reward" || reward != null && total > 0)
+            FishingSnapshot(1, it.word("leaseId"), it.word("displayId"), it.number("displayRevision"),
+                activity, it.number("cycle"), state, elapsed, target, total, reward, it.optional("requestId")).also { f ->
+                require(companion?.location == "car" && companion.displayId == f.displayId && companion.displayRevision == f.displayRevision)
+            }
+        }
         base.copy(contractVersion = version, gameRevision = revision, affinity = affinity, companion = companion,
-            transferResult = transfer, baseSummary = home, travelRequest = travel, invalidBlocks = invalid)
+            transferResult = transfer, baseSummary = home, travelRequest = travel, fishing = fishing, invalidBlocks = invalid)
     }.getOrNull()
 }
 

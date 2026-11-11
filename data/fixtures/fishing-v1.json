@@ -1,0 +1,14 @@
+{
+  "game": {
+    "ts": 1794394800000,
+    "eggTier": "small",
+    "stage": "incubating",
+    "progress": 0.25,
+    "contractVersion": 2,
+    "gameRevision": 1000001,
+    "companion": {"displayId": "display-example", "displayRevision": 1, "speciesId": "road_sprout", "location": "car"},
+    "fishing": {"version": 1, "leaseId": "lease-example", "displayId": "display-example", "displayRevision": 1, "activityId": "activity-example", "cycle": 0, "state": "running", "elapsedMs": 35000, "targetMs": 60000, "totalRecords": 0, "requestId": "request-example"}
+  },
+  "presence": {"version": 1, "leaseId": "lease-example", "epoch": "car-process-example", "sequence": 10, "active": true, "parkedAllowed": true},
+  "request": {"ts": 1794394800000, "type": "fishingRequested", "by": "car", "payload": {"requestId": "pause-example", "leaseId": "lease-example", "displayId": "display-example", "displayRevision": 1, "action": "pause", "activityId": "activity-example", "cycle": 0}}
+}
