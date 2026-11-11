@@ -120,7 +120,7 @@ class MainActivity : ComponentActivity() {
                         })
                     PleosRoute.Pairing -> PairingScreen(meta, if (pairingReady) BuildConfig.ALLO_DB_URL else "", sid)
                     PleosRoute.Driving -> DrivingScreen(game, connected && meta.paired && !ended,
-                        runningMotion = false, statusMessage = when {
+                        runningMotion = true, statusMessage = when {
                             ended -> "이번 연결이 끝났어요"
                             meta.paired && !connected -> "폰 연결이 끊겼어요"
                             !meta.paired -> "주차 후 폰을 연결해 주세요"

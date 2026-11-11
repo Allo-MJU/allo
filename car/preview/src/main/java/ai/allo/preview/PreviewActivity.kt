@@ -82,7 +82,7 @@ class PreviewActivity : ComponentActivity() {
                                     PleosRoute.Pairing -> PairingScreen(
                                         SessionMeta(1, "482619", carAppVersion = "preview"),
                                         dbUrl = "preview-only", sessionId = "ui-fixture-not-a-real-session")
-                                    PleosRoute.Driving -> DrivingScreen(game, connected = true, runningMotion = false)
+                                    PleosRoute.Driving -> DrivingScreen(game, connected = true, runningMotion = true)
                                     PleosRoute.Home, PleosRoute.Empty -> ParkedScreen(game, connected = true,
                                         onCallCompanion = { show(PleosRoute.TransferPending) })
                                     else -> PleosStatusScreen(

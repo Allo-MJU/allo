@@ -13,13 +13,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ai.allo.car.model.GameState
 
-/** Driving has no actions. Static run pose is the #92 design default; motion remains opt-in. */
+/** Driving has no actions. Existing run frames animate while connected, resumed and system motion is enabled. */
 @Composable
 fun DrivingScreen(
     game: GameState,
     connected: Boolean = true,
     modifier: Modifier = Modifier,
-    runningMotion: Boolean = false,
+    runningMotion: Boolean = true,
     statusMessage: String? = null,
 ) {
     val summary = PetSummary.from(game, connected, rememberSpeciesCatalog())
