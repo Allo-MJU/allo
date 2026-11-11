@@ -3,6 +3,11 @@ class PairingException implements Exception {
   final String message;
 }
 
+/// Transient authentication/transport failure: retain the saved reconnect target.
+class RetryablePairingException extends PairingException {
+  const RetryablePairingException(super.message);
+}
+
 class SessionEndedException extends PairingException {
   const SessionEndedException() : super('주행이 끝났어요. 차량의 새 QR을 스캔해 주세요.');
 }

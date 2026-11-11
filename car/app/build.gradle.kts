@@ -36,6 +36,9 @@ android {
 
         buildConfigField("String", "ALLO_DB_URL", quoted(localProps.getProperty("ALLO_DB_URL", "")))
         buildConfigField("String", "CAR_APP_VERSION", quoted("0.1.0"))
+        buildConfigField("String", "FIREBASE_API_KEY", quoted(localProps.getProperty("FIREBASE_API_KEY", "")))
+        buildConfigField("String", "FIREBASE_PROJECT_ID", quoted(localProps.getProperty("FIREBASE_PROJECT_ID", "")))
+        buildConfigField("String", "FIREBASE_FUNCTIONS_REGION", quoted(localProps.getProperty("FIREBASE_FUNCTIONS_REGION", "asia-northeast3")))
     }
 
     buildTypes {

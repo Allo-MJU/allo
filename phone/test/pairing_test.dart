@@ -144,6 +144,27 @@ void main() {
     });
   });
 
+  testWidgets('일시 인증 실패는 저장된 재연결 대상과 코드를 보존한다', (tester) async {
+    await tester.runAsync(() async {
+      SharedPreferences.setMockInitialValues({});
+      await PairingStore().save(PairingCredentials.parseFields(sid, code));
+      final feed = _RecordingFeed()..retryableFailure = true;
+      final c = GameController(feed: feed, dex: DexStore());
+      try {
+        await c.restorePairing();
+        expect(c.paired, isFalse);
+        expect(c.error, isNotNull);
+        expect((await PairingStore().read())?.sessionId, sid);
+        expect((await PairingStore().read())?.code, code);
+        feed.retryableFailure = false;
+        await c.pair(sid, pairCode: code);
+        expect(c.paired, isTrue);
+      } finally {
+        c.dispose();
+      }
+    });
+  });
+
   testWidgets('손상된 로컬 연결 기록은 제거한다', (tester) async {
     await tester.runAsync(() async {
       SharedPreferences.setMockInitialValues(
@@ -159,11 +180,15 @@ class _RecordingFeed implements VehicleFeed {
   int calls = 0;
   final started = Completer<void>();
   bool fail = false;
+  bool retryableFailure = false;
   Completer<void>? gate;
   @override
   Future<void> pair(String sessionId, {String? pairCode}) async {
     calls++;
     if (!started.isCompleted) started.complete();
+    if (retryableFailure) {
+      throw const RetryablePairingException('auth unavailable');
+    }
     if (fail) throw StateError('offline');
     await gate?.future;
   }

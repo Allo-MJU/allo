@@ -43,9 +43,10 @@ Future<Widget> createApp({
     return const ConnectionSetupApp(message: '실행 설정을 확인해야 해요.');
   }
 
+  final resolvedConfig = config ?? FirebaseConfig.fromEnvironment();
   final FirebaseOptions options;
   try {
-    options = (config ?? FirebaseConfig.fromEnvironment()).toOptions();
+    options = resolvedConfig.toOptions();
   } on FormatException catch (error) {
     return ConnectionSetupApp(message: error.message);
   }
@@ -56,7 +57,10 @@ Future<Widget> createApp({
     } else {
       await Firebase.initializeApp(options: options);
     }
-    return AlloApp(feed: (createFirebaseFeed ?? FirebaseVehicleFeed.new)());
+    return AlloApp(
+        feed: createFirebaseFeed?.call() ??
+            FirebaseVehicleFeed(
+                functionsRegion: resolvedConfig.functionsRegion));
   } catch (_) {
     // SDK 오류에는 설정 값이 포함될 수 있어 사용자 화면에 원문을 표시하지 않는다.
     return const ConnectionSetupApp(

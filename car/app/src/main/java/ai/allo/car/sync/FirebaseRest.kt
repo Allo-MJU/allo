@@ -1,6 +1,7 @@
 package ai.allo.car.sync
 
 import kotlinx.coroutines.channels.awaitClose
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -24,7 +25,7 @@ import kotlin.coroutines.resumeWithException
 
 /**
  * Firebase Realtime Database 를 REST + SSE 로 쓴다.
- * Firebase Android SDK / Google Play services / google-services.json 이 필요 없다 → Pleos 에뮬레이터 호환 리스크 0.
+ * Firebase Android SDK / Google Play services / google-services.json 없이 REST 인증 토큰을 사용한다.
  *
  *   PUT    {db}/sessions/{sid}/vehicle.json     1초마다 덮어쓰기
  *   PATCH  {db}/sessions/{sid}/meta.json        부분 갱신
@@ -40,6 +41,7 @@ class FirebaseRest(
         .build(),
     /** 일반 REST(PUT/PATCH/POST) 한 번의 전체 limit. 응답이 멈추면 IOException (PR #27 리뷰) */
     restCallTimeoutMs: Long = 10_000,
+    private val tokens: FirebaseTokenProvider? = null,
 ) {
     /**
      * SSE 와 같은 연결 풀을 쓰되 응답 대기를 제한한 클라이언트. readTimeout(0) 을 그대로 쓰면
@@ -51,7 +53,7 @@ class FirebaseRest(
         .build()
 
     val json = Json { ignoreUnknownKeys = true; encodeDefaults = true; explicitNulls = true }
-    val isConfigured: Boolean get() = dbUrl.isNotBlank()
+    val isConfigured: Boolean get() = dbUrl.isNotBlank() && (tokens?.configured != false)
 
     private fun url(path: String) = "${dbUrl.trimEnd('/')}/${path.trimStart('/')}.json"
 
@@ -61,23 +63,42 @@ class FirebaseRest(
     suspend fun patch(path: String, body: String) = send("PATCH", path, body)
     suspend fun post(path: String, body: String) = send("POST", path, body)
 
-    private suspend fun send(method: String, path: String, body: String?): String =
+    private suspend fun send(method: String, path: String, body: String?): String {
+        var token = tokens?.token()
+        for (attempt in 0..1) {
+            try { return sendOnce(method, path, body, token) }
+            catch (error: HttpFailure) {
+                if (error.status != 401 || tokens == null || attempt != 0) throw error
+                tokens.invalidate()
+                token = tokens.token(forceRefresh = true)
+            }
+        }
+        throw IOException("Firebase request failed")
+    }
+
+    private fun authenticatedUrl(path: String, token: String?) = url(path).toHttpUrl().newBuilder().apply {
+        if (token != null) addQueryParameter("auth", token)
+    }.build()
+
+    private class HttpFailure(val status: Int) : IOException("Firebase HTTP $status")
+
+    private suspend fun sendOnce(method: String, path: String, body: String?, token: String?): String =
         suspendCancellableCoroutine { cont ->
-            val req = Request.Builder().url(url(path)).method(method, body?.toRequestBody(JSON)).build()
+            val req = Request.Builder().url(authenticatedUrl(path, token)).method(method, body?.toRequestBody(JSON)).build()
             val call = restClient.newCall(req)
             cont.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {
-                override fun onFailure(call: Call, e: IOException) { cont.resumeWithException(e) }
+                override fun onFailure(call: Call, e: IOException) { cont.resumeWithException(IOException("Firebase transport unavailable")) }
                 override fun onResponse(call: Call, response: Response) {
                     // 본문 읽기도 실패할 수 있다 (헤더 뒤 본문이 멈추면 callTimeout 으로 IOException).
                     // 여기서 던지면 callback 밖으로 새고 continuation 이 끝나지 않는다 (PR #27 리뷰)
                     val result = runCatching {
                         response.use {
-                            if (!it.isSuccessful) throw IOException("HTTP ${it.code} $method $path")
+                            if (!it.isSuccessful) throw HttpFailure(it.code)
                             it.body?.string().orEmpty()
                         }
                     }
-                    result.fold({ cont.resume(it) }, { cont.resumeWithException(it) })
+                    result.fold({ cont.resume(it) }, { cont.resumeWithException(if (it is HttpFailure) it else IOException("Firebase response unavailable")) })
                 }
             })
         }
@@ -87,10 +108,12 @@ class FirebaseRest(
      * 호출 측에서 최근 전체 상태에 머지한다.
      */
     fun stream(path: String): Flow<SseEvent> = callbackFlow {
-        val req = Request.Builder().url(url(path)).header("Accept", "text/event-stream").build()
+        val token = tokens?.token()
+        val req = Request.Builder().url(authenticatedUrl(path, token)).header("Accept", "text/event-stream").build()
         val source = EventSources.createFactory(client).newEventSource(req, object : EventSourceListener() {
             override fun onEvent(eventSource: EventSource, id: String?, type: String?, data: String) {
                 if (type == "cancel" || type == "auth_revoked") {
+                    if (type == "auth_revoked") tokens?.invalidate()
                     close(IOException("SSE access ended"))
                     return
                 }
@@ -105,7 +128,8 @@ class FirebaseRest(
                 trySend(SseEvent(type, p, d))
             }
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
-                close(t ?: IOException("SSE closed ${response?.code}"))
+                if (response?.code == 401) tokens?.invalidate()
+                close(IOException("Firebase SSE unavailable (${response?.code ?: 0})"))
             }
             override fun onClosed(eventSource: EventSource) {
                 close(IOException("SSE stream closed"))

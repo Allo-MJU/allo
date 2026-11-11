@@ -278,6 +278,8 @@ class GameController extends ChangeNotifier {
       if (saved != null) {
         await _connect(saved);
       }
+    } on RetryablePairingException catch (e) {
+      error = e.message;
     } on PairingException catch (e) {
       error = e.message;
       try {

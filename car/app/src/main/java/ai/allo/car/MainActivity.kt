@@ -82,6 +82,7 @@ class MainActivity : ComponentActivity() {
             val ended by session.ended.collectAsStateWithLifecycle()
             val pairingReady by session.pairingReady.collectAsStateWithLifecycle()
             val sid by session.sessionIdentity.collectAsStateWithLifecycle()
+            val pairingRefresh by session.pairingRefreshUi.collectAsStateWithLifecycle()
             val resultKey = "$sid:${game.transferResult?.requestId}:${transfer.status}"
             var dismissed by remember(resultKey) { mutableStateOf(false) }
             var fishingDismissed by remember(sid, game.companion?.displayId, game.companion?.displayRevision) { mutableStateOf(false) }
@@ -120,7 +121,9 @@ class MainActivity : ComponentActivity() {
                             getPreferences(MODE_PRIVATE).edit().putBoolean("speedNoticeSeen", true).apply()
                             showSpeedNotice = false
                         })
-                    PleosRoute.Pairing -> PairingScreen(meta, if (pairingReady) BuildConfig.ALLO_DB_URL else "", sid)
+                    PleosRoute.Pairing -> PairingScreen(meta, if (pairingReady) BuildConfig.ALLO_DB_URL else "", sid,
+                        onRenewCode = if (pairingReady && !meta.paired && parkedAllowed) ({ session.renewPairingCode() }) else null,
+                        renewing = pairingRefresh.busy, renewalMessage = pairingRefresh.message)
                     PleosRoute.Driving -> DrivingScreen(game, connected && meta.paired && !ended,
                         runningMotion = true, statusMessage = when {
                             ended -> "이번 연결이 끝났어요"

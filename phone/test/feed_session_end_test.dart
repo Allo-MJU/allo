@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:allo_phone/feed/firebase_feed.dart';
+import 'package:allo_phone/feed/firebase_session_access.dart';
 import 'package:allo_phone/feed/fake_feed.dart';
 import 'package:allo_phone/pairing/pairing_credentials.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -89,7 +90,7 @@ void main() {
     db = _Database()
       ..addSession(_sessionA)
       ..addSession(_sessionB);
-    feed = FirebaseVehicleFeed(db: db);
+    feed = FirebaseVehicleFeed(db: db, sessionAccess: _Access());
   });
   tearDown(() => db.close());
 
@@ -113,7 +114,7 @@ void main() {
       'car': {'ts': 2, 'type': 'destinationSuggest', 'by': 'car'},
     };
     await feed.pair(_sessionA, pairCode: '123456');
-    expect(db.updates, ['sessions/$_sessionA']);
+    expect(db.updates, isEmpty);
   });
 
   test('호출해 둔 이벤트 스트림은 다음 페어링의 세션으로 바뀌지 않는다', () async {
@@ -157,4 +158,14 @@ void main() {
     expect(await fake.readLatestVehicle(), same(latest));
     await fake.dispose();
   });
+}
+
+class _Access implements FirebaseSessionAccess {
+  @override
+  Future<Map<String, dynamic>> join(PairingCredentials credentials) async => {
+        'sessionId': credentials.sessionId,
+        'paired': true,
+        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'pairCode': credentials.code,
+      };
 }

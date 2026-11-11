@@ -21,7 +21,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
-import java.security.SecureRandom
 import java.util.UUID
 
 /**
@@ -32,7 +31,10 @@ import java.util.UUID
  */
 class SessionManager(private val context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val rest = FirebaseRest(BuildConfig.ALLO_DB_URL)
+    private val identity = FirebaseIdentity(BuildConfig.FIREBASE_API_KEY,
+        KeystoreRefreshTokenStore(context, BuildConfig.FIREBASE_PROJECT_ID, BuildConfig.FIREBASE_API_KEY))
+    private val sessionApi = FirebaseSessionApi(identity, BuildConfig.FIREBASE_PROJECT_ID, BuildConfig.FIREBASE_FUNCTIONS_REGION)
+    private val rest = FirebaseRest(if (sessionApi.configured) BuildConfig.ALLO_DB_URL else "", tokens = identity)
 
     val caps = CapabilityChecker()
     private val derivation = SignalDerivation()
@@ -51,10 +53,14 @@ class SessionManager(private val context: Context) {
     val sessionIdentity: StateFlow<String> = _sessionId
     private val _pairingReady = MutableStateFlow(false)
     val pairingReady: StateFlow<Boolean> = _pairingReady
+    private val pairingRefresh = PairingRefresh()
+    private val _pairingRefreshUi = MutableStateFlow(PairingRefreshUi())
+    val pairingRefreshUi: StateFlow<PairingRefreshUi> = _pairingRefreshUi
+
     private var refreshJob: Job? = null
     private var gameStreamJob: Job? = null
     private val _meta = MutableStateFlow(
-        SessionMeta(createdAt = System.currentTimeMillis(), pairCode = newPairCode(), carAppVersion = BuildConfig.CAR_APP_VERSION)
+        SessionMeta(createdAt = System.currentTimeMillis(), pairCode = "", carAppVersion = BuildConfig.CAR_APP_VERSION)
     )
     val meta: StateFlow<SessionMeta> = _meta
     private val _game = MutableStateFlow(GameState())
@@ -351,6 +357,26 @@ class SessionManager(private val context: Context) {
         if (_ended.value && hasParkingPermission()) beginSession()
     }
 
+    /** Server transaction rejects renewal if a phone claim won the race. */
+    @Synchronized
+    fun renewPairingCode() {
+        val request = pairingRefresh.begin(sessionId, _meta.value.paired, hasParkingPermission(),
+            _ended.value, rest.isConfigured && sessionReady.isCompleted) ?: return
+        _pairingRefreshUi.value = pairingRefresh.ui
+        scope.launch {
+            val result = runCatching { sessionApi.renew(request.sessionId, _meta.value.carAppVersion, request.requestId) }
+            synchronized(this@SessionManager) {
+                if (request.sessionId != sessionId) return@synchronized
+                // Do not regress a paired SSE update arriving while the callable returns.
+                if (result.isSuccess) _meta.update { current ->
+                    if (current.paired) current else result.getOrThrow()
+                }
+                pairingRefresh.complete(request, result.isSuccess)
+                _pairingRefreshUi.value = pairingRefresh.ui
+            }
+        }
+    }
+
     /** Explicit reconnect never resends a game action or restores an old pending request. */
     @Synchronized
     fun refreshGameState() {
@@ -375,6 +401,7 @@ class SessionManager(private val context: Context) {
         sessionJob?.cancel()
         refreshJob?.cancel()
         _pairingReady.value = false
+        pairingRefresh.reset(); _pairingRefreshUi.value = pairingRefresh.ui
         val id = UUID.randomUUID().toString()
         val ready = CompletableDeferred<Unit>()
         derivation.reset(); endDetector.reset(); destinations.reset(); travel.reset(); gameReducer.reset()
@@ -388,7 +415,7 @@ class SessionManager(private val context: Context) {
         _game.value = GameState()
         _gameConnected.value = false
         _regions.value = RegionSummary.Unknown
-        _meta.value = SessionMeta(createdAt = sessionStartedAt, pairCode = newPairCode(), carAppVersion = BuildConfig.CAR_APP_VERSION)
+        _meta.value = SessionMeta(createdAt = sessionStartedAt, pairCode = "", carAppVersion = BuildConfig.CAR_APP_VERSION)
         _ended.value = false
         syncFeatureState()
         sessionJob = scope.launch {
@@ -453,9 +480,12 @@ class SessionManager(private val context: Context) {
         if (!rest.isConfigured) return
         val meta = _meta.value
         while (currentCoroutineContext().isActive) {
-            val r = runCatching { rest.put("sessions/$id/meta", rest.json.encodeToString(meta)) }
+            val r = runCatching { sessionApi.create(id, meta.carAppVersion) }
             if (r.isSuccess) {
-                debugLog("session created sid=$id")
+                if (id != sessionId) return
+                _meta.value = r.getOrThrow()
+                sessionStartedAt = _meta.value.createdAt
+                debugLog("session created")
                 ready.complete(Unit)
                 if (id == sessionId) _pairingReady.value = true
                 return
@@ -576,7 +606,7 @@ class SessionManager(private val context: Context) {
         }
     }
 
-    /** 페어링 여부는 meta.paired 를 폰이 바꾼다 */
+    /** 페어링 여부는 인증된 join 함수가 meta.paired 에 확정한다. */
     private suspend fun subscribeMeta(id: String, ready: CompletableDeferred<Unit>) {
         if (!rest.isConfigured) return
         ready.await()
@@ -608,7 +638,6 @@ class SessionManager(private val context: Context) {
         debugLog("regions → $next")
     }
 
-    private fun newPairCode(): String = "%06d".format(SecureRandom().nextInt(1_000_000))
 }
 
 /** Typed wire envelope, kept separate from the existing string-only legacy events. */

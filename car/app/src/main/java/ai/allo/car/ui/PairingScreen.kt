@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -20,8 +21,9 @@ import com.google.zxing.qrcode.QRCodeWriter
 
 /** The QR contains only the session and pairing code; configuration is never shown in the UI. */
 @Composable
-fun PairingScreen(meta: SessionMeta, dbUrl: String, sessionId: String = "") {
-    val ready = dbUrl.isNotBlank() && sessionId.isNotBlank() && meta.pairCode.matches(Regex("[0-9]{6}"))
+fun PairingScreen(meta: SessionMeta, dbUrl: String, sessionId: String = "",
+    onRenewCode: (() -> Unit)? = null, renewing: Boolean = false, renewalMessage: String? = null) {
+    val ready = !renewing && renewalMessage == null && dbUrl.isNotBlank() && sessionId.isNotBlank() && meta.pairCode.matches(Regex("[0-9]{6}"))
     val payload = if (ready) "allo://pair?sid=$sessionId&code=${meta.pairCode}" else null
     val qr = remember(payload) { payload?.let { qrBitmap(it, 512) } }
     ScreenFrame("폰 연결", if (ready) "폰 연결 기다리는 중" else "연결 준비 중") {
@@ -46,6 +48,13 @@ fun PairingScreen(meta: SessionMeta, dbUrl: String, sessionId: String = "") {
                     Text("연결 코드", style = MaterialTheme.typography.bodyMedium, color = AlloColors.MistDim)
                     Text(meta.pairCode.chunked(1).joinToString(" "),
                         style = MaterialTheme.typography.headlineLarge, color = AlloColors.Egg)
+                }
+                if (onRenewCode != null) {
+                    OutlinedButton(onClick = onRenewCode, enabled = !renewing, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                        Text(if (renewing) "새 코드 확인 중" else if (renewalMessage != null) "새 코드 다시 확인" else "새 연결 코드")
+                    }
+                    Text(renewalMessage ?: "코드는 10분 동안 유효해요. 만료되면 새 코드를 받아 주세요.",
+                        style = MaterialTheme.typography.bodyMedium, color = AlloColors.MistDim)
                 }
                 Text("폰이 연결되면 함께할 친구를 확인해요.",
                     style = MaterialTheme.typography.bodyMedium, color = AlloColors.MistDim)
