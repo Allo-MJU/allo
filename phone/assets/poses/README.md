@@ -5,8 +5,9 @@ Images copied unchanged from Allo-MJU/allo PR #86, commit `c24eeaa507bdec1bc7d29
 
 Only the six exact species IDs shared with `data/species.json` are included.
 The other six designs have unresolved species mapping and are not substituted.
-Driving uses a still move pose; parked sleep uses sleep, fishing uses idle with
-a programmatically drawn rod and bobber. These are 2D rendered images, not 3D models.
+Driving uses a still move pose. The six mapped species use authored action sheets
+for parked sleep/fishing and preview-only running. Original pose images remain
+available as fallbacks. These are 2D rendered images, not 3D models.
 
 ## Road Sprout authored action frames
 
@@ -16,7 +17,7 @@ animation derivatives made with the built-in image generation tool on 2026-11-11
 They are not original art delivered by PR #86. Its `move.png`, `idle.png`, and `sleep.png`
 respectively served as identity references. Original source images are unchanged.
 All three sheets are 1774×887 RGBA, 4 columns × 2 rows, read left-to-right/top-to-bottom.
-Only Road Sprout uses these action frames; no other species is remapped to it.
+Every mapped species uses its own action frames; no species is remapped to Road Sprout.
 
 Prompt set:
 - Run: preserve the green leaf-backed quadruped, cream muzzle, orange eyes and
@@ -44,4 +45,20 @@ or whole-image scaling. True transparent background. Generated with the built-in
 image tool on 2026-11-11; original sleep.png remains unchanged.
 
 Sleep frame playback is parked-only and replaces the transformed still image
-and vector Z overlay for Road Sprout. Other species keep their existing art.
+and vector Z overlay for all six mapped species.
+
+## Remaining five species
+
+`puddle_pip`, `lamp_moth`, `storm_lantern`, `highway_comet`, and `sea_mist` each
+have their own `run-sheet.png`, `fish-sheet.png`, and `sleep-sheet.png`: eight
+authored poses in a regular 4×2 grid. These are AI-generated derivatives made
+with the built-in image generation tool on 2026-11-11, not additional original
+deliverables from PR #86. Exact prompts and source references are recorded in
+each species directory's `generation-provenance.md`. Source PNGs are unchanged.
+
+Movement preserves each character's anatomy: Puddle Pip steps with webbed feet,
+Lamp Moth beats its wings, Storm Lantern gallops, Highway Comet bounds, and
+Sea Mist swims with articulated fins. Sleep changes breathing/head/limb poses;
+fishing changes grip, lean and reaction through a catch-and-loss sequence.
+All use the shared playback timings, lifecycle/reduced-motion freeze behavior,
+and parked-only sleep/fishing gate. Actual driving continues to show static art.

@@ -38,13 +38,22 @@ object PetSpriteSheets {
     // Linger in the resting poses; breathing and turning are authored in the frames.
     val sleep = PetSpriteSpec("poses/road_sprout/sleep-sheet.png", 450, listOf(0, 0, 1, 2, 3, 4, 5, 5, 6, 7, 7))
 
-    fun forDisplay(speciesId: String?, pose: PetPose, parked: Boolean, previewRunning: Boolean): PetSpriteSpec? {
-        if (speciesId != "road_sprout") return null
-        return when {
-            pose == PetPose.Move && previewRunning -> run
-            pose == PetPose.Fishing && parked -> fish
-            pose == PetPose.Sleep && parked -> sleep
-            else -> null
+    // Only species with authored sheets participate; unknown IDs keep their static artwork.
+    private val sheetsBySpecies = listOf(
+        "road_sprout", "puddle_pip", "lamp_moth", "storm_lantern", "highway_comet", "sea_mist",
+    ).associateWith { speciesId ->
+        mapOf(PetPose.Move to run, PetPose.Fishing to fish, PetPose.Sleep to sleep).mapValues { (_, sheet) ->
+            sheet.copy(path = "poses/$speciesId/${sheet.path.substringAfterLast('/')}")
         }
+    }
+
+    fun forDisplay(speciesId: String?, pose: PetPose, parked: Boolean, previewRunning: Boolean): PetSpriteSpec? {
+        val sheets = sheetsBySpecies[speciesId] ?: return null
+        val allowed = when (pose) {
+            PetPose.Move -> previewRunning
+            PetPose.Fishing, PetPose.Sleep -> parked
+            else -> false
+        }
+        return if (allowed) sheets[pose] else null
     }
 }
