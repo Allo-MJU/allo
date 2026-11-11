@@ -16,9 +16,21 @@ import 'screens/incubating_screen.dart';
 import 'screens/pairing_screen.dart';
 import 'screens/session_end_screen.dart';
 import 'storage/dex_store.dart';
+import 'affinity/egg_demo_api.dart';
 
 class AlloApp extends StatefulWidget {
-  const AlloApp({super.key, required this.feed, this.monotonicMs});
+  const AlloApp(
+      {super.key,
+      required this.feed,
+      this.monotonicMs,
+      this.eggApi,
+      this.createController,
+      this.frameBuilder});
+
+  /// App owns and closes this API. Absent configuration leaves server inputs unavailable.
+  final EggDemoApi? eggApi;
+  final GameController Function()? createController;
+  final Widget Function(BuildContext, GameController, Widget)? frameBuilder;
   final VehicleFeed feed;
   final int Function()? monotonicMs;
 
@@ -27,8 +39,12 @@ class AlloApp extends StatefulWidget {
 }
 
 class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
-  late final GameController controller = GameController(
-      feed: widget.feed, dex: DexStore(), monotonicMs: widget.monotonicMs);
+  late final GameController controller = widget.createController?.call() ??
+      GameController(
+          feed: widget.feed,
+          dex: DexStore(),
+          monotonicMs: widget.monotonicMs,
+          eggApi: widget.eggApi);
 
   late final _router = GoRouter(
     initialLocation: '/pairing',
@@ -103,6 +119,7 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _router.dispose();
     controller.dispose();
+    widget.eggApi?.close();
     super.dispose();
   }
 
@@ -113,6 +130,11 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
       theme: ThemeData(
           colorSchemeSeed: const Color(0xFF4FB3A9), useMaterial3: true),
       routerConfig: _router,
+      builder: (context, child) =>
+          widget.frameBuilder
+              ?.call(context, controller, child ?? const SizedBox()) ??
+          child ??
+          const SizedBox(),
     );
   }
 }

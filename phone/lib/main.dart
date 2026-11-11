@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'app.dart';
+import 'affinity/egg_demo_api.dart';
 import 'config/firebase_config.dart';
 import 'feed/fake_feed.dart';
 import 'feed/firebase_feed.dart';
@@ -12,6 +13,17 @@ import 'widgets/window_view.dart';
 /// --dart-define=FEED=fake → 차 없이 가짜 신호로 실행 (기본값).
 /// Firebase 설정은 --dart-define-from-file=config/firebase.local.json 으로 주입.
 const _feedKind = String.fromEnvironment('FEED', defaultValue: 'fake');
+EggDemoApi? configuredEggApi() {
+  const url = String.fromEnvironment('ALLO_DEMO_API_URL');
+  const token = String.fromEnvironment('ALLO_DEMO_TOKEN');
+  if (url.isEmpty || token.isEmpty) return null;
+  try {
+    return HttpEggDemoApi.fromEnvironment();
+  } on EggDemoApiException {
+    return null;
+  }
+}
+
 const _scenario =
     String.fromEnvironment('SCENARIO', defaultValue: 'rainy_highway');
 
@@ -37,7 +49,8 @@ Future<Widget> createApp({
 }) async {
   if (feedKind == 'fake') {
     return AlloApp(
-        feed: FakeVehicleFeed(scenario: FakeScenario.byName(scenario)));
+        feed: FakeVehicleFeed(scenario: FakeScenario.byName(scenario)),
+        eggApi: configuredEggApi());
   }
   if (feedKind != 'firebase') {
     return const ConnectionSetupApp(message: '실행 설정을 확인해야 해요.');
@@ -58,6 +71,7 @@ Future<Widget> createApp({
       await Firebase.initializeApp(options: options);
     }
     return AlloApp(
+        eggApi: configuredEggApi(),
         feed: createFirebaseFeed?.call() ??
             FirebaseVehicleFeed(
                 functionsRegion: resolvedConfig.functionsRegion));
@@ -78,12 +92,13 @@ class ConnectionSetupApp extends StatefulWidget {
 
 class _ConnectionSetupAppState extends State<ConnectionSetupApp> {
   bool _tryFake = false;
+  late final _fakeEggApi = configuredEggApi();
   late final _fakeFeed = FakeVehicleFeed(scenario: FakeScenario.rainyHighway);
 
   @override
   Widget build(BuildContext context) {
     if (_tryFake) {
-      return AlloApp(feed: _fakeFeed);
+      return AlloApp(feed: _fakeFeed, eggApi: _fakeEggApi);
     }
     return MaterialApp(
       title: '알로',

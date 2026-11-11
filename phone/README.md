@@ -151,3 +151,9 @@ Android debug 빌드 후 `python3 tool/verify_apk_assets.py`로 APK 안의 실�
 - 현재 계정이 익명 계정이 아니면 자동 계정 전환을 하지 않고 연결 오류를 안내한다.
 - 일반 `lib/main.dart` + `FEED=firebase`에서만 실제 Firebase를 사용한다. Fake 및 `lib/main_local_fishing.dart`는 인증 없이 기존 모의 경로를 유지한다.
 - 실제 모바일 SDK/함수/규칙 왕복, 토큰 만료 갱신, 앱 재시작 UID 유지, 새 폰의 기존 세션 참여 거절은 기기 통합 검증 대상이다.
+
+### 호감도 입력과 Firebase 없는 로컬 검증
+
+일반 시작 화면의 **마음으로 알 품기**에서 쓰다듬기·4구역 배치·글로 말 걸기·사진 퀘스트 상태를 확인할 수 있습니다. 기존 시간 기반 체험 시작은 유지합니다. 실제 말 판정과 사진 결과 재확인은 `ALLO_DEMO_API_URL`/`ALLO_DEMO_TOKEN` 설정이 필요하며, 미설정 시 합성 성공을 만들지 않습니다. 현재 STT·카메라 촬영/합성 입력은 포함하지 않습니다.
+
+`flutter run -t lib/main_local_affinity.dart -d <device-id>`는 일반 화면에 메모리 저장·합성 API·주차 신호를 주입하는 debug 전용 실행입니다. 상단 검증 배너의 시간 이동·모의 사진 완료는 일반 제품 동작이 아닙니다. 기존 도감/낚시 저장을 변경하지 않으며 종료 시 모의 상태가 사라집니다. 자세한 계약과 검증 범위는 [호감도 연결 문서](../docs/vehicle/affinity-integration.md)를 참고하세요.

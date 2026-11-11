@@ -111,6 +111,8 @@ class GameController extends ChangeNotifier {
   final Random _affinityRandom;
   AffinityRound? _affinity;
   AffinityRound? get affinityRound => _affinity;
+  /// Selected mode remains visible while awaiting the first vehicle sample.
+  bool get usesAffinity => _affinityForCurrentEgg;
   EggFeedback get eggFeedback => _eggFeedback;
   EggFeedback _eggFeedback = EggFeedback.none;
   bool get speechBusy => _speechBusy;

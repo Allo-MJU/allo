@@ -109,6 +109,22 @@ class _PairingScreenState extends State<PairingScreen> {
               TextButton(
                   onPressed: () => context.go('/dex'),
                   child: const Text('도감 보기')),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                key: const Key('start-affinity'),
+                onPressed: !c.canStart
+                    ? null
+                    : () async {
+                        final started = await c.startIncubating(EggTier.small,
+                            useAffinity: true);
+                        if (started && context.mounted) {
+                          context.go('/incubating');
+                        }
+                      },
+                icon: const Icon(Icons.favorite_outline),
+                label: const Text('마음으로 알 품기'),
+              ),
+              const Text('쓰다듬기·자리 바꾸기·말 걸기로 마음을 쌓아요. 사진 퀘스트도 기다리고 있어요.'),
             ],
           ),
         ),

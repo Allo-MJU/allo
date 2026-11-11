@@ -6,6 +6,7 @@ import 'package:allo_core/allo_core.dart';
 import '../game/game_controller.dart';
 import '../ui_mode.dart';
 import '../widgets/window_view.dart';
+import '../widgets/affinity_input_panel.dart';
 
 class IncubatingScreen extends StatefulWidget {
   const IncubatingScreen({super.key, required this.controller});
@@ -120,7 +121,7 @@ class _IncubatingScreenState extends State<IncubatingScreen>
             : g.hatchAtSec != null
                 ? '앞으로 ${((1 - g.progress) * g.hatchAtSec! / 60).ceil()}분'
                 : '앞으로 ${((1 - g.progress) * (g.hatchAtM ?? 0) / 1000).toStringAsFixed(1)}km';
-        if (fullscreenCabin) return _fullscreen(c, g);
+        if (fullscreenCabin && !c.usesAffinity) return _fullscreen(c, g);
         return Scaffold(
           appBar: AppBar(
               title: const Text('알 품기'),
@@ -162,7 +163,12 @@ class _IncubatingScreenState extends State<IncubatingScreen>
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text(_singing ? '노래를 듣고 편안해졌어요' : '흔들리면 알을 감싸 주세요',
+                Text(
+                    c.usesAffinity
+                        ? '알에게 마음을 전해 보세요'
+                        : _singing
+                            ? '노래를 듣고 편안해졌어요'
+                            : '흔들리면 알을 감싸 주세요',
                     textAlign: TextAlign.center),
                 const SizedBox(height: 16),
                 Wrap(
@@ -182,30 +188,37 @@ class _IncubatingScreenState extends State<IncubatingScreen>
                     textAlign: TextAlign.center),
                 if (c.error != null) Text(c.error!),
                 const SizedBox(height: 24),
-                FilledButton.icon(
-                    onPressed: _care,
-                    icon: const Icon(Icons.favorite),
-                    label: const Text('감싸기')),
+                if (c.usesAffinity) AffinityInputPanel(controller: c),
+                if (!c.usesAffinity)
+                  FilledButton.icon(
+                      onPressed: _care,
+                      icon: const Icon(Icons.favorite),
+                      label: const Text('감싸기')),
                 const SizedBox(height: 12),
-                Semantics(
-                  button: true,
-                  label: '길게 눌러 노래',
-                  onLongPress: _care,
-                  child: GestureDetector(
-                    onLongPressStart: (_) {
-                      _care();
-                      setState(() => _singing = true);
-                    },
-                    onLongPressEnd: (_) => setState(() => _singing = false),
-                    child: Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                            color: Colors.teal.shade50,
-                            borderRadius: BorderRadius.circular(24)),
-                        child: const Text('♫ 길게 눌러 노래',
-                            textAlign: TextAlign.center)),
+                if (!c.usesAffinity)
+                  Semantics(
+                    button: true,
+                    label: '길게 눌러 노래',
+                    onLongPress: _care,
+                    child: GestureDetector(
+                      onLongPressStart: (_) {
+                        _care();
+                        setState(() => _singing = true);
+                      },
+                      onLongPressEnd: (_) => setState(() => _singing = false),
+                      child: Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                              color: Colors.teal.shade50,
+                              borderRadius: BorderRadius.circular(24)),
+                          child: const Text('♫ 길게 눌러 노래',
+                              textAlign: TextAlign.center)),
+                    ),
                   ),
-                ),
+                if (c.usesAffinity)
+                  TextButton(
+                      onPressed: () => context.push('/dex'),
+                      child: const Text('함께하는 친구 · 낚시 기록')),
                 TextButton.icon(
                     onPressed: () => context.push('/explore'),
                     icon: const Icon(Icons.threed_rotation),

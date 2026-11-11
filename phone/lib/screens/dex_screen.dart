@@ -36,6 +36,10 @@ class _DexScreenState extends State<DexScreen> {
               tooltip: '돌아가기',
               icon: const Icon(Icons.arrow_back),
               onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                  return;
+                }
                 widget.controller.prepareNextFakeTrip();
                 context.go('/pairing');
               }),
