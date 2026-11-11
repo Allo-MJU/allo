@@ -16,6 +16,8 @@ namespace Allo.World
         public float z;          // 차 기준 앞(+) 거리 m (매 프레임 d 에서 계산)
         public Transform body;
         public float hop;        // 폴짝 남은 시간
+        public float spottedAt;  // 발견된 때 (t)
+        public CharacterModel model; // 3D 모델이면 있다 (없으면 2D 그림판)
         public float t;
     }
 
@@ -27,7 +29,7 @@ namespace Allo.World
         Material _mat;
         ChunkTrack _track;
         readonly List<CastMember> _friends = new();
-        readonly Dictionary<string, Texture2D> _tex = new();
+        readonly Dictionary<string, CritterArt> _art = new();
         readonly List<Passerby> _live = new();
         float _timer = 14;
         int _next;
@@ -60,14 +62,14 @@ namespace Allo.World
             {
                 if (f == null || string.IsNullOrEmpty(f.id)) continue;
                 _friends.Add(f);
-                if (!_tex.ContainsKey(f.id))
+                if (!_art.ContainsKey(f.id))
                 {
-                    _tex[f.id] = PlaceholderFace.Make(f.attribute, seed++);
+                    _art[f.id] = CritterArt.Placeholder(f.attribute, seed++);
                     var id = f.id;
-                    StartCoroutine(SpriteLoader.Load(f.sprite, tex =>
+                    StartCoroutine(SpriteLoader.Load(f.sprite, art =>
                     {
-                        _tex[id] = tex;
-                        foreach (var p in _live) if (p.id == id && p.body != null) p.body.GetComponent<Renderer>().sharedMaterial.mainTexture = tex;
+                        _art[id] = art;
+                        foreach (var p in _live) if (p.id == id && p.body != null && p.model == null) p.body.GetComponent<Renderer>().sharedMaterial.mainTexture = art[ArtPose.Idle];
                     }));
                 }
             }
@@ -110,14 +112,32 @@ namespace Allo.World
                     lift = Mathf.Sin(k * Mathf.PI) * 0.45f;
                     sy = k < 0.2f ? 0.85f : 1.1f;
                 }
-                if (p.body != null && cam != null)
+                if (p.body != null && p.model != null)
                 {
+                    // 3D: 길 쪽과 차가 오는 쪽을 보고 서서 몸을 좌우로 흔든다. 발견되면 폴짝 뛰며 한 바퀴
+                    var look = p.transform.parent.TransformDirection(-pose.Right - pose.Forward * 0.5f);
+                    look.y = 0;
+                    var spin = p.hop > 0 ? (1 - Mathf.Clamp01(p.hop / 0.5f)) * 360 : 0;
+                    p.body.position = p.transform.position + Vector3.up * lift;
+                    p.body.rotation = Quaternion.LookRotation(look) * Quaternion.Euler(0, spin, sway);
+                    p.body.localScale = new Vector3(2 - sy, sy, 2 - sy);
+                }
+                else if (p.body != null && cam != null)
+                {
+                    // 발견되면 기뻐하는 얼굴
+                    var art = ArtOf(p.id);
+                    var tex = art[p.spotted && p.t - p.spottedAt < 2.5f ? ArtPose.Happy : ArtPose.Idle];
+                    var mat = p.body.GetComponent<Renderer>().sharedMaterial;
+                    if (mat.mainTexture != tex) mat.mainTexture = tex;
                     var world = p.transform.position + Vector3.up * (Height * sy / 2 + lift);
                     p.body.position = world;
                     var fwd = world - cam.transform.position;
                     fwd.y = 0;
                     if (fwd.sqrMagnitude > 1e-4f) p.body.rotation = Quaternion.LookRotation(fwd) * Quaternion.Euler(0, 0, sway);
-                    p.body.localScale = new Vector3(Height * (2 - sy), Height * sy, 1);
+                    // 길 쪽과 차가 오는 쪽(뒤)을 본다. D 의 그림은 왼쪽을 보므로 그 방향이 화면 오른쪽이면 뒤집는다
+                    var look = p.transform.parent.TransformDirection(-pose.Right - pose.Forward * 0.5f);
+                    var flip = art.FacesLeft && Vector3.Dot(look, cam.transform.right) > 0 ? -1 : 1;
+                    p.body.localScale = new Vector3(Height * art.Aspect * (2 - sy) * flip, Height * sy, 1);
                 }
                 // 앞 3~45m 사이, 카메라가 그쪽을 보고 있으면 발견 가능
                 if (!p.spotted && p.z > 3 && p.z < 45 && cam != null)
@@ -145,13 +165,24 @@ namespace Allo.World
             p.x = x + (float)_rng.NextDouble() * 1.5f;
             var pose = _track.PoseAt(at);
             go.transform.localPosition = pose.pos + pose.Right * p.x;
-            var body = GameObject.CreatePrimitive(PrimitiveType.Quad).transform;
-            Destroy(body.GetComponent<Collider>());
-            body.name = "Body";
-            body.SetParent(go.transform, false);
-            var r = body.GetComponent<Renderer>();
-            r.sharedMaterial = new Material(_mat) { mainTexture = _tex.TryGetValue(f.id, out var t) ? t : PlaceholderFace.Make(f.attribute, 7) };
-            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            var prefab = CharacterModel.Find(f.id);
+            Transform body;
+            if (prefab != null)
+            {
+                body = new GameObject("Body").transform;
+                body.SetParent(go.transform, false);
+                p.model = CharacterModel.Spawn(prefab, body, Height);
+            }
+            else
+            {
+                body = GameObject.CreatePrimitive(PrimitiveType.Quad).transform;
+                Destroy(body.GetComponent<Collider>());
+                body.name = "Body";
+                body.SetParent(go.transform, false);
+                var r = body.GetComponent<Renderer>();
+                r.sharedMaterial = new Material(_mat) { mainTexture = ArtOf(f)[ArtPose.Idle] };
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
             p.body = body;
             var col = go.AddComponent<BoxCollider>();
             col.center = Vector3.up * Height * 0.5f;
@@ -159,11 +190,15 @@ namespace Allo.World
             _live.Add(p);
         }
 
+        CritterArt ArtOf(CastMember f) => _art.TryGetValue(f.id, out var a) ? a : _art[f.id] = CritterArt.Placeholder(f.attribute, 7);
+        CritterArt ArtOf(string id) => _art.TryGetValue(id, out var a) ? a : CritterArt.Placeholder("normal", 7);
+
         /// "봤어!" — 친구가 폴짝 뛰며 반짝이고 Flutter 에 알린다. 이미 본 친구면 아무 일도 없다
         public bool Spot(Passerby p)
         {
             if (p == null || p.spotted) return false;
             p.spotted = true;
+            p.spottedAt = p.t;
             p.hop = 0.5f;
             Fx.Burst(p.transform.position + Vector3.up * Height * 1.1f, Fx.Spark, _mat, 7, 0.35f, 0.5f);
             FlutterBridge.Send("spotted", FlutterBridge.Field("id", p.id));

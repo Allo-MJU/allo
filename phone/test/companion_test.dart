@@ -25,6 +25,25 @@ void main() {
     expect(c.game.toJson(), before);
   });
 
+  test('탐험 화면 놀이 종류는 문구만 바꾸고 횟수는 똑같이 센다', () {
+    final c = GameController(
+        feed: FakeVehicleFeed(scenario: FakeScenario.clear), dex: DexStore());
+    addTearDown(c.dispose);
+    c.game = c.game.copyWith(stage: Stage.hatched, tier: 3);
+    c.playWithCompanion('pet');
+    expect(c.companionMessage, contains('기분 좋아해요'));
+    c.playWithCompanion('ball');
+    expect(c.companionMessage, contains('공을'));
+    c.playWithCompanion('없는종류');
+    expect(c.companionMessage, contains('신나게'));
+    c.feedCompanion('water');
+    expect(c.companionMessage, contains('물을'));
+    c.feedCompanion('acorn');
+    expect(c.companionMessage, contains('도토리'));
+    expect(c.playCount, 3);
+    expect(c.feedCount, 2);
+  });
+
   test('창밖 문구는 현재 태그를 따르고 미확인 지역을 단정하지 않는다', () {
     final c = GameController(
         feed: FakeVehicleFeed(scenario: FakeScenario.clear), dex: DexStore());

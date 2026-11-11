@@ -107,7 +107,8 @@ namespace Allo
             Button(root, "←", new Vector2(0, 1), new Vector2(26, -26), new Vector2(64, 64), Cream, 34, FlutterBridge.RequestClose);
             _endGo = Button(root, "주행 종료", new Vector2(1, 1), new Vector2(-26, -26), new Vector2(170, 58), Cream, 26, EndTrip);
             _endGo.SetActive(false);
-            Button(root, "먹이 주기", new Vector2(1, 0), new Vector2(-26, 26), new Vector2(190, 66), Yellow, 28, Feed);
+            Button(root, "간식", new Vector2(1, 0), new Vector2(-26, 26), new Vector2(150, 66), Yellow, 28, Feed);
+            Button(root, "공", new Vector2(1, 0), new Vector2(-190, 26), new Vector2(110, 66), Mint, 28, Ball);
             _spotGo = Button(root, "봤어!", new Vector2(0.5f, 0), new Vector2(0, 26), new Vector2(170, 66), Mint, 30, Spot);
             _spotGo.SetActive(false);
 
@@ -193,11 +194,10 @@ namespace Allo
             Show("주행을 마칠게요");
         }
 
-        void Feed()
-        {
-            if (critters != null && critters.Feed()) FlutterBridge.Send("feed");
-            else Show("아직 같이 가는 친구가 없어요");
-        }
+        /// 간식을 손에 든다 (장면에 맞는 것). 화면을 톡 치거나 휙 밀면 던진다. 다시 누르면 친구 옆에 내려놓는다
+        void Feed() => critters?.Hold(false);
+
+        void Ball() => critters?.Hold(true);
 
         void Spot()
         {

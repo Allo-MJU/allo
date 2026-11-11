@@ -42,6 +42,9 @@ namespace Allo.CameraRig
 
         bool _uiTouch; // 버튼 위에서 시작한 터치는 둘러보기로 치지 않는다
 
+        /// 쓰다듬기·던지기·유리 그림처럼 손가락이 다른 일을 하는 동안 둘러보기를 멈춘다 (TapInput 이 켠다)
+        public static bool Locked;
+
         void Update()
         {
             var degPerPixel = 180f / Mathf.Max(1, Screen.width);
@@ -50,7 +53,7 @@ namespace Allo.CameraRig
                 _uiTouch = UnityEngine.EventSystems.EventSystem.current != null &&
                            UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject(Input.GetTouch(0).fingerId);
             if (Input.touchCount == 0) _uiTouch = false;
-            if (!_uiTouch && Input.touchCount == 1 && Input.GetTouch(0).phase == TouchPhase.Moved)
+            if (!_uiTouch && !Locked && Input.touchCount == 1 && Input.GetTouch(0).phase == TouchPhase.Moved)
             {
                 var d = Input.GetTouch(0).deltaPosition * degPerPixel;
                 Turn(new Vector2(-d.x, -d.y));
@@ -65,7 +68,7 @@ namespace Allo.CameraRig
                 dragging = true;
             }
 #if UNITY_EDITOR
-            if (Input.GetMouseButton(0))
+            if (Input.GetMouseButton(0) && !Locked)
             {
                 var d = new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y")) * 6f;
                 Turn(new Vector2(-d.x, -d.y));

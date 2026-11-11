@@ -36,6 +36,9 @@ class SessionManager(private val context: Context) {
     private val derivation = SignalDerivation()
     private val envTagger = EnvTagger()
     val regionTagger = RegionTagger()
+
+    /** 시연용 가짜 경로 안내 (디버그 빌드에서 DebugDemoReceiver 가 켠다). 켜져 있으면 내비의 turns·headingDeg 대신 쓴다 */
+    @Volatile var routeSim: ai.allo.car.navi.RouteSim? = null
     private val vehicleReader = VehicleSignalReader(context, caps)
     private val aaos = AaosPropertyReader(context)
     /** 운전자 음성. 차 화면에 게임을 띄우지 않고 말로만 알린다. */
@@ -264,8 +267,8 @@ class SessionManager(private val context: Context) {
                 seatRow2 = r.seatRow2Occupied,
                 etaSec = naviEta.etaSec.value,
                 envTags = envTagger.tags(now, a.speedKph, r.wiperLevel, r.headlightOn, naviEta.position.value.let { regionTagger.tag(it?.lat, it?.lng) }),
-                turns = naviEta.turns.value,
-                headingDeg = naviEta.headingDeg.value,
+                turns = routeSim?.turns(derivation.distanceM) ?: naviEta.turns.value,
+                headingDeg = routeSim?.headingDeg(derivation.distanceM) ?: naviEta.headingDeg.value,
                 capabilities = caps.snapshot(),
             )
             if (BuildConfig.DEBUG && snap.copy(ts = 0) != _vehicle.value?.copy(ts = 0)) {
