@@ -16,10 +16,17 @@ import androidx.compose.ui.unit.sp
 import ai.allo.car.model.*
 import ai.allo.car.ui.*
 
-/** Explicit UI fixtures only. This APK has no vehicle, Firebase, reward or persistence adapter. */
+/** UI fixtures plus explicit local-demo transport; never a real vehicle/Firebase adapter. */
 class PreviewActivity : ComponentActivity() {
+    private var demoActive by mutableStateOf(false)
+    override fun onResume() { super.onResume(); demoActive = true }
+    override fun onPause() { demoActive = false; super.onPause() }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (intent.getBooleanExtra("localDemo", false)) {
+            setContent { AlloTheme { LocalFishingDemo(active = demoActive) } }
+            return
+        }
         val initialRoute = intent.getStringExtra("screen")?.let { name ->
             PleosRoute.entries.find { it.name == name }
         } ?: when {
