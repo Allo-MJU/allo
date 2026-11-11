@@ -108,12 +108,12 @@ button.px[disabled]{--bg:#B9D3C4;--sh:#9BB8A8;--fg:#EAF4EE;pointer-events:none}
 #start{left:50%;bottom:30px;transform:translateX(-50%);padding:0 27px 6px;height:48px;font-size:22px;animation:pulse 1.2s ease-in-out infinite}@keyframes pulse{50%{transform:translateX(-50%) translateY(-6px)}}
 #sp1,#sp2{position:absolute;z-index:25;width:120px;height:120px;object-fit:contain}
 /* 차 연결 */
-#qrb{left:120px;top:42px;width:572px;height:243px}
+#qrb{left:120px;top:72px;width:572px;height:243px}
 #cam{position:absolute;left:36px;top:36px;width:168px;height:168px;background:#14163a;display:grid;place-items:center;cursor:pointer;box-shadow:0 0 0 3px var(--N)}
 #cam i{position:absolute;width:30px;height:30px;border:6px solid #fff}#cam i:nth-child(1){left:12px;top:12px;border-right:0;border-bottom:0}#cam i:nth-child(2){right:12px;top:12px;border-left:0;border-bottom:0}#cam i:nth-child(3){left:12px;bottom:12px;border-right:0;border-top:0}#cam i:nth-child(4){right:12px;bottom:12px;border-left:0;border-top:0}
 #cam span{font:700 13px/1.4 var(--f);color:#C9CCF3;text-align:center}
 #qr-r{position:absolute;left:240px;right:30px;top:36px}#qr-r p{margin-top:8px}#qr-r .px{position:relative;margin-top:18px;height:42px;padding:0 21px 6px;display:inline-flex}
-#codeb{left:48px;right:48px;top:36px;height:288px}#codeb h2{position:absolute;left:0;right:0;top:18px;text-align:center;font-size:26px}
+#codeb{left:48px;right:48px;top:66px;height:282px}#codeb h2{position:absolute;left:0;right:0;top:18px;text-align:center;font-size:26px}
 #boxes{position:absolute;left:50%;top:66px;transform:translateX(-50%);display:flex;gap:12px}#boxes i{width:51px;height:60px;background:#fff;box-shadow:0 -3px 0 0 var(--N),0 3px 0 0 var(--N),-3px 0 0 0 var(--N),3px 0 0 0 var(--N),inset 0 -6px 0 0 #E9E2C8;font:400 34px/54px var(--fd);text-align:center;font-style:normal}#boxes i.cur{box-shadow:0 -3px 0 0 var(--y),0 3px 0 0 var(--y),-3px 0 0 0 var(--y),3px 0 0 0 var(--y),inset 0 -6px 0 0 #E9E2C8}
 #keys{position:absolute;left:42px;top:144px;display:grid;grid-template-columns:repeat(5,72px);gap:12px}#keys .px,#kact .px{position:relative;height:51px;font-size:26px;padding:0 0 6px}
 #kact{position:absolute;right:42px;top:144px;display:flex;flex-direction:column;gap:12px}#kact .px{width:129px;font-size:20px}
@@ -188,6 +188,35 @@ button.px[disabled]{--bg:#B9D3C4;--sh:#9BB8A8;--fg:#EAF4EE;pointer-events:none}
 :is(.t3d,.toy) #zsay,:is(.t3d,.toy) #csay{padding:13px 16px!important}
 .tg::after{top:50%!important;transform:translateY(-50%)}
 .tier{padding-top:0!important;padding-bottom:0!important}
+
+/* V2 공통 헤더·상태 띠·상태 화면 (차량 화면 #92의 구조를 폰 3D 스킨으로 옮김) */
+:root{--r:#F4A59B;--r-s:#D27C72;--r-h:#FBD0CA}
+.px.r{--bg:var(--r);--sh:var(--r-s);--hi:var(--r-h);--fg:var(--N)}
+.ttl.hd{left:84px;top:15px;z-index:35}
+#stat{right:27px;top:15px;height:39px;padding:0 15px 0 12px;font-size:17px;z-index:35;display:none}
+#stat i{width:9px;height:9px;background:var(--N);flex:none}
+#stat.ok i{background:#2E9A6B}#stat.wait i{animation:blink 1s ease-in-out infinite}
+.px.band{left:27px;right:27px;bottom:21px;height:45px;justify-content:flex-start;gap:10px;padding:0 18px!important;font:500 14px/1.3 var(--f);text-shadow:none;z-index:30}
+.band i{width:22px;height:22px;border-radius:50%;background:var(--N);color:#fff;display:grid;place-items:center;font:700 14px/1 var(--f);font-style:normal;flex:none}
+.band.w{--bg:#DDF1FD;--sh:var(--b-s)}.band.w i{animation:blink 1s ease-in-out infinite}
+.band.e{--bg:#FDE3DF;--sh:var(--r-s)}.band.e i{background:#C2554A}
+.stg{position:absolute;z-index:20;left:40px;top:62px;width:290px;height:226px}
+.stg img{position:absolute;left:50%;bottom:34px;width:190px;height:190px;margin-left:-95px;object-fit:contain}
+.stg::before{content:"";position:absolute;left:50%;bottom:26px;width:140px;height:16px;margin-left:-70px;border-radius:50%;background:#1a3a2a59;filter:blur(3px)}
+.stg .chip{position:absolute;left:50%;bottom:0;transform:translateX(-50%);padding:3px 12px;border-radius:99px;background:var(--cream);border:2.5px solid var(--N);font:500 12px var(--f);white-space:nowrap}
+.px.pan.rp{left:362px;right:27px;top:62px;height:232px;padding:16px 22px}
+.rp h2{font-size:26px}.rp p,.rp .nb{word-break:keep-all}.scr.e .pan.rp{--bg:#FFF1EE}.scr.e .rp .nb{border-color:var(--r)}.scr.w .pan.rp{--bg:#F1F9FE}.scr.w .rp .nb{border-color:var(--b)}.rp p{margin-top:4px;font-size:14px}
+.rp .nb{margin-top:8px;padding:7px 12px;border-radius:14px;background:#FFFBEC;border:2px solid #E4D6AE;font:500 13px/1.45 var(--f)}
+.rp .btn{position:relative;margin:12px 8px 0 0;height:40px;padding:0 20px;display:inline-flex;font-size:18px}
+#pgrid{position:absolute;left:24px;right:24px;top:20px;display:flex;gap:10px}
+#pgrid .tile{flex:1;height:100px;min-width:0}#pgrid .tile img{height:62px}
+.tile.sel{--bg:#FFEBA8;--sh:var(--y-s)}
+.tile.sel::after{content:"✓";position:absolute;right:-6px;top:-8px;width:22px;height:22px;border-radius:50%;background:var(--g);border:2.5px solid var(--N);display:grid;place-items:center;font:700 13px var(--f)}
+#psel{position:absolute;left:24px;top:142px;font:400 22px var(--fd)}#psel small{display:block;font:500 13px var(--f);margin-top:4px;color:#5C6085}
+#pbtn{right:24px;top:140px;height:42px;padding:0 24px;font-size:19px}
+.fr{position:absolute;left:24px;right:24px;height:50px;justify-content:flex-start;gap:14px;padding:0 18px!important;font:400 19px var(--fd)}
+.fr b{width:22px;height:22px;background:var(--b);border:2.5px solid var(--N);transform:rotate(45deg) scale(.7);border-radius:4px;flex:none}
+.fr small{font:500 13px var(--f);color:#5C6085}.fr .r2{margin-left:auto;font:400 17px var(--fd)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 /* 폭신한 장난감 질감: 따뜻한 테두리와 퍼지는 틴트 그림자 */
 .px:not(.pan){border-radius:22px;box-shadow:0 6px 0 var(--sh,var(--cr-s)),0 12px 20px #5C4B5126!important;transition:transform .15s cubic-bezier(.34,1.56,.64,1),box-shadow .15s ease-out}
@@ -227,12 +256,12 @@ button.px:active{transform:translateY(4px) scale(.97);box-shadow:0 2px 0 var(--s
  <button class="px y" id="start">화면을 눌러 시작</button>
 </section>
 <section class="scr" id="s-qr">
- <button class="px sm back" data-ic="back" aria-label="뒤로" data-to="splash"></button>
+ <button class="px sm back" data-ic="back" aria-label="뒤로" data-to="splash"></button><div class="ttl hd">차와 연결</div>
  <div class="px pan" id="qrb"><button id="cam" aria-label="QR 비추기"><i></i><i></i><i></i><i></i><span>QR을 여기에<br>비춰 주세요</span></button>
   <div id="qr-r"><h2>차 화면의 QR을<br>비춰 주세요</h2><p>QR이 안 되면 숫자 6개로 연결해요</p><button class="px y" id="tocode">숫자로 연결하기</button></div></div>
 </section>
 <section class="scr" id="s-code">
- <button class="px sm back" data-ic="back" aria-label="뒤로" data-to="qr"></button>
+ <button class="px sm back" data-ic="back" aria-label="뒤로" data-to="qr"></button><div class="ttl hd">숫자로 연결</div>
  <div class="px pan" id="codeb"><h2>차 화면의 숫자 6개를 눌러요</h2><div id="boxes"></div><div id="keys"></div>
   <div id="kact"><button class="px" id="kdel">지우기</button><button class="px b" id="kok" disabled>연결하기</button></div></div>
 </section>
@@ -270,22 +299,72 @@ button.px:active{transform:translateY(4px) scale(.97);box-shadow:0 2px 0 var(--s
 </section>
 <section class="scr" id="s-dex">
  <button class="px sm back" data-ic="back" aria-label="뒤로" data-back="1"></button>
- <div class="px pan" style="left:24px;right:24px;top:63px;height:285px"><div class="ttl">도감</div><div class="cnt" id="dcount"></div><div id="grid"></div></div>
+ <div class="ttl hd">도감</div>
+ <div class="px pan" style="left:24px;right:24px;top:63px;height:285px"><div class="cnt" id="dcount"></div><div id="grid"></div></div>
 </section>
 <section class="scr" id="s-dd">
- <button class="px sm back" data-ic="back" aria-label="뒤로" data-to="dex"></button>
+ <button class="px sm back" data-ic="back" aria-label="뒤로" data-to="dex"></button><div class="ttl hd">도감</div>
  <div class="px pan" style="left:24px;right:24px;top:63px;height:285px"><div id="dd-img"><img alt=""></div><div id="dd-r"><h2></h2><div id="dd-t"></div><p id="dd-p"></p><div id="poses"></div></div></div>
 </section>
 <section class="scr" id="s-trip">
  <button class="px sm back" data-ic="back" aria-label="뒤로" data-back="1"></button>
- <div class="px pan" style="left:24px;right:24px;top:63px;height:285px"><div class="ttl">여행 기록</div><div class="cnt">예시 자료</div><div id="rows"></div></div>
+ <div class="ttl hd">여행 기록</div>
+ <div class="px pan" style="left:24px;right:24px;top:63px;height:285px"><button class="px b" id="tofish" style="right:18px;top:12px;height:34px;padding:0 16px;font-size:16px;z-index:3">낚시 기록장</button><div id="rows"></div></div>
 </section>
 <section class="scr" id="s-set">
  <button class="px sm back" data-ic="back" aria-label="뒤로" data-back="1"></button>
- <div class="px pan" style="left:99px;right:99px;top:63px;height:267px"><div class="ttl">설정</div>
+ <div class="ttl hd">설정</div>
+ <div class="px pan" style="left:99px;right:99px;top:63px;height:267px">
   <div class="px set" style="top:63px;position:absolute">효과음<button class="px tg on" aria-label="효과음"><i></i></button></div>
   <div class="px set" style="top:126px;position:absolute">배경음<button class="px tg on" aria-label="배경음"><i></i></button></div>
   <div class="px set" style="top:189px;position:absolute">차와 연결 끊기<button class="px b" id="unpair" style="position:relative;margin-left:auto;height:36px;padding:0 18px 6px;font-size:17px">끊기</button></div></div>
+</section>
+
+<section class="scr" id="s-pick">
+ <button class="px sm back" data-ic="back" aria-label="뒤로" data-back="1"></button><div class="ttl hd">함께 갈 친구</div>
+ <div class="px pan" style="left:24px;right:24px;top:63px;height:232px"><div id="pgrid"></div><div id="psel"></div><button class="px y" id="pbtn">이 친구와 함께 가기</button></div>
+ <div class="px band"><i>i</i><span>고른 친구가 차 화면에 나타나요. 확인되기 전에는 바뀌지 않아요.</span></div>
+</section>
+<section class="scr w" id="s-pickw">
+ <button class="px sm back" data-ic="back" aria-label="뒤로" data-back="1"></button><div class="ttl hd">친구 바꾸기</div>
+ <div class="stg"><img data-pose="idle" alt=""></div>
+ <div class="px pan rp"><h2>차에 알리고 있어요</h2><p>고른 친구를 차 화면에 전하는 중이에요.</p><div class="nb">확인되기 전에는 지금 친구가 그대로 있어요.</div><div><button class="px btn" disabled>확인 중</button></div></div>
+ <div class="px band w"><i>…</i><span>응답이 늦어도 실패로 보지 않아요</span></div>
+</section>
+<section class="scr e" id="s-pickf">
+ <button class="px sm back" data-ic="back" aria-label="뒤로" data-back="1"></button><div class="ttl hd">친구 바꾸기</div>
+ <div class="stg"><img data-pose="idle" alt=""><div class="chip">마지막으로 확인한 친구</div></div>
+ <div class="px pan rp"><h2>친구를 바꾸지 못했어요</h2><p>저장 상태를 확인한 뒤 다시 시도해 주세요.</p><div class="nb">새 선택은 아직 확정되지 않았어요. 기존 친구는 그대로예요.</div><div><button class="px y btn" data-to="pickw">다시 시도</button><button class="px btn" data-to="pick">돌아가기</button></div></div>
+ <div class="px band e"><i>!</i><span>차 화면의 친구는 바뀌지 않았어요</span></div>
+</section>
+<section class="scr" id="s-recv">
+ <button class="px sm back" data-ic="back" aria-label="뒤로" data-back="1"></button><div class="ttl hd">차에서 온 친구</div>
+ <div class="stg"><img data-pose="happy" alt=""></div>
+ <div class="px pan rp"><h2>친구가 폰으로 왔어요</h2><p>차에서 하던 낚시는 멈춰 있어요.</p><div class="nb">진행과 기록은 저장했어요. 차로 다시 보내려면 ‘함께 갈 친구’에서 골라요.</div><div><button class="px y btn" data-to="home">광장으로 가기</button></div></div>
+ <div class="px band i"><i>i</i><span>함께 갈 친구는 폰에서만 골라요</span></div>
+</section>
+<section class="scr e" id="s-recvx">
+ <button class="px sm back" data-ic="back" aria-label="뒤로" data-back="1"></button><div class="ttl hd">차에서 온 친구</div>
+ <div class="stg"><img data-pose="idle" alt=""><div class="chip">마지막으로 확인한 모습</div></div>
+ <div class="px pan rp"><h2>지금은 받을 수 없어요</h2><p>다른 활동 중이라고 확인됐어요.</p><div class="nb">진행 중인 활동은 취소하지 않아요. 상태를 확인한 뒤 다시 요청해 주세요.</div><div><button class="px btn" data-to="home">광장으로</button></div></div>
+ <div class="px band e"><i>!</i><span>자동으로 다시 시도하지 않아요</span></div>
+</section>
+<section class="scr e" id="s-lost">
+ <button class="px sm back" data-ic="back" aria-label="뒤로" data-back="1"></button><div class="ttl hd">연결 확인</div>
+ <div class="stg"><img data-pose="idle" alt=""><div class="chip">마지막으로 받은 모습</div></div>
+ <div class="px pan rp"><h2>차와 연결이 끊겼어요</h2><p>차 화면의 알로와 인터넷 연결을 확인해 주세요.</p><div class="nb">끊긴 동안의 결과는 연결된 뒤에 다시 확인해요.</div><div><button class="px y btn" data-to="qr">다시 연결하기</button></div></div>
+ <div class="px band e"><i>!</i><span>마지막으로 받은 상태예요</span></div>
+</section>
+<section class="scr" id="s-end">
+ <button class="px sm back" data-ic="back" aria-label="뒤로" data-back="1"></button><div class="ttl hd">여행 끝</div>
+ <div class="stg"><img data-pose="sleep" alt=""></div>
+ <div class="px pan rp"><h2>이번 연결이 끝났어요</h2><p>친구와 낚시 결과는 여기서 확인해요.</p><div class="nb">다시 함께하려면 차와 새로 연결해 주세요.</div><div><button class="px y btn" data-to="qr">다음 연결 준비</button></div></div>
+ <div class="px band i"><i>i</i><span>차를 세웠다고 저절로 끝나지는 않아요</span></div>
+</section>
+<section class="scr" id="s-fish">
+ <button class="px sm back" data-ic="back" aria-label="뒤로" data-back="1"></button><div class="ttl hd">낚시 기록장</div>
+ <div class="px pan" style="left:24px;right:24px;top:63px;height:232px"><div id="frows"></div></div>
+ <div class="px band"><i>i</i><span>낚시는 아직 팀이 정하지 않았어요(#53). 자리만 잡은 화면이에요.</span></div>
 </section>
 
 <div id="zoom" class="toy"><div id="zdim"></div><img id="zimg" alt=""><div id="fx"></div>
@@ -293,6 +372,7 @@ button.px:active{transform:translateY(4px) scale(.97);box-shadow:0 2px 0 var(--s
 <div id="ar" class="toy"><div class="floor"></div><div class="ph">카메라 화면 (예시)</div><div class="gs"></div><img id="arch" alt="">
  <div class="px" id="arhint">바닥을 비추면 친구가 나타나요</div><button class="px sm" id="arback" data-ic="back" aria-label="뒤로"></button>
  <button class="px b" id="arsw"></button><button class="px" id="shut" aria-label="사진 찍기"></button></div>
+<div id="stat" class="px"><i></i><span></span></div>
 <div id="flash"></div><div id="toast"></div>
 </div></div></div></div>
 <script>
@@ -312,9 +392,9 @@ const heart=k=>`<svg width="${9*k}" height="${6*k}" viewBox="0 0 9 6" fill="#FF5
 
 const S=[["road_sprout","길싹이",1],["puddle_pip","웅덩이삐약",1],["lamp_moth","등불나방",1],["storm_lantern","폭풍등",3],["highway_comet","고속혜성",3],["sea_mist","바다안개",3],["ember_crab","Ember Crab",0],["dewcap","Dewcap",0],["cloud_strider","Cloud Strider",0],["pebble_orbit","Pebble Orbit",0],["breeze_wyrm","Breeze Wyrm",0],["dune_roller","Dune Roller",0]];
 const TIER=["","일반","희귀","초희귀"],SAY=["오늘 창밖에서 반짝이는 빗방울을 봤어!","터널 안의 불빛이 별처럼 보였어.","같이 가면 심심하지 않아서 좋아."],OWN=[0,1,2,3,5,8,11];
-const LABEL={splash:"1 시작",qr:"2 QR로 연결",code:"3 숫자로 연결",home:"4 홈(광장)",inc:"5 알 키우는 중",hatch:"6 부화",cmp:"7 동행 중",arr:"8 도착",dex:"9 도감",dd:"10 도감 상세",trip:"11 여행 기록",set:"12 설정"};
+const LABEL={pick:"13 함께 갈 친구",pickw:"14 선택 확인 중",pickf:"15 선택 실패",recv:"16 차에서 온 친구",recvx:"17 이동 거절",lost:"18 연결 끊김",end:"19 여행 끝",fish:"20 낚시 기록장(예약)",splash:"1 시작",qr:"2 QR로 연결",code:"3 숫자로 연결",home:"4 홈(광장)",inc:"5 알 키우는 중",hatch:"6 부화",cmp:"7 동행 중",arr:"8 도착",dex:"9 도감",dd:"10 도감 상세",trip:"11 여행 기록",set:"12 설정"};
 const q=new URLSearchParams(location.search);
-const st={wish:0,conn:q.get("c")!="0",n:+(q.get("n")||4),pct:62,line:0,busy:0,cur:"splash",sel:5,pose:"idle",code:"",tm:"day",auto:1,back:"home"};
+const st={pick:0,hold:new URLSearchParams(location.search).has("hold"),wish:0,conn:q.get("c")!="0",n:+(q.get("n")||4),pct:62,line:0,busy:0,cur:"splash",sel:5,pose:"idle",code:"",tm:"day",auto:1,back:"home"};
 const toast=t=>{const e=$("#toast");e.textContent=t;e.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove("on"),2200)};
 const src=(i,p)=>`assets/${S[i][0]}/${p=="joy"?"joy.gif":p+".png"}`;
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
@@ -374,9 +454,9 @@ let timers=[];const later=(f,ms)=>timers.push(setTimeout(f,ms));
 function go(name){st.keep=(st.cur=="dex"||st.cur=="trip"||st.cur=="set")&&name==st.back&&(name=="inc"||name=="cmp");timers.forEach(clearTimeout);timers=[];st.cur=name;st.busy=0;$("#zoom").classList.remove("on");$("#ar").classList.remove("on");
  const pl=["inc","hatch","cmp"].includes(name);$("#scene").classList.toggle("pl",pl);$("#scene").classList.toggle("plain",name!="home"&&!pl);$("#dimm").style.display=name!="home"&&!pl?"block":"none";
  $$(".scr").forEach(s=>s.classList.remove("on","fade"));$("#s-"+name).classList.add("on","fade");
- $$("#nav button").forEach(b=>b.classList.toggle("on",b.dataset.g==name));
+ $$("#nav button").forEach(b=>b.classList.toggle("on",b.dataset.g==name));setStat(name);
  if(history.replaceState&&!q.has("embed"))history.replaceState(null,"","?t="+st.tm+"#"+name);
- ({splash:enterSplash,qr:()=>{},code:enterCode,home:ui,inc:enterInc,hatch:enterHatch,cmp:enterCmp,arr:enterArr,dex:enterDex,dd:enterDd,trip:enterTrip,set:()=>{}})[name]()}
+ ({pick:enterPick,pickw:enterPickw,pickf:enterSide,recv:enterSide,recvx:enterSide,lost:enterSide,end:enterSide,fish:enterFish,splash:enterSplash,qr:()=>{},code:enterCode,home:ui,inc:enterInc,hatch:enterHatch,cmp:enterCmp,arr:enterArr,dex:enterDex,dd:enterDd,trip:enterTrip,set:()=>{}})[name]()}
 $$("[data-to]").forEach(b=>b.onclick=()=>go(b.dataset.to));
 function enterSplash(){$("#sp1").src=src(1,"idle");$("#sp2").src=src(0,"idle");$("#sp2").style.transform="scaleX(-1)"}
 $("#s-splash").onclick=()=>go("qr");
@@ -434,6 +514,21 @@ function enterDd(){const i=st.sel,[,ko,t]=S[i];$("#dd-img img").src=src(i,st.pos
 const TRIPS=[["11월 8일","가까운 길",0],["11월 5일","먼 길",5],["10월 30일","보통 길",2]];
 function enterTrip(){$("#rows").innerHTML=TRIPS.map((t,k)=>`<div class="px row" style="top:${60+k*72}px"><img src="assets/${S[t[2]][0]}/egg.png" alt=""><div>${t[0]}<small>${t[1]}</small></div><div class="r">${S[t[2]][1]}<img src="${src(t[2],"idle")}" alt=""></div></div>`).join("")}
 $$(".tg").forEach(b=>b.onclick=()=>b.classList.toggle("on"));$("#unpair").onclick=()=>{st.conn=false;go("home")};
+
+/* ===== V2 상태 화면 ===== */
+const STAT={qr:["연결 전",""],code:["연결 전",""],dex:["conn","ok"],dd:["conn","ok"],trip:["conn","ok"],set:["conn","ok"],pick:["conn","ok"],pickw:["확인 중","wait b"],pickf:["저장 실패","r"],recv:["이동 완료","ok g"],recvx:["이동 거절","r"],lost:["연결 끊김","r"],end:["세션 종료","gy"],fish:["예약 슬롯","gy"]};
+function setStat(name){const e=$("#stat"),v=STAT[name];if(!v){e.style.display="none";return}
+ const off=v[0]=="conn"&&!st.conn,t=v[0]=="conn"?(st.conn?"차 연결됨":"차 연결 안 됨"):v[0];
+ e.className="px "+(off?"y":v[1]);e.querySelector("span").textContent=t;e.style.display="flex"}
+function enterSide(){$$("#s-"+st.cur+" .stg img").forEach(i=>i.src=src(st.pick,i.dataset.pose))}
+function enterPick(){const own=OWN.filter(i=>i<S.length);
+ $("#pgrid").innerHTML=own.map(i=>`<button class="px tile${i==st.pick?" sel":""}" data-i="${i}"><img src="${src(i,"idle")}" alt=""><span>${S[i][1]}</span></button>`).join("");
+ $$("#pgrid .tile").forEach(b=>b.onclick=()=>{st.pick=+b.dataset.i;enterPick()});
+ const [,ko,t]=S[st.pick];$("#psel").innerHTML=`${ko}<small>${t?TIER[t]:"일반"} · 폰에 있는 친구</small>`}
+$("#pbtn").onclick=()=>go("pickw");
+function enterPickw(){enterSide();if(!st.hold)later(()=>{toast("차 화면에 곧 나타나요");go("home")},1800)}
+function enterFish(){$("#frows").innerHTML=[["물고기 A","임시 명칭","3건"],["물고기 B","임시 명칭","1건"],["물고기 C","임시 명칭","0건"]].map((r,k)=>`<div class="px fr" style="top:${20+k*60}px"><b></b><div>${r[0]}<small> · ${r[1]}</small></div><div class="r2">${r[2]}</div></div>`).join("")}
+$("#tofish").onclick=()=>{st.back="trip";go("fish")};
 /* 개발용 */
 $("#nav").innerHTML=Object.keys(LABEL).map(k=>`<button data-g="${k}">${LABEL[k]}</button>`).join("");$$("#nav button").forEach(b=>b.onclick=()=>go(b.dataset.g));
 $("#tbtn").innerHTML=Object.keys(TNAME).map(k=>`<button data-t="${k}">${TNAME[k]}</button>`).join("");$$("#tbtn button").forEach(b=>b.onclick=()=>setTheme(b.dataset.t));
