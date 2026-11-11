@@ -36,7 +36,7 @@ fun rememberSpeciesCatalog(): SpeciesCatalog {
     }
 }
 
-/** Vehicle driving stays static; parked motion and the explicit running preview are separate. */
+/** Driving and parked poses share the same connection, lifecycle and motion-setting gates. */
 @Composable
 fun PetArt(
     summary: PetSummary,
@@ -45,14 +45,14 @@ fun PetArt(
     pose: PetPose = PetPose.Idle,
     parked: Boolean = false,
     connected: Boolean = true,
-    previewRunning: Boolean = false,
+    runningMotion: Boolean = false,
 ) {
     if (summary.showEgg) {
         EggMark(size = size, fill = summary.eggFill, modifier = modifier.semantics { contentDescription = "알" })
         return
     }
-    val animate = ambientMotionAllowed(pose, parked, connected, previewRunning)
-    val sheetSpec = PetSpriteSheets.forDisplay(summary.species?.id, pose, parked, previewRunning)
+    val animate = ambientMotionAllowed(pose, parked, connected, runningMotion)
+    val sheetSpec = PetSpriteSheets.forDisplay(summary.species?.id, pose, parked, runningMotion)
     val sheet = rememberPetSpriteSheet(sheetSpec)
     if (sheet != null && sheetSpec != null) {
         PetSpriteSheet(sheet, sheetSpec, animate, "${summary.title} · ${pose.label}", size, modifier)
@@ -106,14 +106,14 @@ fun PetArt(
         } else {
             PlaceholderPet(summary, size, artModifier, pose)
         }
-        if (pose == PetPose.Sleep || pose == PetPose.Fishing || previewRunning) {
+        if (pose == PetPose.Sleep || pose == PetPose.Fishing || runningMotion) {
             RestScene(pose, phase, motion, size, animate)
         }
     }
 }
 
 @Composable
-private fun ambientMotionAllowed(pose: PetPose, parked: Boolean, connected: Boolean, previewRunning: Boolean): Boolean {
+private fun ambientMotionAllowed(pose: PetPose, parked: Boolean, connected: Boolean, runningMotion: Boolean): Boolean {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val resolver = LocalContext.current.contentResolver
     var resumed by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
@@ -128,7 +128,7 @@ private fun ambientMotionAllowed(pose: PetPose, parked: Boolean, connected: Bool
         refresh()
         onDispose { lifecycle.removeObserver(observer) }
     }
-    return PetPoses.animates(pose, parked, connected, resumed, motionEnabled, previewRunning)
+    return PetPoses.animates(pose, parked, connected, resumed, motionEnabled, runningMotion)
 }
 
 @Composable

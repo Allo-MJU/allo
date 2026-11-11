@@ -14,9 +14,9 @@ object PetPoses {
     fun assetPath(speciesId: String?, pose: PetPose): String? =
         speciesId?.takeIf { it in supplied }?.let { "poses/$it/${pose.asset}.png" }
 
-    fun animates(pose: PetPose, parked: Boolean, connected: Boolean, resumed: Boolean, motionEnabled: Boolean, previewRunning: Boolean = false): Boolean =
+    fun animates(pose: PetPose, parked: Boolean, connected: Boolean, resumed: Boolean, motionEnabled: Boolean, runningMotion: Boolean = false): Boolean =
         connected && resumed && motionEnabled && (
-            parked && pose in setOf(PetPose.Sleep, PetPose.Fishing) || previewRunning && pose == PetPose.Move
+            parked && pose in setOf(PetPose.Sleep, PetPose.Fishing) || !parked && runningMotion && pose == PetPose.Move
         )
 }
 

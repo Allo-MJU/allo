@@ -8,7 +8,7 @@ class PetSpriteSpecTest {
         val paths = mutableSetOf<String>()
         ids.forEach { id ->
             listOf(PetPose.Move to "run", PetPose.Fishing to "fish", PetPose.Sleep to "sleep").forEach { (pose, file) ->
-                val spec = assertNotNull(PetSpriteSheets.forDisplay(id, pose, true, true))
+                val spec = assertNotNull(PetSpriteSheets.forDisplay(id, pose, pose != PetPose.Move, true))
                 assertEquals("poses/$id/$file-sheet.png", spec.path)
                 assertTrue(paths.add(spec.path))
                 assertEquals((0..7).toSet(), spec.timeline.toSet())
@@ -23,7 +23,7 @@ class PetSpriteSpecTest {
         }
         assertEquals(18, paths.size)
         listOf(null, "tide_keeper", "../road_sprout", "Road_Sprout", "unknown").forEach { id ->
-            PetPose.entries.forEach { pose -> assertNull(PetSpriteSheets.forDisplay(id, pose, true, true)) }
+            PetPose.entries.forEach { pose -> assertNull(PetSpriteSheets.forDisplay(id, pose, pose != PetPose.Move, true)) }
         }
     }
     @Test fun `sleeping frames require parking and freeze when motion is disabled`() {
@@ -38,9 +38,9 @@ class PetSpriteSpecTest {
         assertEquals(7, spec.frameAt(spec.durationMs - 1L, true))
         assertEquals(0, spec.frameAt(spec.durationMs.toLong(), true))
     }
-    @Test fun `running sheet cannot replace real vehicle driving pose`() {
+    @Test fun `running sheet is selected by vehicle driving and never by parking`() {
         assertNull(PetSpriteSheets.forDisplay("road_sprout", PetPose.Move, false, false))
-        assertNull(PetSpriteSheets.forDisplay("road_sprout", PetPose.Move, true, false))
+        assertNull(PetSpriteSheets.forDisplay("road_sprout", PetPose.Move, true, true))
         assertEquals(PetSpriteSheets.run, PetSpriteSheets.forDisplay("road_sprout", PetPose.Move, false, true))
         assertNull(PetSpriteSheets.forDisplay("road_sprout", PetPose.Fishing, false, true))
         assertEquals(PetSpriteSheets.fish, PetSpriteSheets.forDisplay("road_sprout", PetPose.Fishing, true, false))

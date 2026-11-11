@@ -5,8 +5,8 @@ Images copied unchanged from Allo-MJU/allo PR #86, commit `c24eeaa507bdec1bc7d29
 
 Only the six exact species IDs shared with `data/species.json` are included.
 The other six designs have unresolved species mapping and are not substituted.
-Driving uses a still move pose. The six mapped species use authored action sheets
-for parked sleep/fishing and preview-only running. Original pose images remain
+Driving uses the running action sheet. The six mapped species use authored action sheets
+for driving and parked sleep/fishing. Original pose images remain
 available as fallbacks. These are 2D rendered images, not 3D models.
 
 ## Road Sprout authored action frames
@@ -31,7 +31,7 @@ Prompt set:
 - Cleanup: remove the white background and ground shadows while preserving every
   character, limb, rod, thin line and fish; remove detached background speckles.
 
-Running remains preview-only. Fishing uses actual pose frames without the earlier
+Running is enabled in the production vehicle DrivingScreen and the preview app. Fishing uses actual pose frames without the earlier
 whole-image transform or vector rod overlay. This is 2D frame animation, not a
 rigged 3D model; art approval and refinement of in-between frames remain separate.
 
@@ -61,4 +61,6 @@ Lamp Moth beats its wings, Storm Lantern gallops, Highway Comet bounds, and
 Sea Mist swims with articulated fins. Sleep changes breathing/head/limb poses;
 fishing changes grip, lean and reaction through a catch-and-loss sequence.
 All use the shared playback timings, lifecycle/reduced-motion freeze behavior,
-and parked-only sleep/fishing gate. Actual driving continues to show static art.
+and parked-only sleep/fishing gate. Driving runs only while connected, foregrounded
+and motion-enabled; parking or interruptions stop running. Actual Pleos device
+integration and driving-display review remain unverified.

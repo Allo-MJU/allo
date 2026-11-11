@@ -69,7 +69,7 @@ class MainActivity : ComponentActivity() {
                         if (showSpeedNotice && parkedAllowed) SpeedNoticeScreen(onContinue = { speedPermission.launch(AaosPropertyReader.SPEED_PERMISSION) })
                         else when (screen) {
                             CarScreen.Pairing -> PairingScreen(meta = meta, dbUrl = BuildConfig.ALLO_DB_URL, sessionId = session.sessionId)
-                            CarScreen.Driving -> DrivingScreen(game = game, connected = connected && meta.paired)
+                            CarScreen.Driving -> DrivingScreen(game = game, connected = connected && meta.paired, runningMotion = true)
                             CarScreen.Parked -> ParkedScreen(game = game, connected = connected,
                                 onShare = if (BuildConfig.DEBUG) ({ openShare() }) else null)
                         }

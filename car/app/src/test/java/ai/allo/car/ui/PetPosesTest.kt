@@ -11,7 +11,7 @@ class PetPosesTest {
         assertNull(PetPoses.assetPath("../road_sprout", PetPose.Move))
         assertNull(PetPoses.assetPath(null, PetPose.Move))
     }
-    @Test fun `driving or interrupted parking never animates`() {
+    @Test fun `disabled running and interrupted parking never animate`() {
         PetPose.entries.forEach { assertFalse(PetPoses.animates(it, false, true, true, true)) }
         assertFalse(PetPoses.animates(PetPose.Move, true, true, true, true))
         assertFalse(PetPoses.animates(PetPose.Sleep, true, false, true, true))
@@ -20,11 +20,13 @@ class PetPosesTest {
         assertTrue(PetPoses.animates(PetPose.Sleep, true, true, true, true))
         assertTrue(PetPoses.animates(PetPose.Fishing, true, true, true, true))
     }
-    @Test fun `running motion requires explicit preview opt in and active motion permission`() {
+    @Test fun `vehicle running stops on disconnect background reduced motion and parking`() {
         assertFalse(PetPoses.animates(PetPose.Move, false, true, true, true))
-        assertTrue(PetPoses.animates(PetPose.Move, false, true, true, true, previewRunning = true))
-        assertFalse(PetPoses.animates(PetPose.Move, false, true, true, false, previewRunning = true))
-        assertFalse(PetPoses.animates(PetPose.Move, false, true, false, true, previewRunning = true))
+        assertTrue(PetPoses.animates(PetPose.Move, false, true, true, true, runningMotion = true))
+        assertFalse(PetPoses.animates(PetPose.Move, false, true, true, false, runningMotion = true))
+        assertFalse(PetPoses.animates(PetPose.Move, false, true, false, true, runningMotion = true))
+        assertFalse(PetPoses.animates(PetPose.Move, false, false, true, true, runningMotion = true))
+        assertFalse(PetPoses.animates(PetPose.Move, true, true, true, true, runningMotion = true))
     }
 
     @Test fun `fishing choreography raises catches releases and splashes within bounds`() {
