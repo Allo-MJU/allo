@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &8228243977136495912
+--- !u!1 &1417067777683267143
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 3101421129290066800}
-  - component: {fileID: 3512157942416385192}
-  - component: {fileID: 2344628808753124912}
+  - component: {fileID: 9137479810993118672}
+  - component: {fileID: 332120253816164334}
+  - component: {fileID: 9178852174747493770}
   m_Layer: 0
   m_Name: cliff_large_stone(Clone)
   m_TagString: Untagged
@@ -18,36 +18,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &3101421129290066800
+--- !u!4 &9137479810993118672
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8228243977136495912}
+  m_GameObject: {fileID: 1417067777683267143}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0, y: -0, z: 0.29075}
   m_LocalScale: {x: 1.0000001, y: 1.0000001, z: 1.0000001}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 580596918508979858}
+  m_Father: {fileID: 1185905267416525571}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &3512157942416385192
+--- !u!33 &332120253816164334
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8228243977136495912}
+  m_GameObject: {fileID: 1417067777683267143}
   m_Mesh: {fileID: -6445008038491991519, guid: 298173a55017740e2b68aff38ea6f7cc, type: 3}
---- !u!23 &2344628808753124912
+--- !u!23 &9178852174747493770
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8228243977136495912}
+  m_GameObject: {fileID: 1417067777683267143}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -86,7 +86,7 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!1 &8680402952582029467
+--- !u!1 &4772975195492692987
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -94,7 +94,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 580596918508979858}
+  - component: {fileID: 1185905267416525571}
   m_Layer: 0
   m_Name: K_cliff_large_stone
   m_TagString: Untagged
@@ -102,19 +102,19 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &580596918508979858
+--- !u!4 &1185905267416525571
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8680402952582029467}
+  m_GameObject: {fileID: 4772975195492692987}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 3101421129290066800}
+  - {fileID: 9137479810993118672}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

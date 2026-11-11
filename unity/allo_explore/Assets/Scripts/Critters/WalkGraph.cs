@@ -90,6 +90,15 @@ namespace Allo.Critters
                 s.center.z + (float)(rng.NextDouble() * 2 - 1) * hz);
         }
 
+        /// 면 안(가장자리 여유 안쪽)으로 끌어들인 점. 높이는 면 높이
+        public static Vector3 Clamp(Vector3 p, WalkSurface s)
+        {
+            var hx = Mathf.Max(0, s.size.x / 2 - EdgeMargin);
+            var hz = Mathf.Max(0, s.size.y / 2 - EdgeMargin);
+            return new Vector3(Mathf.Clamp(p.x, s.center.x - hx, s.center.x + hx), s.center.y,
+                Mathf.Clamp(p.z, s.center.z - hz, s.center.z + hz));
+        }
+
         public int Nearest(Vector3 p)
         {
             var best = -1;

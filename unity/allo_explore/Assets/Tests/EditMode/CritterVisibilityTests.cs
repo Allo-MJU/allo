@@ -38,14 +38,14 @@ public class CritterVisibilityTests
     {
         // 아이가 기댄 등받이: 눈보다 높다
         var back = Wall(new Vector3(0, 0.72f, -0.25f), new Vector3(1.4f, 0.62f, 0.14f));
-        Assert.IsTrue(CritterDirector.HiddenFromChild(Shelf, Eye, new[] { back }));
+        Assert.IsTrue(CritterDirector.HiddenFromChild(Shelf, Eye, new Collider[] { back }));
     }
 
     [Test]
     public void SurfaceIsVisibleWithoutOccluder()
     {
         var back = Wall(new Vector3(5, 0, 5), Vector3.one * 0.1f);
-        Assert.IsFalse(CritterDirector.HiddenFromChild(Shelf, Eye, new[] { back }));
+        Assert.IsFalse(CritterDirector.HiddenFromChild(Shelf, Eye, new Collider[] { back }));
     }
 
     [Test]
@@ -53,7 +53,7 @@ public class CritterVisibilityTests
     {
         // 유리처럼 탭용 충돌체가 이미 있는 물체는 가림으로 세지 않는다
         Wall(new Vector3(0, 0.72f, -0.25f), new Vector3(1.4f, 0.62f, 0.14f));
-        Assert.IsFalse(CritterDirector.HiddenFromChild(Shelf, Eye, new MeshCollider[0]));
+        Assert.IsFalse(CritterDirector.HiddenFromChild(Shelf, Eye, new Collider[0]));
     }
 
     [Test]

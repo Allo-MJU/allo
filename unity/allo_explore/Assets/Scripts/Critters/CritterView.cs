@@ -15,6 +15,7 @@ namespace Allo.Critters
         Transform _body;
         Transform _shadow;
         Renderer _bodyRenderer;
+        BoxCollider _col;
         float _t;
         float _facing = -1; // 움직이는 방향 (카메라 기준 오른쪽 +1). 처음엔 왼쪽
         float _cheer;       // happy 포즈 남은 시간
@@ -61,7 +62,7 @@ namespace Allo.Critters
             _shadow.GetComponent<Renderer>().sharedMaterial = shadowMat;
             _last = brain.Position;
             // 탭으로 고를 수 있게 몸 크기만 한 상자
-            var col = gameObject.AddComponent<BoxCollider>();
+            var col = _col = gameObject.AddComponent<BoxCollider>();
             col.center = Vector3.up * Height * 0.5f;
             col.size = Vector3.one * Height * 1.3f;
             if (_model != null)
@@ -137,7 +138,7 @@ namespace Allo.Critters
                 {
                     var k = _brain.Progress;
                     p = Vector3.Lerp(_brain.JumpFrom, _brain.Target, k);
-                    lift = Mathf.Sin(k * Mathf.PI) * (0.18f + Mathf.Max(0, _brain.Target.y - _brain.JumpFrom.y));
+                    lift = Mathf.Sin(k * Mathf.PI) * (0.18f + _brain.JumpBoost + Mathf.Max(0, _brain.Target.y - _brain.JumpFrom.y));
                     sy = k < 0.15f ? 0.8f : k > 0.85f ? 0.85f : 1.15f; sx = 2 - sy;
                     break;
                 }
@@ -191,6 +192,13 @@ namespace Allo.Critters
             var aspect = _art?.Aspect ?? 1;
             var flip = _art != null && _art.FacesLeft ? -_facing : _facing;
             _body.localScale = new Vector3(Height * aspect * sx * flip, Height * sy, 1);
+            // 탭·쓰다듬기 상자를 보이는 그림에 맞춘다 (그림은 카메라 쪽으로 당겨지고 날개가 넓다)
+            if (_col != null)
+            {
+                _col.center = transform.InverseTransformPoint(_body.position);
+                var w = Height * Mathf.Max(1, aspect) * 1.1f; // 루트는 돌지 않으므로 어느 쪽에서 봐도 덮이게 x·z 같게
+                _col.size = new Vector3(w, Height * 1.2f, w);
+            }
             var shrink = 1 - Mathf.Clamp01(lift / 0.4f) * 0.5f;
             _shadow.position = p + Vector3.up * 0.003f;
             _shadow.localScale = new Vector3(Height * Mathf.Min(aspect, 1.3f) * 0.8f * shrink, Height * 0.45f * shrink, 1);
