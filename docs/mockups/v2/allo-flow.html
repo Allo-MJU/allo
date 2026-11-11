@@ -414,18 +414,25 @@ function setTheme(t){st.auto=t=="auto";st.tm=st.auto?clockTheme():t;buildScene()
  if(history.replaceState&&!q.has("embed"))history.replaceState(null,"","?t="+(st.auto?"auto":st.tm)+(location.hash||""))}
 
 /* ===== 홈 캐릭터(임시) ===== */
-let cs=[];const pick=()=>{let b;for(let k=0;k<40;k++){b=[1+Math.random()*(NG-2),1+Math.random()*(NG-2)];if(cs.every(c=>Math.hypot(c.tu-b[0],c.tv-b[1])>1.7))break}return b};
+let cs=[];/* 버튼(왼쪽·오른쪽 아래, 오른쪽 위) 위로는 걷지 않고, 서로 겹치지 않게 간격(화면 좌표 타원)을 둔다 */
+const ok=(u,v)=>{const [x,y]=P(u,v);return !((y>275&&(x<235||x>665))||(y<285&&x>640))};
+const dense=()=>st.n>8,gap=(a,b,c,d)=>Math.hypot((a-c)*89/90,(b-d)*23.75/(dense()?60:80));
+const pick=from=>{const k=dense()?.7:1;for(let i=0;i<80;i++){const b=[1+Math.random()*(NG-2),1+Math.random()*(NG-2)];
+  if(ok(...b)&&cs.every(c=>gap(b[0],b[1],c.tu,c.tv)>k&&gap(b[0],b[1],c.u,c.v)>k)&&(!from||[.25,.5,.75].every(t=>ok(from[0]+(b[0]-from[0])*t,from[1]+(b[1]-from[1])*t))))return b}return from||[4,3]};
+function sep(dt){for(let i=0;i<cs.length;i++)for(let j=i+1;j<cs.length;j++){const a=cs[i],b=cs[j],d=gap(a.u,a.v,b.u,b.v);
+  const m=dense()?.65:.95;if(d<m){const dx=(b.u-a.u)*89/90,dy=(b.v-a.v)*23.75/(dense()?60:80),n=d||1,k=(m-d)*dt*5;
+   [[a,-1],[b,1]].forEach(([c,g])=>{const u=c.u+g*dx/n*k*90/89,v=c.v+g*dy/n*k*(dense()?60:80)/23.75;if(ok(u,v)){c.u=u;c.v=v}})}}}
 const asleep=()=>st.tm=="night";
 function spawn(){$("#cs").innerHTML="";cs=[];
  for(let i=0;i<st.n;i++){const e=document.createElement("div");e.className="sp"+(asleep()?" zz":"");const im=document.createElement("img");im.alt="";im.src=src(i,asleep()?"sleep":"idle");e.appendChild(im);
   const c={i,e,im,u:0,v:0,tu:0,tv:0,w:Math.random()*2,dir:1,mv:0};[c.u,c.v]=pick();c.tu=c.u;c.tv=c.v;e.onclick=()=>zoom(c);cs.push(c);$("#cs").appendChild(e)}}
 let last=performance.now();
 function loop(t){const dt=Math.min(.05,(t-last)/1000);last=t;
- if(st.cur=="home")cs.forEach(c=>{const du=c.tu-c.u,dv=c.tv-c.v,d=Math.hypot(du,dv);let mv=0;
+ if(st.cur=="home"){if(!asleep())sep(dt);cs.forEach(c=>{const du=c.tu-c.u,dv=c.tv-c.v,d=Math.hypot(du,dv);let mv=0;
   if(!asleep()&&d>.05){const s=.45*dt;c.u+=du/d*s;c.v+=dv/d*s;mv=1;c.dir=P(c.tu,c.tv)[0]>=P(c.u,c.v)[0]?1:-1}
-  else{c.w-=dt;if(c.w<=0&&!asleep()){[c.tu,c.tv]=pick();c.w=1.5+Math.random()*3}}
+  else{c.w-=dt;if(c.w<=0&&!asleep()){[c.tu,c.tv]=pick([c.u,c.v]);c.w=1.5+Math.random()*3}}
   if(mv!=c.mv){c.mv=mv;c.e.classList.toggle("walk",!!mv);c.im.src=src(c.i,asleep()?"sleep":mv?"move":"idle")}
-  const [x,y]=P(c.u,c.v);c.e.style.left=Math.round(x)+"px";c.e.style.top=Math.round(y)+"px";c.e.style.zIndex=Math.round(y);c.im.style.transform=`scaleX(${c.dir>0?-1:1})`});
+  const [x,y]=P(c.u,c.v);c.e.style.left=Math.round(x)+"px";c.e.style.top=Math.round(y)+"px";c.e.style.zIndex=Math.round(y);c.im.style.transform=`scaleX(${c.dir>0?-1:1})`})}
  requestAnimationFrame(loop)}
 
 /* ===== 변신 연출 ===== */
