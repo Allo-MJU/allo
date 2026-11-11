@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &3566222977930897285
+--- !u!1 &3494886234952849928
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 3797715323469764705}
-  - component: {fileID: 8249675142787296784}
-  - component: {fileID: 8906520995591218346}
+  - component: {fileID: 1276963272085881628}
+  - component: {fileID: 4463131204451967875}
+  - component: {fileID: 6864875281447365093}
   m_Layer: 0
   m_Name: statue_obelisk(Clone)
   m_TagString: Untagged
@@ -18,36 +18,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &3797715323469764705
+--- !u!4 &1276963272085881628
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3566222977930897285}
+  m_GameObject: {fileID: 3494886234952849928}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0, y: -0, z: -0}
   m_LocalScale: {x: 1.1423388, y: 1.1423388, z: 1.1423388}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 6428343622492169211}
+  m_Father: {fileID: 8903562424233403985}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &8249675142787296784
+--- !u!33 &4463131204451967875
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3566222977930897285}
+  m_GameObject: {fileID: 3494886234952849928}
   m_Mesh: {fileID: -5192375811869552525, guid: 35e0560768f80424a9ff890e13e6daa2, type: 3}
---- !u!23 &8906520995591218346
+--- !u!23 &6864875281447365093
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3566222977930897285}
+  m_GameObject: {fileID: 3494886234952849928}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -87,7 +87,7 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!1 &7440721384518124609
+--- !u!1 &8293671281596002419
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -95,7 +95,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 6428343622492169211}
+  - component: {fileID: 8903562424233403985}
   m_Layer: 0
   m_Name: K_statue_obelisk
   m_TagString: Untagged
@@ -103,19 +103,19 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &6428343622492169211
+--- !u!4 &8903562424233403985
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7440721384518124609}
+  m_GameObject: {fileID: 8293671281596002419}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 3797715323469764705}
+  - {fileID: 1276963272085881628}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
