@@ -463,3 +463,41 @@ Unity 6000.0.85f2, 휴대폰 에뮬레이터(Medium Phone API 37, arm64, 4코어
 2. **Props.fbx 메시가 읽기 불가**라 기기에서 조각 메시 합치기가 실패(`Cannot combine mesh that does not allow access`)해 나무·바위 등이 안 보였다 → 장면 빌드가 `isReadable` 을 켠다
 3. 후처리 셰이더 `#pragma` 를 한 줄에 몰아 써 기기에서 검은 화면 → 줄 나눔 + 지원 안 되는 셰이더면 후처리 건너뜀
 4. 성능: 에뮬레이터(4코어/4GB) 3.5~4.8fps. 전 빌드도 2~22fps 라 에뮬레이터로는 판단 불가 (#77 실기기)
+
+## 탐험 화면 — 캐릭터 그림·3D 모델 준비·걷는 면 (2026-11-11, A)
+
+Unity 6000.0.85f2, 휴대폰 에뮬레이터(Medium Phone API 37), debug, `FEED=fake SCENARIO=scene_tour EXPLORE_UNITY=true`.
+
+| 항목 | 결과 |
+| --- | --- |
+| D 캐릭터 그림 6종 × 포즈 4개 (`phone/assets/species/{id}.png`, `{id}_move/happy/sleep.png`). 원본은 #86 `docs/mockups/assets/`, 피그마 "Species sheets — character-production-01" A~F 와 같은 그림 | ✅ 에뮬레이터: 바다안개가 D 그림으로 나옴. 나머지 6종(G~L)은 `species.json` 과 이름이 달라(#53 D12) 임시 얼굴 |
+| 행동별 포즈: 걷기·점프 move, 자기·웅크리기 sleep, 탭·먹이 뒤 happy, 그 밖 idle. 그림이 왼쪽을 보므로 오른쪽으로 갈 때 뒤집음. 창밖 친구는 차가 오는 쪽을 보고, 발견되면 happy | ✅ `unity_*.png` |
+| `Allo/Sprite` 셰이더: premultiplied alpha + 밉맵(반투명 가장자리 계단·검은 테두리 없음), 장면 빛을 조금 따름 | ✅ |
+| D 그림 아래 함께 그려진 연한 회색 바닥판을 Unity 가 읽을 때만 지움 (`SpriteLoader.RemoveFloor`, 원본 파일은 그대로) | ✅ 3D 창턱 위에서 떠 있는 판처럼 보이던 문제 해결 |
+| 3D 모델 경로: `scripts/import_characters.sh` → `CharacterImport.Run` → `Resources/Characters/C_{id}.prefab`. 모델이 있으면 차 안·창밖 모두 3D, 없으면 2D 그림 | ✅ 임시 모델(Quaternius 양·퍼그)로 에디터·에뮬레이터 확인 후 지움. 실제 모델은 이미지→3D 서비스로 생성 예정 |
+| 걷는 면 가림 검사: 장면 빌드 때 면 위 9곳에 아이 눈·카메라 레일 앞끝에서 광선을 쏴 절반 넘게 가려지면 뺌 (유리·가는 물체 제외) | ✅ 뒷유리 아래 선반(`Walk_RearShelf`)만 빠짐. 아이 눈 0.89m < 등받이 위 1.03m 라 어디서도 안 보였음 |
+| 앞·뒷좌석 사이 바닥 (`Walk_Floor`, cabin.py). 방석 바로 앞 0.4m 는 아이 방석에 가려져 앞좌석 쪽만 | ✅ `unity_floor.png`. 뒷좌석·창턱과 점프로 오감 |
+| 오른쪽 뒷좌석 인형을 구석으로 옮기고 걷는 면을 그 앞쪽만 | ✅ 캐릭터가 인형을 뚫고 지나가지 않음 |
+| 테스트 | ✅ Unity EditMode 53개 (가림·바닥 5개, 3D 모델 3개 추가), `flutter test` 177개 |
+
+기기에서 찾아 고친 것:
+1. 새 에셋을 넣은 뒤 빌드한 APK 에 그림이 빠져 있었다. Flutter 빌드 캐시(`.dart_tool/flutter_build`)가 이전 에셋 목록을 그대로 썼다 → 캐시와 `build/app/intermediates/flutter` 를 지우고 다시 빌드. `assets/species/` 에 파일을 추가하면 같은 일이 생길 수 있다
+
+## 탐험 화면 — 주행 중 연결 1차 (Pleos 에뮬 → Firebase → 폰 → Unity, 2026-11-11, A) — #79
+
+Pleos Connect v2.1.0 에뮬레이터(차량 앱 debug) + 휴대폰 에뮬레이터(Medium Phone API 37, `--dart-define-from-file=config/firebase.local.json --dart-define=EXPLORE_UNITY=true`). 한 Mac 에서 두 에뮬레이터 동시 실행. 페어링은 세션 ID + 6자리 코드 수동 입력.
+
+| 항목 | 결과 |
+| --- | --- |
+| 폰 Firebase 초기화 (Android 앱 `ai.allo.allo_phone` 을 Firebase 프로젝트에 등록) | ✅ 페어링 화면까지 약 30초 (첫 실행) |
+| 페어링: 폰 → `meta.paired` → 차 화면 | ✅ 차 화면이 "뒷자리 폰에서 알을 골라 주세요"로 바뀜 |
+| 폰 → `/game` → 차 화면 | ✅ 부화 상태가 차 화면에 "깨어났어요! sea_mist" 로 표시 |
+| 폰 → Unity 탐험 화면 (D 그림 바다안개) | ✅ |
+| 차 지역 태그 → 폰 → Unity scene | ✅ `scripts/demo_sea_trip.sh` 로 도심 → 고속도로 → 바다, Unity 로그 `scene=city → road → coast` |
+| 차 속도·기어 → Unity 창밖 움직임 | ❌ 이번 실행에서는 확인 못 함. 아래 1 |
+| 급제동 → jolt 한 번, 지연 시간, `turns`·`headingDeg` 수신 | ⏸ 아래 2 때문에 다음에 다시 |
+
+찾은 것:
+1. **차량 앱을 에뮬레이터 부팅 직후 켜면 차 신호를 못 받는다.** Virtual Console 로 D·30km/h 를 주면 클러스터는 D·30 인데 차량 앱 스냅샷은 계속 `gear=P speed=0`, 화면도 주행으로 안 바뀜. 앱을 강제 종료 후 다시 켜자 `gear=D speedKph=30` 정상. 차 서비스가 준비되기 전에 리스너를 붙이고 다시 붙이지 않는 것으로 보인다(추정). 시연 전 차량 앱을 한 번 다시 켜는 절차로 피할 수 있고, 근본 수정은 A 할 일
+2. **두 에뮬레이터 + Unity 를 한 Mac 에서 돌리면 폰 에뮬레이터가 버티지 못한다.** 바다 구간에서 Unity 0.2fps 로 떨어진 뒤 폰 에뮬레이터 시스템 전체가 재시작(`DeadSystemException: The system died`). 앱 문제가 아닌 호스트 부하로 본다(추정). 남은 확인은 폰 실기기 + Pleos 에뮬레이터로 하는 편이 낫다
+3. Pleos 에뮬레이터 시계가 폰보다 약 하루 늦다(차 11-10 20:28, 폰 11-11 13:28). 지금 `dev` 는 차가 폰 시각을 비교하지 않아 문제없지만, PR #88(`/game.ts` 생존 신호, 15초 TTL)이 들어오면 이 조합에서 계속 "연결 안 됨"이 된다
