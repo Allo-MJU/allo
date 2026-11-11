@@ -10,11 +10,12 @@ a programmatically drawn rod and bobber. These are 2D rendered images, not 3D mo
 
 ## Road Sprout authored action frames
 
-`road_sprout/run-sheet.png` and `road_sprout/fish-sheet.png` are AI-generated
+`road_sprout/run-sheet.png`, `road_sprout/fish-sheet.png`, and
+`road_sprout/sleep-sheet.png` are AI-generated
 animation derivatives made with the built-in image generation tool on 2026-11-11.
-They are not original art delivered by PR #86. Its `move.png` and `idle.png`
+They are not original art delivered by PR #86. Its `move.png`, `idle.png`, and `sleep.png`
 respectively served as identity references. Original source images are unchanged.
-Both sheets are 1774×887 RGBA, 4 columns × 2 rows, read left-to-right/top-to-bottom.
+All three sheets are 1774×887 RGBA, 4 columns × 2 rows, read left-to-right/top-to-bottom.
 Only Road Sprout uses these action frames; no other species is remapped to it.
 
 Prompt set:
@@ -32,3 +33,15 @@ Prompt set:
 Running remains preview-only. Fishing uses actual pose frames without the earlier
 whole-image transform or vector rod overlay. This is 2D frame animation, not a
 rigged 3D model; art approval and refinement of in-between frames remain separate.
+
+Sleep prompt: strict reference identity from sleep.png; 4×2 equal cells, eight
+sequential poses at fixed left-facing camera and stable body scale: chin on paws,
+inhale with chest and shell rising while paws stay planted, exhale, front paw
+sliding under cheek, turn gently onto side with paws curled toward chest and tail
+wrapped closer, settle sideways, roll back toward belly, return chin to paws.
+Eyes closed throughout; exactly four limbs; no text/Z, backdrop, ground shadows
+or whole-image scaling. True transparent background. Generated with the built-in
+image tool on 2026-11-11; original sleep.png remains unchanged.
+
+Sleep frame playback is parked-only and replaces the transformed still image
+and vector Z overlay for Road Sprout. Other species keep their existing art.

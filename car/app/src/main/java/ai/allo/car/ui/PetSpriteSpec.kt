@@ -35,12 +35,15 @@ object PetSpriteSheets {
     val run = PetSpriteSpec("poses/road_sprout/run-sheet.png", 100, (0..7).toList())
     // Hold the waiting and recovery poses so the catch-and-loss action reads clearly.
     val fish = PetSpriteSpec("poses/road_sprout/fish-sheet.png", 300, listOf(0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 7, 7))
+    // Linger in the resting poses; breathing and turning are authored in the frames.
+    val sleep = PetSpriteSpec("poses/road_sprout/sleep-sheet.png", 450, listOf(0, 0, 1, 2, 3, 4, 5, 5, 6, 7, 7))
 
     fun forDisplay(speciesId: String?, pose: PetPose, parked: Boolean, previewRunning: Boolean): PetSpriteSpec? {
         if (speciesId != "road_sprout") return null
         return when {
             pose == PetPose.Move && previewRunning -> run
             pose == PetPose.Fishing && parked -> fish
+            pose == PetPose.Sleep && parked -> sleep
             else -> null
         }
     }

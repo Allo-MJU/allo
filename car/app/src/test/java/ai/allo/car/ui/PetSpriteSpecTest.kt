@@ -3,6 +3,18 @@ package ai.allo.car.ui
 import kotlin.test.*
 
 class PetSpriteSpecTest {
+    @Test fun `sleeping frames require parking and freeze when motion is disabled`() {
+        assertEquals(PetSpriteSheets.sleep, PetSpriteSheets.forDisplay("road_sprout", PetPose.Sleep, true, false))
+        assertNull(PetSpriteSheets.forDisplay("road_sprout", PetPose.Sleep, false, true))
+        assertNull(PetSpriteSheets.forDisplay("puddle_pip", PetPose.Sleep, true, false))
+        val spec = PetSpriteSheets.sleep
+        assertEquals(0, spec.frameAt(899, true))
+        assertEquals(1, spec.frameAt(900, true))
+        assertEquals((0..7).toSet(), spec.timeline.toSet())
+        spec.timeline.indices.forEach { assertEquals(0, spec.frameAt(it * 450L, false)) }
+        assertEquals(7, spec.frameAt(spec.durationMs - 1L, true))
+        assertEquals(0, spec.frameAt(spec.durationMs.toLong(), true))
+    }
     @Test fun `running sheet cannot replace real vehicle driving pose`() {
         assertNull(PetSpriteSheets.forDisplay("road_sprout", PetPose.Move, false, false))
         assertNull(PetSpriteSheets.forDisplay("road_sprout", PetPose.Move, true, false))
