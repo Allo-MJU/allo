@@ -25,7 +25,26 @@ object GameSnapshotReader {
             if (value == JsonNull) return null
             return runCatching { read(value as JsonObject) }.getOrElse { invalid.add(key); null }
         }
-        val affinity = block("affinity") { AffinitySummary(it.int("score"), it.int("target").also { n -> require(n > 0) }, it.flag("ready")) }
+        val affinity = block("affinity") {
+            if (it["phase"] == null) {
+                val score = it.int("score"); val target = it.int("target")
+                require(target > 0 && score <= target)
+                AffinitySummary(score, target, it.flag("ready"))
+            } else {
+                val score = (it["score"] as? JsonPrimitive)?.takeUnless { p -> p.isString }?.doubleOrNull ?: error("score")
+                require(score.isFinite() && score in 0.0..100.0 && it.int("target") == 100)
+                val phase = it.word("phase"); val photo = it.flag("photoCompleted")
+                require(when (phase) {
+                    "incubating", "photoRequired", "resultPending" -> base.stage == "incubating"
+                    "hatched" -> base.stage == "hatched"
+                    "failed", "discarded" -> base.stage == "failed"
+                    else -> false
+                })
+                require(phase != "photoRequired" || score == 50.0 && !photo)
+                require(phase !in setOf("hatched", "resultPending") || score == 100.0 && photo)
+                AffinitySummary(score, 100, phase = phase, photoCompleted = photo)
+            }
+        }
         val companion = block("companion") { CompanionDisplay(it.word("displayId"), it.number("displayRevision"), it.word("speciesId"), it.word("location").also { v -> require(v in setOf("car", "phone")) }) }
         val transfer = block("transferResult") { TransferResult(it.word("requestId"), it.word("displayId"), it.number("requestRevision"), it.word("status").also { v -> require(v in setOf("accepted", "alreadyOnPhone", "busy", "staleSelection")) }, it.optional("resultLocation").also { v -> require(v == null || v in setOf("car", "phone")) }) }
         val home = block("baseSummary") {

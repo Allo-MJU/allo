@@ -20,7 +20,15 @@ internal data class FeatureStatus(val incubation: String?, val affinity: String?
                 else -> null
             }
             val affinity = game.affinity.takeUnless { "affinity" in game.invalidBlocks }?.let {
-                "호감도 · ${it.score} / ${it.target} · ${if(it.ready) "준비 완료" else "함께 쌓는 중"}"
+                val detail = when (it.phase) {
+                    "photoRequired" -> "사진 퀘스트 · 폰에서 확인해 주세요"
+                    "resultPending" -> "부화 결과 저장 중 · 폰의 결과를 기다려요"
+                    "hatched" -> "부화 완료"
+                    "failed" -> "이번 품기 종료"
+                    "discarded" -> "이번 알 보내기 완료"
+                    else -> if (it.ready) "준비 완료" else "함께 쌓는 중"
+                }
+                "호감도 · ${it.scoreText} / ${it.target} · $detail"
             }
             val base = game.baseSummary.takeUnless { "baseSummary" in game.invalidBlocks }
             val lines = if (base == null) emptyList() else buildList {

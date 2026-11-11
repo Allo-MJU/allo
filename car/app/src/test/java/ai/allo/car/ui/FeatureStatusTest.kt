@@ -21,4 +21,23 @@ class FeatureStatusTest {
         assertTrue(FeatureStatus.from(game.copy(invalidBlocks=setOf("baseSummary")),catalog).baseLines.isEmpty())
         assertTrue(FeatureStatus.from(game.copy(contractVersion=null),catalog).baseLines.isEmpty())
     }
+    @Test fun `photo and pending states never claim hatch and keep base independent`() {
+        for ((phase, score) in listOf("photoRequired" to 50.0, "resultPending" to 100.0)) {
+            val result = FeatureStatus.from(GameState(contractVersion=2, gameRevision=4,
+                stage="incubating", progress=.6, affinity=AffinitySummary(score,100,phase=phase,photoCompleted=score==100.0),
+                baseSummary=BaseSummary(structureIds=listOf("nest"))),catalog)
+            assertEquals("알 품기 진행 · 60%",result.incubation)
+            assertFalse(result.affinity!!.contains("부화 완료"))
+            assertTrue(result.affinity.contains(if (phase=="photoRequired") "사진 퀘스트" else "저장 중"))
+            assertTrue(result.baseLines.contains("시설 · nest"))
+        }
+    }
+    @Test fun `terminal affinity gives final status rather than accumulating`() {
+        for ((phase, stage, label) in listOf(Triple("hatched","hatched","부화 완료"), Triple("failed","failed","품기 종료"), Triple("discarded","failed","보내기 완료"))) {
+            val result=FeatureStatus.from(GameState(contractVersion=2,gameRevision=5,stage=stage,
+                affinity=AffinitySummary(100.0,100,phase=phase,photoCompleted=true)),catalog)
+            assertTrue(result.affinity!!.contains(label)); assertFalse(result.affinity.contains("함께 쌓는 중"))
+        }
+    }
+
 }

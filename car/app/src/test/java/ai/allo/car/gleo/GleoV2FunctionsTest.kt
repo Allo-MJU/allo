@@ -48,4 +48,15 @@ class GleoV2FunctionsTest {
         assertEquals("fail", GleoFunctions.respondCompanionTransfer(TransferUiState(TransferStatus.Disconnected, "폰 연결을 확인해 주세요.")).status)
         assertEquals("success", GleoFunctions.respondCompanionTransfer(TransferUiState(TransferStatus.AlreadyOnPhone, "친구가 이미 폰에 있어요.")).status)
     }
+    @Test fun photoAndPendingAreNotCelebrated() {
+        for (phase in listOf("photoRequired", "resultPending")) {
+            val g=game("incubating").copy(affinity=AffinitySummary(if(phase=="photoRequired") 50.0 else 100.0,100,
+                phase=phase,photoCompleted=phase=="resultPending"))
+            val report=GleoFunctions.respond(GleoFunctions.REPORT_EGG_STATUS,g)
+            assertTrue(report.message.contains(if(phase=="photoRequired") "사진 퀘스트" else "저장"))
+            val celebration=GleoFunctions.respond(GleoFunctions.CELEBRATE_HATCH,g)
+            assertEquals("fail",celebration.status);assertFalse(celebration.message.contains("축하"))
+        }
+    }
+
 }

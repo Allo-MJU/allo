@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
+
+import '../affinity/egg_demo_api.dart';
 
 import 'package:allo_core/allo_core.dart';
 import 'package:flutter/foundation.dart';
@@ -21,9 +24,12 @@ class GameController extends ChangeNotifier {
       RarityEngine? engine,
       PairingStore? pairingStore,
       int Function()? monotonicMs,
-      FishingStore? fishingStore})
+      FishingStore? fishingStore,
+      this.eggApi,
+      Random? affinityRandom})
       : engine = engine ?? const RarityEngine(),
         pairingStore = pairingStore ?? PairingStore(),
+        _affinityRandom = affinityRandom ?? Random.secure(),
         _monotonicMs = monotonicMs {
     _stopwatch.start();
     fishing = FishingController(
@@ -99,6 +105,381 @@ class GameController extends ChangeNotifier {
       error = '차량 신호를 받지 못했어요. 연결을 확인해 주세요.';
       notifyListeners();
     });
+  }
+
+  final EggDemoApi? eggApi;
+  final Random _affinityRandom;
+  AffinityRound? _affinity;
+  AffinityRound? get affinityRound => _affinity;
+  EggFeedback get eggFeedback => _eggFeedback;
+  EggFeedback _eggFeedback = EggFeedback.none;
+  bool get speechBusy => _speechBusy;
+  bool get photoBusy => _photoBusy;
+  bool _speechBusy = false, _photoBusy = false;
+  bool _useAffinityForNewEggs = false;
+  bool _affinityForCurrentEgg = false;
+  int _inputGeneration = 0;
+  int _requestNumber = 0;
+  Timer? _affinityTimer;
+  int _lastAffinityCheckpointMs = 0;
+  int? _companionAtMs;
+  int? _lastAffinityVehicleAtMs;
+  ({
+    int harshBrake,
+    int harshSteer,
+    List<String> capabilities
+  })? _affinityEvidence;
+  String? _pendingPhotoRequestId;
+  Uint8List? _pendingPhotoBytes;
+  String? _pendingPhotoMime;
+  Future<void> _checkpointTail = Future.value();
+
+  bool get _acceptAffinityInput =>
+      !_disposed &&
+      _appActive &&
+      !busy &&
+      !sessionEnded &&
+      !endingSession &&
+      _timer != null &&
+      _modeSelected &&
+      !_savingHatch &&
+      _retrySave == null &&
+      game.stage == Stage.incubating &&
+      _affinity != null;
+
+  String _requestId() =>
+      '${_eggId}_${_now}_${++_requestNumber}_${_affinityRandom.nextInt(1 << 30)}';
+
+  void _invalidateInputs() {
+    _inputGeneration++;
+  }
+
+  bool _currentRequest(AffinityRound round, int generation, int connection) =>
+      _acceptAffinityInput &&
+      identical(round, _affinity) &&
+      generation == _inputGeneration &&
+      connection == _connection;
+
+  Future<void> _writeCheckpoint(EggTier tier, IncubationProgress value) {
+    final write =
+        _checkpointTail.then((_) => dex.saveIncubationProgress(tier, value));
+    _checkpointTail = write.catchError((Object _) {});
+    return write;
+  }
+
+  Future<void> _persistAffinity() async {
+    if (_affinity == null || _disposed || _savingHatch || _retrySave != null) {
+      return;
+    }
+    try {
+      await _writeCheckpoint(game.eggTier, _checkpoint());
+    } catch (_) {
+      error = '진행을 저장하지 못했어요. 다시 시도해 주세요.';
+      notifyListeners();
+    }
+  }
+
+  void _syncAffinity() {
+    final round = _affinity;
+    if (round == null) return;
+    game = game.copyWith(
+      ts: _now,
+      affinityScore: round.score,
+      affinityPhase:
+          round.phase == AffinityPhase.hatched && game.stage != Stage.hatched
+              ? 'resultPending'
+              : round.phase.name,
+      photoQuestCompleted: round.photoCompleted,
+      stage: round.phase == AffinityPhase.failed ||
+              round.phase == AffinityPhase.discarded
+          ? Stage.failed
+          : null,
+    );
+  }
+
+  void _applyAffinity(EggFeedback feedback, {AffinityPhase? previousPhase}) {
+    final round = _affinity;
+    if (round == null) return;
+    _eggFeedback = feedback;
+    if (previousPhase != null && previousPhase != round.phase) {
+      _invalidateInputs();
+    }
+    _syncAffinity();
+    if (previousPhase != null &&
+        previousPhase != round.phase &&
+        (round.phase == AffinityPhase.failed ||
+            round.phase == AffinityPhase.discarded)) {
+      unawaited(_persistAffinity());
+    }
+    if (round.phase == AffinityPhase.hatched &&
+        game.stage != Stage.hatched &&
+        _pendingEntry == null &&
+        !_savingHatch &&
+        _retrySave == null &&
+        _affinityEvidence != null) {
+      _beginAffinityHatch();
+    }
+    if (game.stage == Stage.failed) _affinityTimer?.cancel();
+    _publish();
+    notifyListeners();
+  }
+
+  void _advanceAffinity({bool distanceDeadlineReached = false}) {
+    final round = _affinity;
+    if (round == null) return;
+    final previous = round.phase;
+    final feedback = round.advanceTo(_elapsedMs,
+        distanceDeadlineReached: distanceDeadlineReached);
+    _applyAffinity(feedback, previousPhase: previous);
+  }
+
+  void _startAffinityTimer() {
+    _affinityTimer?.cancel();
+    if (_affinity == null ||
+        !_appActive ||
+        _disposed ||
+        _timer == null ||
+        sessionEnded ||
+        endingSession ||
+        game.stage == Stage.failed) {
+      return;
+    }
+    _affinityTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_disposed ||
+          !_appActive ||
+          sessionEnded ||
+          endingSession ||
+          _timer == null) {
+        return;
+      }
+      _advanceClock();
+      if (game.stage != Stage.hatched) _advanceAffinity();
+      if (_elapsedMs - _lastAffinityCheckpointMs >= 5000) {
+        _lastAffinityCheckpointMs = _elapsedMs;
+        unawaited(_persistAffinity());
+      }
+    });
+  }
+
+  bool _prepareAffinity(AffinityPhase phase) {
+    if (!_acceptAffinityInput) return false;
+    _advanceClock();
+    _advanceAffinity();
+    return _acceptAffinityInput && _affinity!.phase == phase;
+  }
+
+  Future<EggFeedback> petEgg() async {
+    if (!_prepareAffinity(AffinityPhase.incubating)) return EggFeedback.none;
+    final round = _affinity!;
+    final previous = round.phase;
+    final feedback = round.pet(atMs: _elapsedMs);
+    if (feedback == EggFeedback.positive ||
+        feedback == EggFeedback.photoRequired ||
+        feedback == EggFeedback.hatched) {
+      careCount++;
+      game = game.copyWith(careCount: careCount);
+    }
+    _applyAffinity(feedback, previousPhase: previous);
+    await _persistAffinity();
+    return feedback;
+  }
+
+  Future<EggFeedback> placeEgg(int zone) async {
+    if (!_prepareAffinity(AffinityPhase.incubating) || zone < 0 || zone > 3) {
+      return EggFeedback.none;
+    }
+    final round = _affinity!;
+    final previous = round.phase;
+    final choices = [0, 1, 2, 3]..remove(zone);
+    final feedback = round.place(
+        atMs: _elapsedMs,
+        zone: zone,
+        nextPreferredZone: choices[_affinityRandom.nextInt(3)]);
+    _applyAffinity(feedback, previousPhase: previous);
+    await _persistAffinity();
+    return feedback;
+  }
+
+  Future<EggFeedback> submitEggSpeech(String text) async {
+    if (!_prepareAffinity(AffinityPhase.incubating) ||
+        _speechBusy ||
+        text.trim().isEmpty ||
+        text.runes.length > 500 ||
+        _affinity!.speechRemainingMs > 0 ||
+        eggApi == null) {
+      return EggFeedback.none;
+    }
+    final round = _affinity!;
+    final generation = _inputGeneration, connection = _connection;
+    final requestId = _requestId();
+    _speechBusy = true;
+    notifyListeners();
+    try {
+      final sentiment = await eggApi!
+          .evaluate(eggId: round.eggId, requestId: requestId, text: text);
+      if (!_currentRequest(round, generation, connection)) {
+        return EggFeedback.none;
+      }
+      if (!_prepareAffinity(AffinityPhase.incubating) ||
+          generation != _inputGeneration) {
+        return EggFeedback.none;
+      }
+      final previous = round.phase;
+      final feedback = round.speak(
+          atMs: _elapsedMs, requestId: requestId, sentiment: sentiment);
+      _applyAffinity(feedback, previousPhase: previous);
+      await _persistAffinity();
+      return feedback;
+    } catch (_) {
+      if (_currentRequest(round, generation, connection)) {
+        error = '말을 확인하지 못했어요. 잠시 후 다시 시도해 주세요.';
+      }
+      return EggFeedback.none;
+    } finally {
+      _speechBusy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<EggFeedback> uploadEggPhoto(Uint8List bytes,
+      {String mimeType = 'image/jpeg'}) async {
+    if (!_prepareAffinity(AffinityPhase.photoRequired) ||
+        _photoBusy ||
+        eggApi == null ||
+        bytes.isEmpty ||
+        bytes.length > 5 * 1024 * 1024 ||
+        !{'image/jpeg', 'image/png'}.contains(mimeType)) {
+      return EggFeedback.none;
+    }
+    final round = _affinity!;
+    final generation = _inputGeneration, connection = _connection;
+    _photoBusy = true;
+    notifyListeners();
+    try {
+      // Reconcile an uncertain upload before replacing its bytes or request ID.
+      if (_pendingPhotoRequestId != null &&
+          (_pendingPhotoBytes == null ||
+              !listEquals(bytes, _pendingPhotoBytes) ||
+              _pendingPhotoMime != mimeType)) {
+        final recovered =
+            await _reconcileEggPhoto(round, generation, connection);
+        if (round.photoCompleted) return recovered;
+      }
+      if (!_currentRequest(round, generation, connection)) {
+        return EggFeedback.none;
+      }
+      if (_pendingPhotoBytes == null ||
+          !listEquals(bytes, _pendingPhotoBytes) ||
+          _pendingPhotoMime != mimeType) {
+        _pendingPhotoRequestId = _requestId();
+        _pendingPhotoBytes = Uint8List.fromList(bytes);
+        _pendingPhotoMime = mimeType;
+      }
+      final requestId = _pendingPhotoRequestId!;
+      await _writeCheckpoint(game.eggTier, _checkpoint());
+      if (!_currentRequest(round, generation, connection) ||
+          !_prepareAffinity(AffinityPhase.photoRequired)) {
+        return EggFeedback.none;
+      }
+      final receipt = await eggApi!.uploadPhoto(
+          eggId: round.eggId,
+          requestId: requestId,
+          bytes: Uint8List.fromList(_pendingPhotoBytes!),
+          mimeType: mimeType);
+      if (!_currentRequest(round, generation, connection) ||
+          !_prepareAffinity(AffinityPhase.photoRequired) ||
+          receipt.eggId != round.eggId ||
+          receipt.requestId != requestId) {
+        return EggFeedback.none;
+      }
+      return await _confirmEggPhoto(round, receipt);
+    } catch (failure) {
+      // An earlier uncertain request may have committed before this upload's conflict.
+      if (failure is EggDemoApiException && failure.code == 'http_error') {
+        try {
+          final recovered =
+              await _reconcileEggPhoto(round, generation, connection);
+          if (round.photoCompleted) return recovered;
+        } catch (_) {
+          /* Keep the pending request recoverable after lookup failure. */
+        }
+      }
+      if (_currentRequest(round, generation, connection)) {
+        error = '사진을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.';
+      }
+      return EggFeedback.none;
+    } finally {
+      _photoBusy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<EggFeedback> _reconcileEggPhoto(
+      AffinityRound round, int generation, int connection) async {
+    if (!_currentRequest(round, generation, connection)) {
+      return EggFeedback.none;
+    }
+    final photo = await eggApi!.findPhotoForEgg(round.eggId);
+    if (!_currentRequest(round, generation, connection) ||
+        !_prepareAffinity(AffinityPhase.photoRequired) ||
+        photo == null ||
+        photo.eggId != round.eggId) {
+      return EggFeedback.none;
+    }
+    // The authenticated server allows only one receipt per globally unique egg.
+    return _confirmEggPhoto(round, photo);
+  }
+
+  Future<EggFeedback> _confirmEggPhoto(
+      AffinityRound round, UploadedEggPhoto photo) async {
+    final previous = round.phase;
+    final feedback = round.confirmPhoto(
+        atMs: _elapsedMs, eggId: photo.eggId, photoId: photo.photoId);
+    if (round.photoCompleted) {
+      error = null;
+      _pendingPhotoRequestId = null;
+      _pendingPhotoBytes = null;
+      _pendingPhotoMime = null;
+    }
+    _applyAffinity(feedback, previousPhase: previous);
+    await _persistAffinity();
+    return feedback;
+  }
+
+  Future<EggFeedback> recoverEggPhoto() async {
+    if (!_prepareAffinity(AffinityPhase.photoRequired) ||
+        _photoBusy ||
+        eggApi == null) {
+      return EggFeedback.none;
+    }
+    final round = _affinity!;
+    final generation = _inputGeneration, connection = _connection;
+    _photoBusy = true;
+    notifyListeners();
+    try {
+      return await _reconcileEggPhoto(round, generation, connection);
+    } catch (_) {
+      if (_currentRequest(round, generation, connection)) {
+        error = '사진을 확인하지 못했어요. 다시 시도해 주세요.';
+      }
+      return EggFeedback.none;
+    } finally {
+      _photoBusy = false;
+      notifyListeners();
+    }
+  }
+
+  Future<EggFeedback> discardEgg() async {
+    if (!_acceptAffinityInput) return EggFeedback.none;
+    _advanceClock();
+    _advanceAffinity();
+    if (!_acceptAffinityInput || _affinity!.isTerminal) return EggFeedback.none;
+    final round = _affinity!;
+    final previous = round.phase;
+    final feedback = round.discard(atMs: _elapsedMs);
+    _applyAffinity(feedback, previousPhase: previous);
+    await _persistAffinity();
+    return feedback;
   }
 
   final Stopwatch _stopwatch = Stopwatch();
@@ -405,7 +786,7 @@ class GameController extends ChangeNotifier {
   }
 
   /// 알 고르기 → 품기 시작. 이전 주행에서 넘어온 거리는 DexStore 에 있다.
-  Future<bool> startIncubating(EggTier tier) async {
+  Future<bool> startIncubating(EggTier tier, {bool useAffinity = false}) async {
     if (!canStart) return false;
     busy = true;
     error = null;
@@ -427,6 +808,7 @@ class GameController extends ChangeNotifier {
       _timer = HatchTimer(eggTier: tier, carriedM: saved.carriedM);
       vehicle = null;
       _lastVehicleTs = null;
+      _useAffinityForNewEggs = useAffinity;
       _resetEgg(tier);
       final round = saved.round;
       if (round != null) _restoreRound(round, tier);
@@ -445,6 +827,7 @@ class GameController extends ChangeNotifier {
         error = '차량 신호를 받지 못했어요. 연결을 확인해 주세요.';
         notifyListeners();
       });
+      _startAffinityTimer();
       notifyListeners();
       _publish();
       return true;
@@ -459,9 +842,22 @@ class GameController extends ChangeNotifier {
 
   // A new egg never opens another vehicle subscription (Fake.watch resets a trip).
   void _resetEgg(EggTier tier) {
+    _affinityTimer?.cancel();
+    _invalidateInputs();
+    _affinity = null;
+    _affinityForCurrentEgg = _useAffinityForNewEggs;
+    _eggFeedback = EggFeedback.none;
+    _pendingPhotoRequestId = null;
+    _pendingPhotoBytes = null;
+    _pendingPhotoMime = null;
+    _pendingEntry = null;
+    _companionAtMs = null;
+    _lastAffinityVehicleAtMs = null;
+    _affinityEvidence = null;
+    _lastAffinityCheckpointMs = 0;
     _roundSessionId = _activeSessionId;
     _roundNumber++;
-    _eggId = '$_now-$_roundNumber';
+    _eggId = '$_now-$_roundNumber-${_affinityRandom.nextInt(1 << 30)}';
     _elapsedMs = 0;
     _regions = RegionDurationAccumulator();
     _regionSourceTs = null;
@@ -509,6 +905,15 @@ class GameController extends ChangeNotifier {
       _companionSec = round.companionEndSec;
       _repeats = round.grantsNextEgg;
     }
+    if (_affinityForCurrentEgg) {
+      _affinity = AffinityRound.start(
+          eggId: _eggId!,
+          preferredZone: _affinityRandom.nextInt(4),
+          deadlineMs: _hatchSec == null ? null : _hatchSec! * 1000);
+      _syncAffinity();
+      _startAffinityTimer();
+      unawaited(_persistAffinity());
+    }
     return true;
   }
 
@@ -521,12 +926,24 @@ class GameController extends ChangeNotifier {
     _clockAt = now;
   }
 
+  void _recordAffinityEvidence(VehicleState v) {
+    _affinityEvidence = (
+      harshBrake:
+          _brakeOffset + (v.harshBrake - _brakeBaseline).clamp(0, 1 << 30),
+      harshSteer:
+          _steerOffset + (v.harshSteer - _steerBaseline).clamp(0, 1 << 30),
+      capabilities: List<String>.unmodifiable(v.capabilities),
+    );
+    _observeRegion(v);
+    seenTags.addAll(v.envTags);
+  }
+
   void _onVehicle(VehicleState v, {bool finalSnapshot = false}) {
     if (_disposed || (!finalSnapshot && (sessionEnded || !_appActive))) return;
     if (!finalSnapshot) fishing.observePresence(v.fishingPresence);
     // Distance snapshots in older feeds may share a ts. Preserve their high-water
     // distance handling, while ETA rounds reject duplicate/out-of-order samples.
-    if (_hatchSec != null &&
+    if ((_hatchSec != null || _affinity != null) &&
         !finalSnapshot &&
         _lastVehicleTs != null &&
         v.ts <= _lastVehicleTs!) {
@@ -541,6 +958,9 @@ class GameController extends ChangeNotifier {
       return;
     }
     _advanceClock();
+    if (_affinity != null && !finalSnapshot) {
+      _lastAffinityVehicleAtMs = _elapsedMs;
+    }
     if (_needsResumeBaseline) {
       _distanceBaseline +=
           (v.distanceM - _lastDistance).clamp(0, double.infinity);
@@ -564,6 +984,11 @@ class GameController extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    if (game.stage == Stage.failed) {
+      // The egg is terminal; its selected companion and fishing remain live.
+      if (!finalSnapshot) _publishHeartbeat();
+      return;
+    }
     if (!_selectMode(v)) {
       notifyListeners();
       _publish();
@@ -574,8 +999,12 @@ class GameController extends ChangeNotifier {
       _steerBaseline = v.harshSteer;
       _needsCounterBaseline = false;
     }
-    _observeRegion(v);
-    seenTags.addAll(v.envTags);
+    if (_affinity == null) {
+      _observeRegion(v);
+      seenTags.addAll(v.envTags);
+    } else if (_affinityEvidence == null && _elapsedMs == 0) {
+      _recordAffinityEvidence(v);
+    }
     final p = _hatchSec != null
         ? (_elapsedMs / (_hatchSec! * 1000)).clamp(0.0, 1.0)
         : _timer!.update(v.copyWith(
@@ -589,7 +1018,13 @@ class GameController extends ChangeNotifier {
         lookOutCount: lookOutCount,
         hatchAtM: _hatchSec == null ? _timer!.hatchAtM : null,
         hatchAtSec: _hatchSec);
-    if (p >= 1) _hatch(v);
+    if (_affinity != null) {
+      // Passive crossings settle before incoming evidence, including a same-time sample.
+      _advanceAffinity(distanceDeadlineReached: _hatchSec == null && p >= 1);
+      if (!_affinity!.isTerminal) _recordAffinityEvidence(v);
+    } else if (p >= 1) {
+      _hatch(v);
+    }
     notifyListeners();
     _publish();
   }
@@ -604,7 +1039,10 @@ class GameController extends ChangeNotifier {
         _retrySave != null ||
         _savingHatch ||
         !_repeats ||
-        _elapsedMs < _companionSec! * 1000 ||
+        (_affinity != null &&
+            (_lastAffinityVehicleAtMs == null ||
+                _lastAffinityVehicleAtMs! < _companionAtMs!)) ||
+        _elapsedMs < (_companionAtMs ?? _companionSec! * 1000) ||
         (v.etaSec != null && v.etaSec! < 120)) {
       return false;
     }
@@ -615,8 +1053,12 @@ class GameController extends ChangeNotifier {
     _brakeBaseline = v.harshBrake;
     _steerBaseline = v.harshSteer;
     _needsCounterBaseline = false;
-    _observeRegion(v);
-    seenTags.addAll(v.envTags);
+    if (_affinity == null) {
+      _observeRegion(v);
+      seenTags.addAll(v.envTags);
+    } else {
+      _recordAffinityEvidence(v);
+    }
     game = GameState(
         ts: _now,
         eggTier: game.eggTier,
@@ -624,6 +1066,7 @@ class GameController extends ChangeNotifier {
         progress: 0,
         hatchAtM: _hatchSec == null ? _timer!.hatchAtM : null,
         hatchAtSec: _hatchSec);
+    _syncAffinity();
     notifyListeners();
     _publish();
     return true;
@@ -703,6 +1146,10 @@ class GameController extends ChangeNotifier {
   }
 
   void _hatch(VehicleState v) {
+    if (_affinity != null) {
+      _beginAffinityHatch();
+      return;
+    }
     final r = engine.judge(
         seenTags: seenTags,
         harshBrake:
@@ -735,6 +1182,80 @@ class GameController extends ChangeNotifier {
     _pendingSave = _trySave();
   }
 
+  void _beginAffinityHatch() {
+    final round = _affinity!;
+    if (round.phase != AffinityPhase.hatched ||
+        _pendingEntry != null ||
+        _retrySave != null) {
+      return;
+    }
+    final evidence = _affinityEvidence!;
+    final result = engine.judge(
+        seenTags: seenTags,
+        harshBrake: evidence.harshBrake,
+        harshSteer: evidence.harshSteer,
+        careCount: careCount,
+        capabilities: evidence.capabilities);
+    final species = _table!.pick(result, seenTags);
+    final entry = DexEntry(
+        speciesId: species.id,
+        obtainedAt: DateTime.now(),
+        envTags: seenTags.toList(),
+        regionTag: _regions.finish(round.hatchedAtMs!),
+        tier: result.tier,
+        sourceEggId: round.eggId);
+    _pendingEntry = entry;
+    _companionAtMs = round.hatchedAtMs! + 1800000;
+    _repeats = true;
+    final tier = game.eggTier;
+    _retrySave = () => _saveAffinityHatch(entry, tier);
+    _pendingSave = _trySave();
+  }
+
+  Future<void> _saveAffinityHatch(DexEntry entry, EggTier tier) async {
+    final connection = _connection;
+    final round = _affinity!;
+    // Write the frozen result first; crashes between writes retry the same source egg.
+    await _writeCheckpoint(tier, _checkpoint());
+    await dex.add(entry);
+    if (_disposed ||
+        connection != _connection ||
+        !identical(round, _affinity)) {
+      return;
+    }
+    final species = _table!.byId(entry.speciesId)!;
+    final completed = game.copyWith(
+        stage: Stage.hatched,
+        progress: 1,
+        speciesId: species.id,
+        attribute: species.attribute,
+        tier: entry.tier,
+        affinityPhase: AffinityPhase.hatched.name);
+    final checkpoint = _checkpoint();
+    final snapshot = Map<String, dynamic>.from(checkpoint.round!)
+      ..remove('pendingEntry')
+      ..['game'] = completed.toJson();
+    await _writeCheckpoint(
+        tier,
+        IncubationProgress(
+            carriedM: 0,
+            sessionDistances: checkpoint.sessionDistances,
+            round: snapshot));
+    if (_disposed ||
+        connection != _connection ||
+        !identical(round, _affinity)) {
+      return;
+    }
+    hatched = species;
+    game = completed;
+    error = null;
+    await _refreshCollection();
+    _publish();
+    await _send(() => feed.emitEvent('hatched',
+        payload: {'speciesId': species.id, 'tier': entry.tier}));
+    notifyListeners();
+  }
+
   Future<void> _trySave() async {
     if (_savingHatch) return;
     _savingHatch = true;
@@ -761,7 +1282,7 @@ class GameController extends ChangeNotifier {
     final connection = _connection;
     await dex.add(entry);
     if (_disposed || connection != _connection) return;
-    await dex.saveIncubationProgress(
+    await _writeCheckpoint(
         tier,
         _hatchSec == null
             ? IncubationProgress(sessionDistances: checkpoint.sessionDistances)
@@ -778,6 +1299,10 @@ class GameController extends ChangeNotifier {
   }
 
   void care() {
+    if (_affinity != null || _affinityForCurrentEgg) {
+      unawaited(petEgg());
+      return;
+    }
     if (game.stage != Stage.incubating || sessionEnded || endingSession) return;
     careCount++;
     game = game.copyWith(ts: _now, careCount: careCount);
@@ -799,8 +1324,11 @@ class GameController extends ChangeNotifier {
     if (sessionSaved) return Future.value(true);
     final pending = _closing;
     if (pending != null) return pending;
+    _invalidateInputs();
+    _affinityTimer?.cancel();
     final closing = _finishSession(_connection).whenComplete(() {
       _closing = null;
+      _startAffinityTimer();
       notifyListeners();
     });
     _closing = closing;
@@ -846,12 +1374,19 @@ class GameController extends ChangeNotifier {
         if (t != null &&
             (game.stage != Stage.hatched ||
                 _hatchSec != null ||
+                _affinity != null ||
                 _lifecycleCheckpoint)) {
           _advanceClock();
+          if (_affinity != null) _advanceAffinity();
+          await _pendingSave;
+          if (_retrySave != null) return false;
+          if (_affinity != null) _regions.breakContinuity(_regionAtMs);
           final checkpoint = _checkpoint();
-          await dex.saveIncubationProgress(
+          await _writeCheckpoint(
               game.eggTier,
-              game.stage == Stage.hatched && (_hatchSec == null || sessionEnded)
+              game.stage == Stage.hatched &&
+                      _affinity == null &&
+                      (_hatchSec == null || sessionEnded)
                   ? IncubationProgress(
                       sessionDistances: checkpoint.sessionDistances)
                   : checkpoint);
@@ -896,6 +1431,7 @@ class GameController extends ChangeNotifier {
     } finally {
       if (!subscriptionClosed && !_disposed && connection == _connection) {
         subscription?.resume();
+        _startAffinityTimer();
       }
     }
   }
@@ -907,6 +1443,11 @@ class GameController extends ChangeNotifier {
         'elapsedMs': _elapsedMs,
         'hatchSec': _hatchSec,
         'companionSec': _companionSec,
+        'companionAtMs': _companionAtMs,
+        'useAffinityForNewEggs': _useAffinityForNewEggs,
+        if (_affinity != null) 'affinity': _affinity!.toJson(),
+        if (_pendingPhotoRequestId != null)
+          'pendingPhotoRequestId': _pendingPhotoRequestId,
         'repeats': _repeats,
         'modeSelected': _modeSelected,
         'game': game.toJson(),
@@ -923,7 +1464,15 @@ class GameController extends ChangeNotifier {
         'steerBaseline': _steerBaseline,
         'needsCounterBaseline': _needsCounterBaseline,
         'needsResumeBaseline': _needsResumeBaseline,
-        'region': _regions.checkpoint(_regionAtMs),
+        'region': _affinity == null
+            ? _regions.checkpoint(_regionAtMs)
+            : _regions.snapshot(_regionAtMs),
+        if (_affinity != null && _affinityEvidence != null)
+          'affinityEvidence': {
+            'harshBrake': _affinityEvidence!.harshBrake,
+            'harshSteer': _affinityEvidence!.harshSteer,
+            'capabilities': _affinityEvidence!.capabilities,
+          },
         'regionSourceTs': _regionSourceTs,
         'resumeBrake': _resumeBrake,
         'resumeSteer': _resumeSteer,
@@ -933,15 +1482,27 @@ class GameController extends ChangeNotifier {
       };
 
   IncubationProgress _checkpoint() => IncubationProgress(
-        carriedM: game.stage == Stage.hatched
-            ? 0
-            : (_timer?.carryOver(hatched: false) ?? 0),
+        carriedM:
+            game.stage == Stage.hatched || (_affinity?.isTerminal ?? false)
+                ? 0
+                : (_timer?.carryOver(hatched: false) ?? 0),
         sessionDistances: Map.of(_sessionDistances),
         round: _roundSnapshot(),
       );
 
   void _restoreRound(Map<String, dynamic> round, EggTier tier) {
     final g = Map<String, dynamic>.from(round['game'] as Map);
+    _useAffinityForNewEggs =
+        _useAffinityForNewEggs || round['useAffinityForNewEggs'] == true;
+    _affinityForCurrentEgg = _useAffinityForNewEggs;
+    final savedAffinity = round['affinity'] is Map
+        ? AffinityRound.fromJson(
+            Map<String, dynamic>.from(round['affinity'] as Map))
+        : null;
+    if (savedAffinity?.phase == AffinityPhase.failed ||
+        savedAffinity?.phase == AffinityPhase.discarded) {
+      return;
+    }
     // Preserve unfinished saves and legacy/Fake checkpoints. A completed round
     // from another real session must not replace the fresh egg set up by start.
     if (!isFake &&
@@ -954,6 +1515,19 @@ class GameController extends ChangeNotifier {
     }
     // A distance-mode arrival retains the existing manual new-egg behavior.
     // Lifecycle snapshots restore distance companions; explicit endSession clears it.
+    _affinity = savedAffinity;
+    final evidence = round['affinityEvidence'];
+    if (savedAffinity != null && evidence is Map) {
+      _affinityEvidence = (
+        harshBrake: (evidence['harshBrake'] as num).toInt(),
+        harshSteer: (evidence['harshSteer'] as num).toInt(),
+        capabilities: List<String>.unmodifiable(
+            (evidence['capabilities'] as List).cast<String>()),
+      );
+    }
+    _affinityForCurrentEgg = savedAffinity != null;
+    _companionAtMs = (round['companionAtMs'] as num?)?.toInt();
+    _pendingPhotoRequestId = round['pendingPhotoRequestId'] as String?;
     _eggId = round['eggId'] as String?;
     _roundNumber = (round['number'] as num).toInt();
     _elapsedMs = (round['elapsedMs'] as num).toInt();
@@ -1008,6 +1582,12 @@ class GameController extends ChangeNotifier {
         ts: _now,
         eggTier: tier,
         stage: stage,
+        affinityScore: _affinity?.score,
+        affinityPhase:
+            _affinity?.phase == AffinityPhase.hatched && stage != Stage.hatched
+                ? 'resultPending'
+                : _affinity?.phase.name,
+        photoQuestCompleted: _affinity?.photoCompleted ?? false,
         progress: (g['progress'] as num).toDouble(),
         speciesId: speciesId,
         attribute: g['attribute'] == null
@@ -1024,7 +1604,9 @@ class GameController extends ChangeNotifier {
       _pendingEntry =
           DexEntry.fromJson(Map<String, dynamic>.from(entry as Map));
       final pending = _pendingEntry!;
-      _retrySave = () => _saveHatch(pending, tier, _checkpoint());
+      _retrySave = _affinity == null
+          ? () => _saveHatch(pending, tier, _checkpoint())
+          : () => _saveAffinityHatch(pending, tier);
       _pendingSave = _trySave();
     }
   }
@@ -1035,10 +1617,17 @@ class GameController extends ChangeNotifier {
     if (_disposed) return false;
     if (_appActive == active) return true;
     _advanceClock();
+    if (_affinity != null && !active) _advanceAffinity();
+    _invalidateInputs();
+    _affinityTimer?.cancel();
     _appActive = active;
     await fishing.setActive(active);
     _clockAt = activeClockMs;
-    if (active || _timer == null || sessionSaved) return true;
+    if (active) {
+      _startAffinityTimer();
+      return true;
+    }
+    if (_timer == null || sessionSaved) return true;
     _regions.breakContinuity(_regionAtMs);
     _needsResumeBaseline = true;
     _resumeBrake = vehicle?.harshBrake ?? _brakeBaseline;
@@ -1047,7 +1636,7 @@ class GameController extends ChangeNotifier {
     try {
       await _pendingSave;
       if (_disposed || connection != _connection) return false;
-      await dex.saveIncubationProgress(game.eggTier, _checkpoint());
+      await _writeCheckpoint(game.eggTier, _checkpoint());
       _lifecycleCheckpoint = true;
       return true;
     } catch (_) {
@@ -1063,6 +1652,8 @@ class GameController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     fishing.dispose();
+    _invalidateInputs();
+    _affinityTimer?.cancel();
     _connection++;
     _sub?.cancel();
     _eventsSub?.cancel();

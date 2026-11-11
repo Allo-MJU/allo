@@ -299,3 +299,7 @@ DB 규칙의 원본은 [`firebase/database.rules.json`](../firebase/database.rul
 ## 주차 낚시 capability v1 (2026-11-11)
 
 차량 #92 구현의 추가 계약은 [차량 주차 낚시와 폰 저장 계약 v1](vehicle/fishing-integration.md)을 따른다. 폰 단일 전체 `/game` writer를 유지하며 v2 동행·gameRevision과 별도 `fishing.version=1` 요약을 합성한다. 차량 `/vehicle/fishingPresence`는 주차·화면 활성 증거 및 lease echo를 보낸다. `fishingRequested` 이벤트는 폰에 의도를 전달하며 저장 완료나 보상 확정을 의미하지 않는다. 구버전/누락 시 낚시 시작은 비활성화한다. 공용 예시는 `data/fixtures/fishing-v1.json`이다. 개발용 Firebase 권한 규칙은 변경하지 않는다.
+
+### 호감도 부화 연결 보완 (2026-11-12)
+
+PR #93의 `affinity {score, target, phase, photoCompleted}` 요약은 낚시·동행과 동일한 전체 game snapshot에 합성한다. `score`는 소수일 수 있으며, `phase`는 사진 퀘스트·저장 대기·결과를 구분한다. #91의 `gameRevision`은 유지하고 기존 `ready` 형식의 차량 입력도 호환한다. 구체적인 단계와 검증 경계는 [호감도 차량 연결](vehicle/affinity-integration.md)을 따른다.

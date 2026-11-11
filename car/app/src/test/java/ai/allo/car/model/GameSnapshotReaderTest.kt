@@ -70,4 +70,36 @@ class GameSnapshotReaderTest {
         assertTrue(r.connected)
     }
 
+    @Test fun phaseContractKeepsFractionalScoreAndIndependentCompanion() {
+        val g = GameSnapshotReader.parse(raw(""", "affinity":{"score":12.345,"target":100,"phase":"incubating","photoCompleted":false},"companion":{"displayId":"d","displayRevision":2,"speciesId":"road_sprout","location":"car"}"""))!!
+        assertEquals(12.345, g.affinity!!.score, 0.0)
+        assertEquals("12.345", g.affinity!!.scoreText)
+        assertFalse(g.affinity!!.ready)
+        assertEquals("car", g.companion!!.location)
+    }
+    @Test fun phaseContractSeparatesPhotoAndPendingFromPersistedHatch() {
+        for ((phase, stage) in listOf("photoRequired" to "incubating", "resultPending" to "incubating", "hatched" to "hatched", "failed" to "failed", "discarded" to "failed")) {
+            val photo = phase in setOf("hatched", "resultPending")
+            val score = if (photo) 100 else 50
+            val body = raw(""", "affinity":{"score":$score,"target":100,"phase":"$phase","photoCompleted":$photo}""")
+            val g = GameSnapshotReader.parse(JsonObject(body + ("stage" to JsonPrimitive(stage))))!!
+            assertEquals(phase, g.affinity!!.phase)
+            assertEquals(stage, g.stage)
+            assertFalse(g.affinity!!.ready)
+        }
+    }
+    @Test fun invalidPhaseOrContradictionHidesOnlyAffinity() {
+        for (affinity in listOf(
+            """{"score":100,"target":100,"phase":"hatched","photoCompleted":true}""",
+            """{"score":50,"target":100,"phase":"photoRequired","photoCompleted":true}""",
+            """{"score":100,"target":100,"phase":"resultPending","photoCompleted":false}""",
+            """{"score":101,"target":100,"phase":"incubating","photoCompleted":false}""",
+            """{"score":"10.5","target":100,"phase":"incubating","photoCompleted":false}""",
+            """{"score":10,"target":100,"phase":"future","photoCompleted":false}""")) {
+            val g = GameSnapshotReader.parse(raw(""", "affinity":$affinity,"companion":{"displayId":"d","displayRevision":1,"speciesId":"road_sprout","location":"car"}"""))!!
+            assertNull(g.affinity); assertTrue("affinity" in g.invalidBlocks)
+            assertEquals("d", g.companion!!.displayId)
+        }
+    }
+
 }

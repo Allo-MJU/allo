@@ -69,4 +69,16 @@ class PetSummaryTest {
             companion = CompanionDisplay("pet", 1, "tide_keeper", "car"))
         assertTrue(PetSummary.from(game, true, catalog).showEgg)
     }
+    @Test fun `driving affinity summaries preserve companion and do not invite phone interaction`() {
+        for ((phase, label) in listOf("photoRequired" to "사진 퀘스트 대기 중", "resultPending" to "부화 결과 저장 중")) {
+            val game=GameState(contractVersion=2,gameRevision=3,stage="incubating",
+                affinity=ai.allo.car.model.AffinitySummary(50.0,100,phase=phase,photoCompleted=false))
+            val egg=PetSummary.from(game,true,catalog)
+            assertEquals(label,egg.status);assertTrue(egg.showEgg)
+            val withFriend=PetSummary.from(game.copy(companion=CompanionDisplay("pet",1,"tide_keeper","car")),true,catalog)
+            assertEquals("함께 가는 중",withFriend.status);assertFalse(withFriend.showEgg)
+            assertEquals("폰 연결을 기다리고 있어요",PetSummary.from(game,false,catalog).status)
+        }
+    }
+
 }

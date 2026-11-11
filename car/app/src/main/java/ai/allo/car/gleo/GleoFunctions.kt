@@ -37,8 +37,14 @@ object GleoFunctions {
                     if (function == CELEBRATE_HATCH) "fail" else "success",
                     "이번 알은 깨어나지 않았어요. 다음 기회에 다시 만나봐요.")
                 val affinity = game.affinity
+                if (game.stage == "incubating" && affinity?.phase in setOf("photoRequired", "resultPending")) {
+                    val message = if (affinity?.phase == "photoRequired")
+                        "사진 퀘스트를 기다리고 있어요. 주차 후 폰에서 확인해 주세요."
+                    else "부화 결과를 저장하고 있어요. 폰의 확인을 기다려 주세요."
+                    return GleoCallback(function, if (function == CELEBRATE_HATCH) "fail" else "success", message)
+                }
                 val ready = game.stage == "incubating" && affinity != null && affinity.target > 0 &&
-                    affinity.score == affinity.target && affinity.ready
+                    affinity.score == affinity.target.toDouble() && affinity.ready
                 if (ready) return GleoCallback(function,
                     if (function == CELEBRATE_HATCH) "fail" else "success",
                     "부화할 준비를 마쳤어요. 품기가 끝날 때까지 기다리고 있어요.")

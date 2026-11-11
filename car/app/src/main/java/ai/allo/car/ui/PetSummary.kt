@@ -14,12 +14,16 @@ data class PetSummary(
                 val companion = game.companion.takeUnless { "companion" in game.invalidBlocks }
                 val species = companion?.let { catalog[it.speciesId] }
                 val hasEgg = companion == null && game.stage == "incubating"
+                val affinity = game.affinity.takeUnless { "affinity" in game.invalidBlocks }
                 val status = when {
                     !connected && game.ts > 0 -> "마지막으로 받은 상태"
                     !connected -> "폰 연결을 기다리고 있어요"
                     "companion" in game.invalidBlocks -> "친구 상태를 다시 확인하고 있어요"
                     companion?.location == "phone" -> "폰에서 함께하고 있어요"
                     companion?.location == "car" -> "함께 가는 중"
+                    hasEgg && affinity?.phase == "photoRequired" -> "사진 퀘스트 대기 중"
+                    hasEgg && affinity?.phase == "resultPending" -> "부화 결과 저장 중"
+                    game.stage == "hatched" -> "새 친구가 깨어났어요"
                     hasEgg -> "알을 품는 중 · ${(progress * 100).toInt()}%"
                     game.stage == "failed" -> "이번 알 품기는 마무리됐어요"
                     else -> "아직 부를 친구가 없어요"

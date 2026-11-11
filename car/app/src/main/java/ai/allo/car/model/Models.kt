@@ -77,7 +77,16 @@ data class GameState(
 }
 
 @Serializable
-data class AffinitySummary(val score: Int, val target: Int, val ready: Boolean)
+data class AffinitySummary(
+    val score: Double,
+    val target: Int,
+    val ready: Boolean = false,
+    val phase: String? = null,
+    val photoCompleted: Boolean? = null,
+) {
+    constructor(score: Int, target: Int, ready: Boolean) : this(score.toDouble(), target, ready)
+    val scoreText: String get() = java.math.BigDecimal.valueOf(score).stripTrailingZeros().toPlainString()
+}
 @Serializable
 data class CompanionDisplay(val displayId: String, val displayRevision: Long, val speciesId: String, val location: String)
 @Serializable
