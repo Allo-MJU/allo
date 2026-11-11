@@ -21,6 +21,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.*
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import ai.allo.car.model.GameState
+import ai.allo.car.ui.PetSummary
+import ai.allo.car.ui.rememberSpeciesCatalog
+import ai.allo.car.model.PleosFlow
+import ai.allo.car.model.PleosRoute
+import ai.allo.car.ui.PleosStatusScreen
 import ai.allo.car.model.TransferStatus
 import ai.allo.car.feature.TravelRequestCard
 import ai.allo.car.model.CarScreen
@@ -37,6 +46,7 @@ class MainActivity : ComponentActivity() {
     private val main = Handler(Looper.getMainLooper())
     private var parkingGate: ParkedMirrorGate? = null
     private var parkedAllowed by mutableStateOf(false)
+    private var parkingChecked by mutableStateOf(false)
     private var parkingVerifiedAt = -1L
     private var visible = false
     private val shareTransition = ParkedShareTransition()
@@ -54,10 +64,12 @@ class MainActivity : ComponentActivity() {
         session.ensureStarted()
         // 런처는 STARTED 전에 등록해야 한다. 요청은 안내 화면의 [계속] 에서
         val speedPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            getPreferences(MODE_PRIVATE).edit().putBoolean("speedNoticeSeen", true).apply()
             showSpeedNotice = false   // 거부해도 화면은 넘긴다. 속도 없이 SPEED capability=false 로 동작
             if (granted) session.onSpeedPermissionGranted()
         }
-        showSpeedNotice = checkSelfPermission(AaosPropertyReader.SPEED_PERMISSION) != PackageManager.PERMISSION_GRANTED
+        showSpeedNotice = !getPreferences(MODE_PRIVATE).getBoolean("speedNoticeSeen", false) &&
+            checkSelfPermission(AaosPropertyReader.SPEED_PERMISSION) != PackageManager.PERMISSION_GRANTED
 
         setContent {
             val game by session.game.collectAsStateWithLifecycle()
@@ -67,35 +79,73 @@ class MainActivity : ComponentActivity() {
             val travelOffer by session.travelOffer.collectAsStateWithLifecycle()
             val travelMessage by session.travelMessage.collectAsStateWithLifecycle()
             val ended by session.ended.collectAsStateWithLifecycle()
-            val screen = CarDisplayPolicy.screen(meta.paired, parkedAllowed)
-            // 테마 없이 그리면 Text 가 기본 검정이 되어 DeviceDefault(어두운) 창 배경에 묻힌다 (AlloTheme = 어두운 차량용 테마)
-            AlloTheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        if (showSpeedNotice && parkedAllowed) SpeedNoticeScreen(onContinue = { speedPermission.launch(AaosPropertyReader.SPEED_PERMISSION) })
-                        else when (screen) {
-                            CarScreen.Pairing -> PairingScreen(meta = meta, dbUrl = BuildConfig.ALLO_DB_URL, sessionId = session.sessionId)
-                            CarScreen.Driving -> DrivingScreen(game = game, connected = connected && meta.paired, runningMotion = true)
-                            CarScreen.Parked -> ParkedScreen(game = game, connected = connected,
-                                onShare = if (BuildConfig.DEBUG) ({ openShare() }) else null,
-                                transferMessage = transfer.message.takeIf { it.isNotBlank() && game.hasV2Contract },
-                                onCallCompanion = if (game.hasV2Contract && game.companion?.location == "car" && transfer.pending == null && !ended)
-                                    ({ session.requestCompanionTransfer(); Unit }) else null,
-                                onRetryTransfer = if (transfer.status == TransferStatus.Unconfirmed && transfer.pending != null && !ended)
-                                    ({ session.retryCompanionTransfer() }) else null,
-                                exitSerial = transfer.exitSerial,
-                                travelContent = {
-                                    TravelRequestCard(game, connected && !ended, travelOffer, travelMessage,
-                                        onOffer = { session.offerTravel() }, onAccept = { token, index -> session.acceptTravel(token, index) })
-                                })
-                        }
-                        if (BuildConfig.DEBUG && parkedAllowed && (screen == CarScreen.Pairing || showSpeedNotice)) {
-                            TextButton(
-                                modifier = Modifier.align(Alignment.BottomEnd),
-                                onClick = { openShare() },
-                            ) { Text("폰 화면 공유") }
-                        }
+            val pairingReady by session.pairingReady.collectAsStateWithLifecycle()
+            val sid by session.sessionIdentity.collectAsStateWithLifecycle()
+            val resultKey = "$sid:${game.transferResult?.requestId}:${transfer.status}"
+            var dismissed by remember(resultKey) { mutableStateOf(false) }
+            val route = PleosFlow.route(parkingChecked, parkedAllowed, showSpeedNotice,
+                meta.paired, connected, ended, game, transfer, dismissed)
+            val catalog = rememberSpeciesCatalog()
+            var previousCarGame by remember(sid) { mutableStateOf<GameState?>(null) }
+            var departing by remember(sid) { mutableStateOf<GameState?>(null) }
+            var observedExit by remember(sid) { mutableLongStateOf(transfer.exitSerial) }
+            val exit = remember(sid) { Animatable(1f) }
+            SideEffect {
+                if (game.companion?.location == "car" && "companion" !in game.invalidBlocks) previousCarGame = game
+            }
+            LaunchedEffect(transfer.exitSerial, route) {
+                if (observedExit != transfer.exitSerial && route in setOf(PleosRoute.TransferComplete, PleosRoute.Driving)) {
+                    observedExit = transfer.exitSerial
+                    val old = previousCarGame
+                    if (route == PleosRoute.TransferComplete && old?.companion?.displayId == transfer.subjectDisplayId) {
+                        departing = old
+                        try {
+                            exit.snapTo(0f)
+                            exit.animateTo(1f, tween(900))
+                        } finally { departing = null }
                     }
+                }
+            }
+            AlloTheme {
+                when (route) {
+                    PleosRoute.Starting -> PleosStatusScreen(route, game, false)
+                    PleosRoute.Permission -> SpeedNoticeScreen(
+                        onContinue = {
+                            getPreferences(MODE_PRIVATE).edit().putBoolean("speedNoticeSeen", true).apply()
+                            speedPermission.launch(AaosPropertyReader.SPEED_PERMISSION)
+                        },
+                        onLater = {
+                            getPreferences(MODE_PRIVATE).edit().putBoolean("speedNoticeSeen", true).apply()
+                            showSpeedNotice = false
+                        })
+                    PleosRoute.Pairing -> PairingScreen(meta, if (pairingReady) BuildConfig.ALLO_DB_URL else "", sid)
+                    PleosRoute.Driving -> DrivingScreen(game, connected && meta.paired && !ended,
+                        runningMotion = false, statusMessage = when {
+                            ended -> "이번 연결이 끝났어요"
+                            meta.paired && !connected -> "폰 연결이 끊겼어요"
+                            !meta.paired -> "주차 후 폰을 연결해 주세요"
+                            else -> null
+                        })
+                    PleosRoute.Home, PleosRoute.Empty -> key(sid) {
+                        ParkedScreen(game, connected,
+                            onShare = if (BuildConfig.DEBUG) ({ openShare() }) else null,
+                            onCallCompanion = if (game.hasV2Contract && game.companion?.location == "car" && transfer.pending == null && !ended)
+                                ({ session.requestCompanionTransfer(); Unit }) else null,
+                            travelContent = {
+                                TravelRequestCard(game, connected && !ended, travelOffer, travelMessage,
+                                    onOffer = { session.offerTravel() }, onAccept = { token, index -> session.acceptTravel(token, index) })
+                            })
+                    }
+                    else -> PleosStatusScreen(route, game, connected && !ended,
+                        transferMessage = transfer.message.takeIf { it.isNotBlank() },
+                        departure = departing?.let { PetSummary.from(it, true, catalog) }, departureFraction = exit.value,
+                        onPrimary = when (route) {
+                            PleosRoute.Disconnected -> ({ session.refreshGameState() })
+                            PleosRoute.Ended -> ({ session.prepareNextSession() })
+                            PleosRoute.TransferComplete, PleosRoute.TransferRejected -> ({ dismissed = true })
+                            PleosRoute.TransferPending -> if (transfer.status == TransferStatus.Unconfirmed) ({ session.retryCompanionTransfer() }) else null
+                            else -> null
+                        })
                 }
             }
         }
@@ -106,6 +156,7 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         (application as AlloApp).session.ensureForeground()
         visible = true
+        parkingChecked = false
         setParkingPermission(false)
         // The receiver may see D then close before this activity's first P read.
         val returnedFromDriving = BuildConfig.DEBUG && runCatching {
@@ -114,6 +165,7 @@ class MainActivity : ComponentActivity() {
         if (returnedFromDriving) shareTransition.update(true, false, null, false)
         parkingGate = ParkedMirrorGate(this) { connected, parked, uxAllowed ->
             if (!visible) return@ParkedMirrorGate
+            parkingChecked = true
             parkingVerifiedAt = SystemClock.elapsedRealtime()
             setParkingPermission(connected && parked == true && uxAllowed == true)
             val configured = BuildConfig.DEBUG && runCatching {

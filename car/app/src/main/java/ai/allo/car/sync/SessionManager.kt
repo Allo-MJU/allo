@@ -48,6 +48,11 @@ class SessionManager(private val context: Context) {
 
     private val _sessionId = MutableStateFlow(UUID.randomUUID().toString())
     val sessionId: String get() = _sessionId.value
+    val sessionIdentity: StateFlow<String> = _sessionId
+    private val _pairingReady = MutableStateFlow(false)
+    val pairingReady: StateFlow<Boolean> = _pairingReady
+    private var refreshJob: Job? = null
+    private var gameStreamJob: Job? = null
     private val _meta = MutableStateFlow(
         SessionMeta(createdAt = System.currentTimeMillis(), pairCode = newPairCode(), carAppVersion = BuildConfig.CAR_APP_VERSION)
     )
@@ -137,7 +142,7 @@ class SessionManager(private val context: Context) {
     @Synchronized
     fun requestCompanionTransfer(): TransferUiState {
         syncFeatureState()
-        if (_ended.value) return transfers.state
+        if (_ended.value || !hasParkingPermission()) return transfers.state
         val request = transfers.request(sessionId, _game.value, _gameConnected.value && _meta.value.paired,
             android.os.SystemClock.elapsedRealtime())
         _transferUi.value = transfers.state
@@ -148,7 +153,7 @@ class SessionManager(private val context: Context) {
     @Synchronized
     fun retryCompanionTransfer() {
         syncFeatureState()
-        if (_ended.value) return
+        if (_ended.value || !hasParkingPermission()) return
         val request = transfers.retry(sessionId, _game.value, _gameConnected.value && _meta.value.paired,
             android.os.SystemClock.elapsedRealtime())
         _transferUi.value = transfers.state
@@ -158,7 +163,7 @@ class SessionManager(private val context: Context) {
     private fun sendTransfer(id: String, ready: CompletableDeferred<Unit>, request: TransferRequest) {
         scope.launch {
             val permitted = synchronized(this@SessionManager) {
-                id == sessionId && !_ended.value && _gameConnected.value && transfers.state.pending == request
+                id == sessionId && !_ended.value && _gameConnected.value && hasParkingPermission() && transfers.state.pending == request
             }
             if (!permitted || !rest.isConfigured || !ready.isCompleted) return@launch
             try {
@@ -276,10 +281,41 @@ class SessionManager(private val context: Context) {
         return r
     }
 
+    private fun hasParkingPermission(): Boolean {
+        val age = android.os.SystemClock.elapsedRealtime() - parkingVerifiedAt
+        return parkingAllowed && age >= 0 && age < ParkedMirrorGate.MAX_STATUS_AGE_MS
+    }
+
+    /** Explicit parked action; never restarts an active or moving session. */
+    @Synchronized
+    fun prepareNextSession() {
+        if (_ended.value && hasParkingPermission()) beginSession()
+    }
+
+    /** Explicit reconnect never resends a game action or restores an old pending request. */
+    @Synchronized
+    fun refreshGameState() {
+        if (!hasParkingPermission() || _ended.value || !rest.isConfigured || !sessionReady.isCompleted || refreshJob?.isActive == true) return
+        val id = sessionId
+        val ready = sessionReady
+        val previousStream = gameStreamJob
+        val parent = sessionJob ?: return
+        refreshJob = scope.launch {
+            previousStream?.cancelAndJoin()
+            synchronized(this@SessionManager) {
+                if (id == sessionId && !_ended.value && parent.isActive) {
+                    gameStreamJob = scope.launch(parent) { subscribeGame(id, ready) }
+                }
+            }
+        }
+    }
+
     /** 새 세션: 새 id·페어링 코드, 누적값 초기화, 구독 다시 시작. 폰은 다시 페어링해야 한다 */
     @Synchronized
     private fun beginSession() {
         sessionJob?.cancel()
+        refreshJob?.cancel()
+        _pairingReady.value = false
         val id = UUID.randomUUID().toString()
         val ready = CompletableDeferred<Unit>()
         derivation.reset(); endDetector.reset(); destinations.reset(); travel.reset(); gameReducer.reset()
@@ -296,7 +332,7 @@ class SessionManager(private val context: Context) {
         syncFeatureState()
         sessionJob = scope.launch {
             launch { createSession(id, ready) }
-            launch { subscribeGame(id, ready) }
+            gameStreamJob = launch { subscribeGame(id, ready) }
             launch { subscribeMeta(id, ready) }
         }
     }
@@ -360,6 +396,7 @@ class SessionManager(private val context: Context) {
             if (r.isSuccess) {
                 debugLog("session created sid=$id")
                 ready.complete(Unit)
+                if (id == sessionId) _pairingReady.value = true
                 return
             }
             debugLog("session create failed sid=$id: ${r.exceptionOrNull()?.message}")

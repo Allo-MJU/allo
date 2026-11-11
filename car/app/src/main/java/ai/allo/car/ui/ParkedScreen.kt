@@ -1,107 +1,97 @@
 package ai.allo.car.ui
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.*
-import androidx.compose.material3.FilterChip
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import ai.allo.car.model.GameState
+import ai.allo.car.model.PleosRoute
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 
-/** The caller provides sharing only after the real parking/UX gate allows it. */
+/** Actual v2 phone contract has no fishing gameplay capability: never fabricate rewards here. */
 @Composable
 fun ParkedScreen(
-    game: GameState,
-    connected: Boolean = true,
-    onShare: (() -> Unit)? = null,
-    modifier: Modifier = Modifier,
-    transferMessage: String? = null,
-    onCallCompanion: (() -> Unit)? = null,
-    onRetryTransfer: (() -> Unit)? = null,
-    exitSerial: Long = 0,
-    travelContent: (@Composable () -> Unit)? = null,
+    game: GameState, connected: Boolean = true, onShare: (() -> Unit)? = null,
+    modifier: Modifier = Modifier, transferMessage: String? = null,
+    onCallCompanion: (() -> Unit)? = null, onRetryTransfer: (() -> Unit)? = null,
+    exitSerial: Long = 0, travelContent: (@Composable () -> Unit)? = null,
 ) {
     val catalog = rememberSpeciesCatalog()
     val summary = PetSummary.from(game, connected, catalog)
-    var previousCarPet by remember { mutableStateOf<PetSummary?>(null) }
-    var departing by remember { mutableStateOf<PetSummary?>(null) }
-    val exit = remember { Animatable(0f) }
-    var observedExit by remember { mutableLongStateOf(exitSerial) }
-    // Capture the previous rendered companion before SideEffect caches this snapshot.
-    // An accepted transfer may arrive together with a different companion selection.
-    val departureCandidate = remember(exitSerial) { previousCarPet }
-    LaunchedEffect(exitSerial, connected) {
-        if (exitSerial != observedExit) {
-            observedExit = exitSerial
-            if (connected && departureCandidate != null) {
-                departing = departureCandidate
-                exit.snapTo(0f)
-                exit.animateTo(1f, tween(900))
-                departing = null
-                previousCarPet = null
-            }
-        }
-        if (!connected) departing = null
+    val companionValid = "companion" !in game.invalidBlocks
+    val emptyCompanion = game.hasV2Contract && companionValid &&
+        (game.companion == null || game.companion?.location == "phone")
+    val hasCarPet = if (game.hasV2Contract) companionValid && game.companion?.location == "car"
+        else summary.showArt && !summary.showEgg
+    // Selection/connection changes reset transient navigation and never auto-start an activity.
+    var tab by remember(game.companion?.displayId, game.companion?.displayRevision, game.companion?.location, connected) { mutableStateOf("홈") }
+    var resting by remember(game.companion?.displayId, game.companion?.displayRevision, game.companion?.location, connected) { mutableStateOf(false) }
+    if (resting && hasCarPet && connected) {
+        PleosStatusScreen(PleosRoute.Paused, game, connected, onPrimary = { resting = false })
+        return
     }
-    SideEffect { if (summary.showArt && !summary.showEgg) previousCarPet = summary }
-    val displayed = departing ?: summary
-    var fishing by rememberSaveable { mutableStateOf(true) }
-    val pose = if (fishing) PetPose.Fishing else PetPose.Sleep
-    BoxWithConstraints(modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-        val narrow = maxWidth < 560.dp
-        Column(
-            Modifier.widthIn(max = 760.dp).verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text("알로 · 주차 중", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 18.sp)
-            if (narrow) {
-                if (displayed.showArt) PetArt(displayed, 140.dp,
-                    modifier = Modifier.graphicsLayer { translationX = if(departing != null) exit.value * 180f * density else 0f; alpha = if (departing != null) 1f-exit.value else 1f },
-                    pose = if(departing != null) PetPose.Move else pose, parked = departing == null, connected = connected, runningMotion = departing != null)
-                SummaryText(if (departing != null) displayed.copy(status = "폰으로 이동하는 중") else summary, centered = true)
-            } else {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                    if (displayed.showArt) PetArt(displayed, 180.dp,
-                        modifier = Modifier.graphicsLayer { translationX = if(departing != null) exit.value * 200f * density else 0f; alpha = if(departing != null) 1f-exit.value else 1f },
-                        pose = if(departing != null) PetPose.Move else pose, parked = departing == null, connected = connected, runningMotion = departing != null)
-                    SummaryText(if (departing != null) displayed.copy(status = "폰으로 이동하는 중") else summary, centered = false)
+    ScreenFrame("주차 홈", if (connected) "폰 상태 연결됨" else "마지막으로 받은 상태", modifier) {
+        ScreenColumns(art = {
+            if (summary.showArt) PetArt(summary, 240.dp, pose = PetPose.Sleep, parked = true, connected = connected)
+            else AlloWordmark(Modifier.width(180.dp))
+        }, details = {
+            when (tab) {
+                "홈" -> {
+                    Text(if (emptyCompanion) "함께할 친구를 골라 주세요" else summary.title,
+                        style = MaterialTheme.typography.headlineMedium)
+                    Text(when {
+                        !companionValid -> "친구 상태를 다시 확인하고 있어요."
+                        emptyCompanion -> "폰의 보유 친구 목록에서 차량과 함께할 친구를 선택해 주세요."
+                        summary.showEgg -> summary.status
+                        else -> "폰에서 선택한 친구가 함께해요."
+                    }, style = MaterialTheme.typography.bodyLarge)
+                    if (emptyCompanion) {
+                        Text("선택과 차량 동행이 확인되면 친구를 보여드려요.", style = MaterialTheme.typography.bodyMedium)
+                        ScreenAction("친구 선택 기다리는 중", {}, enabled = false)
+                    }
+                    val status = FeatureStatus.from(game, catalog)
+                    if (status.incubation != null || status.affinity != null) Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            status.incubation?.let { Text(it) }; status.affinity?.let { Text(it) }
+                        }
+                    }
+                    if (hasCarPet) {
+                        ScreenAction("쉬는 시간", { resting = true }, enabled = connected, secondary = true)
+                        ScreenAction("낚시 시작", {}, enabled = false)
+                        Text("연결된 폰이 주차 낚시를 지원하면 시작할 수 있어요.", style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (hasCarPet) {
+                        onCallCompanion?.let { ScreenAction("폰으로 친구 부르기", it, enabled = connected, secondary = true) }
+                        onRetryTransfer?.let { ScreenAction("이동 상태 다시 확인", it, enabled = connected, secondary = true) }
+                    }
+                    transferMessage?.let { Text(it) }
+                    Text("친구 변경은 폰의 보유 친구 목록에서", style = MaterialTheme.typography.bodyMedium)
+                }
+                "거점" -> {
+                    Text("우리 거점", style = MaterialTheme.typography.headlineMedium)
+                    val lines = FeatureStatus.from(game, catalog).baseLines
+                    if (lines.isEmpty()) Text("폰에서 거점 활동을 확인해 주세요.")
+                    else lines.forEach { Text(it, style = MaterialTheme.typography.bodyLarge) }
+                }
+                "여행" -> {
+                    Text("함께 떠날 곳", style = MaterialTheme.typography.headlineMedium)
+                    if (travelContent != null) travelContent() else Text("폰에서 여행 부탁을 보내 주세요.")
+                }
+                "폰 공유" -> {
+                    Text("폰 화면 함께 보기", style = MaterialTheme.typography.headlineMedium)
+                    Text("주차 중에 폰에서 화면 공유를 시작해 주세요.")
+                    if (onShare != null) ScreenAction("폰 화면 공유", onShare, enabled = connected)
+                    else Text("이 버전에서는 화면 공유를 지원하지 않아요.")
                 }
             }
-            if (summary.showArt && !summary.showEgg && departing == null) {
-                Text("쉬는 모습 고르기", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    FilterChip(selected = !fishing, onClick = { fishing = false }, label = { Text("잠자기") })
-                    FilterChip(selected = fishing, onClick = { fishing = true }, label = { Text("낚시") })
-                }
-            }
-            transferMessage?.let { Text(it, textAlign = TextAlign.Center) }
-            onCallCompanion?.let { Button(onClick = it, enabled = connected) { Text("폰으로 친구 부르기") } }
-            onRetryTransfer?.let { Button(onClick = it, enabled = connected) { Text("이동 상태 다시 확인") } }
-            FeatureStatusCards(game, catalog)
-            travelContent?.invoke()
-            Text("주차 중에는 폰 화면을 함께 볼 수 있어요.", fontSize = 18.sp, lineHeight = 26.sp,
-                textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (onShare != null) {
-                Button(onClick = onShare, modifier = Modifier.heightIn(min = 56.dp)) {
-                    Text("폰 화면 공유", fontSize = 22.sp)
-                }
-                Text("폰에서 공유를 시작하면 화면이 표시돼요.", fontSize = 16.sp, lineHeight = 24.sp,
-                    textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            } else {
-                Text("화면 공유 연결을 준비하고 있어요.", fontSize = 16.sp, lineHeight = 24.sp,
-                    textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }, modifier = Modifier.weight(1f))
+        HorizontalDivider()
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            listOf("홈", "거점", "여행", "폰 공유").forEach { name ->
+                FilterChip(selected = tab == name, onClick = { tab = name }, label = { Text(name) }, modifier = Modifier.heightIn(min = 56.dp))
             }
         }
     }
