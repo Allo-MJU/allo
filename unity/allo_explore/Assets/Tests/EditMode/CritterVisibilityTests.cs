@@ -71,6 +71,26 @@ public class CritterVisibilityTests
     }
 
     [Test]
+    public void ComfortZoneKeepsCharacterInFrontAndNotTooClose()
+    {
+        var eye = new Vector3(0, 0.9f, 0);
+        var fwd = Vector3.forward;
+        Assert.IsTrue(CritterDirector.Comfortable(new Vector3(0, 0.01f, 1.0f), eye, fwd), "앞 바닥");
+        Assert.IsFalse(CritterDirector.Comfortable(new Vector3(0.3f, 0.45f, 0.1f), eye, fwd), "바로 옆 자리(너무 가깝다)");
+        Assert.IsFalse(CritterDirector.Comfortable(new Vector3(0.9f, 0.45f, 0f), eye, fwd), "옆(정면에서 90도)");
+        Assert.IsFalse(CritterDirector.Comfortable(new Vector3(0, 0.01f, 0.5f), eye, fwd), "발밑(너무 가깝고 아래)");
+    }
+
+    [Test]
+    public void RandomPointPrefersComfortableSpots()
+    {
+        var g = new WalkGraph(new List<WalkSurface> { new("Walk_Floor", new Vector3(0, 0, 1), new Vector2(1.2f, 1.2f)) });
+        g.Comfortable = p => p.z > 1.2f;
+        var rng = new System.Random(3);
+        for (var i = 0; i < 50; i++) Assert.Greater(g.RandomPoint(0, rng).z, 1.2f);
+    }
+
+    [Test]
     public void BakedSceneHasFloorAndNoHiddenShelf()
     {
         EditorSceneManager.OpenScene("Assets/Scenes/Explore.unity");
@@ -79,6 +99,7 @@ public class CritterVisibilityTests
         CollectionAssert.Contains(names, "Walk_Floor");
         CollectionAssert.Contains(names, "Walk_Dashboard");
         CollectionAssert.DoesNotContain(names, "Walk_RearShelf");
+        CollectionAssert.DoesNotContain(names, "Walk_RearSeat_R"); // 아이 바로 옆: 너무 가깝고 정면에서 90도
         var g = d.BuildGraph();
         Assert.IsNotEmpty(g.Neighbors(g.IndexOf("Walk_Floor")));
     }

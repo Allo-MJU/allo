@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &6266971807626556931
+--- !u!1 &7402168622635907053
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 2995564249583718057}
-  - component: {fileID: 5055581122359703830}
-  - component: {fileID: 8740884663511461004}
+  - component: {fileID: 8855490568868332601}
+  - component: {fileID: 3269645573699037453}
+  - component: {fileID: 2583836903757799543}
   m_Layer: 0
   m_Name: flower_redB(Clone)
   m_TagString: Untagged
@@ -18,36 +18,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &2995564249583718057
+--- !u!4 &8855490568868332601
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6266971807626556931}
+  m_GameObject: {fileID: 7402168622635907053}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.09694241, y: -0, z: -0}
   m_LocalScale: {x: 3.8684723, y: 3.8684723, z: 3.8684723}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 2198230488642866048}
+  m_Father: {fileID: 811995615428279448}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &5055581122359703830
+--- !u!33 &3269645573699037453
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6266971807626556931}
+  m_GameObject: {fileID: 7402168622635907053}
   m_Mesh: {fileID: -4341700693323023739, guid: b6f417beacd154d328d1fbd50ebeaa2d, type: 3}
---- !u!23 &8740884663511461004
+--- !u!23 &2583836903757799543
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6266971807626556931}
+  m_GameObject: {fileID: 7402168622635907053}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -87,7 +87,7 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!1 &7031467854337078949
+--- !u!1 &8609533769609794405
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -95,7 +95,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 2198230488642866048}
+  - component: {fileID: 811995615428279448}
   m_Layer: 0
   m_Name: K_flower_redB
   m_TagString: Untagged
@@ -103,19 +103,19 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &2198230488642866048
+--- !u!4 &811995615428279448
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7031467854337078949}
+  m_GameObject: {fileID: 8609533769609794405}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 2995564249583718057}
+  - {fileID: 8855490568868332601}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

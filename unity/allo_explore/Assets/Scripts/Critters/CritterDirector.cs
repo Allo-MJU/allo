@@ -36,6 +36,11 @@ namespace Allo.Critters
                     if (!r.name.StartsWith("Walk_")) continue;
                     var b = r.bounds;
                     if (childEye != null && TooCloseToChild(r.name, b, childEye.position)) continue;
+                    if (childEye != null && frontEye != null && ComfortShare(b, childEye.position, Forward) < 0.25f)
+                    {
+                        Debug.Log($"[Critters] {r.name} 은 아이가 정면을 볼 때 거의 안 보이거나 너무 가까워 빼요");
+                        continue;
+                    }
                     if (childEye != null && HiddenFromChild(b, childEye.position, colliders) && (frontEye == null || HiddenFromChild(b, frontEye.position, colliders)))
                     {
                         Debug.Log($"[Critters] {r.name} 은 카메라 어디서도 보이지 않아 빼요");
@@ -57,7 +62,53 @@ namespace Allo.Critters
         {
             var list = new List<WalkSurface>();
             for (var i = 0; i < surfaceNames.Length; i++) list.Add(new WalkSurface(surfaceNames[i], surfaceCenters[i], surfaceSizes[i]));
-            return new WalkGraph(list);
+            var g = new WalkGraph(list);
+            if (childEye != null && frontEye != null)
+            {
+                var eye = childEye.position; var fwd = Forward;
+                g.Comfortable = p => Comfortable(p, eye, fwd);
+            }
+            return g;
+        }
+
+        Vector3 Forward
+        {
+            get
+            {
+                var f = frontEye.position - childEye.position;
+                f.y = 0;
+                return f.normalized;
+            }
+        }
+
+        /// 아이가 정면을 볼 때 캐릭터가 편하게 보이는 자리인지: 눈에서 수평 MinView 이상, 정면에서 좌우 MaxYaw 안,
+        /// 아래로 MaxPitch 보다 얕게 (몸 가운데 기준). 너무 가까우면 화면을 덮고, 옆·발밑이면 얼굴이 화면 밖으로 잘린다.
+        /// 정면 화면은 아래로 36도(세로 화각 72도)까지라 앞좌석 사이 바닥(약 47도)은 고개를 조금 숙여야 보인다 (요청으로 남김)
+        public const float MinView = 0.6f, MaxYaw = 60f, MaxPitch = 55f;
+
+        public static bool Comfortable(Vector3 feet, Vector3 eye, Vector3 forward)
+        {
+            var body = feet + Vector3.up * CritterView.Height * 0.5f;
+            var d = body - eye;
+            var flat = new Vector3(d.x, 0, d.z);
+            var dist = flat.magnitude;
+            if (dist < MinView) return false;
+            if (Vector3.Angle(flat, forward) > MaxYaw) return false;
+            return Mathf.Atan2(-d.y, dist) * Mathf.Rad2Deg <= MaxPitch;
+        }
+
+        /// 면 위 점(5×5) 가운데 편하게 보이는 비율
+        public static float ComfortShare(Bounds surface, Vector3 eye, Vector3 forward)
+        {
+            var ok = 0;
+            for (var i = 0; i < 5; i++)
+            for (var j = 0; j < 5; j++)
+            {
+                var p = new Vector3(Mathf.Lerp(surface.min.x, surface.max.x, (i + 0.5f) / 5), surface.max.y,
+                    Mathf.Lerp(surface.min.z, surface.max.z, (j + 0.5f) / 5));
+                if (Comfortable(p, eye, forward)) ok++;
+            }
+            return ok / 25f;
         }
 
         WalkGraph _graph;
@@ -188,6 +239,16 @@ namespace Allo.Critters
             return hidden > 4;
         }
 
+        int FirstOf(params string[] names)
+        {
+            foreach (var n in names)
+            {
+                var i = _graph.IndexOf(n);
+                if (i >= 0) return i;
+            }
+            return 0;
+        }
+
         /// 아이가 앉은 자리와 바로 옆 창턱은 캐릭터가 화면을 가리므로 쓰지 않는다
         public static bool TooCloseToChild(string name, Bounds surface, Vector3 eye)
         {
@@ -253,7 +314,7 @@ namespace Allo.Critters
                 Destroy(_views[id].gameObject);
                 _views.Remove(id);
             }
-            var start = Mathf.Max(0, _graph.IndexOf("Walk_Armrest"));
+            var start = Mathf.Max(0, FirstOf("Walk_DoorSill_R", "Walk_DoorSill_L", "Walk_Floor")); // 정면에서 잘 보이는 창턱에서 나타난다
             foreach (var m in CastDiff.Members(cast))
             {
                 if (!add.Contains(m.id)) continue;

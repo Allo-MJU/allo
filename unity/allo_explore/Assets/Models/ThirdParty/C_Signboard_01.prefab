@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &776337112705589068
+--- !u!1 &4191792573506855214
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,10 +8,10 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 3620199782321267013}
-  - component: {fileID: 4835539906122465404}
-  - component: {fileID: 2269815780988331345}
-  - component: {fileID: 6534671348545114097}
+  - component: {fileID: 6050446668669675759}
+  - component: {fileID: 1846063189236792572}
+  - component: {fileID: 9003770572642261440}
+  - component: {fileID: 5819739056074170094}
   m_Layer: 0
   m_Name: Signboard_01(Clone)
   m_TagString: Untagged
@@ -19,36 +19,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &3620199782321267013
+--- !u!4 &6050446668669675759
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 776337112705589068}
+  m_GameObject: {fileID: 4191792573506855214}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -1.5871797, y: 5.4192686, z: -0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 6109208750137617786}
+  m_Father: {fileID: 6439917633982412212}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &4835539906122465404
+--- !u!33 &1846063189236792572
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 776337112705589068}
+  m_GameObject: {fileID: 4191792573506855214}
   m_Mesh: {fileID: -2113961005391218891, guid: 8a653d5772b832a488665a704fff9fb5, type: 3}
---- !u!23 &2269815780988331345
+--- !u!23 &9003770572642261440
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 776337112705589068}
+  m_GameObject: {fileID: 4191792573506855214}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -89,13 +89,13 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &6534671348545114097
+--- !u!64 &5819739056074170094
 MeshCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 776337112705589068}
+  m_GameObject: {fileID: 4191792573506855214}
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -111,7 +111,7 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: -2113961005391218891, guid: 8a653d5772b832a488665a704fff9fb5, type: 3}
---- !u!1 &1324991306823131137
+--- !u!1 &6761443043805778392
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -119,7 +119,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 6109208750137617786}
+  - component: {fileID: 6439917633982412212}
   m_Layer: 0
   m_Name: C_Signboard_01
   m_TagString: Untagged
@@ -127,19 +127,19 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &6109208750137617786
+--- !u!4 &6439917633982412212
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1324991306823131137}
+  m_GameObject: {fileID: 6761443043805778392}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 3620199782321267013}
+  - {fileID: 6050446668669675759}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

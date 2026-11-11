@@ -29,6 +29,9 @@ namespace Allo.Critters
         public IReadOnlyList<WalkSurface> Surfaces { get; }
         readonly List<int>[] _neighbors;
 
+        /// 자리를 고를 때 이 조건을 만족하는 점을 먼저 고른다 (아이가 정면을 볼 때 편하게 보이는 곳). 없으면 아무 데나
+        public Func<Vector3, bool> Comfortable;
+
         public WalkGraph(IReadOnlyList<WalkSurface> surfaces, float maxJump = 0.9f, float maxRise = 0.75f)
         {
             Surfaces = surfaces;
@@ -63,6 +66,19 @@ namespace Allo.Critters
         public const float NarrowSurface = 0.2f;
 
         public Vector3 RandomPoint(int i, System.Random rng)
+        {
+            if (Comfortable == null) return AnyPoint(i, rng);
+            var first = AnyPoint(i, rng);
+            if (Comfortable(first)) return first;
+            for (var k = 0; k < 15; k++)
+            {
+                var p = AnyPoint(i, rng);
+                if (Comfortable(p)) return p;
+            }
+            return first;
+        }
+
+        Vector3 AnyPoint(int i, System.Random rng)
         {
             var s = Surfaces[i];
             if (Mathf.Min(s.size.x, s.size.y) < NarrowSurface) return s.center;
