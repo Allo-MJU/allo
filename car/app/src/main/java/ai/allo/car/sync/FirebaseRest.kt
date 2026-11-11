@@ -36,7 +36,7 @@ class FirebaseRest(
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(5, TimeUnit.SECONDS)
         .writeTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.MILLISECONDS)   // SSE 는 무기한
+        .readTimeout(60, TimeUnit.SECONDS)   // Firebase keep-alives detect a silent broken transport
         .build(),
     /** 일반 REST(PUT/PATCH/POST) 한 번의 전체 limit. 응답이 멈추면 IOException (PR #27 리뷰) */
     restCallTimeoutMs: Long = 10_000,
@@ -55,13 +55,15 @@ class FirebaseRest(
 
     private fun url(path: String) = "${dbUrl.trimEnd('/')}/${path.trimStart('/')}.json"
 
+    suspend fun get(path: String): JsonElement = json.parseToJsonElement(send("GET", path, null))
+
     suspend fun put(path: String, body: String) = send("PUT", path, body)
     suspend fun patch(path: String, body: String) = send("PATCH", path, body)
     suspend fun post(path: String, body: String) = send("POST", path, body)
 
-    private suspend fun send(method: String, path: String, body: String): String =
+    private suspend fun send(method: String, path: String, body: String?): String =
         suspendCancellableCoroutine { cont ->
-            val req = Request.Builder().url(url(path)).method(method, body.toRequestBody(JSON)).build()
+            val req = Request.Builder().url(url(path)).method(method, body?.toRequestBody(JSON)).build()
             val call = restClient.newCall(req)
             cont.invokeOnCancellation { call.cancel() }
             call.enqueue(object : Callback {

@@ -36,6 +36,15 @@
         "parameters": { "type": "object", "properties": {}, "required": [] },
         "component": "service"
       }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "REQUEST_COMPANION_TRANSFER",
+        "description": "When the user explicitly asks to bring the currently selected companion to the phone, request that transfer. A request acknowledgment is not a completed move; the phone confirms the saved result.",
+        "parameters": { "type": "object", "properties": {}, "required": [] },
+        "component": "service"
+      }
     }
   ]
 }

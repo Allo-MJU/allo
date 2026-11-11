@@ -20,6 +20,7 @@ import kotlinx.serialization.json.booleanOrNull
  * 그래서 같은 기기의 다른 앱도 제안 → 수락을 보낼 수 있다 (PR #10 리뷰 P1). 완화:
  *  - 목적지는 직전에 우리가 제안한 고정 목록 중 하나만, 제안 후 2분 안에만 (DestinationFlow)
  *  - 내비 안내 중이면 제안·수락 모두 거절, 안내 상태를 아직 모르면 수락 거절 — 진행 중인 경로를 바꾸지 않는다 ([ai.allo.car.navi.Guidance])
+ *  - 캐릭터 호출은 현재 표시 ID/revision으로만 요청하며, 위치 변경은 폰의 저장 결과로 확인한다.
  *  - 목적지가 바뀌면 차량 앱이 직접 소리 내어 알린다 (말했으면 응답은 silent, 못 했으면 Gleo 가 말한다)
  */
 class GleoReceiver : BroadcastReceiver() {
@@ -28,6 +29,8 @@ class GleoReceiver : BroadcastReceiver() {
         val app = context.applicationContext as AlloApp
         val session = app.session
         val callback = when {
+            function == GleoFunctions.REQUEST_COMPANION_TRANSFER ->
+                GleoFunctions.respondCompanionTransfer(session.requestCompanionTransfer())
             function != GleoFunctions.SUGGEST_DESTINATION -> GleoFunctions.respond(function, session.game.value, bank = session.dialogue)
             isConfirm(intent) -> GleoFunctions.respondAccept(session.acceptDestination(), session.dialogue)
                 .let { cb -> if (cb.status == "success") GleoFunctions.selfVoiced(cb, session.voice.speakNow(cb.message)) else cb }

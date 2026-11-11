@@ -2,6 +2,8 @@ package ai.allo.car.gleo
 
 import ai.allo.car.dialogue.DialogueBank
 import ai.allo.car.model.GameState
+import ai.allo.car.model.TransferStatus
+import ai.allo.car.model.TransferUiState
 import kotlinx.serialization.Serializable
 
 /** Gleo 응답 와이어 포맷. 선례(핸들온)에서 확인된 형태를 따른다. */
@@ -22,9 +24,29 @@ object GleoFunctions {
     const val REPORT_EGG_STATUS = "REPORT_EGG_STATUS"
     const val SUGGEST_DESTINATION = "SUGGEST_DESTINATION"
     const val CELEBRATE_HATCH = "CELEBRATE_HATCH"
-    val FUNCTIONS = setOf(REPORT_EGG_STATUS, SUGGEST_DESTINATION, CELEBRATE_HATCH)
+    const val REQUEST_COMPANION_TRANSFER = "REQUEST_COMPANION_TRANSFER"
+    val FUNCTIONS = setOf(REPORT_EGG_STATUS, SUGGEST_DESTINATION, CELEBRATE_HATCH, REQUEST_COMPANION_TRANSFER)
 
     fun respond(function: String, game: GameState, offer: DestinationFlow.Offer? = null, bank: DialogueBank = DialogueBank.EMPTY): GleoCallback {
+        if (function in setOf(REPORT_EGG_STATUS, CELEBRATE_HATCH)) {
+            if (game.contractVersion != null && !game.hasV2Contract) {
+                return GleoCallback(function, "fail", "연결된 폰의 상태 형식을 확인해 주세요.")
+            }
+            if (game.hasV2Contract) {
+                if (game.stage == "failed") return GleoCallback(function,
+                    if (function == CELEBRATE_HATCH) "fail" else "success",
+                    "이번 알은 깨어나지 않았어요. 다음 기회에 다시 만나봐요.")
+                val affinity = game.affinity
+                val ready = game.stage == "incubating" && affinity != null && affinity.target > 0 &&
+                    affinity.score == affinity.target && affinity.ready
+                if (ready) return GleoCallback(function,
+                    if (function == CELEBRATE_HATCH) "fail" else "success",
+                    "부화할 준비를 마쳤어요. 품기가 끝날 때까지 기다리고 있어요.")
+                if (function == CELEBRATE_HATCH && game.stage != "hatched") {
+                    return GleoCallback(function, "fail", "아직 깨어나지 않았어요.")
+                }
+            }
+        }
         val vars = gameVars(game, bank)
         fun pick(q: String, situation: String, extra: Map<String, String> = emptyMap()) =
             bank.line(q, game.speciesId, game.attribute, situation, vars + extra)
@@ -43,6 +65,17 @@ object GleoFunctions {
                 suggestFromBank(offer, bank) ?: suggestMessage(offer))
             else -> GleoCallback(function, "fail", bank.line("car_unknown", null, null, "*") ?: "모르는 요청이에요.")
         }
+    }
+
+    /** A queued transfer is not a completed move; the phone alone confirms the outcome. */
+    fun respondCompanionTransfer(state: TransferUiState): GleoCallback {
+        val status = when (state.status) {
+            TransferStatus.Waiting, TransferStatus.Unconfirmed -> "asking"
+            TransferStatus.Accepted, TransferStatus.AlreadyOnPhone -> "success"
+            else -> "fail"
+        }
+        return GleoCallback(REQUEST_COMPANION_TRANSFER, status,
+            state.message.ifBlank { "폰에서 친구를 선택하고 연결을 확인해 주세요." })
     }
 
     /** 뱅크에 넘길 값. 값이 없으면 키를 넣지 않는다 → 그 값이 필요한 문장은 뱅크가 건너뛴다 */

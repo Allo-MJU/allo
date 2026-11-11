@@ -52,7 +52,7 @@ data class Turn(
 data class GameState(
     val ts: Long = 0,
     val eggTier: String = "small",
-    val stage: String = "idle",       // "idle" | "incubating" | "hatched"
+    val stage: String = "idle",       // "idle" | "incubating" | "hatched" | v2 "failed"
     val progress: Double = 0.0,
     val speciesId: String? = null,
     val attribute: String? = null,
@@ -61,7 +61,33 @@ data class GameState(
     val lookOutCount: Int = 0,
     val hatchAtM: Double? = null,
     val hatchAtSec: Long? = null,
-)
+    // Proposed v2 display contract (#54). New blocks are read-only and version-gated.
+    val contractVersion: Int? = null,
+    val gameRevision: Long? = null,
+    val affinity: AffinitySummary? = null,
+    val companion: CompanionDisplay? = null,
+    val transferResult: TransferResult? = null,
+    val baseSummary: BaseSummary? = null,
+    val travelRequest: TravelRequest? = null,
+    @kotlinx.serialization.Transient val invalidBlocks: Set<String> = emptySet(),
+) {
+    val hasV2Contract: Boolean get() = contractVersion == 2 && gameRevision != null && gameRevision >= 0
+}
+
+@Serializable
+data class AffinitySummary(val score: Int, val target: Int, val ready: Boolean)
+@Serializable
+data class CompanionDisplay(val displayId: String, val displayRevision: Long, val speciesId: String, val location: String)
+@Serializable
+data class TransferResult(val requestId: String, val displayId: String, val requestRevision: Long,
+    val status: String, val resultLocation: String?)
+@Serializable
+data class BaseSummary(val builderSpeciesId: String? = null, val cookSpeciesId: String? = null,
+    val trainerSpeciesId: String? = null, val structureIds: List<String> = emptyList(),
+    val lastMealId: String? = null, val activeTaskKind: String? = null)
+@Serializable
+data class TravelRequest(val wishId: String, val targetRegion: String)
+
 
 /** /sessions/{sid}/events/{pushId} — docs/schema.md 3.5 */
 @Serializable

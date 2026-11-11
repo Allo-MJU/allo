@@ -11,6 +11,8 @@ import ai.allo.car.gleo.AcceptResult
 import ai.allo.car.gleo.DestinationFlow
 import ai.allo.car.gleo.DestinationSuggester
 import ai.allo.car.gleo.GleoFunctions
+import ai.allo.car.gleo.TravelRequestFlow
+import ai.allo.car.mirror.ParkedMirrorGate
 import ai.allo.car.gleo.RegionSummary
 import ai.allo.car.voice.DriverVoice
 import ai.allo.car.navi.NaviEtaReader
@@ -53,7 +55,7 @@ class SessionManager(private val context: Context) {
     private val _game = MutableStateFlow(GameState())
     val game: StateFlow<GameState> = _game
     private val _gameConnected = MutableStateFlow(false)
-    /** True only while advancing, recent phone game snapshots arrive on the current session. */
+    /** True after a valid root snapshot on the currently live SSE connection. */
     val gameConnected: StateFlow<Boolean> = _gameConnected
     private val _vehicle = MutableStateFlow<VehicleSnapshot?>(null)
     val vehicle: StateFlow<VehicleSnapshot?> = _vehicle
@@ -64,6 +66,131 @@ class SessionManager(private val context: Context) {
     /** 폰 도감의 지역 수집 요약. /game raw JSON 에서 정규화한다. 바뀌면 제안 캐시를 비운다 */
     private val _regions = MutableStateFlow<RegionSummary>(RegionSummary.Unknown)
     val regions: StateFlow<RegionSummary> = _regions
+
+    private val gameReducer = GameSnapshotReducer()
+    private var gameRaw = JsonObject(emptyMap())
+    private var gameConnectionGeneration = 0L
+    private val transfers = CompanionTransferController()
+    private val _transferUi = MutableStateFlow(TransferUiState())
+    val transferUi: StateFlow<TransferUiState> = _transferUi
+    private val travel = TravelRequestFlow()
+    private val _travelOffer = MutableStateFlow<TravelRequestFlow.Offer?>(null)
+    val travelOffer: StateFlow<TravelRequestFlow.Offer?> = _travelOffer
+    private val _travelMessage = MutableStateFlow("")
+    val travelMessage: StateFlow<String> = _travelMessage
+    private var lastTravelContext: TravelRequestFlow.Context? = null
+    private var parkingAllowed = false
+    private var parkingVerifiedAt = -1L
+
+    /** Uses the actual Activity parking/UX gate, never the vehicle feed's default P. */
+    @Synchronized
+    fun updateParkedPermission(allowed: Boolean, verifiedAtElapsed: Long) {
+        parkingAllowed = allowed
+        parkingVerifiedAt = verifiedAtElapsed
+        syncFeatureState()
+    }
+
+    private fun travelContext(): TravelRequestFlow.Context {
+        val here = naviEta.position.value
+        val age = android.os.SystemClock.elapsedRealtime() - parkingVerifiedAt
+        return TravelRequestFlow.Context(sessionId, _gameConnected.value && _meta.value.paired,
+            _ended.value, _game.value.hasV2Contract, _game.value.travelRequest,
+            regionTagger.tag(here?.lat, here?.lng), parkingAllowed && age >= 0 && age < ParkedMirrorGate.MAX_STATUS_AGE_MS)
+    }
+
+    @Synchronized
+    private fun syncFeatureState() {
+        transfers.observe(sessionId, _game.value, _gameConnected.value && _meta.value.paired, _ended.value)
+        _transferUi.value = transfers.state
+        val next = travelContext()
+        travel.update(next)
+        if (lastTravelContext != next) {
+            _travelOffer.value = null
+            _travelMessage.value = ""
+        }
+        lastTravelContext = next
+    }
+
+    @Synchronized
+    fun offerTravel() {
+        syncFeatureState()
+        _travelOffer.value = travel.offer(travelContext(), naviEta.position.value)
+        _travelMessage.value = ""
+    }
+
+    @Synchronized
+    fun acceptTravel(token: Long, index: Int) {
+        syncFeatureState()
+        val result = travel.accept(token, index, travelContext(), naviEta.guidance.value) { d ->
+            naviEta.requestRoute(d.latitude, d.longitude, d.name)
+        }
+        _travelMessage.value = when (result) {
+            is AcceptResult.Started -> "내비 요청이 접수됐어요. 방문 확인은 폰에서 해 주세요."
+            AcceptResult.RouteActive -> "현재 안내 중인 경로를 유지해요."
+            AcceptResult.NaviNotReady -> "내비 상태를 확인할 수 없어 경로를 바꾸지 않았어요."
+            AcceptResult.NoOffer -> "요청 또는 주차 상태가 바뀌었어요. 후보를 다시 확인해 주세요."
+        }
+        if (result is AcceptResult.Started || result == AcceptResult.NoOffer) _travelOffer.value = null
+    }
+
+    /** Returns immediately; only a matching phone transferResult confirms the transfer. */
+    @Synchronized
+    fun requestCompanionTransfer(): TransferUiState {
+        syncFeatureState()
+        if (_ended.value) return transfers.state
+        val request = transfers.request(sessionId, _game.value, _gameConnected.value && _meta.value.paired,
+            android.os.SystemClock.elapsedRealtime())
+        _transferUi.value = transfers.state
+        request?.let { sendTransfer(sessionId, sessionReady, it) }
+        return transfers.state
+    }
+
+    @Synchronized
+    fun retryCompanionTransfer() {
+        syncFeatureState()
+        if (_ended.value) return
+        val request = transfers.retry(sessionId, _game.value, _gameConnected.value && _meta.value.paired,
+            android.os.SystemClock.elapsedRealtime())
+        _transferUi.value = transfers.state
+        request?.let { sendTransfer(sessionId, sessionReady, it) }
+    }
+
+    private fun sendTransfer(id: String, ready: CompletableDeferred<Unit>, request: TransferRequest) {
+        scope.launch {
+            val permitted = synchronized(this@SessionManager) {
+                id == sessionId && !_ended.value && _gameConnected.value && transfers.state.pending == request
+            }
+            if (!permitted || !rest.isConfigured || !ready.isCompleted) return@launch
+            try {
+                // Keep displayRevision numeric; legacy GameEvent's string map cannot represent it.
+                rest.post("sessions/$id/events", companionTransferEvent(request, System.currentTimeMillis()).toString())
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { debugLog("companion transfer awaiting confirmation") }
+        }
+    }
+
+    private suspend fun featureLoop() {
+        while (currentCoroutineContext().isActive) {
+            val refreshId = synchronized(this@SessionManager) {
+                syncFeatureState()
+                val refresh = transfers.checkTimeout(android.os.SystemClock.elapsedRealtime())
+                _transferUi.value = transfers.state
+                if (refresh) sessionId to gameConnectionGeneration else null
+            }
+            if (refreshId != null) {
+                try {
+                    val raw = rest.get("sessions/${refreshId.first}/game") as? JsonObject
+                    synchronized(this@SessionManager) {
+                        if (refreshId.first == sessionId && refreshId.second == gameConnectionGeneration && !_ended.value && _gameConnected.value && raw != null) {
+                            applyGameSnapshot(refreshId.first, raw, root = true)
+                        }
+                    }
+                } catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { debugLog("companion transfer refresh unavailable") }
+            }
+            delay(250)
+        }
+    }
 
     val screen: StateFlow<CarScreen> = combine(_meta, aaos.state) { m, a ->
         when {
@@ -100,6 +227,7 @@ class SessionManager(private val context: Context) {
         scope.launch { announceHatch() }
         beginSession()
         scope.launch { publishLoop() }
+        scope.launch { featureLoop() }
         if (BuildConfig.DEBUG) scope.launch { screen.collect { debugLog("screen $it gear=${aaos.state.value.gear}") } } // P↔D 전환 시간 측정용
     }
 
@@ -154,7 +282,9 @@ class SessionManager(private val context: Context) {
         sessionJob?.cancel()
         val id = UUID.randomUUID().toString()
         val ready = CompletableDeferred<Unit>()
-        derivation.reset(); endDetector.reset(); destinations.reset()
+        derivation.reset(); endDetector.reset(); destinations.reset(); travel.reset(); gameReducer.reset()
+        gameRaw = JsonObject(emptyMap())
+        gameConnectionGeneration++
         sessionStartedAt = System.currentTimeMillis()
         sessionReady = ready
         _sessionId.value = id
@@ -163,6 +293,7 @@ class SessionManager(private val context: Context) {
         _regions.value = RegionSummary.Unknown
         _meta.value = SessionMeta(createdAt = sessionStartedAt, pairCode = newPairCode(), carAppVersion = BuildConfig.CAR_APP_VERSION)
         _ended.value = false
+        syncFeatureState()
         sessionJob = scope.launch {
             launch { createSession(id, ready) }
             launch { subscribeGame(id, ready) }
@@ -178,6 +309,7 @@ class SessionManager(private val context: Context) {
     fun endSession(reason: String) {
         if (_ended.value) return
         _ended.value = true
+        syncFeatureState()
         val id = sessionId; val ready = sessionReady; val last = _vehicle.value
         debugLog("session end sid=$id reason=$reason")
         scope.launch { deliverEnd(id, ready, last) }
@@ -297,56 +429,49 @@ class SessionManager(private val context: Context) {
             ?.let { endSession(it.name.lowercase()) }
     }
 
+    @Synchronized
+    private fun applyGameSnapshot(id: String, raw: JsonObject, root: Boolean) {
+        if (id != sessionId || _ended.value) return
+        if (gameReducer.apply(raw, root)) {
+            gameRaw = raw
+            _game.value = gameReducer.game
+            updateRegions(RegionSummary.parse(raw))
+        }
+        _gameConnected.value = gameReducer.connected
+        syncFeatureState()
+    }
+
     private suspend fun subscribeGame(id: String, ready: CompletableDeferred<Unit>) {
         if (!rest.isConfigured) return
         ready.await()
-        val freshness = GameFreshness()
-        coroutineScope {
-            launch {
-                while (isActive) {
+        while (currentCoroutineContext().isActive) {
+            var receivedRoot = false
+            try {
+                rest.stream("sessions/$id/game").collect { ev ->
                     synchronized(this@SessionManager) {
-                        if (id == sessionId) _gameConnected.value = freshness.isFresh(android.os.SystemClock.elapsedRealtime())
-                    }
-                    delay(1000)
-                }
-            }
-            while (currentCoroutineContext().isActive) {
-                var current: JsonObject = JsonObject(emptyMap())
-                try {
-                    rest.stream("sessions/$id/game").collect { ev ->
-                        synchronized(this@SessionManager) {
-                            if (id == sessionId) {
-                                current = GameMerge.apply(current, ev.type, ev.path, ev.data)
-                                val decoded = runCatching { rest.json.decodeFromJsonElement<GameState>(current) }.getOrNull()
-                                val valid = decoded != null && decoded.ts > 0 &&
-                                    decoded.stage in setOf("idle", "incubating", "hatched") && decoded.progress.isFinite()
-                                if (!valid) {
-                                    freshness.disconnect()
-                                    _gameConnected.value = false
-                                    _game.value = GameState()
-                                    updateRegions(RegionSummary.Unknown)
-                                } else if (freshness.observe(decoded!!.ts, System.currentTimeMillis(), android.os.SystemClock.elapsedRealtime())) {
-                                    _game.value = decoded
-                                    _gameConnected.value = true
-                                    updateRegions(RegionSummary.parse(current))
-                                } else {
-                                    _gameConnected.value = false
-                                }
+                        if (id == sessionId) {
+                            val root = ev.type == "put" && ev.path == "/"
+                            if (root) receivedRoot = true
+                            if (receivedRoot) {
+                                val next = GameMerge.apply(gameRaw, ev.type, ev.path, ev.data)
+                                applyGameSnapshot(id, next, root)
                             }
                         }
                     }
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (_: Exception) {
-                    // Keep the last image/status but explicitly mark it as no longer live.
-                } finally {
-                    freshness.disconnect()
-                    synchronized(this@SessionManager) {
-                        if (id == sessionId) _gameConnected.value = false
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* Preserve last display, mark transport disconnected below. */ }
+            finally {
+                synchronized(this@SessionManager) {
+                    if (id == sessionId) {
+                        gameReducer.disconnect()
+                        gameConnectionGeneration++
+                        _gameConnected.value = false
+                        syncFeatureState()
                     }
                 }
-                delay(2_000)
             }
+            delay(2_000)
         }
     }
 
@@ -383,4 +508,17 @@ class SessionManager(private val context: Context) {
     }
 
     private fun newPairCode(): String = "%06d".format(SecureRandom().nextInt(1_000_000))
+}
+
+/** Typed wire envelope, kept separate from the existing string-only legacy events. */
+internal fun companionTransferEvent(request: TransferRequest, timestamp: Long): JsonObject = buildJsonObject {
+    put("ts", timestamp)
+    put("type", "companionTransferRequested")
+    put("by", "car")
+    put("payload", buildJsonObject {
+        put("requestId", request.requestId)
+        put("displayId", request.displayId)
+        put("displayRevision", request.displayRevision)
+        put("target", request.target)
+    })
 }

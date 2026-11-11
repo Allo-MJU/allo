@@ -1,6 +1,7 @@
 package ai.allo.car.ui
 
 import ai.allo.car.model.GameState
+import ai.allo.car.model.CompanionDisplay
 import kotlin.test.*
 
 class PetSummaryTest {
@@ -43,5 +44,29 @@ class PetSummaryTest {
         val invalid = SpeciesCatalog.parse("""{"species":[{"id":"bad","nameKo":"친구","sprite":"../secret.png"}]}""")
         assertNull(invalid["bad"]?.sprite)
         assertTrue(SpeciesCatalog.parse("not json").entries.isEmpty())
+    }
+    @Test fun `v2 companion survives incubation of another egg`() {
+        val game = GameState(contractVersion = 2, gameRevision = 3, stage = "incubating",
+            speciesId = "other", companion = CompanionDisplay("pet", 1, "tide_keeper", "car"))
+        val result = PetSummary.from(game, true, catalog)
+        assertEquals("물결지기", result.title)
+        assertFalse(result.showEgg)
+        assertTrue(result.showArt)
+    }
+
+    @Test fun `phone companion and absent v2 companion do not show a car pet`() {
+        val game = GameState(contractVersion = 2, gameRevision = 3, stage = "hatched",
+            speciesId = "tide_keeper", companion = CompanionDisplay("pet", 1, "tide_keeper", "phone"))
+        val phone = PetSummary.from(game, true, catalog)
+        assertFalse(phone.showArt)
+        assertEquals("폰에서 함께하고 있어요", phone.status)
+        assertFalse(PetSummary.from(game.copy(companion = null), true, catalog).showArt)
+        assertTrue(PetSummary.from(game.copy(companion = null, stage = "incubating"), true, catalog).showEgg)
+    }
+
+    @Test fun `unsupported contract cannot substitute a companion`() {
+        val game = GameState(contractVersion = 3, gameRevision = 1, stage = "incubating",
+            companion = CompanionDisplay("pet", 1, "tide_keeper", "car"))
+        assertTrue(PetSummary.from(game, true, catalog).showEgg)
     }
 }

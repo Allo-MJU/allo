@@ -1,6 +1,9 @@
 package ai.allo.car.ui
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -23,9 +26,37 @@ fun ParkedScreen(
     connected: Boolean = true,
     onShare: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    transferMessage: String? = null,
+    onCallCompanion: (() -> Unit)? = null,
+    onRetryTransfer: (() -> Unit)? = null,
+    exitSerial: Long = 0,
+    travelContent: (@Composable () -> Unit)? = null,
 ) {
-    val summary = PetSummary.from(game, connected, rememberSpeciesCatalog())
-    var fishing by rememberSaveable { mutableStateOf(false) }
+    val catalog = rememberSpeciesCatalog()
+    val summary = PetSummary.from(game, connected, catalog)
+    var previousCarPet by remember { mutableStateOf<PetSummary?>(null) }
+    var departing by remember { mutableStateOf<PetSummary?>(null) }
+    val exit = remember { Animatable(0f) }
+    var observedExit by remember { mutableLongStateOf(exitSerial) }
+    // Capture the previous rendered companion before SideEffect caches this snapshot.
+    // An accepted transfer may arrive together with a different companion selection.
+    val departureCandidate = remember(exitSerial) { previousCarPet }
+    LaunchedEffect(exitSerial, connected) {
+        if (exitSerial != observedExit) {
+            observedExit = exitSerial
+            if (connected && departureCandidate != null) {
+                departing = departureCandidate
+                exit.snapTo(0f)
+                exit.animateTo(1f, tween(900))
+                departing = null
+                previousCarPet = null
+            }
+        }
+        if (!connected) departing = null
+    }
+    SideEffect { if (summary.showArt && !summary.showEgg) previousCarPet = summary }
+    val displayed = departing ?: summary
+    var fishing by rememberSaveable { mutableStateOf(true) }
     val pose = if (fishing) PetPose.Fishing else PetPose.Sleep
     BoxWithConstraints(modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
         val narrow = maxWidth < 560.dp
@@ -36,21 +67,30 @@ fun ParkedScreen(
         ) {
             Text("알로 · 주차 중", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 18.sp)
             if (narrow) {
-                PetArt(summary, 140.dp, pose = pose, parked = true, connected = connected)
-                SummaryText(summary, centered = true)
+                if (displayed.showArt) PetArt(displayed, 140.dp,
+                    modifier = Modifier.graphicsLayer { translationX = if(departing != null) exit.value * 180f * density else 0f; alpha = if (departing != null) 1f-exit.value else 1f },
+                    pose = if(departing != null) PetPose.Move else pose, parked = departing == null, connected = connected, runningMotion = departing != null)
+                SummaryText(if (departing != null) displayed.copy(status = "폰으로 이동하는 중") else summary, centered = true)
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                    PetArt(summary, 180.dp, pose = pose, parked = true, connected = connected)
-                    SummaryText(summary, centered = false)
+                    if (displayed.showArt) PetArt(displayed, 180.dp,
+                        modifier = Modifier.graphicsLayer { translationX = if(departing != null) exit.value * 200f * density else 0f; alpha = if(departing != null) 1f-exit.value else 1f },
+                        pose = if(departing != null) PetPose.Move else pose, parked = departing == null, connected = connected, runningMotion = departing != null)
+                    SummaryText(if (departing != null) displayed.copy(status = "폰으로 이동하는 중") else summary, centered = false)
                 }
             }
-            if (!summary.showEgg) {
+            if (summary.showArt && !summary.showEgg && departing == null) {
                 Text("쉬는 모습 고르기", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     FilterChip(selected = !fishing, onClick = { fishing = false }, label = { Text("잠자기") })
                     FilterChip(selected = fishing, onClick = { fishing = true }, label = { Text("낚시") })
                 }
             }
+            transferMessage?.let { Text(it, textAlign = TextAlign.Center) }
+            onCallCompanion?.let { Button(onClick = it, enabled = connected) { Text("폰으로 친구 부르기") } }
+            onRetryTransfer?.let { Button(onClick = it, enabled = connected) { Text("이동 상태 다시 확인") } }
+            FeatureStatusCards(game, catalog)
+            travelContent?.invoke()
             Text("주차 중에는 폰 화면을 함께 볼 수 있어요.", fontSize = 18.sp, lineHeight = 26.sp,
                 textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (onShare != null) {
