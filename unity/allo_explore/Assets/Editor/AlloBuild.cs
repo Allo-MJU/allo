@@ -258,7 +258,8 @@ public static class AlloBuild
             var t = new Texture2D(2, 2, TextureFormat.RGBA32, false);
             t.LoadImage(File.ReadAllBytes(f));
             var px = t.GetPixels32();
-            var n = Allo.Critters.SpriteLoader.RemoveFloor(px, t.width, t.height);
+            var name = Path.GetFileNameWithoutExtension(f);
+            var n = name.StartsWith("sea_mist") || name.StartsWith("lamp_moth") ? 0 : Allo.Critters.SpriteLoader.RemoveFloor(px, t.width, t.height);
             t.SetPixels32(px);
             t.Apply();
             File.WriteAllBytes(Path.Combine(outDir, Path.GetFileName(f)), t.EncodeToPNG());

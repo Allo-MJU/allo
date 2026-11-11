@@ -62,7 +62,7 @@ namespace Allo.Critters
             Cache[sprite] = art;
             done(art);
             foreach (var p in new[] { ArtPose.Move, ArtPose.Happy, ArtPose.Sleep })
-                yield return Fetch(PosePath(sprite, p), t => art.Set(p, t));
+                if (!Broken(PosePath(sprite, p))) yield return Fetch(PosePath(sprite, p), t => art.Set(p, t));
 #endif
         }
 
@@ -72,7 +72,7 @@ namespace Allo.Critters
             using var req = UnityWebRequest.Get(url);
             yield return req.SendWebRequest();
             if (req.result != UnityWebRequest.Result.Success) yield break;
-            var t = Decode(req.downloadHandler.data);
+            var t = Decode(req.downloadHandler.data, path);
             if (t != null) done(t);
         }
 
@@ -85,13 +85,14 @@ namespace Allo.Critters
             Texture2D Read(string p)
             {
                 var f = Path.Combine(root, p);
-                return File.Exists(f) ? Decode(File.ReadAllBytes(f)) : null;
+                return File.Exists(f) ? Decode(File.ReadAllBytes(f), p) : null;
             }
             var idle = Read(sprite);
             if (idle == null) return null;
             var art = new CritterArt(idle);
             foreach (var p in new[] { ArtPose.Move, ArtPose.Happy, ArtPose.Sleep })
             {
+                if (Broken(PosePath(sprite, p))) continue;
                 var t = Read(PosePath(sprite, p));
                 if (t != null) art.Set(p, t);
             }
@@ -99,12 +100,28 @@ namespace Allo.Critters
         }
 
         /// PNG → 밉맵 있는 premultiplied 텍스처 (Allo/Sprite 셰이더용)
-        static Texture2D Decode(byte[] png)
+        /// 바닥판이 그려져 있지 않고 몸이 희고 연한 종. 바닥판 지우기가 얼굴(엎드린 자세에서 그림 아래쪽)을 지운다
+        static readonly string[] NoFloorPlate = { "sea_mist", "lamp_moth" };
+
+        /// 원본이 깨진 포즈 그림 (배경을 지울 때 얼굴까지 투명해짐). 읽지 않고 idle 로 대신한다. D 가 고치면 빼기
+        static readonly string[] BrokenPoses = { "sea_mist_happy" };
+
+        static bool Broken(string path) => System.Array.IndexOf(BrokenPoses, Path.GetFileNameWithoutExtension(path)) >= 0;
+
+        static bool HasFloorPlate(string path)
+        {
+            var name = Path.GetFileNameWithoutExtension(path);
+            foreach (var id in NoFloorPlate)
+                if (name == id || name.StartsWith(id + "_")) return false;
+            return true;
+        }
+
+        static Texture2D Decode(byte[] png, string path)
         {
             var src = new Texture2D(2, 2, TextureFormat.RGBA32, false);
             if (!src.LoadImage(png)) { Drop(src); return null; }
             var px = src.GetPixels32();
-            RemoveFloor(px, src.width, src.height);
+            if (HasFloorPlate(path)) RemoveFloor(px, src.width, src.height);
             for (var i = 0; i < px.Length; i++)
             {
                 var a = px[i].a;
