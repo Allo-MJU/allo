@@ -13,6 +13,9 @@ namespace Allo.Critters
 
         [Tooltip("아이 눈 위치. 이 바로 아래 면(아이가 앉은 자리)에는 캐릭터가 올라가지 않는다")]
         public Transform childEye;
+
+        [Tooltip("카메라 레일의 앞쪽 끝. 아이 눈이나 여기 중 한 곳에서라도 보이는 면만 걷는 면으로 쓴다")]
+        public Transform frontEye;
         public Material critterMaterial;
         public Material shadowMaterial;
 
@@ -25,14 +28,27 @@ namespace Allo.Critters
         public void Bake()
         {
             var names = new List<string>(); var centers = new List<Vector3>(); var sizes = new List<Vector2>();
-            foreach (var r in cabin.GetComponentsInChildren<Renderer>(true))
+            var colliders = childEye != null ? AddTempColliders() : new List<MeshCollider>();
+            try
             {
-                if (!r.name.StartsWith("Walk_")) continue;
-                var b = r.bounds;
-                if (childEye != null && TooCloseToChild(r.name, b, childEye.position)) continue;
-                names.Add(r.name);
-                centers.Add(new Vector3(b.center.x, b.max.y, b.center.z));
-                sizes.Add(new Vector2(b.size.x, b.size.z));
+                foreach (var r in cabin.GetComponentsInChildren<Renderer>(true))
+                {
+                    if (!r.name.StartsWith("Walk_")) continue;
+                    var b = r.bounds;
+                    if (childEye != null && TooCloseToChild(r.name, b, childEye.position)) continue;
+                    if (childEye != null && HiddenFromChild(b, childEye.position, colliders) && (frontEye == null || HiddenFromChild(b, frontEye.position, colliders)))
+                    {
+                        Debug.Log($"[Critters] {r.name} 은 카메라 어디서도 보이지 않아 빼요");
+                        continue;
+                    }
+                    names.Add(r.name);
+                    centers.Add(new Vector3(b.center.x, b.max.y, b.center.z));
+                    sizes.Add(new Vector2(b.size.x, b.size.z));
+                }
+            }
+            finally
+            {
+                foreach (var c in colliders) DestroyImmediate(c);
             }
             surfaceNames = names.ToArray(); surfaceCenters = centers.ToArray(); surfaceSizes = sizes.ToArray();
         }
@@ -59,6 +75,7 @@ namespace Allo.Critters
         {
             if (v == null) return;
             v.Brain.Poke();
+            v.Cheer();
             Fx.Burst(v.Top, Fx.Heart, critterMaterial, 4, 0.06f);
             if (v.Id == CompanionId) FlutterBridge.Send("tap", FlutterBridge.Field("id", v.Id));
         }
@@ -87,6 +104,7 @@ namespace Allo.Critters
             for (var bite = 0; bite < 3 && c != null; bite++)
             {
                 c.Brain.Poke();
+                c.Cheer(1.8f);
                 Fx.Burst(apple.position + Vector3.up * 0.08f, Fx.Heart, critterMaterial, 2, 0.045f, 0.05f);
                 red.localScale *= 0.72f;
                 yield return new WaitForSeconds(0.45f);
@@ -120,6 +138,54 @@ namespace Allo.Critters
         {
             _graph = BuildGraph();
             Debug.Log($"[Critters] walk surfaces: {_graph.Surfaces.Count}");
+        }
+
+        /// 걷는 면(Walk_*)이 아닌 차 안의 큰 물체에 잠깐 충돌체를 붙인다 (가림 검사용, Bake 가 끝나면 지운다).
+        /// 유리, 그리고 룸미러·장식 끈처럼 가늘거나 작은 물체(두 번째로 긴 변 0.3m 미만)는 캐릭터를 다 가리지 못하므로 넣지 않는다
+        List<MeshCollider> AddTempColliders()
+        {
+            var list = new List<MeshCollider>();
+            foreach (var f in cabin.GetComponentsInChildren<MeshFilter>(true))
+            {
+                // 유리는 투명해서 가리지 않는다
+                if (f.name.StartsWith("Walk_") || f.name.StartsWith("Glass") || f.sharedMesh == null || f.GetComponent<Collider>() != null) continue;
+                var r = f.GetComponent<Renderer>();
+                if (r == null || SecondLongest(r.bounds.size) < 0.3f) continue;
+                var c = f.gameObject.AddComponent<MeshCollider>();
+                c.sharedMesh = f.sharedMesh;
+                list.Add(c);
+            }
+            Physics.SyncTransforms();
+            return list;
+        }
+
+        static float SecondLongest(Vector3 v)
+        {
+            var a = new[] { v.x, v.y, v.z };
+            System.Array.Sort(a);
+            return a[1];
+        }
+
+        /// 면 위 9개 점에 캐릭터가 서 있다고 보고(몸 가운데 높이) 아이 눈에서 절반 넘게 가려지면 true.
+        /// 캐릭터는 면 안 아무 데나 서므로, 일부만 보이는 면은 자주 가려진 자리에 선다
+        /// 예: 뒷유리 아래 선반은 아이가 기댄 등받이에 가려진다
+        /// 탭용으로 이미 붙어 있는 충돌체(유리 등)는 세지 않고 occluders 에 맞은 것만 가린 것으로 본다
+        public static bool HiddenFromChild(Bounds surface, Vector3 eye, ICollection<MeshCollider> occluders)
+        {
+            var lift = CritterView.Height * 0.6f;
+            var hidden = 0;
+            for (var i = 0; i <= 2; i++)
+            for (var j = 0; j <= 2; j++)
+            {
+                var p = new Vector3(Mathf.Lerp(surface.min.x, surface.max.x, 0.15f + 0.35f * i), surface.max.y + lift,
+                    Mathf.Lerp(surface.min.z, surface.max.z, 0.15f + 0.35f * j));
+                var d = p - eye;
+                var blocked = false;
+                foreach (var hit in Physics.RaycastAll(eye, d.normalized, d.magnitude - 0.02f))
+                    if (hit.collider is MeshCollider m && occluders.Contains(m)) { blocked = true; break; }
+                if (blocked) hidden++;
+            }
+            return hidden > 4;
         }
 
         /// 아이가 앉은 자리와 바로 옆 창턱은 캐릭터가 화면을 가리므로 쓰지 않는다
@@ -195,10 +261,10 @@ namespace Allo.Critters
                 go.transform.SetParent(transform, false);
                 var view = go.AddComponent<CritterView>();
                 var seed = _seed++;
-                view.Init(m.id, new CritterBrain(_graph, start, seed * 7919), PlaceholderFace.Make(m.attribute, seed),
-                    critterMaterial, shadowMaterial);
+                view.Init(m.id, new CritterBrain(_graph, start, seed * 7919), CritterArt.Placeholder(m.attribute, seed),
+                    critterMaterial, shadowMaterial, CharacterModel.Find(m.id));
                 _views[m.id] = view;
-                if (!string.IsNullOrEmpty(m.sprite)) StartCoroutine(SpriteLoader.Load(m.sprite, tex => { if (view != null) view.SetTexture(tex); }));
+                if (!string.IsNullOrEmpty(m.sprite)) StartCoroutine(SpriteLoader.Load(m.sprite, art => { if (view != null) view.SetArt(art); }));
             }
         }
 

@@ -35,7 +35,7 @@ REQUIRED = [
 ]
 WALKS = [
     "Walk_RearSeat_L", "Walk_RearSeat_R", "Walk_Armrest", "Walk_RearShelf", "Walk_Dashboard",
-    "Walk_DoorSill_L", "Walk_DoorSill_R",
+    "Walk_DoorSill_L", "Walk_DoorSill_R", "Walk_Floor",
 ]
 
 
@@ -267,11 +267,13 @@ def props():
     """뒷좌석 위 장난감들. 캐릭터가 밀거나 올라갈 수 있다."""
     kit.rounded_box("Cushion", (0.3, 0.22, 0.09), (0.42, 0.24, 0.49), P.CUSHION,
                     bevel=0.04, rotation=(0, 0, 12))
-    body = kit.sphere("Plush", 0.09, (-0.45, 0.28, 0.53), P.PLUSH, scale=(1, 0.9, 1.05))
-    head = kit.sphere("PlushHead", 0.065, (-0.45, 0.29, 0.66), P.PLUSH)
+    # 인형은 오른쪽 자리의 문 쪽·등받이 구석에 둔다 (캐릭터가 걷는 자리와 겹치지 않게)
+    PX, PY = -0.55, 0.36
+    body = kit.sphere("Plush", 0.09, (PX, PY, 0.53), P.PLUSH, scale=(1, 0.9, 1.05))
+    head = kit.sphere("PlushHead", 0.065, (PX, PY + 0.01, 0.66), P.PLUSH)
     kit.parent(head, body)
     for k, dx in enumerate((-0.045, 0.045)):
-        ear = kit.sphere(f"PlushEar{k}", 0.025, (-0.45 + dx, 0.29, 0.72), P.PLUSH_DARK)
+        ear = kit.sphere(f"PlushEar{k}", 0.025, (PX + dx, PY + 0.01, 0.72), P.PLUSH_DARK)
         kit.parent(ear, head)
     bottle = kit.cylinder("Bottle", 0.03, 0.2, (HALF - 0.06, 0.1, 0.24), P.BOTTLE)
     cap = kit.cylinder("BottleCap", 0.022, 0.03, (HALF - 0.06, 0.1, 0.355), "#F1E6CF")
@@ -284,13 +286,17 @@ def walk_surfaces():
     c = P.WALK
     # 뒷좌석은 팔걸이 양옆 두 칸 (팔걸이 아래로 파고들지 않게)
     w("Walk_RearSeat_L", (0.48, 0.4), (0.39, 0.22, 0.445), c)
-    w("Walk_RearSeat_R", (0.48, 0.4), (-0.39, 0.22, 0.445), c)
+    # 오른쪽 자리는 구석의 인형 앞쪽만 (인형을 뚫고 지나가지 않게)
+    w("Walk_RearSeat_R", (0.36, 0.3), (-0.33, 0.17, 0.445), c)
     w("Walk_Armrest", (0.2, 0.38), (0, 0.24, 0.556), c)
     w("Walk_RearShelf", (W - 0.2, 0.2), (0, BACK - 0.06, BELT + 0.083), c)
     w("Walk_Dashboard", (W - 0.3, 0.3), (0, -1.74, 0.982), c)
     # 머리받침·등받이 위는 좁고 캐릭터가 의자에 묻혀 보여서 걷는 면에서 뺐다 (대시보드는 창턱으로 간다)
     w("Walk_DoorSill_L", (0.06, BACK - FRONT - 0.5), (HALF - 0.04, -0.6, BELT + 0.005), c)
     w("Walk_DoorSill_R", (0.06, BACK - FRONT - 0.5), (-HALF + 0.04, -0.6, BELT + 0.005), c)
+    # 앞좌석 등받이 뒤와 뒷좌석 방석 앞 사이 발 놓는 바닥 (발판 매트 위).
+    # 방석 바로 앞(약 0.4m)은 아이 자리에서 방석에 가려지므로 앞좌석 쪽으로만 둔다 (앞좌석 방석 아래 빈 곳까지)
+    w("Walk_Floor", (W - 0.24, 0.32), (0, -0.56, 0.012), c)
 
 
 def build():

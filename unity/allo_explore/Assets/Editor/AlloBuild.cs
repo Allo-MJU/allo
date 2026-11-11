@@ -208,8 +208,7 @@ public static class AlloBuild
         new GameObject("FlutterBridge").AddComponent<FlutterBridge>();
 
         // 캐릭터: 투명 그림 재질(빛을 조금 받는다) + 발밑 그림자
-        var critterMat = new Material(Shader.Find("Legacy Shaders/Transparent/Cutout/Diffuse"));
-        critterMat.SetFloat("_Cutoff", 0.5f);
+        var critterMat = new Material(Shader.Find("Allo/Sprite"));
         AssetDatabase.CreateAsset(critterMat, "Assets/Models/Critter.mat");
         var shadowTex = new Texture2D(64, 64, TextureFormat.RGBA32, false);
         for (var y = 0; y < 64; y++)
@@ -220,11 +219,13 @@ public static class AlloBuild
         }
         shadowTex.Apply();
         AssetDatabase.CreateAsset(shadowTex, "Assets/Models/CritterShadow.asset");
-        var shadowMat = new Material(Shader.Find("Legacy Shaders/Transparent/Diffuse")) { mainTexture = shadowTex };
+        var shadowMat = new Material(Shader.Find("Allo/Sprite")) { mainTexture = shadowTex }; // 검정 + alpha 라 premultiplied 그대로
+        shadowMat.SetFloat("_Lit", 0);
         AssetDatabase.CreateAsset(shadowMat, "Assets/Models/CritterShadow.mat");
         var director = new GameObject("Critters").AddComponent<Allo.Critters.CritterDirector>();
         director.cabin = cabin.transform;
         director.childEye = rearAnchor;
+        director.frontEye = frontAnchor;
         director.Bake();
         director.critterMaterial = critterMat;
         director.shadowMaterial = shadowMat;
@@ -246,6 +247,25 @@ public static class AlloBuild
         Debug.Log($"[AlloBuild] scene saved. rear={rearAnchor.position} front={frontAnchor.position} dash={rig.lookTarget.position}");
     }
 
+    /// 캐릭터 그림에서 바닥판을 지운 결과를 PNG 로 내보낸다 (확인용). ALLO_OUT 폴더
+    public static void DumpCritterArt()
+    {
+        var src = Path.GetFullPath(Path.Combine(Application.dataPath, "../../../phone/assets/species"));
+        var outDir = System.Environment.GetEnvironmentVariable("ALLO_OUT");
+        Directory.CreateDirectory(outDir);
+        foreach (var f in Directory.GetFiles(src, "*.png"))
+        {
+            var t = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            t.LoadImage(File.ReadAllBytes(f));
+            var px = t.GetPixels32();
+            var n = Allo.Critters.SpriteLoader.RemoveFloor(px, t.width, t.height);
+            t.SetPixels32(px);
+            t.Apply();
+            File.WriteAllBytes(Path.Combine(outDir, Path.GetFileName(f)), t.EncodeToPNG());
+            Debug.Log($"[AlloBuild] floor {Path.GetFileName(f)} removed={n}");
+        }
+    }
+
     /// 장면을 열어 카메라를 앞·왼쪽·뒤·오른쪽으로 돌려 PNG 로 찍는다 (빌드 없이 배치 확인).
     ///   Unity -batchmode -quit -projectPath unity/allo_explore -executeMethod AlloBuild.CaptureViews
     public static void CaptureViews()
@@ -261,14 +281,20 @@ public static class AlloBuild
         var dir2 = Object.FindFirstObjectByType<Allo.Critters.CritterDirector>();
         var graph = dir2.BuildGraph();
         var views = new System.Collections.Generic.List<Allo.Critters.CritterView>();
-        var spots = new[] { ("Walk_RearSeat_L", "water"), ("Walk_RearSeat_R", "water"), ("Walk_Armrest", "normal"), ("Walk_Dashboard", "dark"), ("Walk_DoorSill_L", "water") };
+        // D 의 그림이 있는 종은 그 그림으로, 없으면 임시 얼굴로
+        var spots = new[] { ("Walk_Floor", "water", "storm_lantern"), ("Walk_RearSeat_L", "water", "sea_mist"), ("Walk_RearSeat_R", "normal", "road_sprout"), ("Walk_Armrest", "water", "puddle_pip"),
+            ("Walk_Dashboard", "dark", "lamp_moth"), ("Walk_DoorSill_L", "dark", "highway_comet") };
         for (var k = 0; k < spots.Length; k++)
         {
             var idx = graph.IndexOf(spots[k].Item1);
             if (idx < 0) continue;
             var go = new GameObject("CaptureCritter" + k);
             var v = go.AddComponent<Allo.Critters.CritterView>();
-            v.Init("c" + k, new Allo.Critters.CritterBrain(graph, idx, 11 + k), Allo.Critters.PlaceholderFace.Make(spots[k].Item2, k + 1), dir2.critterMaterial, dir2.shadowMaterial);
+            var art = Allo.Critters.SpriteLoader.LoadNow($"species/{spots[k].Item3}.png") ?? Allo.Critters.CritterArt.Placeholder(spots[k].Item2, k + 1);
+            v.Init("c" + k, new Allo.Critters.CritterBrain(graph, idx, 11 + k), art, dir2.critterMaterial, dir2.shadowMaterial,
+                Allo.Critters.CharacterModel.Find(spots[k].Item3));
+            if (k == 3) v.Cheer(99);
+            Debug.Log($"[AlloBuild] critter {spots[k].Item3} on {spots[k].Item1} at {v.Brain.Position}");
             views.Add(v);
         }
         var rt = new RenderTexture(1600, 720, 24);
@@ -276,7 +302,7 @@ public static class AlloBuild
         var shots = new (string name, float yaw, float pitch, float rail)[]
         {
             ("unity_front", 0, -12, 0), ("unity_left", -90, -10, 0), ("unity_back", 180, 5, 0),
-            ("unity_right", 90, -20, 0), ("unity_front_rail", 0, -15, 1), ("unity_down", 60, -30, 0),
+            ("unity_right", 90, -20, 0), ("unity_front_rail", 0, -15, 1), ("unity_down", 60, -30, 0), ("unity_floor", 0, -48, 0),
         };
         foreach (var (name, yaw, pitch, rail) in shots)
         {
