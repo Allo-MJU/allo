@@ -33,3 +33,9 @@ undefined
 Visual review: inspected all eight full-sheet poses for preserved species identity and articulated body/limb or fin differences; original idle/move/sleep images unchanged. Navy-background composite inspection confirms no opaque rectangular backdrop. Some low-alpha edge residue remains; transparent-preview false-color speckles are not visible as colored speckles on navy. Exact 10-percent padding is not guaranteed: selected poses approach the cell boundary, but visible character bodies and props remain within their cells. Runtime playback and actual-device review are integration tasks, not claimed here.
 
 Species adaptation: run is a fin-driven swimming/flying cycle without invented legs. Fishing uses curled existing fin tips; sleeping folds fins, lowers head, and rolls slightly sideways. Run has a soft luminous contour retained after navy visual review.
+
+## Final emulator QA correction
+
+Built-in image generation edit on 2026-11-11. Corrected cell overlap (Highway Comet fishing) or rectangular background haze (Sea Mist swimming). Final prompt:
+
+Background extraction only for this eight-frame 4x2 swimming pet sprite sheet. Preserve the exact mint-colored manta fantasy pet poses and their scale/location, soft 3D shading, lilac markings, white belly, fins and tails. Remove all background haze, all diffuse white glows outside the body outline, and all semitransparent rectangular patches completely. Empty areas must be alpha zero. Clean natural antialiased edges, no exterior glow. Keep each entire pet inside its own equal grid cell. Do not add or change any poses or objects, no text or grid lines. True transparent background.
