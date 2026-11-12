@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'app.dart';
+import 'affinity/egg_demo_api.dart';
 import 'config/firebase_config.dart';
 import 'feed/fake_feed.dart';
 import 'feed/firebase_feed.dart';
@@ -12,13 +13,23 @@ import 'widgets/window_view.dart';
 /// --dart-define=FEED=fake → 차 없이 가짜 신호로 실행 (기본값).
 /// Firebase 설정은 --dart-define-from-file=config/firebase.local.json 으로 주입.
 const _feedKind = String.fromEnvironment('FEED', defaultValue: 'fake');
+EggDemoApi? configuredEggApi() {
+  const url = String.fromEnvironment('ALLO_DEMO_API_URL');
+  const token = String.fromEnvironment('ALLO_DEMO_TOKEN');
+  if (url.isEmpty || token.isEmpty) return null;
+  try {
+    return HttpEggDemoApi.fromEnvironment();
+  } on EggDemoApiException {
+    return null;
+  }
+}
+
 const _scenario =
     String.fromEnvironment('SCENARIO', defaultValue: 'rainy_highway');
 
 /// --dart-define=FAKE_TIME_SCALE=2 → 가짜 주행을 느리게 (기본 20배속).
 /// 탐험 화면에서 알을 돌보다가 그 안에서 깨어나는 장면을 보여 줄 때 쓴다 (시연·확인용)
-const _fakeTimeScale =
-    int.fromEnvironment('FAKE_TIME_SCALE', defaultValue: 20);
+const _fakeTimeScale = int.fromEnvironment('FAKE_TIME_SCALE', defaultValue: 20);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,15 +55,17 @@ Future<Widget> createApp({
     return AlloApp(
         feed: FakeVehicleFeed(
             scenario: FakeScenario.byName(scenario),
-            timeScale: _fakeTimeScale.toDouble()));
+            timeScale: _fakeTimeScale.toDouble()),
+        eggApi: configuredEggApi());
   }
   if (feedKind != 'firebase') {
     return const ConnectionSetupApp(message: '실행 설정을 확인해야 해요.');
   }
 
+  final resolvedConfig = config ?? FirebaseConfig.fromEnvironment();
   final FirebaseOptions options;
   try {
-    options = (config ?? FirebaseConfig.fromEnvironment()).toOptions();
+    options = resolvedConfig.toOptions();
   } on FormatException catch (error) {
     return ConnectionSetupApp(message: error.message);
   }
@@ -63,7 +76,11 @@ Future<Widget> createApp({
     } else {
       await Firebase.initializeApp(options: options);
     }
-    return AlloApp(feed: (createFirebaseFeed ?? FirebaseVehicleFeed.new)());
+    return AlloApp(
+        eggApi: configuredEggApi(),
+        feed: createFirebaseFeed?.call() ??
+            FirebaseVehicleFeed(
+                functionsRegion: resolvedConfig.functionsRegion));
   } catch (_) {
     // SDK 오류에는 설정 값이 포함될 수 있어 사용자 화면에 원문을 표시하지 않는다.
     return const ConnectionSetupApp(
@@ -81,12 +98,13 @@ class ConnectionSetupApp extends StatefulWidget {
 
 class _ConnectionSetupAppState extends State<ConnectionSetupApp> {
   bool _tryFake = false;
+  late final _fakeEggApi = configuredEggApi();
   late final _fakeFeed = FakeVehicleFeed(scenario: FakeScenario.rainyHighway);
 
   @override
   Widget build(BuildContext context) {
     if (_tryFake) {
-      return AlloApp(feed: _fakeFeed);
+      return AlloApp(feed: _fakeFeed, eggApi: _fakeEggApi);
     }
     return MaterialApp(
       title: '알로',

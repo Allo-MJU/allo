@@ -1,12 +1,13 @@
 # 알로(ALLO) 차량·폰 데이터 계약
 
-> **2026-11-04 C 구현 기준.** 이 문서 하나를 기준으로 A(차량), B(폰), C(로직)가 구현한다. C가 기준을 관리하고, 실제 연동에서 문제가 확인되면 이 문서를 수정해 공유한다. 과거 검토안보다 본문이 우선한다. 구현 기준 확정과 각 앱의 반영·실기 검증 완료는 구분한다.
+> **2026-11-04 C 구현 기준, 2026-11-11 인증 계약 반영.** 이 문서 하나를 기준으로 A(차량), B(폰), C(로직)가 구현한다. C가 기준을 관리하고, 실제 연동에서 문제가 확인되면 이 문서를 수정해 공유한다. 과거 검토안보다 본문이 우선한다. 구현 기준 확정과 각 앱의 반영·실기 검증 완료는 구분한다.
 
 ## 1. 책임과 공통 원칙
 
 | 영역 | 쓰는 쪽 | 읽는 쪽 | 책임 |
 | --- | --- | --- | --- |
-| `/meta` | 차량 생성, 폰은 `paired`만 갱신 | 차량·폰 | 세션과 페어링 정보 |
+| `/meta` | 인증된 callable 서버 | 세션에 연결된 차량·폰 | 세션과 페어링 정보 |
+| `/acl`, `/pairing` | 서버만 | 서버만 | 소유 UID·가입 코드 만료/시도 제한 |
 | `/vehicle` | 차량 | 폰, 차량 자체 표시 | 신호 수집, 단위 변환, 누적 거리·급격 조작·환경 태그 계산 |
 | `/game` | 폰 | 차량 | 품기·부화·생물 선택·지역 수집 요약 |
 | `/events` | 이벤트별 지정 발신자 | 해당 소비자 | 개별 알림·세션 종료 |
@@ -40,18 +41,20 @@
 ### 3.1 구조와 세션 수명
 
 ```text
+/sessions/{sessionId}/acl        # server-only carUid / phoneUid
+/sessions/{sessionId}/pairing    # server-only expiry / failed attempts
 /sessions/{sessionId}/meta
 /sessions/{sessionId}/vehicle
 /sessions/{sessionId}/game
 /sessions/{sessionId}/events/{pushId}
 ```
 
-- `sessionId`는 차량이 생성한 UUID다. 차량이 먼저 meta 생성을 완료한 뒤 해당 세션 데이터를 발행한다.
+- `sessionId`는 차량이 생성한 UUID다. 차량이 인증된 `createVehicleSession` callable로 서버의 meta/ACL 생성을 완료한 뒤 해당 세션 데이터를 발행한다.
 - 최종 종료된 세션을 다음 주행에 재사용하지 않는다. 차량은 새 세션·페어링 코드를 만들고 폰은 새 QR 또는 세션 ID+코드로 연결한다.
 - 기어 P나 통신 끊김만으로 폰이 최종 종료를 추측하지 않는다. 최종 종료는 `sessionEnd` 계약을 따른다.
 - 차량의 현재 종료 판정 기준은 페어링 완료된 세션에서 누적 100m 이상 주행 후 기어 P이며, 도착 이벤트가 있으면 즉시, 그렇지 않으면 안내 없음 상태에서 P 3분·안내 있음 상태에서 P 30분 유지다. 이 판정은 `SessionEndDetector`가 소유한다. 안내 상태 감지의 실측 정확도와 이벤트 전달 보장은 별개다.
 
-### 3.2 `meta` — 차량 생성, 폰 페어링
+### 3.2 `meta` — 서버 생성, 서버에서 폰 가입 확정
 
 ```json
 {
@@ -64,12 +67,12 @@
 
 | 필드 | 타입 | 의미 |
 | --- | --- | --- |
-| `createdAt` | number | 차량 세션 생성 시각(epoch ms). 생성 후 앱에서 바꾸지 않음 |
+| `createdAt` | number | 서버가 확정한 세션 생성 시각(epoch ms). 클라이언트 수정 불가 |
 | `pairCode` | string | 숫자 6자리. 앞자리 0을 보존 |
 | `paired` | boolean | 기본 false. 폰의 연결 기록 성공 시 true |
 | `carAppVersion` | string | 차량 앱 버전 |
 
-QR은 `allo://pair?sid={UUID}&code={6자리}`다. 수동 연결도 세션 ID와 코드가 필요하며, 코드만으로 세션을 검색하는 경로는 이번 계약에 없다. 폰은 meta·코드·24시간 만료 여부와 기존 `sessionEnd`를 확인하고 `paired=true`와 `paired` 이벤트를 함께 기록한 뒤 game 발행을 시작한다. 저장한 연결 정보도 재사용 전에 다시 확인한다.
+QR은 `allo://pair?sid={UUID}&code={6자리}`다. 수동 연결도 세션 ID와 코드가 필요하며, 코드만으로 세션을 검색하는 경로는 이번 계약에 없다. 폰은 익명 인증 후 `joinVehicleSession` callable에서 코드·만료·단일 폰 소유권·종료 여부 검증을 통과해야 읽기/쓰기를 시작한다. 서버가 `paired=true`와 `paired` 이벤트 및 phoneUid를 함께 기록한다. 저장한 연결 정보도 동일 인증 UID로 서버에서 재검증한다. 신규 연결 코드 유효 기간은 10분, 실패 제한은 5회, 세션 공유 데이터 접근은 생성 후 24시간이다. 세부 권한과 검증은 [Firebase 인증 계약](../firebase/AUTH_SESSION.md)을 따른다.
 
 ### 3.3 `vehicle` — 차량의 현재 스냅샷
 
@@ -237,7 +240,7 @@ Debug 지역 override는 좌표 미수신·lookup을 우회하는 시연 기능�
 
 | type | by | payload | 의미·소비 |
 | --- | --- | --- | --- |
-| `paired` | phone | `{}` | 연결 기록. 현재 차 화면은 meta.paired로 연결 표시 |
+| `paired` | phone (서버가 기록) | 생략 또는 `{}` | 연결 기록. 현재 차 화면은 meta.paired로 연결 표시 |
 | `hatched` | phone | speciesId:string, tier:number | 부화 발생. 현재 차량 발화는 game.stage 변화로 동작 |
 | `lookOutPrompt` | phone | `{}` | 창밖 보기 기록 |
 | `gleoSpeak` | phone | 이번 계약에서 payload/수신 기능 미사용 | 이름만 예약. 자유 텍스트 발화 기능을 추가하지 않음 |
@@ -292,3 +295,11 @@ DB 규칙의 원본은 [`firebase/database.rules.json`](../firebase/database.rul
 - **통합 확인:** 정상/미확인/빈 후보/손상 요약, 새 알 전후 필드 유지, 반복 경계·저장 실패·중단 복구, 최종 종료·새 세션, 실제 차량/Firebase 왕복을 확인한다. 로컬 테스트 통과를 실기 검증으로 표시하지 않는다.
 
 현재 기준의 측정 한계는 GPS 캐시 신선도, 종료 이벤트 배달, 실제 내비 안내 시작 확인이다. 미측정 값을 임의의 TTL이나 성공 보장으로 바꾸지 않고 현재 의미로 구현한다. 문제가 확인되면 C가 이 문서를 갱신하고 A/B가 따라 수정한다.
+
+## 주차 낚시 capability v1 (2026-11-11)
+
+차량 #92 구현의 추가 계약은 [차량 주차 낚시와 폰 저장 계약 v1](vehicle/fishing-integration.md)을 따른다. 폰 단일 전체 `/game` writer를 유지하며 v2 동행·gameRevision과 별도 `fishing.version=1` 요약을 합성한다. 차량 `/vehicle/fishingPresence`는 주차·화면 활성 증거 및 lease echo를 보낸다. `fishingRequested` 이벤트는 폰에 의도를 전달하며 저장 완료나 보상 확정을 의미하지 않는다. 구버전/누락 시 낚시 시작은 비활성화한다. 공용 예시는 `data/fixtures/fishing-v1.json`이다. 개발용 Firebase 권한 규칙은 변경하지 않는다.
+
+### 호감도 부화 연결 보완 (2026-11-12)
+
+PR #93의 `affinity {score, target, phase, photoCompleted}` 요약은 낚시·동행과 동일한 전체 game snapshot에 합성한다. `score`는 소수일 수 있으며, `phase`는 사진 퀘스트·저장 대기·결과를 구분한다. #91의 `gameRevision`은 유지하고 기존 `ready` 형식의 차량 입력도 호환한다. 구체적인 단계와 검증 경계는 [호감도 차량 연결](vehicle/affinity-integration.md)을 따른다.

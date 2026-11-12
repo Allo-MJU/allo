@@ -16,8 +16,11 @@ val localProps = Properties().apply {
 fun quoted(v: String) = "\"" + v.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 android {
+    sourceSets["debug"].java.srcDir("../../mirror-common/src/main/kotlin")
     // 레포 루트 data/ (dialogue.json · species.json) 를 assets 로 넣는다. 폰과 같은 파일을 쓰기 위해 복사하지 않는다
     sourceSets["main"].assets.srcDir("../../data")
+    // Use the same species art as the phone when the art files are supplied.
+    sourceSets["main"].assets.srcDir("../../phone/assets")
     namespace = "ai.allo.car"
     compileSdk = 35
     // AAOS car-lib: CarPropertyManager(속도·기어), CarUxRestrictionsManager
@@ -33,6 +36,9 @@ android {
 
         buildConfigField("String", "ALLO_DB_URL", quoted(localProps.getProperty("ALLO_DB_URL", "")))
         buildConfigField("String", "CAR_APP_VERSION", quoted("0.1.0"))
+        buildConfigField("String", "FIREBASE_API_KEY", quoted(localProps.getProperty("FIREBASE_API_KEY", "")))
+        buildConfigField("String", "FIREBASE_PROJECT_ID", quoted(localProps.getProperty("FIREBASE_PROJECT_ID", "")))
+        buildConfigField("String", "FIREBASE_FUNCTIONS_REGION", quoted(localProps.getProperty("FIREBASE_FUNCTIONS_REGION", "asia-northeast3")))
     }
 
     buildTypes {

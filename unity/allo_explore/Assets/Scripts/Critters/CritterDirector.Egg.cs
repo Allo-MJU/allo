@@ -121,7 +121,7 @@ namespace Allo.Critters
                     UpdateCracks();
                     break;
                 case EggTracker.Change.Hatch:
-                    if (_egg != null && !_hatching) StartCoroutine(Hatch(e.bornText));
+                    if (_egg != null && !_hatching) StartCoroutine(Hatch(e.bornText, e.eggId));
                     break;
                 case EggTracker.Change.Vanish:
                     ClearEgg();
@@ -273,7 +273,7 @@ namespace Allo.Critters
 
         // ---------------- 깨어나기 ----------------
 
-        IEnumerator Hatch(string bornText)
+        IEnumerator Hatch(string bornText, string eggId)
         {
             _hatching = true;
             Debug.Log("[Egg] hatch start");
@@ -311,6 +311,12 @@ namespace Allo.Critters
                 if (Mathf.Repeat(t, 0.12f) < Time.deltaTime) Fx.Burst(egg.position + Vector3.up * 0.1f, Fx.Spark, critterMaterial, 2, 0.06f, 0.05f);
                 yield return null;
             }
+            // 알 교체/화면 종료로 중단된 연출은 완료로 알리지 않는다.
+            if (egg == null || egg != _egg)
+            {
+                _hatching = false;
+                yield break;
+            }
             // 4) 퐁! 윗껍데기가 날아가고 둥지에서 나온다
             var at = egg != null ? egg.position : _nestAt;
             if (egg != null) Destroy(egg.gameObject);
@@ -332,6 +338,10 @@ namespace Allo.Critters
             HudOrNull?.ShowHold(string.IsNullOrEmpty(bornText) ? "알에서 친구가 태어났어요!" : bornText, 3.5f);
             foreach (var v in _views.Values) { v.Brain.Hop(0.1f); v.Cheer(3); }
             Debug.Log("[Egg] hatched");
+            if (FlutterBridge.LastEgg != null &&
+                FlutterBridge.LastEgg.state == "hatched" &&
+                FlutterBridge.LastEgg.eggId == eggId)
+                FlutterBridge.Send("hatchShown", FlutterBridge.Field("eggId", eggId ?? ""));
             yield return Shrink(bottom, 9f);
         }
 

@@ -366,13 +366,16 @@ void main() {
     c.notifyListeners();
     expect(eggs().last['state'], 'hatched');
     expect(eggs().last['bornText'], '퍼들핍이 태어났어요!');
+    toFlutter!(
+        jsonEncode({'v': 1, 'type': 'hatchShown', 'eggId': c.eggId ?? ''}));
 
     toFlutter!('{"v":1,"type":"close"}');
     await tester.pumpAndSettle();
     expect(result, isTrue);
   });
 
-  testWidgets('이미 부화한 뒤에 들어오면 태어남 문구 없이 hatched 만 보내고, 닫을 때 false', (tester) async {
+  testWidgets('이미 부화한 뒤에 들어오면 태어남 문구 없이 hatched 만 보내고, 닫을 때 false',
+      (tester) async {
     final c = fakeController();
     addTearDown(c.dispose);
     c.game = c.game.copyWith(stage: Stage.hatched, progress: 1);
@@ -408,8 +411,71 @@ void main() {
     ].last;
     expect(egg['state'], 'hatched');
     expect(egg['bornText'], '');
+    toFlutter!(
+        jsonEncode({'v': 1, 'type': 'hatchShown', 'eggId': c.eggId ?? ''}));
     toFlutter!('{"v":1,"type":"close"}');
     await tester.pumpAndSettle();
     expect(result, isFalse);
   });
+
+  for (final scenario in [
+    'not-ready',
+    'no-ack',
+    'wrong-id',
+    'before-hatch',
+    'covered-route',
+    'valid'
+  ]) {
+    testWidgets('부화 완료 ack 검증: $scenario', (tester) async {
+      final c = fakeController();
+      addTearDown(c.dispose);
+      c.game = c.game.copyWith(stage: Stage.incubating, progress: 0.7);
+      void Function(String)? toFlutter;
+      Object? result;
+      await tester.pumpWidget(MaterialApp(home: Builder(builder: (context) {
+        return TextButton(
+            onPressed: () async {
+              result = await Navigator.of(context).push<bool>(MaterialPageRoute(
+                builder: (_) => ExploreScreen(
+                  controller: c,
+                  unityAvailable: true,
+                  unityView: ({required onCreated, required onMessage}) {
+                    toFlutter = onMessage;
+                    onCreated((_) {});
+                    return const SizedBox.expand();
+                  },
+                ),
+              ));
+            },
+            child: const Text('열기'));
+      })));
+      await tester.tap(find.text('열기'));
+      await tester.pumpAndSettle();
+      c.notifyListeners(); // ready 전에도 controller 변경으로 incubating 이 버퍼링될 수 있다.
+      final ack =
+          jsonEncode({'v': 1, 'type': 'hatchShown', 'eggId': c.eggId ?? ''});
+      if (scenario != 'not-ready') toFlutter!('{"v":1,"type":"ready"}');
+      if (scenario == 'before-hatch') toFlutter!(ack);
+      c.game = c.game.copyWith(stage: Stage.hatched, progress: 1);
+      c.notifyListeners();
+      if (scenario == 'covered-route') {
+        final navigator =
+            Navigator.of(tester.element(find.byType(ExploreScreen)));
+        navigator.push<void>(MaterialPageRoute(
+            builder: (_) => const Scaffold(body: Text('다른 화면'))));
+        await tester.pumpAndSettle();
+        toFlutter!(ack);
+        navigator.pop();
+        await tester.pumpAndSettle();
+      }
+      if (scenario == 'valid' || scenario == 'not-ready') toFlutter!(ack);
+      if (scenario == 'wrong-id') {
+        toFlutter!('{"v":1,"type":"hatchShown","eggId":"another-egg"}');
+      }
+      toFlutter!('{"v":1,"type":"close"}');
+      await tester.pumpAndSettle();
+      expect(result, scenario == 'valid');
+      expect(exploreHatchShown, scenario == 'valid');
+    });
+  }
 }

@@ -80,6 +80,7 @@ class _ExploreScreenState extends State<ExploreScreen>
   /// 이 화면이 열린 동안 품던 알이 깨어났다 (Unity 가 둥지에서 깨어나는 연출을 했다).
   /// 닫을 때 결과로 돌려줘서, 품기 화면이 부화 화면을 다시 보여 주지 않고 동행 화면으로 가게 한다
   bool _hatchShown = false;
+  bool _unityReady = false;
   bool _sawIncubating = false;
   String? _incubatingEggId;
 
@@ -140,13 +141,13 @@ class _ExploreScreenState extends State<ExploreScreen>
             headingDeg: c.vehicle?.headingDeg));
     final g = c.game;
     if (g.stage == Stage.incubating) {
+      _hatchShown = false;
       _sawIncubating = true;
       _incubatingEggId = c.eggId;
     }
     final born = g.stage == Stage.hatched &&
         _sawIncubating &&
         _incubatingEggId == c.eggId;
-    if (born && _useUnity) _hatchShown = true;
     // 알을 먼저 보낸다: 같은 알이 깨어났다는 걸 Unity 가 알아야 새 동행을 둥지에서 꺼낸다
     _link.post(
         'egg',
@@ -203,6 +204,7 @@ class _ExploreScreenState extends State<ExploreScreen>
       return;
     }
     if (msg is Map && msg['type'] == 'ready') {
+      _unityReady = true;
       _publish();
       _link.post('settings', _settings());
       _link.onReady();
@@ -211,6 +213,23 @@ class _ExploreScreenState extends State<ExploreScreen>
     if (msg is! Map) return;
     final c = widget.controller;
     switch (msg['type']) {
+      case 'hatchShown':
+        // 상태 발행/ready 는 연출 완료가 아니다. 현재 화면에서 품던 같은 알의
+        // Unity 완료 확인만 인정한다. 구 Unity export 는 확인을 안 보내므로
+        // 닫을 때 기존 Flutter 부화 화면으로 안전하게 돌아간다.
+        if (_useUnity &&
+            _unityReady &&
+            mounted &&
+            !_closing &&
+            (ModalRoute.of(context)?.isCurrent ?? false) &&
+            !c.sessionEnded &&
+            c.game.stage == Stage.hatched &&
+            _sawIncubating &&
+            _incubatingEggId == c.eggId &&
+            msg['eggId'] == (c.eggId ?? '')) {
+          _hatchShown = true;
+        }
+
       case 'care': // 품는 알 돌보기 (kind: tap·rub·sing·blanket). 품기 화면의 감싸기·노래와 같다
         c.care();
       case 'tap': // 동행 캐릭터와 놀기 (kind: pet·ball·plush·cushion·blanket·draw·bobble·toycar·music·book·bubble·tissue·nest, 없으면 탭)

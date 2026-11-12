@@ -4,6 +4,11 @@
     <!-- 온디바이스 LLM (ai.pleos.playground.caas LLMService). normal 권한. 디버그 빌드에만 -->
     <uses-permission android:name="pleos.car.permission.LLM_SERVICE" />
     <application>
+        <activity android:name=".debug.DrivingMotionDemoActivity" android:exported="true">
+            <meta-data android:name="distractionOptimized" android:value="true" />
+        </activity>
+        <!-- Non-DO, debug-only receiver; platform and app parking restrictions both apply. -->
+        <activity android:name=".mirror.MirrorActivity" android:exported="false" />
         <receiver android:name=".debug.DebugSpeakReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="ai.allo.car.debug.SPEAK" />

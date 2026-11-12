@@ -8,6 +8,7 @@ class FirebaseConfig {
     required this.messagingSenderId,
     required this.projectId,
     required this.databaseUrl,
+    this.functionsRegion = 'asia-northeast3',
   });
 
   factory FirebaseConfig.fromEnvironment() => const FirebaseConfig(
@@ -17,6 +18,8 @@ class FirebaseConfig {
             String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID'),
         projectId: String.fromEnvironment('FIREBASE_PROJECT_ID'),
         databaseUrl: String.fromEnvironment('FIREBASE_DATABASE_URL'),
+        functionsRegion: String.fromEnvironment('FIREBASE_FUNCTIONS_REGION',
+            defaultValue: 'asia-northeast3'),
       );
 
   final String apiKey;
@@ -24,8 +27,12 @@ class FirebaseConfig {
   final String messagingSenderId;
   final String projectId;
   final String databaseUrl;
+  final String functionsRegion;
 
   FirebaseOptions toOptions() {
+    if (!RegExp(r'^[a-z]+-[a-z]+[0-9]+$').hasMatch(functionsRegion)) {
+      throw const FormatException('차량 연결 서버 설정을 확인해야 해요.');
+    }
     if ([apiKey, appId, messagingSenderId, projectId, databaseUrl]
         .any((value) => value.trim().isEmpty)) {
       throw const FormatException('차량 연결 설정이 준비되지 않았어요.');

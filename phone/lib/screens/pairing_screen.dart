@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../game/game_controller.dart';
 import '../pairing/pairing_credentials.dart';
 import 'qr_pairing_screen.dart';
+import '../screen_share/screen_share_button.dart';
 
 /// QR 스캔 또는 6자리 코드. 이름·생년월일·연락처 입력란은 만들지 않는다.
 class PairingScreen extends StatefulWidget {
@@ -31,7 +32,8 @@ class _PairingScreenState extends State<PairingScreen> {
   Widget build(BuildContext context) {
     final c = widget.controller;
     return Scaffold(
-      appBar: AppBar(title: const Text('알로')),
+      appBar:
+          AppBar(title: const Text('알로'), actions: const [ScreenShareButton()]),
       body: ListenableBuilder(
         listenable: c,
         builder: (_, __) => Padding(
@@ -107,6 +109,22 @@ class _PairingScreenState extends State<PairingScreen> {
               TextButton(
                   onPressed: () => context.go('/dex'),
                   child: const Text('도감 보기')),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                key: const Key('start-affinity'),
+                onPressed: !c.canStart
+                    ? null
+                    : () async {
+                        final started = await c.startIncubating(EggTier.small,
+                            useAffinity: true);
+                        if (started && context.mounted) {
+                          context.go('/incubating');
+                        }
+                      },
+                icon: const Icon(Icons.favorite_outline),
+                label: const Text('마음으로 알 품기'),
+              ),
+              const Text('쓰다듬기·자리 바꾸기·말 걸기로 마음을 쌓아요. 사진 퀘스트도 기다리고 있어요.'),
             ],
           ),
         ),
