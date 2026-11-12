@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using Allo.App;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.TestTools;
 using UnityEngine.UI;
 using Object = UnityEngine.Object;
@@ -51,6 +53,38 @@ public class AppVillagePanTests
             Assert.LessOrEqual(bounds.min.x, layer.rect.xMin + 1); Assert.GreaterOrEqual(bounds.max.x, layer.rect.xMax - 1);
             Assert.LessOrEqual(bounds.min.y, layer.rect.yMin + 1); Assert.GreaterOrEqual(bounds.max.y, layer.rect.yMax - 1);
         }
+    }
+
+    [Test]
+    public void EmptyVillageRaycastRoutesRealDragEventsAndMovesBothAxesOnlyInTheWorld()
+    {
+        var viewport = Get<RectTransform>("_villageLayer");
+        var scroll = Get<ScrollRect>("_villageScroll");
+        var content = Get<RectTransform>("_villageContent");
+        var hud = Get<RectTransform>("_safe").Find("Compact application HUD");
+        scroll.normalizedPosition = new Vector2(.5f, .5f); Canvas.ForceUpdateCanvases();
+        // Lower-center clearing avoids facilities, fixed top HUD and right-side actions.
+        var localStart = new Vector3(viewport.rect.center.x, Mathf.Lerp(viewport.rect.yMin, viewport.rect.yMax, .16f), 0);
+        var localEnd = localStart + new Vector3(viewport.rect.width * .06f, viewport.rect.height * .08f, 0);
+        var start = RectTransformUtility.WorldToScreenPoint(null, viewport.TransformPoint(localStart));
+        var end = RectTransformUtility.WorldToScreenPoint(null, viewport.TransformPoint(localEnd));
+        var pointer = new PointerEventData(EventSystem.current) { position = start, pressPosition = start, button = PointerEventData.InputButton.Left };
+        var hits = new List<RaycastResult>(); EventSystem.current.RaycastAll(pointer, hits);
+        Assert.IsNotEmpty(hits, "empty village must receive a real EventSystem raycast");
+        var handler = ExecuteEvents.GetEventHandler<IDragHandler>(hits[0].gameObject);
+        Assert.AreSame(scroll.gameObject, handler, "the topmost empty-world hit must route drag events to the village ScrollRect");
+        pointer.pointerCurrentRaycast = pointer.pointerPressRaycast = hits[0]; pointer.pointerDrag = handler;
+        var before = content.anchoredPosition; var hudBefore = hud.position;
+        ExecuteEvents.Execute(handler, pointer, ExecuteEvents.initializePotentialDrag);
+        ExecuteEvents.Execute(handler, pointer, ExecuteEvents.beginDragHandler);
+        pointer.dragging = true; pointer.position = end; pointer.delta = end - start;
+        ExecuteEvents.Execute(handler, pointer, ExecuteEvents.dragHandler);
+        ExecuteEvents.Execute(handler, pointer, ExecuteEvents.endDragHandler);
+        Canvas.ForceUpdateCanvases();
+        var movement = content.anchoredPosition - before;
+        Assert.Greater(Mathf.Abs(movement.x), 10, "real horizontal drag movement");
+        Assert.Greater(Mathf.Abs(movement.y), 10, "real vertical drag movement");
+        Assert.AreEqual(hudBefore, hud.position, "the fixed HUD must not move with the world");
     }
 
     [Test]
