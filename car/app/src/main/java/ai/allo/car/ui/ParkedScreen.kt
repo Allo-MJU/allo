@@ -2,6 +2,10 @@ package ai.allo.car.ui
 
 import ai.allo.car.dialogue.DialogueBank
 import ai.allo.car.model.GameState
+import ai.allo.car.model.PlazaPopulation
+import androidx.activity.compose.BackHandler
+import androidx.compose.ui.platform.LocalContext
+import android.content.Context
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -31,6 +35,14 @@ fun ParkedScreen(
     val hasCarPet = if (game.hasV2Contract) companionValid && game.companion?.location == "car"
         else summary.showArt && !summary.showEgg
     var tab by rememberSaveable(game.companion?.displayId, game.companion?.displayRevision, game.companion?.location, connected) { mutableStateOf("광장") }
+    val context = LocalContext.current
+    val plazaPreferences = remember(context) { context.getSharedPreferences("plaza_display", Context.MODE_PRIVATE) }
+    var chosenFriends by rememberSaveable {
+        mutableStateOf(plazaPreferences.getString("species_ids", null)?.let { ArrayList(it.split(",").filter(String::isNotBlank)) })
+    }
+    val availableFriends = PlazaPopulation.residents(game).filter { it in SuppliedCharacters.ids && catalog[it] != null }
+    val visibleFriends = PlazaPopulation.selected(availableFriends, chosenFriends)
+    BackHandler(enabled = tab != "광장") { tab = "광장" }
     var materialsOpen by remember { mutableStateOf(false) }
     val dark = MaterialTheme.colorScheme.surface.luminance() < .35f
     val paper = if (dark) MaterialTheme.colorScheme.surface else Color(0xFFFAF7EE)
@@ -50,14 +62,20 @@ fun ParkedScreen(
                     if (!compact) Text(if (connected) "친구 상태 연결됨" else "마지막으로 받은 상태",
                         style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                if (tab !in listOf("광장", "이야기", "여행")) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OutlinedButton(onClick = { tab = "광장" }, modifier = Modifier.heightIn(min = 64.dp)) { Text("‹ 광장으로") }
+                        Text(tab, style = MaterialTheme.typography.titleLarge)
+                    }
+                }
                 if (tab == "광장") {
                     BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                         val availableHeight = maxHeight
                         Column(Modifier.verticalScroll(rememberScrollState())) {
                         // Keep the scene usable in short windows; scroll instead of squeezing touch targets.
-                        PlazaScene(game, connected, sceneHeightOverride = availableHeight) {
+                        PlazaScene(game, connected, sceneHeightOverride = availableHeight, selectedResidents = visibleFriends) {
                             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                listOf("친구들" to "도감", "모은 재료" to "재료", "거점" to "거점").forEach { (label, destination) ->
+                                listOf("친구들" to "친구들", "모은 재료" to "재료", "거점" to "거점").forEach { (label, destination) ->
                                     TextButton(onClick = { if (destination == "재료") materialsOpen = true else tab = destination }, modifier = Modifier.heightIn(min = 64.dp)) {
                                         Text(label, style = MaterialTheme.typography.titleSmall)
                                     }
@@ -71,7 +89,13 @@ fun ParkedScreen(
                     val pageHeight = maxHeight
                     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                         when (tab) {
-                            "도감" -> CollectionDex(game, catalog)
+                            "친구들" -> PlazaFriends(availableFriends, visibleFriends, catalog, connected,
+                                onToggle = { id ->
+                                    val next = PlazaPopulation.toggle(availableFriends, chosenFriends, id)
+                                    chosenFriends = ArrayList(next)
+                                    plazaPreferences.edit().putString("species_ids", next.joinToString(",")).apply()
+                                },
+                                onDone = { tab = "광장" })
                             "이야기" -> CompanionDialoguePanel(game, connected, dialogueBank, summary.title, unreviewedDialoguePreview, pageHeight)
                             "거점" -> {
                                 ParkedSectionTitle("우리 거점", "건설·요리·훈련 조작은 폰에서 진행해 주세요.")
@@ -101,8 +125,7 @@ fun ParkedScreen(
                 }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (tab in listOf("광장", "이야기", "여행")) "친구와 쌓아가는 작은 추억" else tab,
-                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                    Spacer(Modifier.weight(1f))
                     TextButton(onClick = { tab = "폰 공유" }) { Text("폰 연결 · 공유") }
                 }
             }

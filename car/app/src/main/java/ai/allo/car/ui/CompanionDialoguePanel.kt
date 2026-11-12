@@ -4,6 +4,8 @@ import ai.allo.car.dialogue.DialogueBank
 import ai.allo.car.model.CompanionDialogue
 import ai.allo.car.model.DialogueAnswer
 import ai.allo.car.model.GameState
+import ai.allo.car.model.PlazaPopulation
+import androidx.compose.runtime.saveable.rememberSaveable
 import ai.allo.car.voice.DialogueVoice
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -46,7 +48,13 @@ fun CompanionDialoguePanel(
 ) {
     val dialogue = remember(bank) { CompanionDialogue(bank) }
     val catalog = rememberSpeciesCatalog()
-    val subject = dialogue.subject(game, connected)?.takeIf { catalog[it.speciesId] != null }
+    var guestSpeciesId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pickerOpen by remember { mutableStateOf(false) }
+    val available = PlazaPopulation.residents(game).filter { it in SuppliedCharacters.ids && catalog[it] != null }
+    val subject = dialogue.subject(game, connected, guestSpeciesId)?.takeIf { catalog[it.speciesId] != null }
+    val latestGuestSpeciesId by rememberUpdatedState(guestSpeciesId)
+    val displayedSpecies = subject?.let { catalog[it.speciesId] }
+    val displayedName = displayedSpecies?.name ?: companionName
     val latestGame by rememberUpdatedState(game)
     val latestConnected by rememberUpdatedState(connected)
     var answer by remember(subject?.key, connected) { mutableStateOf<DialogueAnswer?>(null) }
@@ -66,18 +74,32 @@ fun CompanionDialoguePanel(
         }
     }
     LaunchedEffect(subject?.key, connected) { voice.stop() }
+    if (pickerOpen) StoryFriendPicker(available, guestSpeciesId, catalog, connected,
+        onSelect = { id ->
+            // Check current ownership again, including if the dialog was open during a sync.
+            if (id == null || (latestConnected && dialogue.subject(latestGame, true, id) != null)) {
+                voice.stop()
+                answer = null
+                guestSpeciesId = id
+                pickerOpen = false
+            }
+        }, onDismiss = { pickerOpen = false })
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        OutlinedButton(onClick = { pickerOpen = true }, enabled = connected,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)) {
+            Text("대화할 친구 바꾸기 · $displayedName", style = MaterialTheme.typography.titleSmall)
+        }
         if (subject == null) {
-            ParkedInfoCard("대화 준비 중", if (!connected) "폰 연결을 확인해 주세요." else "폰에서 차량과 함께할 친구를 선택해 주세요.")
+            ParkedInfoCard("대화 준비 중", if (!connected) "폰 연결을 확인해 주세요." else "대화할 친구 바꾸기에서 수집한 친구를 불러 주세요.")
         } else {
-            NotebookSpread(minHeight = minHeight, scene = {
+            NotebookSpread(minHeight = (minHeight - 82.dp).coerceAtLeast(0.dp), scene = {
             Column(Modifier.fillMaxWidth().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
                 val bubbleColor = if (dark) Color(0xFFE8DFC5) else Color(0xFFFFFBE9)
                 val ink = Color(0xFF304729)
                 val accent = if (dark) Color(0xFF83996B) else Color(0xFFD8E4BB)
                 Surface(onClick = {
-                    if (dialogue.subject(latestGame, latestConnected)?.key == subject.key) {
+                    if (dialogue.subject(latestGame, latestConnected, latestGuestSpeciesId)?.key == subject.key) {
                         answer?.let { voice.speak(it.text) }
                     }
                 }, enabled = answer != null && voiceState.ready,
@@ -106,7 +128,7 @@ fun CompanionDialoguePanel(
                         .semantics { contentDescription = if (voiceState.speaking) "답변 읽기 중지" else "답변 읽기" },
                     shape = RoundedCornerShape(42.dp), color = Color.Transparent) {
                     Column(Modifier.padding(start = 28.dp, top = 20.dp, end = 28.dp, bottom = 50.dp), verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(companionName, style = MaterialTheme.typography.labelSmall,
+                        Text(displayedName, style = MaterialTheme.typography.labelSmall,
                             color = Color(0xFF657256), textAlign = TextAlign.Center)
                         Text(answer?.text ?: "어떤 이야기가 궁금해요? 질문을 골라 주세요.",
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, lineBreak = LineBreak.Heading),
@@ -122,7 +144,7 @@ fun CompanionDialoguePanel(
                     }
                 }
                 BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    PlazaPetArt(PetSummary.from(game, connected, catalog),
+                    PlazaPetArt(PetSummary(displayedName, "이야기 친구", displayedSpecies, false, 0f),
                         size = (maxWidth * 0.9f).coerceIn(180.dp, 340.dp),
                         modifier = Modifier, connected = connected, moving = false)
                 }
@@ -134,9 +156,9 @@ fun CompanionDialoguePanel(
                 val chosen = answer?.questionId == question.id
                 Surface(onClick = {
                     // Revalidate the live subject; an old tap cannot answer for a replacement.
-                    if (dialogue.subject(latestGame, latestConnected)?.key == subject.key) {
+                    if (dialogue.subject(latestGame, latestConnected, latestGuestSpeciesId)?.key == subject.key) {
                         voice.stop()
-                        answer = dialogue.answer(question.id, latestGame, latestConnected)
+                        answer = dialogue.answer(question.id, latestGame, latestConnected, latestGuestSpeciesId)
                     }
                 }, selected = chosen, modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),

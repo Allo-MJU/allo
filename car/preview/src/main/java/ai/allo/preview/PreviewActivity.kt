@@ -37,7 +37,7 @@ class PreviewActivity : ComponentActivity() {
             else -> PleosRoute.Starting
         }
         val speciesOptions = SpeciesCatalog.parse(
-            assets.open("species.json").bufferedReader().use { it.readText() }
+            assets.open("characters.json").bufferedReader().use { it.readText() }
         ).entries.mapValues { it.value.name }
         val initialSpecies = intent.getStringExtra("species")?.takeIf { it in speciesOptions } ?: "road_sprout"
         setContent {

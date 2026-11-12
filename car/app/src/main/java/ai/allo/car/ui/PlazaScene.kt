@@ -46,11 +46,12 @@ import kotlinx.coroutines.isActive
 
 /** Parked-only local presentation. Tapping never changes ownership or selected companion. */
 @Composable
-internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride: androidx.compose.ui.unit.Dp? = null,
+internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride: androidx.compose.ui.unit.Dp? = null, selectedResidents: List<String>? = null,
     dock: @Composable () -> Unit = {}) {
     val catalog = rememberSpeciesCatalog()
     val dialogue = remember { PlazaDialogue() }
-    val residents = PlazaPopulation.residents(game).filter { catalog[it] != null }
+    val available = PlazaPopulation.residents(game).filter { it in SuppliedCharacters.ids && catalog[it] != null }
+    val residents = selectedResidents?.let { PlazaPopulation.selected(available, it) } ?: available
     var page by rememberSaveable(residents) { mutableIntStateOf(0) }
     val visible = PlazaPopulation.page(residents, page)
     var selected by remember(residents, page, connected) { mutableStateOf<String?>(null) }
@@ -75,6 +76,7 @@ internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride
             ParkedInfoCard("광장에서 만날 친구를 기다려요", when {
                 !connected -> "폰 연결을 확인해 주세요."
                 game.collectionSummary == null || "collectionSummary" in game.invalidBlocks -> "폰의 수집 정보를 기다리고 있어요."
+                available.isNotEmpty() -> "아래 친구들에서 광장에 나올 친구를 골라 주세요."
                 else -> "폰에서 수집한 친구들이 이곳에 찾아와요."
             })
             dock()
@@ -103,11 +105,7 @@ internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride
                             Text(if (dark) "달빛 아래, 친구들의 쉼터" else "오늘도, 함께 놀아요", color = Color.White, style = MaterialTheme.typography.titleLarge)
                             Text("친구를 톡 눌러 인사해 보세요", color = Color.White.copy(alpha = .9f), style = MaterialTheme.typography.bodyMedium)
                         }
-                        Surface(color = Color(0xFF173F30).copy(alpha = .82f), shape = RoundedCornerShape(50)) {
-                            TextButton(onClick = { if (residents.size > 6) { voice.stop(); page = (page + 1) % ((residents.size + 5) / 6) } }) {
-                                Text(if (residents.size > 6) "다른 친구 · ${page + 1}/${(residents.size + 5) / 6}" else "${visible.size} / 6", color = Color.White, style = MaterialTheme.typography.labelMedium)
-                            }
-                        }
+
                     }
                     Surface(Modifier.align(Alignment.BottomCenter).padding(horizontal = 24.dp, vertical = 14.dp).fillMaxWidth(),
                         shape = RoundedCornerShape(32.dp), color = if (dark) Color(0xED26382D) else Color(0xEDFAF7E7),
@@ -152,8 +150,8 @@ internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride
                                         drawOval(Color(0xFF153420).copy(alpha = .26f), Offset(size.width * .22f, size.height * .84f), Size(size.width * .56f, size.height * .09f))
                                     }
                                     PlazaPetArt(PetSummary(species.name, "광장 친구", species, false, 0f), petSize,
-                                        modifier = Modifier.graphicsLayer { scaleX = if (position.facingLeft) 1f else -1f },
-                                        connected = connected, moving = moving)
+                                        modifier = Modifier,
+                                        connected = connected, moving = moving, facingLeft = position.facingLeft)
                                 }
                             }
                             Text(species.name, Modifier.padding(vertical = 5.dp),
@@ -183,6 +181,7 @@ internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride
                                         Text(line ?: "이 친구의 대사는 아직 준비 중이에요.", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
                                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, lineBreak = LineBreak.Heading))
                                         Text(speech.error ?: when {
+                                            line == null -> "대사를 준비하고 있어요"
                                             speech.speaking -> "누르면 멈춰요"
                                             !speech.ready -> "음성을 준비하고 있어요"
                                             else -> "누르면 다시 들어요"

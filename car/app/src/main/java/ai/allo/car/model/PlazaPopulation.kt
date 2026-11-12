@@ -10,6 +10,19 @@ object PlazaPopulation {
             ?.takeIf { it.location == "car" }?.speciesId
         return if (companion in ids) listOf(companion!!) + ids.filter { it != companion } else ids
     }
+    /** Null means initial defaults; an explicit empty selection stays empty. */
+    fun selected(available: List<String>, chosen: List<String>?): List<String> =
+        (chosen ?: available).distinct().filter { it in available }.take(LIMIT)
+
+    fun toggle(available: List<String>, chosen: List<String>?, id: String): List<String> {
+        val current = selected(available, chosen)
+        return when {
+            id in current -> current - id
+            id !in available || current.size >= LIMIT -> current
+            else -> current + id
+        }
+    }
+
     fun page(ids: List<String>, page: Int): List<String> =
         ids.distinct().chunked(LIMIT).let { pages -> pages.getOrNull(page.coerceAtLeast(0)) ?: pages.firstOrNull().orEmpty() }
 }
