@@ -14,6 +14,7 @@ namespace Allo.App
         void BuildCabin()
         {
             var egg = _state.egg;
+            var openedEggId = egg?.id;
             if (egg == null || !egg.active) { BuildCabinStart(egg); return; }
             var hud = Surface("Cabin affinity HUD", _content, new Color(.949f, .933f, .898f, .90f));
             Stretch(hud, 12, -112, 414, -10, new Vector2(0, 1), new Vector2(0, 1));
@@ -48,7 +49,7 @@ namespace Allo.App
                 if (egg.preferredZone >= 0 && egg.preferredZone < names.Length) Note(zones, "좋아하는 자리 · " + names[egg.preferredZone]);
                 if (egg.moveCooldown > 0) Note(zones, egg.moveCooldown + "초 뒤에 옮길 수 있어요.");
                 Note(zones, "알을 끌거나 차 안의 자리를 눌러 옮길 수도 있어요.");
-                Button(zones, "돌보기 그만두기", () => Confirm("이 알 돌보기를 그만둘까요?", "현재 알의 돌보기가 종료돼요. 이미 만난 친구는 그대로예요.", () => Send("discardEgg")), Cream, 46, CanAct && !egg.photoBusy && !egg.speechBusy, 19);
+                Button(zones, "돌보기 그만두기", () => ConfirmIntent("이 알 돌보기를 그만둘까요?", "현재 알의 돌보기가 종료돼요. 이미 만난 친구는 그대로예요.", "discardEgg", new AppAction { eggId = openedEggId }), Cream, 46, CanAct && !egg.photoBusy && !egg.speechBusy, 19);
             }
             if (_speechDrawer)
             {
@@ -107,9 +108,10 @@ namespace Allo.App
             _workers[_campTab] = picked;
             if (running != null)
             {
+                var cancelRole = running.role;
                 Progress(panel, running.progress, running.label + " · " + TimeLabel(running.remainingSec));
                 Note(panel, CreatureName(running.workerId) + "와 함께하고 있어요. 앱을 닫아도 작업이 계속 진행돼요.");
-                Button(panel, "이 작업 취소하기", () => Confirm("진행 중인 작업을 취소할까요?", "취소하면 사용한 재료가 돌아와요.", () => Send("cancel", new AppAction { role = _campTab })), Cream, 54, CanAct, 22);
+                Button(panel, "이 작업 취소하기", () => ConfirmIntent("진행 중인 작업을 취소할까요?", "취소하면 사용한 재료가 돌아와요.", "cancel", new AppAction { role = cancelRole }), Cream, 54, CanAct, 22);
                 return;
             }
             if (eligible.Length == 0) Note(panel, "아직 " + RoleLabel(_campTab) + " 친구가 없어요. 알에서 해당 역할의 친구를 만나면 함께할 수 있어요.");
@@ -196,7 +198,7 @@ namespace Allo.App
             if (reason == null && CreatureBusy(target.id)) reason = "이 친구는 다른 작업을 하고 있어요.";
             if (reason == null && Items(target.actions).Contains(selected.id)) reason = "이 친구는 이미 이 행동을 배웠어요.";
             if (reason != null) Note(panel, reason);
-            Button(panel, "이 친구와 훈련하기", () => Confirm(selected.label + " 훈련을 시작할까요?", CreatureName(_selectedTarget) + "와 훈련하며 " + cost + "를 사용해요.", () => Send("train", new AppAction { actionId = selected.id, targetId = _selectedTarget })), Yellow, 54, CanAct && reason == null, 22);
+            Button(panel, "이 친구와 훈련하기", () => ConfirmIntent(selected.label + " 훈련을 시작할까요?", CreatureName(_selectedTarget) + "와 훈련하며 " + cost + "를 사용해요.", "train", new AppAction { actionId = selected.id, targetId = _selectedTarget }), Yellow, 54, CanAct && reason == null, 22);
         }
 
         void BuildDex()

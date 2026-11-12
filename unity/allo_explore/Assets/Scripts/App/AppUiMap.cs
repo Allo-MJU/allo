@@ -14,7 +14,7 @@ namespace Allo.App
 
         void OpenVillageFacility(string id)
         {
-            if (!CanAct) return;
+            if (!CanAct || _confirmAction != null) return;
             if (_facility != id || !_campDetail) _scrollPositions.Remove("camp:view:0");
             _facility = id;
             var facility = Items(_state.facilities).FirstOrDefault(f => f.id == id);
@@ -27,6 +27,8 @@ namespace Allo.App
         void BuildVillageMap(float unused, bool home)
         {
             var map = Rect("Village map", _content); Stretch(map);
+            var interaction = map.gameObject.AddComponent<CanvasGroup>();
+            interaction.interactable = interaction.blocksRaycasts = _confirmAction == null;
             map.gameObject.AddComponent<RectMask2D>();
             var background = Resources.Load<Texture2D>("VillageArt/background");
             var canvas = Rect("Natural village landscape", map); Stretch(canvas);

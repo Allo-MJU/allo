@@ -126,7 +126,7 @@ namespace Allo.App
             var view = View;
             _title.text = view == "home" ? "ALLO  /  우리의 마을" : "ALLO  /  " + ViewTitle(view);
             var s = _state;
-            _connection.text = s == null || !s.ready ? "불러오는 중" : s.busy ? "처리 중" : s.sessionEnded ? "여행 종료" : s.connected ? (s.isDemo ? "체험 연결" : "차량 연결") : "연결하기";
+            _connection.text = s == null || !s.ready ? "불러오는 중" : s.busy ? "처리 중" : s.sessionEnded ? "여행 종료" : s.isDemo ? "체험 모드" : s.connected ? "차량 연결" : "연결하기";
             _connection.color = s != null && s.connected ? Ink : Muted;
             var error = s != null && !string.IsNullOrEmpty(s.error);
             _statusSurface.color = error ? CoralLight : s != null && s.busy ? Sky : Cream;
@@ -193,8 +193,14 @@ namespace Allo.App
 
         void Confirm(string title, string description, Action action)
         { _confirmTitle = title; _confirmDescription = description; _confirmAction = action; _dirty = true; }
+        void ConfirmIntent(string title, string description, string action, AppAction body)
+        {
+            body.action = action;
+            Confirm(title, description, () => Send(action, body));
+        }
         void Navigate(string view)
         {
+            _confirmAction = null; _confirmTitle = null; _dirty = true;
             if (!CanAct) return;
             if (view == "home" || (view == "camp" && View != "camp")) _campDetail = false;
             Send("navigate", new AppAction { view = view });
