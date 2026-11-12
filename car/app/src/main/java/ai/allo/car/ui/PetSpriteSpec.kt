@@ -50,11 +50,12 @@ object PetSpriteSheets {
         }
     }
 
-    fun forDisplay(speciesId: String?, pose: PetPose, parked: Boolean, runningMotion: Boolean): PetSpriteSpec? {
+    fun forDisplay(speciesId: String?, pose: PetPose, parked: Boolean, runningMotion: Boolean, drivingFishing: Boolean = false): PetSpriteSpec? {
         val sheets = sheetsBySpecies[speciesId] ?: return null
         val allowed = when (pose) {
             PetPose.Move, PetPose.Fall -> !parked && runningMotion
-            PetPose.Fishing, PetPose.Sleep -> parked
+            PetPose.Fishing -> parked || drivingFishing
+            PetPose.Sleep -> parked
             else -> false
         }
         return if (allowed) sheets[pose] else null

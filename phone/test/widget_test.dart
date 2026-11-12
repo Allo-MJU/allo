@@ -74,7 +74,7 @@ void main() {
     }
     await tester.pumpAndSettle();
     expect(find.text('도감'), findsOneWidget);
-    expect(find.byIcon(Icons.pets), findsOneWidget);
+    expect(find.text('만난 친구 1 / 12'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpAndSettle();
   });

@@ -108,15 +108,12 @@ fun LocalFishingDemo(active: Boolean) {
             if (game.ts == 0L) {
                 Box(Modifier.weight(1f)) { PleosStatusScreen(PleosRoute.Empty, game) }
             } else if (route == null) {
+                // Legacy protocol harness only; production parking never offers these actions.
+                if (action != null) Button(onClick = { home = false; send(action) }, enabled = enabled,
+                    modifier = Modifier.padding(horizontal = 12.dp)) { Text("개발용 낚시 동작 · $action") }
+                if (ui.unconfirmed && connected) TextButton(onClick = { send("", true) }) { Text("개발용 요청 재확인") }
                 Box(Modifier.weight(1f)) {
-                    ParkedScreen(game, connected = connected,
-                        onStartFishing = if (!enabled) null else ({
-                            home = false
-                            if (fishing?.state in setOf("ready", "paused", "saveFailed")) action?.let { send(it) }
-                        }), fishingMessage = ui.message,
-                        onRetryFishing = if (ui.unconfirmed && connected) ({ send("", true) }) else null,
-                        fishingMotionAllowed = active && connected,
-                        onPauseFishing = if (enabled) ({ send("pause") }) else null)
+                    ParkedScreen(game, connected = connected)
                 }
             } else {
                 Box(Modifier.weight(1f)) {

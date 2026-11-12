@@ -26,6 +26,19 @@ class PetSpriteSpecTest {
             PetPose.entries.forEach { pose -> assertNull(PetSpriteSheets.forDisplay(id, pose, pose != PetPose.Move, true)) }
         }
     }
+    @Test fun `automatic fishing uses each companions fish sheet without opting into running`() {
+        for (id in listOf("road_sprout", "puddle_pip", "lamp_moth", "storm_lantern", "highway_comet", "sea_mist")) {
+            val spec = assertNotNull(PetSpriteSheets.forDisplay(id, PetPose.Fishing, false, false, drivingFishing = true))
+            assertEquals("poses/$id/fish-sheet.png", spec.path)
+            assertEquals(0, spec.frameAt(1200, false))
+            assertNotEquals(0, spec.frameAt(1200, true))
+            assertNull(PetSpriteSheets.forDisplay(id, PetPose.Move, false, false, drivingFishing = true))
+            assertNull(PetSpriteSheets.forDisplay(id, PetPose.Fall, false, false, drivingFishing = true))
+            assertNull(PetSpriteSheets.forDisplay(id, PetPose.Sleep, false, false, drivingFishing = true))
+        }
+        assertNull(PetSpriteSheets.forDisplay("unknown", PetPose.Fishing, false, false, drivingFishing = true))
+    }
+
     @Test fun `sleeping frames require parking and freeze when motion is disabled`() {
         assertEquals(PetSpriteSheets.sleep, PetSpriteSheets.forDisplay("road_sprout", PetPose.Sleep, true, false))
         assertNull(PetSpriteSheets.forDisplay("road_sprout", PetPose.Sleep, false, true))

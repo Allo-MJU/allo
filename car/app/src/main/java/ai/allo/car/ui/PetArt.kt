@@ -51,13 +51,14 @@ fun PetArt(
     connected: Boolean = true,
     runningMotion: Boolean = false,
     elapsedMs: Long? = null,
+    drivingFishing: Boolean = false,
 ) {
     if (summary.showEgg) {
         EggMark(size = size, fill = summary.eggFill, modifier = modifier.semantics { contentDescription = "알" })
         return
     }
-    val animate = ambientMotionAllowed(pose, parked, connected, runningMotion)
-    val sheetSpec = PetSpriteSheets.forDisplay(summary.species?.id, pose, parked, runningMotion)
+    val animate = ambientMotionAllowed(pose, parked, connected, runningMotion, drivingFishing)
+    val sheetSpec = PetSpriteSheets.forDisplay(summary.species?.id, pose, parked, runningMotion, drivingFishing)
     val sheet = rememberPetSpriteSheet(sheetSpec)
     if (sheet != null && sheetSpec != null) {
         PetSpriteSheet(sheet, sheetSpec, animate, "${summary.title} · ${pose.label}", size, modifier, elapsedMs)
@@ -118,7 +119,7 @@ fun PetArt(
 }
 
 @Composable
-internal fun ambientMotionAllowed(pose: PetPose, parked: Boolean, connected: Boolean, runningMotion: Boolean): Boolean {
+internal fun ambientMotionAllowed(pose: PetPose, parked: Boolean, connected: Boolean, runningMotion: Boolean, drivingFishing: Boolean = false): Boolean {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val resolver = LocalContext.current.contentResolver
     var resumed by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
@@ -140,7 +141,7 @@ internal fun ambientMotionAllowed(pose: PetPose, parked: Boolean, connected: Boo
             resolver.unregisterContentObserver(settingsObserver)
         }
     }
-    return PetPoses.animates(pose, parked, connected, resumed, motionEnabled, runningMotion)
+    return PetPoses.animates(pose, parked, connected, resumed, motionEnabled, runningMotion, drivingFishing)
 }
 
 // Character facial features are painted artwork, not foreground text; keep them dark in both themes.

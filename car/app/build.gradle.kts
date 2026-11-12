@@ -35,6 +35,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "ALLO_DB_URL", quoted(localProps.getProperty("ALLO_DB_URL", "")))
+        buildConfigField("boolean", "FIREBASE_EMULATOR", "false")
         buildConfigField("String", "CAR_APP_VERSION", quoted("0.1.0"))
         buildConfigField("String", "FIREBASE_API_KEY", quoted(localProps.getProperty("FIREBASE_API_KEY", "")))
         buildConfigField("String", "FIREBASE_PROJECT_ID", quoted(localProps.getProperty("FIREBASE_PROJECT_ID", "")))
@@ -42,6 +43,15 @@ android {
     }
 
     buildTypes {
+        debug {
+            if (localProps.getProperty("ALLO_FIREBASE_EMULATOR") == "true") {
+                buildConfigField("boolean", "FIREBASE_EMULATOR", "true")
+                buildConfigField("String", "FIREBASE_PROJECT_ID", quoted("demo-allo-auth"))
+                buildConfigField("String", "FIREBASE_API_KEY", quoted("demo-api-key"))
+                buildConfigField("String", "FIREBASE_FUNCTIONS_REGION", quoted("asia-northeast3"))
+                buildConfigField("String", "ALLO_DB_URL", quoted("https://demo-allo-auth-default-rtdb.firebaseio.com"))
+            }
+        }
         release {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
