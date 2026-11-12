@@ -68,7 +68,12 @@ class _HatchingScreenState extends State<HatchingScreen>
                       final c = widget.controller;
                       if (c.sessionEnded) return;
                       final hatched = c.game.stage == Stage.hatched;
-                      context.go(hatched ? '/companion' : '/incubating');
+                      final plaza = plazaFlow(usesAffinity: c.usesAffinity);
+                      context.go(plaza
+                          ? '/home'
+                          : hatched
+                              ? '/companion'
+                              : '/incubating');
                       // 동행 화면을 바탕에 두고 곧장 차 안 탐험으로 들어간다 (닫으면 동행 화면)
                       if (hatched && autoEnterExplore) context.push('/explore');
                     },

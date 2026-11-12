@@ -548,3 +548,41 @@ Unity 6000.0.85f2, 휴대폰 에뮬레이터(Medium Phone API 37, `-gpu host`), 
 성능(에뮬레이터, 참고용): debug 빌드는 3~5fps, 2~25초 멈춤(디버그 JIT + 같은 프로세스). release 빌드는 28~60fps, 가끔 120~380ms 끊김. 에뮬레이터 기본 설정은 GPU 대신 CPU 렌더링(lavapipe·SwiftShader)이라 `-gpu host` 로 띄웠다. 측정 당시 Mac 에서 Spotlight 색인과 다른 가상 머신이 함께 돌았다. **실기기 측정은 #77** — Unity 가 10초마다 `[Perf] fps=… worst=…ms` 를 로그로 남긴다.
 
 테스트: Unity EditMode 71개, `flutter test` 186개, `flutter analyze lib test` 문제 없음.
+
+## 탐험 화면 — 캐릭터는 아이 곁에, 광장(홈) 화면, 시연 종 고정 (2026-11-12, A)
+
+Unity 6000.0.85f2, 휴대폰 에뮬레이터(Medium Phone API 37, `-gpu host`), release,
+`FEED=fake SCENARIO=scene_tour EXPLORE_UNITY=true FAKE_TIME_SCALE=2 DEMO_SPECIES=road_sprout`.
+
+팀장 요청: 캐릭터가 물건을 뚫고 다니고 너무 돌아다니며 앞좌석으로 간다 → 천천히 아이 주변에. 주행 중 Flutter 차 안 화면은 없애고
+Unity 차 안만. 뒤로 가면 광장 같은 곳으로 가서 화면마다 오갈 수 있게. 시연 캐릭터는 길싹이.
+
+원인: 장면에 구워진 걷는 면이 **센터 콘솔·대시보드·앞문 창턱·앞 발판 5개뿐**이었다. 뒷좌석 옆자리·팔걸이는 "아이가 정면을 볼 때
+안 보인다"(정면 60도 밖)는 규칙에 걸려 빠졌고, 창턱은 앞문까지 2.2m 가 통째로 걷는 면이라 B필러·앞좌석을 뚫고 다녔다.
+
+| 항목 | 결과 |
+| --- | --- |
+| 걷는 면: 옆자리(`Walk_RearSeat_R`)는 정면에서 안 보여도 둔다(`IsHomeSurface`), 앞쪽은 아이 눈에서 `HomeDepth` 0.85m 까지만(창턱 2.23→0.65m, 발판 0.32→0.23m), 콘솔·대시보드는 비중 0 (둥지에서 깨어나면 발판→옆자리로 돌아옴) | ✅ 장면 빌드 로그·`BakedSceneHasFloorAndNoHiddenShelf`. 걷는 면 5 → 6 |
+| 행동: 걷기 0.35→0.2m/s, 쉬기 0.8~2.5→2.5~6초, 한 번에 0.3m 안에서만(`RandomPointNear`), 점프 25→15%. 비중 0 면에 있으면 1~2초 뒤 비중 있는 이웃으로 | ✅ `LeavesZeroWeightSurfaceForWeightedNeighbor`·`StrollsStayShortAndSlow` |
+| 그림을 카메라 쪽으로 당기는 것은 카메라가 뒤(-z)에 있을 때만 — 옆자리에서 당기면 팔걸이에 파묻힌다 | ✅ 코드. 기기에서 옆자리 확인은 아래 |
+| 광장(`/home`): 알·동행 카드 + 차 안으로·도감·주행 종료. 알을 받으면 바로 차 안(알마다 한 번), 차 안 ← → 광장, 광장 → 차 안·도감 → 광장 | ✅ 에뮬레이터: ← 로 광장, 차 안으로 로 다시 Unity(`close` → `ready`), `fullscreen_cabin_test` 6개 |
+| 주행 중 Flutter 차 안 화면(알 품기·동행의 `WindowView`)은 광장 흐름에서 안 쓴다. `/incubating`·`/companion` → `/home` 리다이렉트. 마음으로 알 품기·CLASSIC_UI 는 예전 흐름 그대로 | ✅ `plazaFlow()` |
+| `DEMO_SPECIES=road_sprout`: 체험 주행에서 늘 길싹이가 깨어난다 (가짜 신호일 때만, 판정은 그대로 돌고 결과만 바꿈) | ✅ 테스트 '광장에서 부화하면 … 길싹이' |
+
+찾아서 고친 버그:
+1. **차 안에서 ← 로 나오면 Unity 가 0.2초 뒤 다시 열림 / 도감에서 돌아오면 광장이 사라짐.** 라우터 `refreshListenable` 이 컨트롤러라
+   차 신호마다(1초) redirect 를 다시 돌렸고, 화면을 닫는 도중(pop 애니메이션)에 그 시점의 주소로 닫던 화면을 새로 만들었다
+   (새 `ExploreScreen` → 새 Unity 열기). 기기 로그(`[UnityLauncher] open` 스택)로 확인. → redirect 가 보는 값(세션 종료·저장, 알 단계,
+   마음 품기)이 바뀔 때만 알리는 `_RedirectSignal`. 이전 알 품기 화면 흐름에서도 타이밍에 따라 같은 문제가 날 수 있었다(추정)
+2. 광장이 알마다 한 번만 부화 화면으로 보내도록(`_hatchShownEggId`). 안 그러면 "같이 가자" 뒤 광장이 또 부화 화면으로 보낸다
+
+에뮬레이터(길싹이 고정): 체험 시작 → 바로 Unity 둥지의 알 → ← 광장(알 카드, 성장 8%) → 차 안으로 → 같은 Unity 로 복귀 →
+2분 40초쯤 터널에서 부화 → 약 40초 뒤 둥지를 떠남 → 약 1분 뒤 아이 옆 오른쪽 창턱에 앉아 창밖을 봄. fps 46~57.
+3. 터널·밤에 깨어나면 둥지(콘솔, 비중 0)에서 바로 웅크리거나 잠들어 아이 곁으로 안 옴 → "아이 곁으로 돌아오기"를 밤·터널 판단보다
+   먼저 (`ComesHomeFromNestEvenAtNightOrInTunnel`)
+
+4. 창턱에 앉으면 그림 가운데가 6cm 창턱 위에 놓여 절반이 문·유리 속으로 들어가 발과 잎이 잘려 보임(팀장이 캡처로 지적) →
+   몸보다 좁은 면에 앉으면 그림을 차 안쪽으로 당겨 바깥 가장자리가 창턱 안쪽 가장자리에 오게(`CritterView.LedgeOverhang`, 0.3초에 걸쳐)
+5. 비중 있는 이웃이 없으면 점프하지 않고 지금 면 안에서만 거닌다 (발판에서 콘솔로 되돌아가던 것)
+
+테스트: Unity EditMode 78개(+7), `flutter test` 314개, `flutter analyze lib test` 문제 없음.

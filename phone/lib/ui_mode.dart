@@ -9,3 +9,8 @@ bool fullscreenCabin = !const bool.fromEnvironment('CLASSIC_UI');
 /// Unity 내보내기 결과가 있는 빌드(`--dart-define=EXPLORE_UNITY=true`)에서만 켠다.
 bool autoEnterExplore =
     fullscreenCabin && const bool.fromEnvironment('EXPLORE_UNITY');
+
+/// 광장 흐름: 주행 중 폰의 Flutter 차 안 화면(알 품기·동행) 대신 광장(홈) 화면을 두고,
+/// 차 안은 Unity 탐험으로만 본다. 광장에서 차 안·도감·주행 종료로 오간다 (2026-11-12 팀장 요청).
+/// 마음으로 알 품기(affinity)는 입력 화면이 따로 필요해 예전 흐름 그대로다.
+bool plazaFlow({required bool usesAffinity}) => fullscreenCabin && !usesAffinity;

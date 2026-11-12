@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../game/game_controller.dart';
+import '../ui_mode.dart';
 import '../widgets/species_art.dart';
 
 /// 수집 기록은 기기에만 저장한다. 지역이 없는 기록을 방문 이력으로 추정하지 않는다.
@@ -40,7 +41,15 @@ class _DexScreenState extends State<DexScreen> {
                   context.pop();
                   return;
                 }
-                widget.controller.prepareNextFakeTrip();
+                final c = widget.controller;
+                // 주행 중(광장 흐름)이면 광장으로, 아니면 처음 화면으로
+                if (!c.sessionEnded &&
+                    c.game.stage != Stage.idle &&
+                    plazaFlow(usesAffinity: c.usesAffinity)) {
+                  context.go('/home');
+                  return;
+                }
+                c.prepareNextFakeTrip();
                 context.go('/pairing');
               }),
         ),

@@ -102,6 +102,74 @@ public class CritterBrainTests
     }
 
     [Test]
+    public void LeavesZeroWeightSurfaceForWeightedNeighbor()
+    {
+        // 둥지 콘솔(비중 0) ↔ 발판(0.6) ↔ 옆자리(1). 콘솔에서 깨어나면 곧 아이 곁으로 온다
+        var g = new WalkGraph(new List<WalkSurface>
+        {
+            new WalkSurface("Walk_Console", new Vector3(0, 0.38f, 1.06f), new Vector2(0.2f, 0.2f)),
+            new WalkSurface("Walk_Floor", new Vector3(0, 0.01f, 0.5f), new Vector2(1.2f, 0.25f)),
+            new WalkSurface("Walk_RearSeat_R", new Vector3(0.33f, 0.445f, -0.17f), new Vector2(0.36f, 0.3f)),
+        });
+        g.Weight = i => CritterDirector.RoamWeight(g.Surfaces[i].name);
+        var b = new CritterBrain(g, 0, 11);
+        var onConsole = 0f;
+        for (var t = 0f; t < 60; t += 0.05f)
+        {
+            b.Tick(0.05f, Day);
+            if (b.Surface == 0) onConsole += 0.05f;
+        }
+        Assert.Less(onConsole, 6f, "콘솔에 오래 머물지 않는다");
+        Assert.AreNotEqual(0, b.Surface, "60초 뒤에는 콘솔이 아니다");
+        // 돌아온 뒤에는 콘솔로 스스로 가지 않는다
+        for (var t = 0f; t < 120; t += 0.05f)
+        {
+            b.Tick(0.05f, Day);
+            Assert.AreNotEqual(0, b.Surface, $"t={t}");
+        }
+    }
+
+    [Test]
+    public void ComesHomeFromNestEvenAtNightOrInTunnel()
+    {
+        var g = new WalkGraph(new List<WalkSurface>
+        {
+            new WalkSurface("Walk_Console", new Vector3(0, 0.38f, 1.06f), new Vector2(0.2f, 0.2f)),
+            new WalkSurface("Walk_Floor", new Vector3(0, 0.01f, 0.5f), new Vector2(1.2f, 0.25f)),
+        });
+        g.Weight = i => CritterDirector.RoamWeight(g.Surfaces[i].name);
+        foreach (var m in new[] { new Mood { night = true, moving = true }, new Mood { tunnel = true, moving = true } })
+        {
+            var b = new CritterBrain(g, 0, 13);
+            Run(b, m, 20);
+            Assert.AreEqual(1, b.Surface, $"night={m.night} tunnel={m.tunnel}: 둥지에서 잠들지 않고 발판으로 내려온다");
+        }
+    }
+
+    [Test]
+    public void StrollsStayShortAndSlow()
+    {
+        var g = new WalkGraph(new List<WalkSurface> { new WalkSurface("Walk_RearSeat_R", new Vector3(0, 0.44f, 0), new Vector2(1.2f, 1.2f)) });
+        var b = new CritterBrain(g, 0, 12);
+        var walks = 0;
+        var last = CritterState.Idle;
+        var from = b.Position;
+        for (var t = 0f; t < 120; t += 0.05f)
+        {
+            if (b.State != CritterState.Walk) from = b.Position;
+            b.Tick(0.05f, Day);
+            if (b.State == CritterState.Walk && last != CritterState.Walk)
+            {
+                walks++;
+                Assert.LessOrEqual((b.Target - from).magnitude, CritterBrain.StrollRadius + 1e-3f, $"t={t}: 한 번에 멀리 가지 않는다");
+            }
+            last = b.State;
+        }
+        Assert.Greater(walks, 3, "그래도 가끔은 걷는다");
+        Assert.LessOrEqual(CritterBrain.WalkSpeed, 0.25f, "아기 걸음");
+    }
+
+    [Test]
     public void AwakeForKeepsNewbornUpAtNight()
     {
         var g = new Allo.Critters.WalkGraph(new[] { new Allo.Critters.WalkSurface("a", Vector3.zero, new Vector2(1, 1)) });

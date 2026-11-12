@@ -31,6 +31,9 @@ const _scenario =
 /// 탐험 화면에서 알을 돌보다가 그 안에서 깨어나는 장면을 보여 줄 때 쓴다 (시연·확인용)
 const _fakeTimeScale = int.fromEnvironment('FAKE_TIME_SCALE', defaultValue: 20);
 
+/// --dart-define=DEMO_SPECIES=road_sprout → 체험 주행에서 늘 이 종이 깨어난다 (시연용, 가짜 신호일 때만)
+const _demoSpecies = String.fromEnvironment('DEMO_SPECIES');
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // 앱 전체 가로 고정 (탐험 게임 설계 5절)
@@ -56,7 +59,8 @@ Future<Widget> createApp({
         feed: FakeVehicleFeed(
             scenario: FakeScenario.byName(scenario),
             timeScale: _fakeTimeScale.toDouble()),
-        eggApi: configuredEggApi());
+        eggApi: configuredEggApi(),
+        demoSpeciesId: _demoSpecies.isEmpty ? null : _demoSpecies);
   }
   if (feedKind != 'firebase') {
     return const ConnectionSetupApp(message: '실행 설정을 확인해야 해요.');

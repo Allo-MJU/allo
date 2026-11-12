@@ -99,8 +99,28 @@ public class CritterVisibilityTests
         CollectionAssert.Contains(names, "Walk_Floor");
         CollectionAssert.Contains(names, "Walk_Dashboard");
         CollectionAssert.DoesNotContain(names, "Walk_RearShelf");
-        CollectionAssert.DoesNotContain(names, "Walk_RearSeat_R"); // 아이 바로 옆: 너무 가깝고 정면에서 90도
+        CollectionAssert.Contains(names, "Walk_RearSeat_R"); // 아이 옆자리: 정면에서 90도라도 아이 곁이라 둔다
+        CollectionAssert.DoesNotContain(names, "Walk_RearSeat_L"); // 아이가 앉은 자리
         var g = d.BuildGraph();
         Assert.IsNotEmpty(g.Neighbors(g.IndexOf("Walk_Floor")));
+        Assert.IsNotEmpty(g.Neighbors(g.IndexOf("Walk_RearSeat_R")), "옆자리에서 발판·창턱으로 건너갈 수 있어야 한다");
+        Assert.AreEqual(0, g.WeightOf(g.IndexOf("Walk_Dashboard")), "대시보드는 스스로 가지 않는다");
+        Assert.AreEqual(0, g.WeightOf(g.IndexOf("Walk_Console")), "둥지 콘솔은 스스로 가지 않는다");
+        // 앞쪽은 아이에게서 HomeDepth 까지만: 창턱이 앞문까지 이어지지 않는다
+        var eyeZ = d.childEye.position.z;
+        foreach (var sf in g.Surfaces)
+            if (!CritterDirector.IsFarSurface(sf.name))
+                Assert.LessOrEqual(sf.center.z + sf.size.y / 2, eyeZ + CritterDirector.HomeDepth + 1e-3f, sf.name);
+    }
+
+    [Test]
+    public void ClipDepthCutsFrontAndDropsSlivers()
+    {
+        var r = new Rect(0, 0, 1, 2); // z 0..2
+        var cut = CritterDirector.ClipDepth(r, 0.5f);
+        Assert.AreEqual(0.5f, cut.Value.yMax, 1e-5f);
+        Assert.AreEqual(1f, cut.Value.width, 1e-5f);
+        Assert.AreEqual(r, CritterDirector.ClipDepth(r, 5f), "안 넘으면 그대로");
+        Assert.IsNull(CritterDirector.ClipDepth(r, 0.05f), "너무 얕으면 뺀다");
     }
 }

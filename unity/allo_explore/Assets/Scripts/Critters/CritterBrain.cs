@@ -19,11 +19,15 @@ namespace Allo.Critters
     /// - 밤: 쉬는 대신 존다(Sleep) / 비: 창턱으로 가서 밖을 본다(Peek)
     /// - 터널: 팔걸이 쪽으로 모여 웅크린다(Huddle) / 정차: 더 자주 움직인다
     /// - Jolt(급제동·급조향): 하던 일을 멈추고 구른다(Tumble)
+    /// - 아이 곁에 머문다: 천천히 걷고, 한 번에 StrollRadius 안에서만 거닐고, 비중(WalkGraph.Weight)이 0인 면(둥지 콘솔·대시보드)에
+    ///   가 있으면 비중 있는 이웃 면으로 돌아온다
     /// 위치(Position)는 상태에 맞게 Target 쪽으로 옮긴다. 점프 높이는 그리는 쪽이 Progress 로 계산한다.
     public sealed class CritterBrain
     {
         public const float TumbleSeconds = 1.2f;
-        public const float WalkSpeed = 0.35f;   // m/s
+        public const float WalkSpeed = 0.2f;    // m/s (아기 걸음)
+        /// 한 번 걸을 때 지금 자리에서 이만큼(m) 안에서만 고른다
+        public const float StrollRadius = 0.3f;
         public const float JumpSeconds = 0.55f;
 
         readonly WalkGraph _g;
@@ -180,7 +184,8 @@ namespace Allo.Critters
             // 분위기가 바뀌면 오래 기다리지 않고 바로 반응한다
             if (StayAsleep && State == CritterState.Idle) Enter(CritterState.Sleep, Position, 3);
             if (Hold) return;
-            if (mood.night && AwakeFor <= 0 && State == CritterState.Idle) Enter(CritterState.Sleep, Position, Range(4, 9));
+            // 밤에는 쉬는 대신 존다. 단 아이에게서 먼 면(둥지 콘솔)에서는 먼저 돌아온 뒤에 (Decide 가 데려온다)
+            if (mood.night && AwakeFor <= 0 && State == CritterState.Idle && _g.WeightOf(Surface) > 0) Enter(CritterState.Sleep, Position, Range(4, 9));
             if (!mood.night && !StayAsleep && State == CritterState.Sleep) Enter(CritterState.Idle, Position, Range(0.3f, 1));
             if (!mood.tunnel && State == CritterState.Huddle && _timer > 1) _timer = 1;
         }
@@ -189,6 +194,14 @@ namespace Allo.Critters
         {
             if (StayAsleep) { Enter(CritterState.Sleep, Position, 3); return; }
             if (Hold) { Enter(CritterState.Idle, Position, 0.5f); return; }
+            // 아이에게서 먼 면(둥지가 있는 콘솔 등)에 있으면 잠깐 쉬었다가 아이 곁으로 돌아온다.
+            // 밤·터널보다 먼저: 둥지에서 깨어난 뒤 거기서 그대로 잠들지 않게
+            if (_g.WeightOf(Surface) <= 0 && _g.Neighbors(Surface).Count > 0)
+            {
+                if (State != CritterState.Idle) { Enter(CritterState.Idle, Position, Range(1f, 2f)); return; }
+                JumpTo(PickNeighbor());
+                return;
+            }
             var roam = mood.moving ? 1f : 0.5f; // 정차 중엔 더 자주 움직인다
             if (mood.tunnel)
             {
@@ -209,30 +222,37 @@ namespace Allo.Critters
                 if (sill >= 0) { JumpTo(sill); return; }
             }
             var r = _rng.NextDouble();
-            if (State != CritterState.Idle && r < 0.4)
-                Enter(CritterState.Idle, Position, Range(0.8f, 2.5f) * roam);
-            else if (r < 0.75 || _g.Neighbors(Surface).Count == 0)
-                Enter(CritterState.Walk, _g.RandomPoint(Surface, _rng), 0);
+            if (State != CritterState.Idle && r < 0.45)
+                Enter(CritterState.Idle, Position, Range(2.5f, 6f) * roam);
+            else if (r < 0.85 || !HasWeightedNeighbor())
+                Enter(CritterState.Walk, _g.RandomPointNear(Surface, Position, StrollRadius, _rng), 0);
             else
                 JumpTo(PickNeighbor());
         }
 
-        /// 이웃 면을 고른다. 앞좌석 사이 바닥은 정면 화면 아래 밖이라 다른 면의 1/4 만 고른다
+        /// 스스로 건너갈 만한(비중 > 0) 이웃 면이 있는지. 없으면 지금 면 안에서만 거닌다
+        bool HasWeightedNeighbor()
+        {
+            foreach (var n in _g.Neighbors(Surface)) if (_g.WeightOf(n) > 0) return true;
+            return false;
+        }
+
+        /// 이웃 면을 비중(WalkGraph.Weight)대로 고른다. 비중 있는 이웃이 없으면 아무 이웃이나 (비중 0 면에서 돌아올 길은 있어야 한다)
         int PickNeighbor()
         {
             var ns = _g.Neighbors(Surface);
             var total = 0f;
-            foreach (var n in ns) total += Weight(n);
+            foreach (var n in ns) total += _g.WeightOf(n);
+            if (total <= 0) return ns[_rng.Next(ns.Count)];
             var r = (float)_rng.NextDouble() * total;
             foreach (var n in ns)
             {
-                r -= Weight(n);
-                if (r <= 0) return n;
+                r -= _g.WeightOf(n);
+                if (r <= 0 && _g.WeightOf(n) > 0) return n;
             }
+            for (var i = ns.Count - 1; i >= 0; i--) if (_g.WeightOf(ns[i]) > 0) return ns[i];
             return ns[ns.Count - 1];
         }
-
-        float Weight(int surface) => _g.Surfaces[surface].name == "Walk_Floor" ? 0.25f : 1f;
 
         void JumpTo(int surface)
         {

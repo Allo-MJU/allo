@@ -24,14 +24,21 @@ namespace Allo.Critters
         ArtPose _shown = (ArtPose)(-1);
         CharacterModel _model; // 있으면 3D, 없으면 2D 그림
         float _yaw;            // 3D 모델이 보는 방향 (도)
+        WalkGraph _graph;      // 서 있는 면의 크기를 보려고 (창턱처럼 좁은 면)
+        float _ledge;          // 창턱에서 차 안쪽으로 당긴 거리 (m, 부드럽게 바뀐다)
+
+        /// 창턱(좁은 면)에 앉은 2D 그림의 바깥쪽 가장자리를 창턱 안쪽 가장자리에서 이만큼(m) 바깥에 둔다.
+        /// 그림 가운데를 창턱 위에 두면 절반이 문·유리 속으로 들어가 발과 잎이 잘려 보인다
+        public const float LedgeOverhang = 0.01f;
 
         public bool Is3D => _model != null;
 
         public string Id { get; private set; }
         public CritterBrain Brain => _brain;
 
-        public void Init(string id, CritterBrain brain, CritterArt art, Material baseMat, Material shadowMat, GameObject model = null)
+        public void Init(string id, CritterBrain brain, CritterArt art, Material baseMat, Material shadowMat, GameObject model = null, WalkGraph graph = null)
         {
+            _graph = graph;
             Id = id;
             _brain = brain;
             if (model != null)
@@ -173,14 +180,35 @@ namespace Allo.Critters
             _last = p;
             transform.position = p;
             _body.position = p + Vector3.up * (lift + Height * sy / 2);
+            // 창턱처럼 몸보다 좁은 면에 앉으면 그림을 차 안쪽(x=0 쪽)으로 당겨 문·유리 앞에 둔다
+            var aspectNow = _art?.Aspect ?? 1;
+            var ledgeWant = 0f;
+            if (_graph != null && _brain.Surface < _graph.Surfaces.Count)
+            {
+                var s = _graph.Surfaces[_brain.Surface];
+                if (s.size.x < WalkGraph.NarrowSurface && Mathf.Abs(s.center.x) > 0.2f)
+                {
+                    var half = Height * aspectNow * Mathf.Abs(sx) * 0.5f;
+                    var inner = Mathf.Abs(s.center.x) - s.size.x / 2; // 창턱 안쪽 가장자리 (|x|)
+                    ledgeWant = Mathf.Max(0, Mathf.Abs(p.x) - (inner + LedgeOverhang - half));
+                }
+            }
+            _ledge = Mathf.MoveTowards(_ledge, ledgeWant, dt * 0.8f);
+            if (_ledge > 0) _body.position -= new Vector3(Mathf.Sign(p.x) * _ledge, 0, 0);
             // 납작한 그림이 뒤쪽 의자·머리받침에 파묻히지 않게 카메라 쪽으로 몸 반 너비만큼 당긴다.
             // 아이 바로 옆 자리처럼 이미 가까우면 더 크게 보이기만 하므로 눈에서 NearLimit 안으로는 당기지 않는다
+            // 당기는 건 카메라가 뒤(차 뒤쪽, -z)에 있을 때만: 아이 옆자리처럼 카메라가 옆에 있으면 당기다 팔걸이·문에 파묻힌다
             if (cam != null)
             {
                 var toCam = cam.transform.position - _body.position;
                 toCam.y = 0;
-                var pull = Mathf.Clamp(toCam.magnitude - NearLimit, 0, Height * 0.5f);
-                if (toCam.sqrMagnitude > 1e-6f) _body.position += toCam.normalized * pull;
+                if (toCam.sqrMagnitude > 1e-6f)
+                {
+                    var dir = toCam.normalized;
+                    var fromBehind = Mathf.Clamp01(-dir.z);
+                    var pull = Mathf.Clamp(toCam.magnitude - NearLimit, 0, Height * 0.5f) * fromBehind;
+                    _body.position += dir * pull;
+                }
             }
             if (cam != null)
             {

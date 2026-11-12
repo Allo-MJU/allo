@@ -32,6 +32,12 @@ namespace Allo.Critters
         /// 자리를 고를 때 이 조건을 만족하는 점을 먼저 고른다 (아이가 정면을 볼 때 편하게 보이는 곳). 없으면 아무 데나
         public Func<Vector3, bool> Comfortable;
 
+        /// 면마다 돌아다닐 때 고르는 비중 (0 = 스스로는 가지 않고, 가 있으면 떠난다. 둥지가 있는 콘솔·대시보드처럼 아이에게서 먼 면).
+        /// 없으면 모두 1
+        public Func<int, float> Weight;
+
+        public float WeightOf(int i) => Weight == null ? 1f : Mathf.Max(0, Weight(i));
+
         public WalkGraph(IReadOnlyList<WalkSurface> surfaces, float maxJump = 0.9f, float maxRise = 0.75f)
         {
             Surfaces = surfaces;
@@ -76,6 +82,32 @@ namespace Allo.Critters
                 if (Comfortable(p)) return p;
             }
             return first;
+        }
+
+        /// from 에서 radius 안의 자리 (짧게 거닐기). 편한 자리를 먼저, 없으면 radius 안 아무 데나,
+        /// 그것도 없으면 가장 가까운 후보 쪽으로 radius 만큼만 (늘 radius 안, 면 안)
+        public Vector3 RandomPointNear(int i, Vector3 from, float radius, System.Random rng)
+        {
+            var r2 = radius * radius;
+            Vector3? near = null;
+            var best = AnyPoint(i, rng);
+            var bestD = (best - from).sqrMagnitude;
+            for (var k = 0; k < 16; k++)
+            {
+                var p = k == 0 ? best : AnyPoint(i, rng);
+                var d = (p - from).sqrMagnitude;
+                if (d <= r2)
+                {
+                    if (Comfortable == null || Comfortable(p)) return p;
+                    near ??= p;
+                }
+                if (d < bestD) { best = p; bestD = d; }
+            }
+            if (near.HasValue) return near.Value;
+            var dir = best - from;
+            dir.y = 0;
+            if (dir.sqrMagnitude < 1e-8f) return Clamp(from, Surfaces[i]);
+            return Clamp(from + dir.normalized * radius, Surfaces[i]);
         }
 
         Vector3 AnyPoint(int i, System.Random rng)
