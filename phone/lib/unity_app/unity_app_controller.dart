@@ -144,6 +144,15 @@ class UnityAppController extends ChangeNotifier {
     };
   }
 
+  bool get _canStartEgg =>
+      _ready &&
+      (game.canStart ||
+          (game.isFake &&
+              game.sessionEnded &&
+              game.sessionSaved &&
+              !game.busy &&
+              !game.endingSession));
+
   Map<String, dynamic> get snapshot {
     final c = camp.state;
     final buffs = c.toJson()['buffs'] as Map;
@@ -165,7 +174,7 @@ class UnityAppController extends ChangeNotifier {
       'notice': _notice.isNotEmpty ? _notice : game.pairingNotice ?? '',
       'connected': game.paired && !game.sessionEnded,
       'isDemo': game.isFake,
-      'canStart': _ready && game.canStart,
+      'canStart': _canStartEgg,
       'sessionEnded': game.sessionEnded,
       'speechAvailable': game.eggApi != null,
       'photoAvailable': game.eggApi != null,
@@ -644,6 +653,7 @@ class UnityAppController extends ChangeNotifier {
   Future<bool> _dispatch(Map<String, dynamic> m) async {
     switch (m['action']) {
       case 'startEgg':
+        if (!_canStartEgg) return false;
         _disconnected = false;
         game.prepareNextFakeTrip();
         return game.startIncubating(EggTier.values.byName(m['tier']),
@@ -687,7 +697,9 @@ class UnityAppController extends ChangeNotifier {
         return await game.recoverEggPhoto() != EggFeedback.none &&
             game.error == null;
       case 'discardEgg':
-        return await game.discardEgg() != EggFeedback.none &&
+        await game.discardEgg();
+        return game.eggId == m['eggId'] &&
+            game.affinityRound?.phase == AffinityPhase.discarded &&
             game.error == null;
       case 'assign':
         return camp.assign(CampRole.values.byName(m['role']),

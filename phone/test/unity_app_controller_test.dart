@@ -5,6 +5,7 @@ import 'package:allo_core/allo_core.dart';
 import 'package:allo_phone/base_camp/base_camp_controller.dart';
 import 'package:allo_phone/base_camp/base_camp_store.dart';
 import 'package:allo_phone/game/game_controller.dart';
+import 'package:allo_phone/feed/fake_feed.dart';
 import 'package:allo_phone/storage/dex_store.dart';
 import 'package:allo_phone/unity_app/unity_app_controller.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'affinity_controller_test.dart' show DemoApi;
 import 'recurring_incubation_test.dart' show RoundFeed;
 import 'session_resume_test.dart' show sessionA;
+import 'session_end_test.dart' show SavingStore;
 
 class FailingCheckpointDex extends DexStore {
   bool fail = false;
@@ -21,6 +23,16 @@ class FailingCheckpointDex extends DexStore {
       EggTier tier, IncubationProgress progress) async {
     if (fail) throw StateError('disk full');
     await super.saveIncubationProgress(tier, progress);
+  }
+}
+
+class CountingFakeFeed extends FakeVehicleFeed {
+  CountingFakeFeed() : super(scenario: FakeScenario.clear);
+  int watches = 0;
+  @override
+  Stream<VehicleState> watch() {
+    watches++;
+    return super.watch();
   }
 }
 
@@ -81,6 +93,99 @@ void main() {
     app.dispose();
     game.dispose();
     camp.dispose();
+  });
+  test('saved ended demo exposes cabin start only after the save finishes',
+      () async {
+    app.dispose();
+    game.dispose();
+    final dex = SavingStore();
+    final fake = CountingFakeFeed();
+    game = GameController(feed: fake, dex: dex, monotonicMs: () => 0);
+    app = UnityAppController(game: game, camp: camp);
+    await app.initialize();
+    await action('navigate', {'view': 'cabin'});
+    expect(await action('startEgg', {'tier': 'small'}), isTrue);
+    final previousEgg = game.eggId;
+    dex.gate = Completer<void>();
+    expect(await action('endTrip'), isTrue);
+    await Future<void>.delayed(Duration.zero);
+    expect(game.sessionEnded, isTrue);
+    expect(game.endingSession, isTrue);
+    expect(game.sessionSaved, isFalse);
+    expect(app.snapshot['canStart'], isFalse);
+    expect(await action('startEgg', {'tier': 'small'}), isFalse);
+    final saved = game.endSession();
+    dex.gate!.complete();
+    expect(await saved, isTrue);
+    expect(game.sessionSaved, isTrue);
+    expect(app.snapshot['canStart'], isTrue);
+    expect(game.sessionEnded,
+        isTrue); // Publishing eligibility never starts a trip.
+    expect(game.eggId, previousEgg);
+    expect((app.snapshot['egg'] as Map)['active'], isFalse);
+    expect(await action('startEgg', {'tier': 'small'}), isTrue);
+    expect(game.sessionEnded, isFalse);
+    expect(game.sessionSaved, isFalse);
+    expect(fake.watches, 2); // A new journey resumes the saved unfinished egg.
+    expect(game.game.stage, Stage.incubating);
+    expect(app.snapshot['view'], 'cabin');
+  });
+  test('failed demo end save keeps cabin next-trip start disabled', () async {
+    app.dispose();
+    game.dispose();
+    final dex = SavingStore();
+    game = GameController(
+        feed: FakeVehicleFeed(scenario: FakeScenario.clear),
+        dex: dex,
+        monotonicMs: () => 0);
+    app = UnityAppController(game: game, camp: camp);
+    await app.initialize();
+    await action('navigate', {'view': 'cabin'});
+    expect(await action('startEgg', {'tier': 'small'}), isTrue);
+    dex.fail = true;
+    await action('endTrip');
+    await Future<void>.delayed(Duration.zero);
+    expect(await game.endSession(), isFalse);
+    expect(game.sessionSaved, isFalse);
+    expect(app.snapshot['canStart'], isFalse);
+    expect(await action('startEgg', {'tier': 'small'}), isFalse);
+    expect(game.sessionEnded, isTrue);
+  });
+  test('saved real vehicle end never enables next demo journey', () async {
+    await action('navigate', {'view': 'cabin'});
+    feed.carEvents.add({'type': 'sessionEnd', 'by': 'car'});
+    expect(await game.endSession(), isTrue);
+    expect(game.sessionSaved, isTrue);
+    expect(app.snapshot['canStart'], isFalse);
+    expect(await action('startEgg', {'tier': 'small'}), isFalse);
+    expect(game.sessionEnded, isTrue);
+  });
+  test('saved discard is accepted even when core feedback is none', () async {
+    await action('navigate', {'view': 'cabin'});
+    final egg = game.eggId;
+    expect(await action('discardEgg', {'eggId': egg}), isTrue);
+    expect(game.eggFeedback, EggFeedback.none);
+    expect(game.affinityRound!.phase, AffinityPhase.discarded);
+    expect((app.snapshot['egg'] as Map)['phase'], 'discarded');
+    expect(await action('discardEgg', {'eggId': egg}), isFalse);
+  });
+  test('discard save failure is rejected and does not publish discarded egg',
+      () async {
+    app.dispose();
+    game.dispose();
+    final dex = FailingCheckpointDex();
+    feed = RoundFeed();
+    game = GameController(feed: feed, dex: dex, monotonicMs: () => 0);
+    app = UnityAppController(game: game, camp: camp);
+    await app.initialize();
+    await game.pair(sessionA, pairCode: '123456');
+    await game.startIncubating(EggTier.small, useAffinity: true);
+    feed.sample();
+    await action('navigate', {'view': 'cabin'});
+    dex.fail = true;
+    expect(await action('discardEgg', {'eggId': game.eggId}), isFalse);
+    expect((app.snapshot['egg'] as Map)['phase'], 'incubating');
+    expect(app.snapshot['error'], isNotEmpty);
   });
   test(
       'valid current cabin pet commits once, duplicate request never mutates again',

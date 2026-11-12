@@ -49,9 +49,12 @@ namespace Allo.App
             var group = Column(content, 14);
             group.padding = new RectOffset(18, 18, 16, 22);
             var fit = content.gameObject.AddComponent<ContentSizeFitter>(); fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            _scroll = surface.gameObject.AddComponent<ScrollRect>();
-            _scroll.viewport = viewport; _scroll.content = content; _scroll.horizontal = false;
-            _scroll.movementType = ScrollRect.MovementType.Clamped; _scroll.scrollSensitivity = 30;
+            var scroll = surface.gameObject.AddComponent<ScrollRect>();
+            scroll.viewport = viewport; scroll.content = content; scroll.horizontal = false;
+            scroll.movementType = ScrollRect.MovementType.Clamped; scroll.scrollSensitivity = 30;
+            // Pane order is stable within each view. Confirmation sheets have their own offset.
+            var key = _renderedView + (_confirmAction == null ? ":view:" : ":confirmation:") + _scrolls.Count;
+            _scrolls[key] = scroll;
             return content;
         }
         VerticalLayoutGroup Column(RectTransform rect, float spacing = 12)

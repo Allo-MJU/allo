@@ -3,6 +3,28 @@ using NUnit.Framework;
 
 public class AppSessionTests
 {
+    [TestCase("cabin")]
+    [TestCase("settings")]
+    [TestCase("camp")]
+    [TestCase("dex")]
+    [TestCase("inventory")]
+    public void AppBackReturnsToHomeWithoutClosingTheUnityHost(string view)
+    {
+        Assert.AreEqual(AppBackAction.NavigateHome, AppSession.BackActionFor(new AppState { view = view }));
+    }
+
+    [Test]
+    public void AppHomeBackBackgroundsTheTaskRatherThanExposingFlutter()
+    {
+        Assert.AreEqual(AppBackAction.BackgroundApp, AppSession.BackActionFor(new AppState { view = "home" }));
+    }
+
+    [Test]
+    public void LegacyExploreBackStillClosesWhenNoAppSnapshotExists()
+    {
+        Assert.AreEqual(AppBackAction.CloseExplore, AppSession.BackActionFor(null));
+    }
+
     [Test]
     public void OlderOrDuplicateSnapshotsCannotRewindTheApp()
     {

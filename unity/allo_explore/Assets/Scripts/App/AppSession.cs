@@ -4,6 +4,8 @@ using UnityEngine;
 
 namespace Allo.App
 {
+    public enum AppBackAction { CloseExplore, NavigateHome, BackgroundApp }
+
     /// Authoritative snapshots come from Dart. The Unity side emits intents only.
     public sealed class AppSession : MonoBehaviour
     {
@@ -13,6 +15,10 @@ namespace Allo.App
         public static AppState State { get; private set; }
         public static event Action<AppState> Changed;
         public static string CurrentView => State?.view ?? "home";
+
+        public static AppBackAction BackActionFor(AppState state) => state == null
+            ? AppBackAction.CloseExplore
+            : state.view == "home" ? AppBackAction.BackgroundApp : AppBackAction.NavigateHome;
 
         public static bool Accepts(AppState current, AppState next) =>
             next != null && next.v == 1 && next.type == "app" &&

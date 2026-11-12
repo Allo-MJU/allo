@@ -26,7 +26,7 @@ namespace Allo.App
         readonly List<Action> _liveChecks = new List<Action>();
         Rect _lastSafe;
         Vector2Int _lastScreen;
-        ScrollRect _scroll;
+        readonly Dictionary<string, ScrollRect> _scrolls = new Dictionary<string, ScrollRect>();
 
         void Awake()
         {
@@ -143,9 +143,10 @@ namespace Allo.App
         {
             _liveChecks.Clear();
             Canvas.ForceUpdateCanvases();
-            if (_scroll != null && _renderedView == View) _scrollPositions[View] = _scroll.verticalNormalizedPosition;
+            foreach (var panel in _scrolls)
+                if (panel.Value != null) _scrollPositions[panel.Key] = panel.Value.verticalNormalizedPosition;
             foreach (Transform child in _content) { child.gameObject.SetActive(false); Destroy(child.gameObject); }
-            _scroll = null;
+            _scrolls.Clear();
             if (_renderedView != View) { _confirmAction = null; _confirmTitle = null; }
             _renderedView = View;
             if (_state == null || !_state.ready)
@@ -169,7 +170,8 @@ namespace Allo.App
                 }
             }
             Canvas.ForceUpdateCanvases();
-            if (_scroll != null && _scrollPositions.TryGetValue(View, out var position)) _scroll.verticalNormalizedPosition = position;
+            foreach (var panel in _scrolls)
+                if (_scrollPositions.TryGetValue(panel.Key, out var position)) panel.Value.verticalNormalizedPosition = position;
             _dirty = false;
         }
 
