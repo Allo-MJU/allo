@@ -240,9 +240,9 @@ namespace Allo.App
             v.plot.transform.SetParent(v.root, false);
             for (var i = 0; i < 4; i++)
                 Shape(v.plot.transform, "Plot peg", PrimitiveType.Cylinder, new Vector3(i % 2 == 0 ? -.65f : .65f, .2f, i < 2 ? -.4f : .4f), new Vector3(.1f, .2f, .1f), Cocoa);
-            Label(v.plot.transform, "COMING SOON", new Vector3(0, .25f, -.1f), .1f, Cocoa);
+            Label(v.plot.transform, "건설 전", new Vector3(0, .25f, -.1f), .1f, Cocoa);
             Shape(v.root, "Facility sign", PrimitiveType.Cube, new Vector3(0, .33f, -.85f), new Vector3(1.7f, .42f, .08f), Cocoa);
-            Label(v.root, id.ToUpperInvariant(), new Vector3(0, .36f, -.9f), .115f, Cream);
+            Label(v.root, id == "workshop" ? "공방" : id == "kitchen" ? "주방" : "훈련장", new Vector3(0, .36f, -.9f), .115f, Cream);
             for (var i = 0; i < 3; i++)
             {
                 v.lamps[i] = Shape(v.root, "Level " + (i + 1), PrimitiveType.Sphere, new Vector3((i - 1) * .19f, .15f, -.91f), Vector3.one * .1f, Cocoa).GetComponent<Renderer>();
@@ -317,7 +317,7 @@ namespace Allo.App
                             quad.GetComponent<Renderer>().sharedMaterial = material;
                         }));
                     }
-                    Label(friend, "FRIEND", new Vector3(0, .66f, -.05f), .07f, Cocoa);
+                    Label(friend, "친구", new Vector3(0, .66f, -.05f), .07f, Cocoa);
                 }
                 index++;
             }
@@ -353,6 +353,9 @@ namespace Allo.App
             go.transform.localPosition = position;
             go.transform.localRotation = Quaternion.identity;
             var label = go.AddComponent<TextMesh>();
+            var font = Resources.Load<Font>("Fonts/DoHyeon-Regular") ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.font = font;
+            go.GetComponent<MeshRenderer>().sharedMaterial = font.material;
             label.text = text;
             label.fontSize = 40;
             label.characterSize = size;
