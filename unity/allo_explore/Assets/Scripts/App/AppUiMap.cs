@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Allo.Critters;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,11 +10,12 @@ namespace Allo.App
     public sealed partial class AppUi
     {
         bool _campDetail, _speechDrawer, _zoneDrawer;
-        RectTransform _villageLayer, _villageContent, _villageFriend;
+        RectTransform _villageLayer, _villageContent;
         ScrollRect _villageScroll;
         Vector2 _villageViewportSize;
         bool _villageSized;
-        string _villageFriendId;
+        readonly Dictionary<string, RectTransform> _villageFriends = new Dictionary<string, RectTransform>();
+        readonly Dictionary<string, string> _villageFriendArt = new Dictionary<string, string>();
         readonly Dictionary<string, RectTransform> _facilityNodes = new Dictionary<string, RectTransform>();
         readonly Dictionary<string, Sprite> _villageArt = new Dictionary<string, Sprite>();
         readonly Dictionary<string, Sprite> _lineIcons = new Dictionary<string, Sprite>();
@@ -127,18 +129,58 @@ namespace Allo.App
 
         void UpdateVillageFriend()
         {
-            var friend = Items(_state.creatures).FirstOrDefault();
-            if (friend == null) { if (_villageFriend != null) _villageFriend.gameObject.SetActive(false); return; }
-            if (_villageFriend != null && _villageFriendId == friend.id) { _villageFriend.gameObject.SetActive(true); return; }
-            if (_villageFriend != null) { _villageFriend.gameObject.SetActive(false); Destroy(_villageFriend.gameObject); }
-            _villageFriendId = friend.id;
-            _villageFriend = Rect("Village friend " + friend.id, _villageContent);
-            _villageFriend.anchorMin = _villageFriend.anchorMax = new Vector2(.37f, .30f); _villageFriend.sizeDelta = new Vector2(90, 98);
-            var portrait = Rect("Friend avatar", _villageFriend); Stretch(portrait, 10, 24, -10, 0); Art(portrait, friend.sprite, 72);
-            var badge = Surface("Friend name", _villageFriend, new Color(.08f, .14f, .11f, .80f), false); Stretch(badge, -15, 0, 15, 24, Vector2.zero, new Vector2(1, 0));
-            var name = Label(badge, friend.name, 17, TextAnchor.MiddleCenter); name.color = Cream; Stretch(name.rectTransform, 4, 0, -4, 0);
-            var hit = _villageFriend.gameObject.AddComponent<Image>(); hit.color = Color.clear;
-            _villageFriend.gameObject.AddComponent<Button>().onClick.AddListener(() => { _selectedDex = friend.speciesId; _selectedCreature = friend.id; Navigate("dex"); });
+            var friends = Items(_state.creatures).Take(4).ToArray();
+            var owned = new HashSet<string>(friends.Select(c => c.id));
+            foreach (var id in _villageFriends.Keys.ToArray())
+                if (!owned.Contains(id)) RemoveVillageFriend(id);
+            Vector2[] places = { new Vector2(.34f, .32f), new Vector2(.43f, .25f), new Vector2(.59f, .31f), new Vector2(.73f, .25f) };
+            for (var i = 0; i < friends.Length; i++)
+            {
+                var friend = friends[i];
+                var artKey = friend.speciesId + "|" + friend.sprite;
+                if (_villageFriends.ContainsKey(friend.id) && _villageFriendArt[friend.id] != artKey) RemoveVillageFriend(friend.id);
+                if (!_villageFriends.TryGetValue(friend.id, out var marker))
+                {
+                    marker = Rect("Village friend " + friend.id, _villageContent);
+                    marker.pivot = new Vector2(.5f, 0); marker.sizeDelta = new Vector2(136, 150);
+                    var portrait = Rect("Friend avatar", marker); Stretch(portrait, 6, 24, -6, 0);
+                    VillageFriendPortrait(portrait, friend.sprite);
+                    var badge = Surface("Friend name", marker, new Color(.08f, .14f, .11f, .84f), false);
+                    Stretch(badge, -15, 0, 15, 24, Vector2.zero, new Vector2(1, 0));
+                    var name = Label(badge, friend.name, 17, TextAnchor.MiddleCenter); name.color = Cream; Stretch(name.rectTransform, 4, 0, -4, 0);
+                    var hit = marker.gameObject.AddComponent<Image>(); hit.color = Color.clear;
+                    marker.gameObject.AddComponent<Button>().onClick.AddListener(() => { _selectedDex = friend.speciesId; _selectedCreature = friend.id; Navigate("dex"); });
+                    _villageFriends[friend.id] = marker; _villageFriendArt[friend.id] = artKey;
+                }
+                marker.anchorMin = marker.anchorMax = places[i];
+                marker.Find("Friend name").GetComponentInChildren<Text>().text = friend.name;
+            }
+        }
+
+        void RemoveVillageFriend(string id)
+        {
+            var marker = _villageFriends[id]; marker.gameObject.SetActive(false);
+            if (Application.isPlaying) Destroy(marker.gameObject); else DestroyImmediate(marker.gameObject);
+            _villageFriends.Remove(id); _villageFriendArt.Remove(id);
+        }
+
+        void VillageFriendPortrait(RectTransform parent, string sprite)
+        {
+            var artwork = Rect("Canonical friend artwork", parent); Stretch(artwork);
+            var image = artwork.gameObject.AddComponent<RawImage>(); image.color = Color.clear; image.raycastTarget = false;
+            var fit = artwork.gameObject.AddComponent<AspectRatioFitter>(); fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            var fallback = Rect("Missing friend artwork", parent); Stretch(fallback);
+            var icon = Rect("Friend silhouette", fallback); icon.anchorMin = icon.anchorMax = new Vector2(.5f, .6f); icon.sizeDelta = new Vector2(56, 56);
+            var silhouette = icon.gameObject.AddComponent<Image>(); silhouette.sprite = NavigationIcon("dex"); silhouette.color = Cream; silhouette.raycastTarget = false;
+            var hint = Label(fallback, "그림 준비 중", 15, TextAnchor.MiddleCenter); hint.color = Cream;
+            Stretch(hint.rectTransform, 0, 6, 0, 28, Vector2.zero, new Vector2(1, 0));
+            if (string.IsNullOrEmpty(sprite)) return;
+            StartCoroutine(SpriteLoader.Load(sprite, art =>
+            {
+                if (image == null) return;
+                image.texture = art[ArtPose.Idle]; image.color = Color.white; fit.aspectRatio = art.Aspect;
+                fallback.gameObject.SetActive(false);
+            }));
         }
 
         Sprite VillageSprite(string kind)

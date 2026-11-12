@@ -79,6 +79,32 @@ public class AppVillagePanTests
         AppSession.Receive(State(2, "cabin")); Call("OnState", AppSession.State); Render(); Assert.IsFalse(layer.gameObject.activeSelf);
         AppSession.Receive(State(3, "home")); Call("OnState", AppSession.State); Render(); Assert.IsTrue(layer.gameObject.activeSelf); Assert.AreSame(content, Get<RectTransform>("_villageContent"));
     }
+    [Test]
+    public void AuthoritativeFriendsCreateAtMostFourPersistentMarkersAndRemoveOnlyMissingIds()
+    {
+        var state = State(2, "home");
+        state.creatures = Enumerable.Range(0, 5).Select(i => new CreatureState { id = "owned-" + i, speciesId = "species-" + i, name = "친구 " + i, sprite = "" }).ToArray();
+        AppSession.Receive(state); Call("OnState", AppSession.State); Render();
+        var content = Get<RectTransform>("_villageContent");
+        Assert.AreEqual(4, content.Cast<Transform>().Count(t => t.name.StartsWith("Village friend ")));
+        Assert.IsNull(content.Find("Village friend owned-4"), "the fifth owned friend has no extra world marker");
+        var first = content.Find("Village friend owned-0"); var retained = content.Find("Village friend owned-1");
+        Assert.AreEqual(content, first.parent);
+        Assert.IsTrue(first.Find("Friend avatar/Missing friend artwork").gameObject.activeSelf, "missing art must be explicit, without substituting a different species");
+        retained.GetComponent<Button>().onClick.Invoke();
+        Assert.AreEqual("owned-1", Get<string>("_selectedCreature")); Assert.AreEqual("species-1", Get<string>("_selectedDex"));
+        var next = State(3, "home"); next.creatures = state.creatures.Select(c => new CreatureState { id = c.id, speciesId = c.speciesId, name = c.id == "owned-0" ? "바뀐 이름" : c.name, sprite = c.sprite }).ToArray();
+        AppSession.Receive(next); Call("OnState", AppSession.State); Render();
+        Assert.AreSame(first, content.Find("Village friend owned-0"), "unchanged IDs must keep their real GameObjects across snapshots");
+        Assert.AreEqual("바뀐 이름", first.Find("Friend name").GetComponentInChildren<Text>().text);
+        var replaced = State(4, "home"); replaced.creatures = next.creatures.Skip(1).ToArray();
+        AppSession.Receive(replaced); Call("OnState", AppSession.State); Render();
+        Assert.IsNull(content.Find("Village friend owned-0"));
+        Assert.AreSame(retained, content.Find("Village friend owned-1"));
+        Assert.NotNull(content.Find("Village friend owned-4"));
+        Assert.AreEqual(4, content.Cast<Transform>().Count(t => t.name.StartsWith("Village friend ")));
+    }
+
     static AppState State(int revision, string view) => new AppState { revision = revision, view = view, ready = true, facilities = new[] { new FacilityState { id = "workshop", label = "작업장", level = 1 }, new FacilityState { id = "kitchen", label = "주방", level = 1 }, new FacilityState { id = "training", label = "훈련장", level = 1 } } };
     T Get<T>(string name) => (T)typeof(AppUi).GetField(name, Private).GetValue(_ui);
     void Call(string name, params object[] args) => typeof(AppUi).GetMethod(name, Private).Invoke(_ui, args);
