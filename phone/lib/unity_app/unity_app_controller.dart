@@ -674,9 +674,29 @@ class UnityAppController extends ChangeNotifier {
         return started;
       case 'pair':
         final p = PairingCredentials.parseFields(m['sessionId'], m['pairCode']);
+        if (game.busy || game.endingSession) return false;
+        final resumeTier = _stoppedRoundTier ??
+            (game.game.stage == Stage.incubating ||
+                    game.game.stage == Stage.hatched
+                ? game.game.eggTier
+                : null);
+        // Real pairing saves and stops its old feed even for the same vehicle.
+        final resume =
+            resumeTier != null && (!game.isFake || _stoppedRoundTier != null);
+        if (resume) _stoppedRoundTier = resumeTier;
         await game.pair(p.sessionId, pairCode: p.code);
-        if (game.paired) _disconnected = false;
-        return game.paired;
+        if (!game.paired) return false;
+        _disconnected = false;
+        // The core intentionally closes a saved hatch when the vehicle changes.
+        if (resume && game.game.stage == Stage.idle) {
+          _stoppedRoundTier = null;
+          return true;
+        }
+        if (!resume) return true;
+        final resumed =
+            await game.startIncubating(resumeTier, useAffinity: true);
+        if (resumed) _stoppedRoundTier = null;
+        return resumed;
       case 'disconnect':
         final ok = await game.disconnect();
         if (ok) {

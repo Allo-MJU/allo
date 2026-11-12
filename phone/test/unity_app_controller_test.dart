@@ -13,7 +13,7 @@ import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'affinity_controller_test.dart' show DemoApi;
 import 'recurring_incubation_test.dart' show RoundFeed;
-import 'session_resume_test.dart' show sessionA;
+import 'session_resume_test.dart' show sessionA, sessionB;
 import 'session_end_test.dart' show SavingStore;
 
 class FailingCheckpointDex extends DexStore {
@@ -67,6 +67,25 @@ void main() {
         'action': name,
         ...fields
       }));
+  Future<void> hatchCurrent() async {
+    for (var i = 0; i < 17; i++) {
+      await game.petEgg();
+      if (i < 16) {
+        now += 10000;
+        feed.sample();
+      }
+    }
+    expect(game.affinityRound!.score, 50);
+    await game.uploadEggPhoto(Uint8List.fromList([1]));
+    for (var i = 0; i < 12; i++) {
+      now += 10000;
+      feed.sample();
+      await game.petEgg();
+    }
+    await Future<void>.delayed(Duration.zero);
+    expect(game.game.stage, Stage.hatched);
+  }
+
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     request = 0;
@@ -419,22 +438,7 @@ void main() {
   test(
       'saved hatch blocks manual tier changes until core grants the 30 minute repeat',
       () async {
-    for (var i = 0; i < 17; i++) {
-      await game.petEgg();
-      if (i < 16) {
-        now += 10000;
-        feed.sample();
-      }
-    }
-    expect(game.affinityRound!.score, 50);
-    await game.uploadEggPhoto(Uint8List.fromList([1]));
-    for (var i = 0; i < 12; i++) {
-      now += 10000;
-      feed.sample();
-      await game.petEgg();
-    }
-    await Future<void>.delayed(Duration.zero);
-    expect(game.game.stage, Stage.hatched);
+    await hatchCurrent();
     final egg = game.eggId;
     expect((await game.dex.all()).single.sourceEggId, egg);
     expect(app.snapshot['canStart'], isFalse);
@@ -478,10 +482,10 @@ void main() {
     expect(app.snapshot['canStart'], isFalse);
     expect(await action('pair', {'sessionId': sessionA, 'pairCode': '123456'}),
         isTrue);
-    expect(app.snapshot['canStart'], isTrue);
+    expect(app.snapshot['canStart'], isFalse);
     expect(await action('startEgg', {'tier': 'mid'}), isFalse);
-    expect(feed.watches, 1);
-    expect(await action('startEgg', {'tier': 'small'}), isTrue);
+    expect(feed.watches, 2);
+    expect(await action('startEgg', {'tier': 'small'}), isFalse);
     feed.sample();
     expect(game.eggId, egg);
     expect(game.affinityRound!.score, 3);
@@ -489,5 +493,100 @@ void main() {
     expect(app.snapshot['canStart'], isFalse);
     expect(await action('startEgg', {'tier': 'small'}), isFalse);
     expect(feed.watches, 2);
+  });
+  for (final session in [sessionA, sessionB]) {
+    test('direct pair $session resumes current egg and retains input timer',
+        () async {
+      await action('navigate', {'view': 'cabin'});
+      await game.petEgg();
+      final egg = game.eggId;
+      expect(await action('pair', {'sessionId': session, 'pairCode': '123456'}),
+          isTrue);
+      expect(feed.watches, 2);
+      feed.sample();
+      expect(game.eggId, egg);
+      expect(game.affinityRound!.score, 3);
+      expect((app.snapshot['egg'] as Map)['active'], isTrue);
+      expect(app.snapshot['canStart'], isFalse);
+      now += 10000;
+      feed.sample();
+      expect(await action('petEgg', {'eggId': egg}), isTrue);
+      expect(game.affinityRound!.score, 6);
+      expect(await action('startEgg', {'tier': 'large'}), isFalse);
+      expect(feed.watches, 2);
+    });
+  }
+  test('real ended trip pairs a new vehicle and resumes unfinished egg once',
+      () async {
+    await action('navigate', {'view': 'cabin'});
+    await game.petEgg();
+    final egg = game.eggId;
+    feed.carEvents.add({'type': 'sessionEnd', 'by': 'car'});
+    expect(await game.endSession(), isTrue);
+    expect(game.sessionSaved, isTrue);
+    expect(await action('pair', {'sessionId': sessionB, 'pairCode': '123456'}),
+        isTrue);
+    expect(feed.watches, 2);
+    feed.sample();
+    expect(game.eggId, egg);
+    expect(game.affinityRound!.score, 3);
+    expect(game.sessionEnded, isFalse);
+    expect(app.snapshot['canStart'], isFalse);
+    now += 10000;
+    feed.sample();
+    expect(await action('petEgg', {'eggId': egg}), isTrue);
+    expect(game.affinityRound!.score, 6);
+  });
+  test('first idle pairing never creates an egg or starts a vehicle watch',
+      () async {
+    app.dispose();
+    game.dispose();
+    feed = RoundFeed();
+    game = GameController(
+        feed: feed, dex: DexStore(), eggApi: api, monotonicMs: () => now);
+    app = UnityAppController(game: game, camp: camp);
+    await app.initialize();
+    expect(await action('pair', {'sessionId': sessionA, 'pairCode': '123456'}),
+        isTrue);
+    expect(game.game.stage, Stage.idle);
+    expect(game.eggId, isNull);
+    expect(feed.watches, 0);
+    expect(app.snapshot['canStart'], isTrue);
+  });
+  test('same-session saved hatch pair resumes its original 30 minute cooldown',
+      () async {
+    await hatchCurrent();
+    final egg = game.eggId;
+    expect(await action('pair', {'sessionId': sessionA, 'pairCode': '123456'}),
+        isTrue);
+    expect(feed.watches, 2);
+    expect(game.game.stage, Stage.hatched);
+    expect(game.eggId, egg);
+    expect(app.snapshot['canStart'], isFalse);
+    expect(await action('startEgg', {'tier': 'large'}), isFalse);
+    now += 1799999;
+    feed.sample(eta: 600);
+    expect(game.eggId, egg);
+    now += 1;
+    feed.sample(eta: 600);
+    expect(game.eggId, isNot(egg));
+    expect(game.game.stage, Stage.incubating);
+    expect(game.game.eggTier, EggTier.small);
+    expect(feed.watches, 2);
+  });
+  test(
+      'new-session pair closes old saved hatch without auto-minting another egg',
+      () async {
+    await hatchCurrent();
+    expect(await action('pair', {'sessionId': sessionB, 'pairCode': '123456'}),
+        isTrue);
+    expect(game.game.stage, Stage.idle);
+    expect(feed.watches, 1);
+    expect((app.snapshot['egg'] as Map)['active'], isFalse);
+    expect(app.snapshot['canStart'], isTrue);
+    expect(await action('startEgg', {'tier': 'mid'}), isTrue);
+    expect(feed.watches, 2);
+    expect(game.game.stage, Stage.incubating);
+    expect(game.game.eggTier, EggTier.mid);
   });
 }
