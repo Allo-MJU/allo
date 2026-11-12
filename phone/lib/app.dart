@@ -9,8 +9,12 @@ import 'explore/explore_screen.dart';
 import 'explore/unity_channel.dart';
 import 'feed/vehicle_feed.dart';
 import 'game/game_controller.dart';
+import 'base_camp/base_camp_controller.dart';
+import 'base_camp/base_camp_store.dart';
+import 'feed/fake_feed.dart';
 import 'screens/companion_screen.dart';
 import 'screens/dex_screen.dart';
+import 'screens/base_camp_screen.dart';
 import 'screens/hatching_screen.dart';
 import 'screens/incubating_screen.dart';
 import 'screens/pairing_screen.dart';
@@ -39,12 +43,24 @@ class AlloApp extends StatefulWidget {
 }
 
 class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
-  late final GameController controller = widget.createController?.call() ??
-      GameController(
-          feed: widget.feed,
-          dex: DexStore(),
-          monotonicMs: widget.monotonicMs,
-          eggApi: widget.eggApi);
+  BaseCampController? _ownedCamp;
+  GameController _createController() {
+    final dex = DexStore();
+    _ownedCamp = BaseCampController(
+      store: SharedPreferencesBaseCampStore(
+          profile: widget.feed is FakeVehicleFeed ? 'demo' : 'default'),
+      dex: dex,
+    );
+    return GameController(
+        feed: widget.feed,
+        dex: dex,
+        baseCamp: _ownedCamp,
+        monotonicMs: widget.monotonicMs,
+        eggApi: widget.eggApi);
+  }
+
+  late final GameController controller =
+      widget.createController?.call() ?? _createController();
 
   late final _router = GoRouter(
     initialLocation: '/pairing',
@@ -60,7 +76,8 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
         return null;
       }
       if (!controller.sessionSaved ||
-          !const {'/session-end', '/pairing', '/dex'}.contains(path)) {
+          !const {'/session-end', '/pairing', '/dex', '/base-camp'}
+              .contains(path)) {
         return path == '/session-end' ? null : '/session-end';
       }
       return null;
@@ -81,6 +98,9 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
       GoRoute(
           path: '/companion',
           builder: (_, __) => CompanionScreen(controller: controller)),
+      GoRoute(
+          path: '/base-camp',
+          builder: (_, __) => BaseCampScreen(controller: controller)),
       GoRoute(
           path: '/dex', builder: (_, __) => DexScreen(controller: controller)),
       GoRoute(
@@ -119,6 +139,7 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _router.dispose();
     controller.dispose();
+    _ownedCamp?.dispose();
     widget.eggApi?.close();
     super.dispose();
   }

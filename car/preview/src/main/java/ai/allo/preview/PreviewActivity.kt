@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ai.allo.car.model.*
+import ai.allo.car.dialogue.DialogueBank
 import ai.allo.car.ui.*
 
 /** UI fixtures plus explicit local-demo transport; never a real vehicle/Firebase adapter. */
@@ -27,6 +28,7 @@ class PreviewActivity : ComponentActivity() {
             setContent { AlloTheme { LocalFishingDemo(active = demoActive) } }
             return
         }
+        val dialogue = DialogueBank.load(assets, includeUnreviewed = true)
         val initialRoute = intent.getStringExtra("screen")?.let { name ->
             PleosRoute.entries.find { it.name == name }
         } ?: when {
@@ -52,7 +54,11 @@ class PreviewActivity : ComponentActivity() {
                         "preview-$speciesId", 1, speciesId,
                         if (route == PleosRoute.TransferComplete) "phone" else "car",
                     ),
-                    baseSummary = BaseSummary("road_sprout", "puddle_pip", "lamp_moth"),
+                    baseSummary = BaseSummary("road_sprout", "puddle_pip", "lamp_moth",
+                        structureIds = listOf("workshop", "kitchen"), lastMealId = "berry_snack", activeTaskKind = "cooking"),
+                    collectionSummary = if (intent.getBooleanExtra("missingCollection", false)) null else
+                        CollectionSummary(wood = 12, stone = 8, ingredient = 5,
+                            speciesIds = listOf("road_sprout", "puddle_pip", "lamp_moth")),
                 )
                 val fishing = FishingDisplay(
                     elapsedSeconds = if (route in listOf(PleosRoute.Saving, PleosRoute.Reward, PleosRoute.SaveFailed)) 60 else 35,
@@ -89,8 +95,9 @@ class PreviewActivity : ComponentActivity() {
                                     PleosRoute.Pairing -> PairingScreen(
                                         SessionMeta(1, "482619", carAppVersion = "preview"),
                                         dbUrl = "preview-only", sessionId = "ui-fixture-not-a-real-session")
-                                    PleosRoute.Driving -> DrivingScreen(game, connected = true, runningMotion = true)
+                                    PleosRoute.Driving -> DrivingScreen(game, connected = true, fishingMotion = true, drivingSignalFresh = true)
                                     PleosRoute.Home, PleosRoute.Empty -> ParkedScreen(game, connected = true,
+                                        dialogueBank = dialogue, unreviewedDialoguePreview = true,
                                         onCallCompanion = { show(PleosRoute.TransferPending) })
                                     else -> PleosStatusScreen(
                                         route = route, game = game, connected = route != PleosRoute.Disconnected,

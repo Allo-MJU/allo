@@ -25,6 +25,21 @@ class PleosFlowTest {
         assertEquals(PleosRoute.Driving, route(parked = false, transfer = terminal(TransferStatus.Accepted)))
     }
 
+    @Test fun `parking permission loss immediately hides home base and all fishing controls`() {
+        for (state in listOf("ready", "running", "paused", "saving", "saveFailed", "reward")) {
+            val snapshot = game.copy(fishing = FishingSnapshot(1, "lease", "pet-a", 3,
+                "activity", 0, state, 35000, 60000, 1, "record"))
+            assertNotEquals(PleosRoute.Driving, route(snapshot = snapshot))
+            assertEquals(PleosRoute.Driving, route(parked = false, snapshot = snapshot))
+            assertEquals(PleosRoute.Starting, route(checked = false, parked = false, snapshot = snapshot))
+            assertEquals(PleosRoute.Driving, route(parked = false, connected = false, snapshot = snapshot))
+            assertNull(FishingController().request("session", snapshot, false, "start", 0))
+        }
+        assertEquals(PleosRoute.Home, route())
+        assertEquals(PleosRoute.Driving, route(parked = false))
+        assertEquals(PleosRoute.Home, route())
+    }
+
     @Test fun `parking after session end cannot resume the previous request`() {
         assertEquals(PleosRoute.Ended, route(ended = true, notice = true, connected = false, transfer = pending))
         assertEquals(PleosRoute.Disconnected, route(connected = false, notice = true, transfer = pending))

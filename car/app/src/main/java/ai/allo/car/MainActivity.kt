@@ -10,8 +10,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import ai.allo.car.vehicle.AaosPropertyReader
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.Alignment
@@ -72,6 +77,7 @@ class MainActivity : ComponentActivity() {
             checkSelfPermission(AaosPropertyReader.SPEED_PERMISSION) != PackageManager.PERMISSION_GRANTED
 
         setContent {
+            val parkedState = rememberSaveableStateHolder()
             val game by session.game.collectAsStateWithLifecycle()
             val drivingMotion by session.drivingMotion.collectAsStateWithLifecycle()
             val meta by session.meta.collectAsStateWithLifecycle()
@@ -88,7 +94,7 @@ class MainActivity : ComponentActivity() {
             var dismissed by remember(resultKey) { mutableStateOf(false) }
             var fishingDismissed by remember(sid, game.companion?.displayId, game.companion?.displayRevision) { mutableStateOf(false) }
             val route = PleosFlow.route(parkingChecked, parkedAllowed, showSpeedNotice,
-                meta.paired, connected, ended, game, transfer, dismissed, fishingDismissed)
+                meta.paired, connected, ended, game, transfer, dismissed, dismissFishing = true)
             val catalog = rememberSpeciesCatalog()
             var previousCarGame by remember(sid) { mutableStateOf<GameState?>(null) }
             var departing by remember(sid) { mutableStateOf<GameState?>(null) }
@@ -111,69 +117,65 @@ class MainActivity : ComponentActivity() {
                 }
             }
             AlloTheme {
-                when (route) {
-                    PleosRoute.Starting -> PleosStatusScreen(route, game, false)
-                    PleosRoute.Permission -> SpeedNoticeScreen(
-                        onContinue = {
-                            getPreferences(MODE_PRIVATE).edit().putBoolean("speedNoticeSeen", true).apply()
-                            speedPermission.launch(AaosPropertyReader.SPEED_PERMISSION)
-                        },
-                        onLater = {
-                            getPreferences(MODE_PRIVATE).edit().putBoolean("speedNoticeSeen", true).apply()
-                            showSpeedNotice = false
-                        })
-                    PleosRoute.Pairing -> PairingScreen(meta, if (pairingReady) BuildConfig.ALLO_DB_URL else "", sid,
-                        onRenewCode = if (pairingReady && !meta.paired && parkedAllowed) ({ session.renewPairingCode() }) else null,
-                        renewing = pairingRefresh.busy, renewalMessage = pairingRefresh.message)
-                    PleosRoute.Driving -> DrivingScreen(game, connected && meta.paired && !ended,
-                        runningMotion = true, drivingMotion = drivingMotion, statusMessage = when {
-                            ended -> "이번 연결이 끝났어요"
-                            meta.paired && !connected -> "폰 연결이 끊겼어요"
-                            !meta.paired -> "주차 후 폰을 연결해 주세요"
-                            else -> null
-                        })
-                    PleosRoute.Home, PleosRoute.Empty -> key(sid) {
-                        ParkedScreen(game, connected,
-                            onStartFishing = if (fishingUi.available && fishingUi.pending == null) ({
-                                fishingDismissed = false
-                                when (game.fishing?.state) {
-                                    "ready" -> session.requestFishing("start")
-                                    "paused" -> session.requestFishing("resume")
-                                    "saveFailed" -> session.requestFishing("retry")
-                                }
-                            }) else null,
-                            fishingMotionAllowed = fishingUi.available && fishingUi.pending == null,
-                            onPauseFishing = if (fishingUi.available && fishingUi.pending == null) ({ session.requestFishing("pause") }) else null,
-                            fishingMessage = fishingUi.message.takeIf { game.fishing != null || "fishing" in game.invalidBlocks },
-                            onRetryFishing = if (fishingUi.unconfirmed) ({ session.retryFishing() }) else null,
-                            onShare = if (BuildConfig.DEBUG) ({ openShare() }) else null,
-                            onCallCompanion = if (game.hasV2Contract && game.companion?.location == "car" && transfer.pending == null && fishingUi.pending == null && !ended)
-                                ({ session.requestCompanionTransfer(); Unit }) else null,
-                            travelContent = {
-                                TravelRequestCard(game, connected && !ended, travelOffer, travelMessage,
-                                    onOffer = { session.offerTravel() }, onAccept = { token, index -> session.acceptTravel(token, index) })
-                            })
+                Column(Modifier.fillMaxSize()) {
+                    if (BuildConfig.FIREBASE_EMULATOR) Surface(modifier = Modifier.fillMaxWidth(), color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer) {
+                        Text("로컬 Firebase 검증 · 실제 프로젝트 아님", modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp), style = androidx.compose.material3.MaterialTheme.typography.labelSmall)
                     }
-                    else -> PleosStatusScreen(route, game, connected && !ended,
-                        fishing = game.fishing?.takeIf { it.appliesTo(game) }?.display(),
-                        motionAllowed = fishingUi.available && fishingUi.pending == null,
-                        requestMessage = if (route in setOf(PleosRoute.Fishing, PleosRoute.Paused, PleosRoute.Saving, PleosRoute.SaveFailed, PleosRoute.Reward)) fishingUi.message else null,
-                        onRetryRequest = if (fishingUi.unconfirmed) ({ session.retryFishing() }) else null,
-                        onHome = if (route in setOf(PleosRoute.Fishing, PleosRoute.Paused, PleosRoute.Saving, PleosRoute.SaveFailed, PleosRoute.Reward)) ({ fishingDismissed = true }) else null,
-                        onSecondary = if (route in setOf(PleosRoute.Fishing, PleosRoute.Paused, PleosRoute.Reward) && fishingUi.available && fishingUi.pending == null)
-                            ({ session.requestCompanionTransfer(); Unit }) else null,
-                        transferMessage = transfer.message.takeIf { it.isNotBlank() },
-                        departure = departing?.let { PetSummary.from(it, true, catalog) }, departureFraction = exit.value,
-                        onPrimary = when (route) {
-                            PleosRoute.Disconnected -> ({ session.refreshGameState() })
-                            PleosRoute.Ended -> ({ session.prepareNextSession() })
-                            PleosRoute.TransferComplete, PleosRoute.TransferRejected -> ({ dismissed = true })
-                            PleosRoute.TransferPending -> if (transfer.status == TransferStatus.Unconfirmed) ({ session.retryCompanionTransfer() }) else null
-                            PleosRoute.Fishing, PleosRoute.Reward -> if (fishingUi.available && fishingUi.pending == null) ({ session.requestFishing("pause") }) else null
-                            PleosRoute.Paused -> if (fishingUi.available && fishingUi.pending == null) ({ session.requestFishing("resume") }) else null
-                            PleosRoute.SaveFailed -> if (fishingUi.available && fishingUi.pending == null) ({ session.requestFishing("retry") }) else null
-                            else -> null
-                        })
+                    Box(Modifier.weight(1f)) {
+                        when (route) {
+                            PleosRoute.Starting -> PleosStatusScreen(route, game, false)
+                            PleosRoute.Permission -> SpeedNoticeScreen(
+                                onContinue = {
+                                    getPreferences(MODE_PRIVATE).edit().putBoolean("speedNoticeSeen", true).apply()
+                                    speedPermission.launch(AaosPropertyReader.SPEED_PERMISSION)
+                                },
+                                onLater = {
+                                    getPreferences(MODE_PRIVATE).edit().putBoolean("speedNoticeSeen", true).apply()
+                                    showSpeedNotice = false
+                                })
+                            PleosRoute.Pairing -> PairingScreen(meta, if (pairingReady) BuildConfig.ALLO_DB_URL else "", sid,
+                                onRenewCode = if (pairingReady && !meta.paired && parkedAllowed) ({ session.renewPairingCode() }) else null,
+                                renewing = pairingRefresh.busy, renewalMessage = pairingRefresh.message)
+                            PleosRoute.Driving -> DrivingScreen(game, connected && meta.paired && !ended,
+                                fishingMotion = true, drivingSignalFresh = drivingMotion.fresh, statusMessage = when {
+                                    ended -> "이번 연결이 끝났어요"
+                                    meta.paired && !connected -> "폰 연결이 끊겼어요"
+                                    !meta.paired -> "주차 후 폰을 연결해 주세요"
+                                    else -> null
+                                })
+                            PleosRoute.Home, PleosRoute.Empty -> parkedState.SaveableStateProvider(sid) {
+                                ParkedScreen(game, connected,
+                                    dialogueBank = session.dialogue, unreviewedDialoguePreview = BuildConfig.DEBUG,
+                                    onShare = if (BuildConfig.DEBUG) ({ openShare() }) else null,
+                                    onCallCompanion = if (game.hasV2Contract && game.companion?.location == "car" && transfer.pending == null && fishingUi.pending == null && !ended)
+                                        ({ session.requestCompanionTransfer(); Unit }) else null,
+                                    travelContent = {
+                                        TravelRequestCard(game, connected && !ended, travelOffer, travelMessage,
+                                            onOffer = { session.offerTravel() }, onAccept = { token, index -> session.acceptTravel(token, index) })
+                                    })
+                            }
+                            else -> PleosStatusScreen(route, game, connected && !ended,
+                                fishing = game.fishing?.takeIf { it.appliesTo(game) }?.display(),
+                                motionAllowed = fishingUi.available && fishingUi.pending == null,
+                                requestMessage = if (route in setOf(PleosRoute.Fishing, PleosRoute.Paused, PleosRoute.Saving, PleosRoute.SaveFailed, PleosRoute.Reward)) fishingUi.message else null,
+                                onRetryRequest = if (fishingUi.unconfirmed) ({ session.retryFishing() }) else null,
+                                onHome = if (route in setOf(PleosRoute.Fishing, PleosRoute.Paused, PleosRoute.Saving, PleosRoute.SaveFailed, PleosRoute.Reward)) ({ fishingDismissed = true }) else null,
+                                onSecondary = if (route in setOf(PleosRoute.Fishing, PleosRoute.Paused, PleosRoute.Reward) && fishingUi.available && fishingUi.pending == null)
+                                    ({ session.requestCompanionTransfer(); Unit }) else null,
+                                transferMessage = transfer.message.takeIf { it.isNotBlank() },
+                                departure = departing?.let { PetSummary.from(it, true, catalog) }, departureFraction = exit.value,
+                                onPrimary = when (route) {
+                                    PleosRoute.Disconnected -> ({ session.refreshGameState() })
+                                    PleosRoute.Ended -> ({ session.prepareNextSession() })
+                                    PleosRoute.TransferComplete, PleosRoute.TransferRejected -> ({ dismissed = true })
+                                    PleosRoute.TransferPending -> if (transfer.status == TransferStatus.Unconfirmed) ({ session.retryCompanionTransfer() }) else null
+                                    PleosRoute.Fishing, PleosRoute.Reward -> if (fishingUi.available && fishingUi.pending == null) ({ session.requestFishing("pause") }) else null
+                                    PleosRoute.Paused -> if (fishingUi.available && fishingUi.pending == null) ({ session.requestFishing("resume") }) else null
+                                    PleosRoute.SaveFailed -> if (fishingUi.available && fishingUi.pending == null) ({ session.requestFishing("retry") }) else null
+                                    else -> null
+                                })
+                        }
+                    }
                 }
             }
         }

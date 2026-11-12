@@ -8,11 +8,11 @@ adb install -r preview/build/outputs/apk/debug/preview-debug.apk
 adb shell am start -n ai.allo.preview/.PreviewActivity --es mode parked --es species road_sprout
 ```
 
-`mode`: `parked` / `driving`, `species`: 카탈로그 ID, `disconnected`: boolean extra.
+`screen`: `Driving` / `Home` 등 PleosRoute 이름, `mode`: `parked`, `species`: 카탈로그 ID, `disconnected`: boolean extra.
 
 상단 버튼에서 주행/주차와 기존·품기준비·실패·폰이동·거점·연결끊김 상태를 선택합니다. 품기준비는 새 알 진행률과 기존 동행 캐릭터를 동시에 보여줍니다. 호감도 준비 완료와 부화 성공은 별개입니다. 거점은 알 상태와 무관한 읽기 전용 요약입니다.
 
-주행 화면은 기존 달리기 프레임, 주차 화면은 기존 잠자기·낚시 프레임을 재사용합니다. 6종(`road_sprout`, `puddle_pip`, `lamp_moth`, `storm_lantern`, `highway_comet`, `sea_mist`)에 대응하는 8프레임 시트를 사용하고 나머지는 기존 폴백을 유지합니다. 신규 아트는 생성하지 않습니다. 연결 끊김, 백그라운드, 시스템 애니메이션 설정은 기존 모션 게이트를 따릅니다.
+주행 화면은 자동 낚시 프레임, 주차 화면은 잠자기 자세로 도감·이야기·거점을 확인합니다. 6종(`road_sprout`, `puddle_pip`, `lamp_moth`, `storm_lantern`, `highway_comet`, `sea_mist`)에 대응하는 8프레임 시트를 사용하고 나머지는 기존 폴백을 유지합니다. 신규 아트는 생성하지 않습니다. 연결 끊김, 백그라운드, 시스템 애니메이션 설정은 기존 모션 게이트를 따릅니다.
 
 v2 테스트 상태에서 ‘폰으로 친구 부르기’는 모의 수락 응답을 즉시 적용합니다. 기존 달리기 프레임으로 1회 퇴장한 뒤 폰 위치 안내를 표시합니다. 실제 앱은 폰의 일치하는 수락 응답 후에만 퇴장합니다. 실제 요청/타임아웃/중복 응답은 별도 상태 머신 테스트와 실기 통합 검증 대상입니다.
 
@@ -32,3 +32,11 @@ adb -s emulator-5554 shell am start -n ai.allo.preview/.PreviewActivity --ez loc
 모의 전송도 production FirebaseRest와 동일하게 `Json { encodeDefaults = true }`로 직렬화한다. `FishingPresence.version=1` 같은 필수 기본값이 wire에서 생략되면 폰은 유효 신호로 인정하지 않는다.
 
 서버·폰 빌드·두 에뮬레이터 실행 및 검증 범위: [로컬 낚시 연동 안내](../../docs/vehicle/local-fishing-demo.md).
+
+## 주행 자동 낚시
+
+`--es screen Driving --ez controls false`는 실제 차량 DrivingScreen의 조작 없는
+자동 낚시 화면을 표시한다. 재료 지급은 시뮬레이션하지 않는다. 주차 UI는
+`--es screen Home --ez controls false`로 확인한다. 이 화면 확인은 실제 P/UX 판정이나
+PR #100 폰 거점 저장 검증을 대신하지 않는다. 최신 동작 계약은
+`docs/vehicle/driving-auto-fishing.md`를 따른다.

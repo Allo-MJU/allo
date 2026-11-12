@@ -10,6 +10,9 @@ import androidx.compose.ui.unit.dp
 /** Display only facts supplied by the phone; no local affinity or activity simulation. */
 internal data class FeatureStatus(val incubation: String?, val affinity: String?, val baseLines: List<String>) {
     companion object {
+        private val facilityLabels = mapOf("workshop" to "건설소", "kitchen" to "주방", "training" to "훈련소")
+        private val mealLabels = mapOf("berry_snack" to "베리 간식", "travel_soup" to "여행 수프", "picnic_feast" to "소풍 만찬")
+        private val taskLabels = mapOf("building" to "건설", "build" to "건설", "cooking" to "요리", "cook" to "요리", "training" to "훈련", "train" to "훈련")
         fun from(game: GameState, catalog: SpeciesCatalog): FeatureStatus {
             if (!game.hasV2Contract) return FeatureStatus(null, null, emptyList())
             val progress = game.progress.takeIf { it.isFinite() }?.coerceIn(0.0,1.0) ?: 0.0
@@ -36,9 +39,16 @@ internal data class FeatureStatus(val incubation: String?, val affinity: String?
                 role("건축가", base.builderSpeciesId)
                 role("요리사", base.cookSpeciesId)
                 role("훈련사", base.trainerSpeciesId)
-                if(base.structureIds.isNotEmpty()) add("시설 · ${base.structureIds.joinToString(", ")}")
-                base.lastMealId?.let { add("최근 식사 · $it") }
-                base.activeTaskKind?.let { add("진행 중 활동 · $it") }
+                if (base.facilityLevels.isNotEmpty()) base.facilityLevels.forEach { (id, level) ->
+                    add("${facilityLabels[id] ?: id} · ${if (level == 0) "미건설" else "${level}단계"}")
+                }
+                else if(base.structureIds.isNotEmpty()) add("시설 · ${base.structureIds.joinToString(", ") { facilityLabels[it] ?: it }}")
+                base.lastMealId?.let { add("최근 식사 · ${mealLabels[it] ?: it}") }
+                if (base.activeTaskKinds.isNotEmpty()) {
+                    base.activeTaskKinds.forEach { add("진행 중 활동 · ${taskLabels[it] ?: it}") }
+                } else base.activeTaskKind?.let { add("진행 중 활동 · ${taskLabels[it] ?: it}") }
+                base.foodInventory.forEach { (id, count) -> add("음식 · ${mealLabels[id] ?: id} ${count}개") }
+                base.recipeBook.forEach { (id, count) -> add("요리 도감 · ${mealLabels[id] ?: id} ${count}회") }
                 if(isEmpty()) add("아직 등록된 거점 활동이 없어요")
             }
             return FeatureStatus(incubation, affinity, lines)

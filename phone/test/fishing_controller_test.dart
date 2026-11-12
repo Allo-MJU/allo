@@ -97,6 +97,31 @@ void main() {
     await c.select(entry('road_sprout', 1));
   });
   tearDown(() => c.dispose());
+  test('도감의 동일 종 획득 기록은 선택과 관찰 기록을 공유하지 않는다', () async {
+    final first = entry('road_sprout', 1);
+    final second = entry('road_sprout', 2);
+    expect(c.isSelected(first), isTrue);
+    expect(c.isSelected(second), isFalse);
+    expect(c.companionLocation, 'car');
+    await start();
+    await advance(60);
+    expect(c.recordsFor(first), 1);
+    expect(c.recordsFor(second), 0);
+    await c.select(second);
+    expect(c.isSelected(first), isFalse);
+    expect(c.isSelected(second), isTrue);
+    expect(c.recordsFor(first), 1);
+    expect(c.recordsFor(second), 0);
+  });
+  test('저장 실패한 도감 선택은 현재 선택 표시를 바꾸지 않는다', () async {
+    store.fail = true;
+    final second = entry('puddle_pip', 2);
+    await c.select(second);
+    expect(c.isSelected(entry('road_sprout', 1)), isTrue);
+    expect(c.isSelected(second), isFalse);
+    expect(c.error, isNotNull);
+  });
+
   test(
       '60 valid seconds atomically grants one reward, duplicates do not repeat',
       () async {

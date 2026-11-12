@@ -13,11 +13,11 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /** Only ciphertext is persisted. Account material is never stored in logs or plain preferences. */
-class KeystoreRefreshTokenStore(context: Context, project: String, apiKey: String) : RefreshTokenStore {
-    private val namespace = MessageDigest.getInstance("SHA-256").digest("$project:$apiKey".toByteArray())
+class KeystoreRefreshTokenStore(context: Context, project: String, apiKey: String, localEmulator: Boolean = false) : RefreshTokenStore {
+    private val namespace = MessageDigest.getInstance("SHA-256").digest((if (localEmulator) "local-emulator:$project:$apiKey" else "$project:$apiKey").toByteArray())
         .joinToString("") { "%02x".format(it) }
     private val alias = "allo.firebase.$namespace"
-    private val prefs = context.getSharedPreferences("firebase_identity", Context.MODE_PRIVATE)
+    private val prefs = context.getSharedPreferences(if (localEmulator) "firebase_identity_local_emulator" else "firebase_identity", Context.MODE_PRIVATE)
     private fun key(): SecretKey {
         val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (ks.getKey(alias, null) as? SecretKey)?.let { return it }

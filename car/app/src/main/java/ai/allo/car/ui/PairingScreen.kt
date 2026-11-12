@@ -5,16 +5,22 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import ai.allo.car.model.SessionMeta
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
@@ -27,7 +33,6 @@ fun PairingScreen(meta: SessionMeta, dbUrl: String, sessionId: String = "",
     val payload = if (ready) "allo://pair?sid=$sessionId&code=${meta.pairCode}" else null
     val qr = remember(payload) { payload?.let { qrBitmap(it, 512) } }
     ScreenFrame("폰 연결", if (ready) "폰 연결 기다리는 중" else "연결 준비 중") {
-        BoxWithConstraints(Modifier.fillMaxSize()) {
         ScreenColumns(
             art = { artSize ->
                 val qrSize = (artSize - 40.dp).coerceAtLeast(64.dp)
@@ -39,19 +44,30 @@ fun PairingScreen(meta: SessionMeta, dbUrl: String, sessionId: String = "",
                 } else AlloWordmark(Modifier.width(artSize).height(artSize * .65f))
             },
             details = {
-                Text(if (ready) "폰에서 알로를 열어 주세요" else "연결을 준비하고 있어요",
+                Text(if (ready) "폰과 연결하면 준비 완료" else "연결을 준비하고 있어요",
                     style = MaterialTheme.typography.headlineMedium)
-                Text(if (ready) "QR을 스캔하거나 연결 코드를 입력해 주세요."
+                Text(if (ready) "폰의 알로 앱에서 QR을 스캔해 주세요."
                     else "잠시 후 다시 확인해 주세요. 준비가 끝나면 연결 코드를 보여드려요.",
                     style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (ready) {
-                    Text("연결 코드", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(meta.pairCode.chunked(1).joinToString(" "),
-                        style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1, softWrap = false)
+                    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer) {
+                        BoxWithConstraints(Modifier.padding(20.dp)) {
+                            val codeSize = minOf(44f, maxWidth.value / (5.2f * LocalDensity.current.fontScale)).sp
+                            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("직접 입력할 연결 코드", style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                Text(meta.pairCode.chunked(3).joinToString("  "),
+                                    fontSize = codeSize, lineHeight = codeSize * 1.2f,
+                                    fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer, maxLines = 1)
+                            }
+                        }
+                    }
                 }
                 if (onRenewCode != null) {
-                    OutlinedButton(onClick = onRenewCode, enabled = !renewing, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                    OutlinedButton(onClick = onRenewCode, enabled = !renewing, modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp)) {
                         Text(if (renewing) "새 코드 확인 중" else if (renewalMessage != null) "새 코드 다시 확인" else "새 연결 코드")
                     }
                     Text(renewalMessage ?: "코드는 10분 동안 유효해요. 만료되면 새 코드를 받아 주세요.",
@@ -61,7 +77,6 @@ fun PairingScreen(meta: SessionMeta, dbUrl: String, sessionId: String = "",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             },
         )
-        }
     }
 }
 

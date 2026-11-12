@@ -16,7 +16,7 @@ android {
         versionName = "ui-preview"
     }
     sourceSets["main"].apply {
-        java.srcDirs("../app/src/main/java/ai/allo/car/ui", "../app/src/main/java/ai/allo/car/model")
+        java.srcDirs("../app/src/main/java/ai/allo/car/ui", "../app/src/main/java/ai/allo/car/model", "../app/src/main/java/ai/allo/car/dialogue")
         res.srcDir("../app/src/main/res")
         assets.srcDirs("../../data", "../../phone/assets")
     }
