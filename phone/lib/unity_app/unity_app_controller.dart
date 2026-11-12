@@ -49,6 +49,7 @@ class UnityAppController extends ChangeNotifier {
   int _revision = 0, _pending = 0;
   String _error = '', _notice = '';
   bool _disconnected = false;
+  EggTier? _stoppedRoundTier;
   String? _countedHatch;
   Future<void> _tail = Future.value();
   void Function(String)? _send;
@@ -110,7 +111,8 @@ class UnityAppController extends ChangeNotifier {
 
   Map<String, dynamic> _readEgg() {
     final r = game.affinityRound;
-    final active = !_disconnected &&
+    final active = _stoppedRoundTier == null &&
+        !_disconnected &&
         !game.sessionEnded &&
         game.game.stage == Stage.incubating &&
         r != null &&
@@ -146,7 +148,10 @@ class UnityAppController extends ChangeNotifier {
 
   bool get _canStartEgg =>
       _ready &&
-      (game.canStart ||
+      ((game.canStart &&
+              (game.game.stage == Stage.idle ||
+                  game.game.stage == Stage.failed ||
+                  _stoppedRoundTier != null)) ||
           (game.isFake &&
               game.sessionEnded &&
               game.sessionSaved &&
@@ -424,6 +429,7 @@ class UnityAppController extends ChangeNotifier {
       value is String && value.trim().isNotEmpty && value.length <= max;
   bool _currentEgg(Map<String, dynamic> m) =>
       !_disconnected &&
+      _stoppedRoundTier == null &&
       view == 'cabin' &&
       m['eggId'] == game.eggId &&
       game.affinityRound != null &&
@@ -654,10 +660,18 @@ class UnityAppController extends ChangeNotifier {
     switch (m['action']) {
       case 'startEgg':
         if (!_canStartEgg) return false;
-        _disconnected = false;
+        final tier = EggTier.values.byName(m['tier']);
+        if (_stoppedRoundTier != null && tier != _stoppedRoundTier) {
+          _error = '진행하던 알과 같은 크기를 골라 이어가 주세요.';
+          return false;
+        }
         game.prepareNextFakeTrip();
-        return game.startIncubating(EggTier.values.byName(m['tier']),
-            useAffinity: true);
+        final started = await game.startIncubating(tier, useAffinity: true);
+        if (started) {
+          _disconnected = false;
+          _stoppedRoundTier = null;
+        }
+        return started;
       case 'pair':
         final p = PairingCredentials.parseFields(m['sessionId'], m['pairCode']);
         await game.pair(p.sessionId, pairCode: p.code);
@@ -665,7 +679,13 @@ class UnityAppController extends ChangeNotifier {
         return game.paired;
       case 'disconnect':
         final ok = await game.disconnect();
-        if (ok) _disconnected = true;
+        if (ok) {
+          _disconnected = true;
+          if (game.game.stage == Stage.incubating ||
+              game.game.stage == Stage.hatched) {
+            _stoppedRoundTier = game.game.eggTier;
+          }
+        }
         return ok;
       case 'refresh':
         final ok =

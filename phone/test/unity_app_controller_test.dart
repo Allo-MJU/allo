@@ -57,6 +57,7 @@ void main() {
   late RoundFeed feed;
   late DemoApi api;
   var request = 0;
+  var now = 0;
   Future<bool> action(String name,
           [Map<String, dynamic> fields = const {}, String? id]) =>
       app.handleMessage(jsonEncode({
@@ -69,6 +70,7 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     request = 0;
+    now = 0;
     storage = CampMemory();
     camp = BaseCampController(store: storage);
     feed = RoundFeed();
@@ -78,7 +80,7 @@ void main() {
         dex: DexStore(),
         eggApi: api,
         baseCamp: camp,
-        monotonicMs: () => 0);
+        monotonicMs: () => now);
     app = UnityAppController(
         game: game,
         camp: camp,
@@ -379,5 +381,113 @@ void main() {
     expect(api.speechCalls, 1);
     expect(game.affinityRound!.speechRemainingMs, 180000);
     expect(await action('petEgg', {'eggId': game.eggId}), isFalse);
+  });
+  test('active egg cannot be replaced manually by changing tier', () async {
+    final egg = game.eggId;
+    expect(app.snapshot['canStart'], isFalse);
+    expect(await action('startEgg', {'tier': 'mid'}), isFalse);
+    expect(game.eggId, egg);
+    expect(game.game.eggTier, EggTier.small);
+    expect(feed.watches, 1);
+  });
+  test(
+      'first boot can restore unfinished egg once and discarded egg can restart',
+      () async {
+    final dex = game.dex;
+    final egg = game.eggId;
+    await game.endSession();
+    app.dispose();
+    game.dispose();
+    feed = RoundFeed();
+    game = GameController(
+        feed: feed, dex: dex, eggApi: api, monotonicMs: () => now);
+    app = UnityAppController(game: game, camp: camp);
+    await app.initialize();
+    await game.pair(sessionA, pairCode: '123456');
+    expect(app.snapshot['canStart'], isTrue);
+    expect(await action('startEgg', {'tier': 'small'}), isTrue);
+    feed.sample();
+    expect(game.eggId, egg);
+    expect(app.snapshot['canStart'], isFalse);
+    await action('navigate', {'view': 'cabin'});
+    expect(await action('discardEgg', {'eggId': egg}), isTrue);
+    expect(app.snapshot['canStart'], isTrue);
+    expect(await action('startEgg', {'tier': 'small'}), isTrue);
+    feed.sample();
+    expect(game.eggId, isNot(egg));
+  });
+  test(
+      'saved hatch blocks manual tier changes until core grants the 30 minute repeat',
+      () async {
+    for (var i = 0; i < 17; i++) {
+      await game.petEgg();
+      if (i < 16) {
+        now += 10000;
+        feed.sample();
+      }
+    }
+    expect(game.affinityRound!.score, 50);
+    await game.uploadEggPhoto(Uint8List.fromList([1]));
+    for (var i = 0; i < 12; i++) {
+      now += 10000;
+      feed.sample();
+      await game.petEgg();
+    }
+    await Future<void>.delayed(Duration.zero);
+    expect(game.game.stage, Stage.hatched);
+    final egg = game.eggId;
+    expect((await game.dex.all()).single.sourceEggId, egg);
+    expect(app.snapshot['canStart'], isFalse);
+    expect(await action('startEgg', {'tier': 'large'}), isFalse);
+    expect(game.eggId, egg);
+    // Cold start may restore the saved hatch once, preserving its repeat clock.
+    final dex = game.dex;
+    await game.endSession();
+    app.dispose();
+    game.dispose();
+    feed = RoundFeed();
+    game = GameController(
+        feed: feed, dex: dex, eggApi: api, monotonicMs: () => now);
+    app = UnityAppController(game: game, camp: camp);
+    await app.initialize();
+    await game.pair(sessionA, pairCode: '123456');
+    expect(app.snapshot['canStart'], isTrue);
+    expect(await action('startEgg', {'tier': 'small'}), isTrue);
+    expect(game.game.stage, Stage.hatched);
+    expect(game.eggId, egg);
+    expect(app.snapshot['canStart'], isFalse);
+    now += 1799999;
+    feed.sample(eta: 600);
+    expect(game.eggId, egg);
+    now += 1;
+    feed.sample(eta: 600);
+    expect(game.eggId, isNot(egg));
+    expect(game.game.stage, Stage.incubating);
+    expect(game.game.eggTier, EggTier.small);
+    expect(game.affinityRound!.score, 0);
+    expect(app.snapshot['canStart'], isFalse);
+  });
+  test(
+      'explicit disconnect pair resumes stopped round without allowing active replacement',
+      () async {
+    final egg = game.eggId;
+    await game.petEgg();
+    expect(app.snapshot['canStart'], isFalse);
+    expect(await action('startEgg', {'tier': 'mid'}), isFalse);
+    expect(await action('disconnect'), isTrue);
+    expect(app.snapshot['canStart'], isFalse);
+    expect(await action('pair', {'sessionId': sessionA, 'pairCode': '123456'}),
+        isTrue);
+    expect(app.snapshot['canStart'], isTrue);
+    expect(await action('startEgg', {'tier': 'mid'}), isFalse);
+    expect(feed.watches, 1);
+    expect(await action('startEgg', {'tier': 'small'}), isTrue);
+    feed.sample();
+    expect(game.eggId, egg);
+    expect(game.affinityRound!.score, 3);
+    expect(feed.watches, 2);
+    expect(app.snapshot['canStart'], isFalse);
+    expect(await action('startEgg', {'tier': 'small'}), isFalse);
+    expect(feed.watches, 2);
   });
 }
