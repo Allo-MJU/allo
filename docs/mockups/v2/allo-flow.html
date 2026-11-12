@@ -71,8 +71,9 @@ button.px[disabled]{--bg:#B9D3C4;--sh:#9BB8A8;--fg:#EAF4EE;pointer-events:none}
 .wh{position:absolute;bottom:0;width:27px;height:27px;border-radius:50%;background:var(--N);z-index:31}.wh::after{content:"";position:absolute;inset:8px;border-radius:50%;background:var(--cream)}.wh.a{left:22px}.wh.b{right:22px}
 #cs{position:absolute;inset:0;z-index:15}
 .sp{position:absolute;width:96px;height:96px;margin:-90px 0 0 -48px;cursor:pointer}
-.sp img{width:96px;height:96px;object-fit:contain;display:block;pointer-events:none;position:relative}
-.sp::before{content:"";position:absolute;left:24px;right:0;bottom:-4px;height:14px;border-radius:50%;background:#1a3a2a59;filter:blur(2px)}
+.sp img{filter:url(#sptint);width:96px;height:96px;object-fit:contain;display:block;pointer-events:none;position:relative}
+.sp::before{content:"";position:absolute;left:50%;width:58px;margin-left:-29px;bottom:-5px;height:14px;border-radius:50%;background:#1a3a2a66;filter:blur(2px)}
+.sp.walk::before{animation:hsh .5s ease-in-out infinite}@keyframes hsh{50%{transform:scale(.72);opacity:.55}}
 .sp.walk img{transform-origin:50% 100%;animation:hop .5s ease-in-out infinite}@keyframes hop{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-8px) scaleY(1.05)}}
 .sp.fl img{filter:brightness(5)}.sp.hid{visibility:hidden}
 .sp.zz::after{content:"z z";position:absolute;right:0;top:4px;font:400 16px var(--fd);color:#fff}
@@ -392,6 +393,7 @@ button.px[disabled]{box-shadow:inset 0 2px 0 #ffffff80,0 4px 0 0 var(--sh),0 4px
  <div class="px band"><i>i</i><span>낚시는 아직 팀이 정하지 않았어요(#53). 자리만 잡은 화면이에요.</span></div>
 </section>
 
+<svg width="0" height="0" style="position:absolute"><filter id="sptint" color-interpolation-filters="sRGB"></filter></svg>
 <div id="zoom" class="toy"><div id="zdim"></div><img id="zimg" alt=""><div id="fx"></div>
  <div class="px" id="zname"></div><div class="px" id="zsay"></div><button class="px sm" id="zx" data-ic="x" aria-label="닫기"></button><div id="zhint">화면을 눌러 쓰다듬어 주세요</div></div>
 <div id="ar" class="toy"><div class="floor"></div><div class="ph">카메라 화면 (예시)</div><div class="gs"></div><img id="arch" alt="">
@@ -432,6 +434,7 @@ const NG=8;
 /* 풀밭 평면: u,v는 0~NG. 화면 x 50~762, y 168~358 */
 const P=(u,v)=>[50+u/NG*712,168+v/NG*190];
 function buildScene(){
+ const [tr,tg,tb]=[1,3,5].map(i=>(parseInt(TINT[st.tm].slice(i,i+2),16)/255).toFixed(3));$("#sptint").innerHTML=`<feColorMatrix type="matrix" values="${tr} 0 0 0 0  0 ${tg} 0 0 0  0 0 ${tb} 0 0  0 0 0 1 0"/>`;
  $("#scene").innerHTML=`<div class="bgimg"></div><img id="plat" src="assets/platform.png" alt="" style="left:238.3px;top:134.7px;width:349.7px"><div class="tint" style="background:${TINT[st.tm]}"></div>`;
  $("#dimm").style.background="linear-gradient(#14163a22,#14163a66)"}
 function setTheme(t){st.auto=t=="auto";st.tm=st.auto?clockTheme():t;buildScene();
