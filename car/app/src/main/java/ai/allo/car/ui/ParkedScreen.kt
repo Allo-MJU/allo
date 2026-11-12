@@ -76,7 +76,6 @@ fun ParkedScreen(
                             }
                             "도감" -> CollectionDex(game, catalog)
                             "이야기" -> {
-                                ParkedHero(summary, connected, true, summary.title, "잠시 쉬면서 친구의 이야기를 들어 보세요.")
                                 CompanionDialoguePanel(game, connected, dialogueBank, summary.title, unreviewedDialoguePreview)
                             }
                             "거점" -> {
