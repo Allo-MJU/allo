@@ -42,7 +42,7 @@ namespace Allo.App
             for (var i = 0; i < ids.Length; i++) BuildFacilityNode(map, ids[i], .20f + .305f * i);
             var hint = Surface("Village hint", map, new Color(.949f, .933f, .898f, .92f), false);
             Stretch(hint, 14, -46, 430, -10, new Vector2(0, 1), new Vector2(0, 1));
-            var hintText = Label(hint, Items(_state.jobs).Length > 0 ? "친구들이 마을을 돌보고 있어요" : "시설을 눌러 함께할 일을 골라 주세요", 20, TextAnchor.MiddleCenter); Stretch(hintText.rectTransform, 8, 0, -8, 0);
+            var hintText = Label(hint, Items(_state.jobs).Length > 0 ? "친구들이 마을을 돌보고 있어요" : "시설 미리보기 · 눌러서 관리", 20, TextAnchor.MiddleCenter); Stretch(hintText.rectTransform, 8, 0, -8, 0);
             AddOwnedFriendChip(map);
             if (home)
             {
@@ -62,7 +62,7 @@ namespace Allo.App
             button.onClick.AddListener(() => OpenVillageFacility(id));
             var art = Rect("Building illustration", node); Stretch(art);
             var image = art.gameObject.AddComponent<Image>(); image.sprite = VillageSprite(id); image.preserveAspect = true; image.raycastTarget = false;
-            image.color = new Color(1, 1, 1, facility != null && facility.level > 0 ? 1 : .45f);
+            image.color = Color.white; // Construction state is labeled; keep the painted colors intact.
             var label = Surface("Facility name and level", node, Cream);
             Stretch(label, 30, -58, -30, -6, Vector2.zero, new Vector2(1, 0)); label.GetComponent<Image>().raycastTarget = true;
             button.targetGraphic = label.GetComponent<Image>();
