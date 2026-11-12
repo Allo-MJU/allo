@@ -32,6 +32,12 @@ namespace Allo.Bridge
             if (focused) SendReady();
         }
 
+        void OnApplicationPause(bool paused)
+        {
+            if (Allo.App.AppSession.State != null)
+                Send("appLifecycle", "\"active\":" + (paused ? "false" : "true"));
+        }
+
         void Update()
         {
             if (Input.GetKeyUp(KeyCode.Escape)) RequestClose();
@@ -46,6 +52,9 @@ namespace Allo.Bridge
             }
             switch (payload)
             {
+                case Allo.App.AppState app:
+                    Allo.App.AppSession.Receive(app);
+                    break;
                 case SceneState s:
                     LastScene = s;
                     SceneChanged?.Invoke(s);

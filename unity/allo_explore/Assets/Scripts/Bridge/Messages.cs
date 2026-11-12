@@ -67,6 +67,7 @@ namespace Allo.Bridge
     {
         public bool gyro;
         public bool reducedMotion;
+        public bool appMode;
         public bool canEndTrip;  // 체험(Fake) 주행이라 Unity 안 "주행 종료" 버튼을 보여도 되는지
     }
 

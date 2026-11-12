@@ -21,6 +21,7 @@ namespace Allo.Bridge
                 type = env.type;
                 payload = type switch
                 {
+                    "app" => JsonUtility.FromJson<Allo.App.AppState>(json),
                     "scene" => JsonUtility.FromJson<SceneState>(json),
                     "cast" => Normalize(JsonUtility.FromJson<CastState>(json)),
                     "jolt" => JsonUtility.FromJson<JoltState>(json),

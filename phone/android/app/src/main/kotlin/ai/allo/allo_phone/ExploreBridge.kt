@@ -95,7 +95,7 @@ object ExploreBridge {
     /** Unity(C#) 가 부른다. `close` 면 Flutter 화면을 앞으로 가져온다 ([closeUnity]) */
     @JvmStatic
     fun fromUnity(json: String) {
-        Log.i(TAG, "fromUnity $json")
+        Log.i(TAG, "Unity message received")
         main.post {
             if (json.contains("\"type\":\"close\"")) closeUnity()
             channel?.invokeMethod("fromUnity", json)

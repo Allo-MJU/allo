@@ -58,6 +58,7 @@ namespace Allo
 
         void OnSettings(SettingsState s)
         {
+            transform.Find("Canvas")?.gameObject.SetActive(!s.appMode);
             if (_endGo != null) _endGo.SetActive(s.canEndTrip);
         }
 
