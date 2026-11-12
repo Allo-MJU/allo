@@ -8,6 +8,7 @@
 
 | 문서 | 내용 | 주로 보는 사람 |
 | --- | --- | --- |
+| [base-camp.md](./base-camp.md) | 역할별 거점·재료·오프라인 작업·음식 보너스·훈련의 확정 규칙과 C 연결 | A·B·C·D |
 | [color-and-app-references.md](./color-and-app-references.md) | 알로 색상값과 참고 앱 | 전원 |
 | [proposal.md](./proposal.md) | 기획서. 문제 정의, 서비스 상세, 차량특화성, 기술 활용성, 사업성, 경쟁 분석 | 전원 |
 | [dev-plan.md](./dev-plan.md) | 개발 계획. 일정, 역할, 마일스톤 게이트, 리스크 | 전원 |

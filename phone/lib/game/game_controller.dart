@@ -8,6 +8,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import '../feed/vehicle_feed.dart';
 import '../feed/fake_feed.dart';
 import '../storage/dex_store.dart';
+import '../base_camp/base_camp_controller.dart';
 import '../storage/pairing_store.dart';
 import '../pairing/pairing_credentials.dart';
 
@@ -18,6 +19,7 @@ class GameController extends ChangeNotifier {
       required this.dex,
       RarityEngine? engine,
       PairingStore? pairingStore,
+      this.baseCamp,
       int Function()? monotonicMs})
       : engine = engine ?? const RarityEngine(),
         pairingStore = pairingStore ?? PairingStore(),
@@ -26,6 +28,20 @@ class GameController extends ChangeNotifier {
   }
 
   final Stopwatch _stopwatch = Stopwatch();
+  final BaseCampController? baseCamp;
+  String? _campDriveSessionId;
+
+  Future<void> _prepareCampForTrip() async {
+    final camp = baseCamp;
+    if (camp == null) return;
+    if (!camp.ready && !await camp.load()) return;
+    if (_disposed || sessionEnded) return;
+    _campDriveSessionId = isFake
+        ? 'fake-$_now-${identityHashCode(this)}'
+        : _activeSessionId;
+    final id = _campDriveSessionId;
+    if (id != null) camp.beginDrivingSession(id);
+  }
   final int Function()? _monotonicMs;
   int get activeClockMs =>
       _monotonicMs?.call() ??
@@ -177,6 +193,7 @@ class GameController extends ChangeNotifier {
 
   void prepareNextFakeTrip() {
     if (!isFake || !sessionSaved || endingSession) return;
+    _campDriveSessionId = null;
     _remoteEnded = false;
     _remoteSaved = false;
     _finalSnapshotRead = false;
@@ -340,6 +357,8 @@ class GameController extends ChangeNotifier {
       final saved = await dex.incubationProgress(tier);
       if (_disposed || sessionEnded || (!isFake && !paired)) return false;
       _activeSessionId = isFake ? null : _sessionId;
+      await _prepareCampForTrip();
+      if (_disposed || sessionEnded || (!isFake && !paired)) return false;
       _sessionDistances = Map.of(saved.sessionDistances);
       _distanceBaseline = _sessionDistances[_activeSessionId] ?? 0;
       _lastDistance = _distanceBaseline;
@@ -456,6 +475,11 @@ class GameController extends ChangeNotifier {
     }
     _lastVehicleTs = v.ts;
     vehicle = v;
+    final camp = baseCamp;
+    final campSession = _campDriveSessionId;
+    if (_appActive && !finalSnapshot && camp != null && campSession != null) {
+      unawaited(camp.recordVehicle(sessionId: campSession, vehicle: v));
+    }
     final t = _timer;
     if (t == null) {
       notifyListeners();
@@ -676,6 +700,9 @@ class GameController extends ChangeNotifier {
     if (_disposed || connection != _connection) return;
     await _refreshCollection();
     if (!_disposed && connection == _connection) _publish();
+    if (!_disposed && connection == _connection && baseCamp?.ready == true) {
+      unawaited(baseCamp!.refreshOwnership());
+    }
   }
 
   void care() {
@@ -689,6 +716,11 @@ class GameController extends ChangeNotifier {
   void lookOut() {
     if (game.stage != Stage.hatched || sessionEnded || endingSession) return;
     lookOutCount++;
+    final camp = baseCamp;
+    if (camp != null && camp.ready && _campDriveSessionId != null) {
+      unawaited(camp.recordLookOut(
+          eventId: '${_campDriveSessionId}_${_eggId}_$lookOutCount'));
+    }
     game = game.copyWith(lookOutCount: lookOutCount);
     unawaited(_send(() => feed.emitEvent('lookOutPrompt')));
     _publish();
@@ -920,6 +952,9 @@ class GameController extends ChangeNotifier {
     _advanceClock();
     _appActive = active;
     _clockAt = activeClockMs;
+    if (active && _campDriveSessionId != null) {
+      baseCamp?.beginDrivingSession(_campDriveSessionId!);
+    }
     if (active || _timer == null || sessionSaved) return true;
     _regions.breakContinuity(_regionAtMs);
     _needsResumeBaseline = true;
