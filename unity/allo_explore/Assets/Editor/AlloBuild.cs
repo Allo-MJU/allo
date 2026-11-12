@@ -397,6 +397,9 @@ public static class AlloBuild
         // 1) 옆자리에 서서 첫마디 (말풍선)
         director.Speak("hatch", "*", 30f, v);
         Shot("unity_seat_idle_bubble", 75, -32);
+        // 발밑 그림자 없이 (발밑 흰 자국이 그림자 판인지 가려내는 용도)
+        var shadow = v.transform.Find("Shadow");
+        if (shadow != null) { shadow.gameObject.SetActive(false); Shot("unity_seat_noshadow", 75, -32); shadow.gameObject.SetActive(true); }
         // 2) 잠든 모습에 담요를 덮어 준다
         v.Brain.Nap(60);
         v.Pose(cam, 0.1f);

@@ -8,6 +8,7 @@ Shader "Allo/Sprite"
         _Color ("Tint", Color) = (1, 1, 1, 1)
         _Lit ("Scene light amount", Range(0, 1)) = 0.55
         _Floor ("Darkest", Range(0, 1)) = 0.42
+        _GroundShade ("Ground shade", Range(0, 1)) = 0.5
     }
     SubShader
     {
@@ -29,7 +30,7 @@ Shader "Allo/Sprite"
             sampler2D _MainTex;
             float4 _MainTex_ST;
             fixed4 _Color;
-            half _Lit, _Floor;
+            half _Lit, _Floor, _GroundShade;
 
             struct v2f
             {
@@ -55,6 +56,8 @@ Shader "Allo/Sprite"
             {
                 fixed4 c = tex2D(_MainTex, i.uv) * _Color.a;
                 c.rgb *= i.tint;
+                // 그림 아래쪽(발·배 밑)을 바닥 그늘처럼 어둡게: 밝은 배 밑이 어두운 시트 위에서 흰 판처럼 보이지 않게
+                c.rgb *= lerp(1 - _GroundShade, 1, smoothstep(0.0, 0.16, i.uv.y));
                 UNITY_APPLY_FOG_COLOR(i.fogCoord, c, fixed4(unity_FogColor.rgb * c.a, 0));
                 return c;
             }

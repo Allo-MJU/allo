@@ -31,9 +31,9 @@ namespace Allo.Critters
         /// 그림 가운데를 창턱 위에 두면 절반이 문·유리 속으로 들어가 발과 잎이 잘려 보인다
         public const float LedgeOverhang = 0.01f;
 
-        /// 2D 그림을 면에 이만큼(m) 묻는다. D 의 그림이 발 아래에서 잘려 있어(여백 0) 그대로 두면 발이 뚝 잘린 채 떠 보이고
-        /// 그림에 남은 바닥 자국이 드러난다. 조금 묻으면 면이 가려 준다
-        public const float Sink = 0.02f;
+        /// 2D 그림을 면에 이만큼(m) 묻는다. 그림 맨 아래의 바닥 자국을 면이 가려 주고 발이 쿠션에 살짝 눌린 것처럼 보인다.
+        /// 발 사이로 보이는 밝은 배 밑은 셰이더가 바닥 그늘(_GroundShade)로 어둡게 한다
+        public const float Sink = 0.016f;
 
         public bool Is3D => _model != null;
 

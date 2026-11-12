@@ -92,6 +92,7 @@ namespace Allo
             // 그림마다 재질 하나를 같이 쓴다 (효과마다 새로 만들면 지워지지 않고 쌓인다)
             if (_mats.TryGetValue(tex, out var m) && m != null) return m;
             m = new Material(_mat) { mainTexture = tex };
+            if (m.HasProperty("_GroundShade")) m.SetFloat("_GroundShade", 0); // 효과 그림(하트·별)은 아래쪽을 어둡게 하지 않는다
             _mats[tex] = m;
             return m;
         }

@@ -101,5 +101,5 @@ Unity 차 안에서 캐릭터 머리 위 말풍선으로 나오는 말. 3절의 
 - 키 `상황|대상|문맥`. 대상은 종 id → `@속성` → `*` 순, 문맥은 그 문맥 → `*` 순으로 찾는다 (Unity `Dialogue.Pick`)
 - 상황: `hatch`(첫마디) · `scene`(장면이 바뀔 때, 문맥 = road coast mountain city highway tunnel night rain) · `idle`(혼잣말, 35~65초) · `request`(부탁: 공·간식·쓰다듬기·창밖) · `sleep_talk` · `snack` `ball` `pet` `blanket` `wake` `jolt` `nest` · `prop`(문맥 = bobble toycar music book bubble tissue) · `window` / `window_done`(창밖 손님, 문맥 = balloon kite birds plane star whale)
 - `name|종|*` 한 줄이 종 한글 이름. `{name}` 과 조사 `{name:이/가}` `{name:은/는}` `{name:아/야}` 를 채운다
-- 영어는 **창밖·놀이 사물 이름**을 한 문장에 하나, 한글 뜻과 같이 ("바다는 영어로 sea"). 되묻기 없음
+- 영어는 **가르치듯 "~는 영어로 ~"라고 하지 않는다** (팀장, 2026-11-12). 캐릭터가 신나서 내뱉는 말로 한 문장에 한 덩어리만 — "바다다! Sea!", "잘 자, good night.", "빨간 balloon!" — 앞뒤 한국어로 뜻이 드러나게. 되묻기 없음
 - 종별 말투는 2절대로. 지금은 길싹이(`road_sprout`)만 종별 줄이 있고 나머지는 속성·공통 줄을 쓴다 (D·C 가 채운다)
