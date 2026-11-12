@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &662900522154655286
+--- !u!1 &1414287366787010678
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 747308855527608846}
-  - component: {fileID: 5070208113677187801}
-  - component: {fileID: 7845495920351058184}
+  - component: {fileID: 7189298036417434750}
+  - component: {fileID: 3049679560692972667}
+  - component: {fileID: 4789041598671571745}
   m_Layer: 0
   m_Name: rock_tallB(Clone)
   m_TagString: Untagged
@@ -18,36 +18,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &747308855527608846
+--- !u!4 &7189298036417434750
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 662900522154655286}
+  m_GameObject: {fileID: 1414287366787010678}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0, y: -0, z: -0}
   m_LocalScale: {x: 1.1315038, y: 1.1315038, z: 1.1315038}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1561598571078646775}
+  m_Father: {fileID: 5352622264240786539}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &5070208113677187801
+--- !u!33 &3049679560692972667
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 662900522154655286}
+  m_GameObject: {fileID: 1414287366787010678}
   m_Mesh: {fileID: 4057254305547243137, guid: 636e2abef45fe4840bc5fe16020aa137, type: 3}
---- !u!23 &7845495920351058184
+--- !u!23 &4789041598671571745
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 662900522154655286}
+  m_GameObject: {fileID: 1414287366787010678}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -88,7 +88,7 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!1 &7805156470381809532
+--- !u!1 &8821907586440523170
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -96,7 +96,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1561598571078646775}
+  - component: {fileID: 5352622264240786539}
   m_Layer: 0
   m_Name: K_rock_tallB
   m_TagString: Untagged
@@ -104,19 +104,19 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &1561598571078646775
+--- !u!4 &5352622264240786539
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7805156470381809532}
+  m_GameObject: {fileID: 8821907586440523170}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 747308855527608846}
+  - {fileID: 7189298036417434750}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

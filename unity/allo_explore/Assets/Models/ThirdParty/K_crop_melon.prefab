@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &6907887450474217024
+--- !u!1 &3267321091993091604
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 8360549906093363442}
-  - component: {fileID: 6739953500028529904}
-  - component: {fileID: 6485460846410510005}
+  - component: {fileID: 2697610314866973999}
+  - component: {fileID: 7173906612633945973}
+  - component: {fileID: 8816078402966114520}
   m_Layer: 0
   m_Name: crop_melon(Clone)
   m_TagString: Untagged
@@ -18,36 +18,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &8360549906093363442
+--- !u!4 &2697610314866973999
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6907887450474217024}
+  m_GameObject: {fileID: 3267321091993091604}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0, y: -0, z: -0}
   m_LocalScale: {x: 2.8735633, y: 2.8735633, z: 2.8735633}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1081794705516246603}
+  m_Father: {fileID: 278982607857667821}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &6739953500028529904
+--- !u!33 &7173906612633945973
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6907887450474217024}
+  m_GameObject: {fileID: 3267321091993091604}
   m_Mesh: {fileID: -1830311798287620339, guid: 4bf862096bd1a478da428db86eb9c881, type: 3}
---- !u!23 &6485460846410510005
+--- !u!23 &8816078402966114520
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6907887450474217024}
+  m_GameObject: {fileID: 3267321091993091604}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -88,7 +88,7 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!1 &7697898862155703663
+--- !u!1 &4149630262473635504
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -96,7 +96,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1081794705516246603}
+  - component: {fileID: 278982607857667821}
   m_Layer: 0
   m_Name: K_crop_melon
   m_TagString: Untagged
@@ -104,19 +104,19 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &1081794705516246603
+--- !u!4 &278982607857667821
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7697898862155703663}
+  m_GameObject: {fileID: 4149630262473635504}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 8360549906093363442}
+  - {fileID: 2697610314866973999}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
