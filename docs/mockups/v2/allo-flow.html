@@ -74,7 +74,7 @@ button.px[disabled]{--bg:#B9D3C4;--sh:#9BB8A8;--fg:#EAF4EE;pointer-events:none}
 .sp img{filter:url(#sptint);width:96px;height:96px;object-fit:contain;display:block;pointer-events:none;position:relative}
 .sp::before{content:"";position:absolute;left:50%;width:58px;margin-left:-29px;bottom:-5px;height:14px;border-radius:50%;background:#1a3a2a66;filter:blur(2px)}
 .sp.walk::before{animation:hsh .5s ease-in-out infinite}@keyframes hsh{50%{transform:scale(.72);opacity:.55}}
-.sp{transform-origin:50% 100%}.sp .gr{position:absolute;left:50%;width:64px;height:14px;margin-left:-32px;bottom:-1px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 14'%3E%3Cg fill='%2362A844'%3E%3Cpath d='M4 14L3 5L8 14zM9 14L11 2L15 14zM14 14L19 6L20 14z'/%3E%3Cpath d='M42 14L44 6L49 14zM47 14L53 3L55 14zM53 14L58 7L60 14z'/%3E%3C/g%3E%3Cg fill='%234A8A38'%3E%3Cpath d='M7 14L9 7L11 14zM46 14L50 8L51 14z'/%3E%3C/g%3E%3C/svg%3E") center/100% 100% no-repeat;filter:url(#sptint);pointer-events:none}
+.sp{transform-origin:50% 100%}
 .sp.walk img{transform-origin:50% 100%;animation:hop .5s ease-in-out infinite}@keyframes hop{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-8px) scaleY(1.05)}}
 .sp.fl img{filter:brightness(5)}.sp.hid{visibility:hidden}
 .sp.zz::after{content:"z z";position:absolute;right:0;top:4px;font:400 16px var(--fd);color:#fff}
@@ -453,7 +453,7 @@ function sep(dt){for(let i=0;i<cs.length;i++)for(let j=i+1;j<cs.length;j++){cons
    [[a,-1],[b,1]].forEach(([c,g])=>{const u=c.u+g*dx/n*k*90/89,v=c.v+g*dy/n*k*(dense()?60:80)/23.75;if(ok(u,v)){c.u=u;c.v=v}})}}}
 const asleep=()=>st.tm=="night";
 function spawn(){$("#cs").innerHTML="";cs=[];
- for(let i=0;i<st.n;i++){const e=document.createElement("div");e.className="sp"+(asleep()?" zz":"");const im=document.createElement("img");im.alt="";im.src=src(i,asleep()?"sleep":"idle");e.appendChild(im);const gr=document.createElement("i");gr.className="gr";e.appendChild(gr);
+ for(let i=0;i<st.n;i++){const e=document.createElement("div");e.className="sp"+(asleep()?" zz":"");const im=document.createElement("img");im.alt="";im.src=src(i,asleep()?"sleep":"idle");e.appendChild(im);
   const c={i,e,im,u:0,v:0,tu:0,tv:0,w:Math.random()*2,dir:1,mv:0};[c.u,c.v]=pick();c.tu=c.u;c.tv=c.v;e.onclick=()=>zoom(c);cs.push(c);$("#cs").appendChild(e)}}
 let last=performance.now();
 function loop(t){const dt=Math.min(.05,(t-last)/1000);last=t;
