@@ -48,7 +48,23 @@ class BaseCampController extends ChangeNotifier {
   /// The engine is mutable internally; callers receive a detached snapshot.
   BaseCamp get state => BaseCamp.fromJson(_camp.toJson());
 
-  Future<bool> load() => _enqueue(() async {
+  Future<bool>? _loadInFlight;
+  Future<bool> load() {
+    final pending = _loadInFlight;
+    if (pending != null) return pending;
+    final result = Completer<bool>();
+    _loadInFlight = result.future;
+    _loadOnce().then((value) {
+      _loadInFlight = null;
+      result.complete(value);
+    }, onError: (Object error, StackTrace stack) {
+      _loadInFlight = null;
+      result.completeError(error, stack);
+    });
+    return result.future;
+  }
+
+  Future<bool> _loadOnce() => _enqueue(() async {
         Map<String, dynamic>? saved;
         try {
           saved = await _store.load();
@@ -175,6 +191,28 @@ class BaseCampController extends ChangeNotifier {
 
   Future<bool> recordLookOut({required String eventId}) => _mutate(
       (camp, registry, at) => camp.recordLookOut(eventId: eventId, atMs: at));
+
+  /// Resolve an existing camp ID against freshly read ownership, without saving IDs.
+  Future<DexEntry?> ownedEntryForCreature(String creatureId) async {
+    final expected = _camp.creatures[creatureId];
+    if (_disposed || !_ready || expected == null) return null;
+    final registry = _CreatureRegistry.fromJson(_registry.toJson());
+    try {
+      final entries = await _readOwnership();
+      DexEntry? owned;
+      registry.resolve(entries, onResolved: (id, entry) {
+        if (id == creatureId) owned = entry;
+      });
+      if (_disposed ||
+          _camp.creatures[creatureId]?.speciesId != expected.speciesId ||
+          owned?.speciesId != expected.speciesId) {
+        return null;
+      }
+      return owned;
+    } catch (_) {
+      return null;
+    }
+  }
 
   bool canUseAction(String id, String action) =>
       !_disposed && _ready && _camp.canUseAction(id, action);
@@ -315,7 +353,8 @@ class _CreatureRegistry {
         'ids': Map<String, String>.of(ids),
       };
 
-  List<CampCreature> resolve(List<_CampOwnership> entries) {
+  List<CampCreature> resolve(List<_CampOwnership> entries,
+      {void Function(String id, DexEntry entry)? onResolved}) {
     final occurrences = <String, int>{};
     final current = <String>{};
     final creatures = <CampCreature>[];
@@ -343,6 +382,7 @@ class _CreatureRegistry {
       if (!current.add(key)) continue;
       final id = ids.putIfAbsent(key, () => 'creature-${nextCreatureNumber++}');
       creatures.add(CampCreature(id: id, speciesId: entry.speciesId));
+      onResolved?.call(id, entry);
     }
     return creatures;
   }

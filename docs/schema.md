@@ -296,6 +296,19 @@ DB 규칙의 원본은 [`firebase/database.rules.json`](../firebase/database.rul
 
 현재 기준의 측정 한계는 GPS 캐시 신선도, 종료 이벤트 배달, 실제 내비 안내 시작 확인이다. 미측정 값을 임의의 TTL이나 성공 보장으로 바꾸지 않고 현재 의미로 구현한다. 문제가 확인되면 C가 이 문서를 갱신하고 A/B가 따라 수정한다.
 
+## 거점 로컬 계약 2026-11-12
+
+[거점 구현 기준](base-camp.md)은 종별 역할, 시설별 병렬 작업, 실제 시간 기반 오프라인 진행, 주행·활동 재료, 음식/도감/속도 보너스, 훈련 행동을 정의한다. C의 BaseCampController가 기존 도감에서 영속 개체 참조를 만들고 별도 `baseCamp.v1.<profile>` JSON에 거점과 중복 방지 상태를 함께 저장한다. 기존 도감·부화 저장과 차량 game wire는 변경하지 않는다. 앱 화면의 기존 차량 샘플/행동을 명시적으로 전달받으며 새 차량 구독을 만들지 않는다. UI/3D 연결과 실기 확인은 별도 작업이다.
+## 6. 호감도 부화 데모 계약 2026-11-11
+
+사용자 확정 규칙은 [호감도 부화 구현 기준](affinity-hatching.md)을 따른다. 기존 3주제/3점 초안 대신 0~100 호감도, 발화 +12/60초·-12·중립0, 쓰다듬기 +3/10초, 구역 놓기 +7/15초, 50점 필수 사진 업로드(+15), 100점 즉시 부화를 사용한다. 다음 알은 실제 부화 후 활성30분을 기준으로 한다. C API의 `startIncubating(tier, useAffinity:true)`에서 명시적으로 선택한다. 기본 호출과 기존 저장 알은 현행 시간/거리 동작을 유지한다.
+
+새 모드의 `/game`은 `contractVersion:2`와 `affinity:{score:number,target:100,phase:string,photoCompleted:boolean}`을 추가한다. phase는 incubating/photoRequired/resultPending/hatched/failed/discarded다. photoRequired는 stage=incubating, 저장 성공 후만 stage=hatched, 실패/버리기는 stage=failed로 표시한다. progress는 시간/거리 진행률이다. 앱-local 체크포인트에는 별도의 affinity 회차 상태를 저장한다. 사진 ID·원문·발화·인증토큰은 `/game`에 넣지 않는다. 구버전 차량에 신규 UI가 구현됐다고 가정하지 않으며 새모드는 입력UI와 연결한 데모에서 선택한다.
+
+`DexEntry.sourceEggId`는 신규 결과의 로컬 중복 방지 키이며 기존 행에는 없어도 된다. 같은 키 결과 재시도에서 도감 중복을 만들지 않는다. 결과를 선택한 pending 회차를 먼저 저장한 뒤 도감에 적용하고 최종 체크포인트를 저장한다.
+
+발화 내용 판정과 사진 저장은 RTDB와 별도인 데모 API다. 텍스트는 API 판정 후 앱/서버에 기록하지 않고, 사진은 데모방 인증 하에 서버에 저장·조회한다. 엔드포인트와 제한은 구현 기준 문서를 따른다. 새 API를 공개 서버에 배포하거나 기존 운영 DB 규칙을 적용했다는 뜻이 아니다.
+
 ## 주차 낚시 capability v1 (2026-11-11)
 
 차량 #92 구현의 추가 계약은 [차량 주차 낚시와 폰 저장 계약 v1](vehicle/fishing-integration.md)을 따른다. 폰 단일 전체 `/game` writer를 유지하며 v2 동행·gameRevision과 별도 `fishing.version=1` 요약을 합성한다. 차량 `/vehicle/fishingPresence`는 주차·화면 활성 증거 및 lease echo를 보낸다. `fishingRequested` 이벤트는 폰에 의도를 전달하며 저장 완료나 보상 확정을 의미하지 않는다. 구버전/누락 시 낚시 시작은 비활성화한다. 공용 예시는 `data/fixtures/fishing-v1.json`이다. 개발용 Firebase 권한 규칙은 변경하지 않는다.

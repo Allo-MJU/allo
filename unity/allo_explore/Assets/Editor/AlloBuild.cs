@@ -1069,6 +1069,28 @@ public static class AlloBuild
         return null;
     }
 
+    // Preserve the painted artwork's proportions, color space and transparent edges.
+    public static void ConfigureVillageArt()
+    {
+        foreach (var name in new[] { "background", "workshop", "kitchen", "training" })
+        {
+            var path = $"Assets/Resources/VillageArt/{name}.png";
+            if (AssetImporter.GetAtPath(path) is not TextureImporter importer) continue;
+            importer.textureType = TextureImporterType.Default;
+            importer.npotScale = TextureImporterNPOTScale.None;
+            importer.sRGBTexture = true;
+            importer.alphaIsTransparency = name != "background";
+            importer.mipmapEnabled = false;
+            importer.maxTextureSize = 2048;
+            importer.filterMode = FilterMode.Bilinear;
+            importer.wrapMode = TextureWrapMode.Clamp;
+            importer.textureCompression = TextureImporterCompression.CompressedHQ;
+            importer.SaveAndReimport();
+        }
+        AssetDatabase.SaveAssets();
+        Debug.Log("[VillageArt] configured original-color 2D village assets");
+    }
+
     public static void ExportAndroid()
     {
         var root = Path.GetFullPath(Path.Combine(Application.dataPath, "../../../phone/unity/export"));

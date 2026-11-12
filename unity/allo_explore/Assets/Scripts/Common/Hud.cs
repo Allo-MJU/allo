@@ -45,12 +45,15 @@ namespace Allo
         {
             FlutterBridge.SettingsChanged += OnSettings;
             FlutterBridge.Toasted += OnToast;
+            Allo.App.AppSession.Changed += OnAppState;
+            OnAppState(Allo.App.AppSession.State);
         }
 
         void OnDisable()
         {
             FlutterBridge.SettingsChanged -= OnSettings;
             FlutterBridge.Toasted -= OnToast;
+            Allo.App.AppSession.Changed -= OnAppState;
         }
 
         void Start()
@@ -60,8 +63,12 @@ namespace Allo
 
         void OnSettings(SettingsState s)
         {
+            transform.Find("Canvas")?.gameObject.SetActive(!s.appMode && Allo.App.AppSession.State == null);
             if (_endGo != null) _endGo.SetActive(s.canEndTrip);
         }
+
+        void OnAppState(Allo.App.AppState state) =>
+            transform.Find("Canvas")?.gameObject.SetActive(!FlutterBridge.UsesAppPresentation);
 
         void OnToast(ToastState t) => Show(t.text, 2.6f);
 

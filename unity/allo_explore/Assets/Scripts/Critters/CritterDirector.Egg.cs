@@ -44,11 +44,17 @@ namespace Allo.Critters
 
         bool ReducedMotion => FlutterBridge.LastSettings != null && FlutterBridge.LastSettings.reducedMotion;
 
-        void EggEnable() => FlutterBridge.EggChanged += OnEgg;
+        void EggEnable()
+        {
+            FlutterBridge.EggChanged += OnEgg;
+            // AppWorld can hide this director before the bridge's idle event is delivered.
+            if (FlutterBridge.UsesAppPresentation) OnEgg(new EggState { state = "idle" });
+        }
         void EggDisable() => FlutterBridge.EggChanged -= OnEgg;
 
         void EggStart()
         {
+            if (FlutterBridge.UsesAppPresentation) return;
             PlaceNest();
             if (FlutterBridge.LastEgg != null) OnEgg(FlutterBridge.LastEgg);
 #if UNITY_EDITOR
@@ -106,6 +112,12 @@ namespace Allo.Critters
 
         void OnEgg(EggState e)
         {
+            if (FlutterBridge.UsesAppPresentation)
+            {
+                _eggTracker.Apply(new EggState { state = "idle" });
+                ClearEgg();
+                return;
+            }
             if (_nest == null) PlaceNest();
             _eggProgress = e.progress;
             _eggBig = e.big;
@@ -150,10 +162,17 @@ namespace Allo.Critters
 
         void ClearEgg()
         {
-            if (_egg != null) Destroy(_egg.gameObject);
+            if (_egg != null)
+            {
+                if (Application.isPlaying) Destroy(_egg.gameObject); else DestroyImmediate(_egg.gameObject);
+            }
             _egg = null;
-            if (_eggBlanket != null) Destroy(_eggBlanket.gameObject);
+            if (_eggBlanket != null)
+            {
+                if (Application.isPlaying) Destroy(_eggBlanket.gameObject); else DestroyImmediate(_eggBlanket.gameObject);
+            }
             _eggBlanket = null;
+            _hatching = false;
         }
 
         void FaceChild(Transform t)

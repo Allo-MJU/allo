@@ -1,6 +1,10 @@
 package ai.allo.allo_phone
 
 import android.app.Activity
+import android.app.Application
+import android.os.Build
+import android.os.Bundle
+import org.json.JSONObject
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
@@ -25,9 +29,28 @@ object ExploreBridge {
     private val main = Handler(Looper.getMainLooper())
     private var channel: MethodChannel? = null
     private var host: Activity? = null
+    private var appMode = false
+    private var readyActivity: Activity? = null
+    private var application: Application? = null
+    private val activityCallbacks = object : Application.ActivityLifecycleCallbacks {
+        override fun onActivityResumed(activity: Activity) { main.post { updateNativeBack() } }
+        override fun onActivityDestroyed(activity: Activity) {
+            if (readyActivity === activity) readyActivity = null
+            updateNativeBack()
+        }
+        override fun onActivityCreated(activity: Activity, state: Bundle?) = Unit
+        override fun onActivityStarted(activity: Activity) = Unit
+        override fun onActivityPaused(activity: Activity) = Unit
+        override fun onActivityStopped(activity: Activity) = Unit
+        override fun onActivitySaveInstanceState(activity: Activity, state: Bundle) = Unit
+    }
 
     fun attach(engine: FlutterEngine, activity: Activity) {
+        detach()
         host = activity
+        if (Build.VERSION.SDK_INT >= 33) {
+            application = activity.application.also { it.registerActivityLifecycleCallbacks(activityCallbacks) }
+        }
         channel = MethodChannel(engine.dartExecutor.binaryMessenger, CHANNEL).apply {
             setMethodCallHandler { call, result ->
                 when (call.method) {
@@ -48,6 +71,11 @@ object ExploreBridge {
     }
 
     fun detach() {
+        appMode = false
+        readyActivity = null
+        if (Build.VERSION.SDK_INT >= 33) NativeBackApi33.clear()
+        application?.unregisterActivityLifecycleCallbacks(activityCallbacks)
+        application = null
         channel?.setMethodCallHandler(null)
         channel = null
         host = null
@@ -67,11 +95,20 @@ object ExploreBridge {
     }
 
     private fun send(json: String) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            main.post { send(json) }
+            return
+        }
+        val settings = runCatching { JSONObject(json) }.getOrNull()
+        if (settings?.optString("type") == "settings") {
+            appMode = settings.optBoolean("appMode", false)
+            updateNativeBack()
+        }
         runCatching {
             Class.forName(UNITY_PLAYER)
                 .getMethod("UnitySendMessage", String::class.java, String::class.java, String::class.java)
                 .invoke(null, "FlutterBridge", "OnFlutterMessage", json)
-        }.onFailure { Log.w(TAG, "send failed", it) }
+        }.onFailure { Log.w(TAG, "send failed") }
     }
 
     /**
@@ -80,9 +117,7 @@ object ExploreBridge {
      * Unity 를 moveTaskToBack 하면 Flutter 대신 홈 화면이 드러날 수 있다).
      */
     private fun closeUnity() {
-        val from = runCatching {
-            Class.forName(UNITY_PLAYER).getField("currentActivity").get(null) as? Activity
-        }.getOrNull() ?: host ?: return
+        val from = currentUnityActivity() ?: host ?: return
         from.startActivity(
             Intent(from, MainActivity::class.java).addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or
@@ -95,10 +130,65 @@ object ExploreBridge {
     /** Unity(C#) 가 부른다. `close` 면 Flutter 화면을 앞으로 가져온다 ([closeUnity]) */
     @JvmStatic
     fun fromUnity(json: String) {
-        Log.i(TAG, "fromUnity $json")
+        Log.i(TAG, "Unity message received")
         main.post {
+            if (runCatching { JSONObject(json).optString("type") }.getOrNull() == "ready") {
+                readyActivity = currentUnityActivity()
+            }
+            updateNativeBack()
             if (json.contains("\"type\":\"close\"")) closeUnity()
             channel?.invokeMethod("fromUnity", json)
         }
     }
+
+    private fun currentUnityActivity(): Activity? = runCatching {
+        Class.forName(UNITY_PLAYER).getField("currentActivity").get(null) as? Activity
+    }.getOrNull()?.takeUnless { it.isFinishing || it.isDestroyed }
+
+    private fun updateNativeBack() {
+        if (Build.VERSION.SDK_INT < 33) return
+        val current = currentUnityActivity()
+        val target = current?.takeIf { appMode && it === readyActivity }
+        NativeBackApi33.update(target)
+    }
+
+    // Isolate API 33 types so older Android versions never load them.
+    @android.annotation.TargetApi(33)
+    private object NativeBackApi33 {
+        private var activity: Activity? = null
+        private var callback: android.window.OnBackInvokedCallback? = null
+
+        fun update(target: Activity?) {
+            if (activity === target) return
+            clear()
+            if (target == null) return
+            val back = android.window.OnBackInvokedCallback {
+                if (!appMode || currentUnityActivity() !== target) {
+                    updateNativeBack()
+                    return@OnBackInvokedCallback
+                }
+                runCatching {
+                    Class.forName(UNITY_PLAYER)
+                        .getMethod("UnitySendMessage", String::class.java, String::class.java, String::class.java)
+                        .invoke(null, "FlutterBridge", "OnNativeBack", "")
+                }.onFailure { Log.w(TAG, "Native back delivery failed") }
+            }
+            runCatching {
+                target.onBackInvokedDispatcher.registerOnBackInvokedCallback(
+                    android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT, back,
+                )
+                activity = target
+                callback = back
+            }.onFailure { Log.w(TAG, "Native back registration failed") }
+        }
+
+        fun clear() {
+            callback?.let { back ->
+                runCatching { activity?.onBackInvokedDispatcher?.unregisterOnBackInvokedCallback(back) }
+            }
+            callback = null
+            activity = null
+        }
+    }
+
 }

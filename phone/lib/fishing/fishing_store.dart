@@ -5,9 +5,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// One local value for selection, fishing checkpoints, rewards and receipts.
 /// SharedPreferences durability is platform dependent; this is not an fs transaction.
 class FishingStore {
-  FishingStore({this.namespace = ''});
+  FishingStore({this.namespace = '', this.profile = 'default'}) {
+    if (!RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(profile)) {
+      throw ArgumentError.value(profile, 'profile', 'Invalid local profile');
+    }
+  }
   final String namespace;
-  String get _storageKey => '$namespace$key';
+  final String profile;
+  String get _storageKey =>
+      '$namespace${profile == 'default' ? '' : 'profile.$profile.'}$key';
   static const key = 'companion.fishing.profile.v1';
 
   Future<Map<String, dynamic>?> read() async {

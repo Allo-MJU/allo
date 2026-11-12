@@ -110,6 +110,7 @@ Future<void> startLocalFirebase() async {
   runApp(_CampOwner(
       camp: camp,
       child: AlloApp(
+          useUnityApp: false,
           feed: feed,
           createController: () => controller,
           frameBuilder: (context, c, child) => Scaffold(

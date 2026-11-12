@@ -5,9 +5,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// 도감 + 이어하기 거리. **기기에만 저장**한다. 서버에는 올리지 않는다 (아동 개인정보 설계).
 class DexStore {
-  DexStore({this.namespace = ''});
+  DexStore({this.namespace = '', this.profile = 'default'}) {
+    if (!RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(profile)) {
+      throw ArgumentError.value(profile, 'profile', 'Invalid local profile');
+    }
+  }
   final String namespace;
-  String _key(String value) => '$namespace$value';
+  final String profile;
+  String _key(String value) =>
+      '$namespace${profile == 'default' ? '' : 'profile.$profile.'}$value';
   static const _kDex = 'dex.entries.v1';
   static const _kProgress = 'hatch.progress.v2.';
   static const _kCarry = 'hatch.carried.v1.'; // + eggTier

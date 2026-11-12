@@ -34,6 +34,7 @@ Future<void> main() async {
       pairCode: '123456');
   await controller.selectCarCompanion(entry);
   runApp(AlloApp(
+      useUnityApp: false,
       feed: feed,
       eggApi: api,
       createController: () => controller,

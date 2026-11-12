@@ -8,7 +8,7 @@ namespace Allo.Bridge
     /// UnityPlayer.UnitySendMessage("FlutterBridge", "OnFlutterMessage", json) 로 보낸다.
     ///
     /// - 시작할 때와 다시 화면에 나타날 때 ready 를 보낸다 (Flutter 가 마지막 장면·캐릭터를 다시 보낸다)
-    /// - 안드로이드 뒤로 가기(Escape)는 키를 뗄 때 close 로 보낸다
+    /// - 안드로이드 뒤로 가기(Escape)는 키를 뗄 때 앱 안에서 처리한다
     ///   (누를 때 보내면 Flutter 화면이 먼저 앞에 와서, 뗄 때의 뒤로 가기가 Flutter 화면까지 닫는다)
     /// - 마지막 상태를 Last* 로 들고 있어 늦게 구독한 쪽도 읽을 수 있다
     public sealed class FlutterBridge : MonoBehaviour
@@ -34,20 +34,54 @@ namespace Allo.Bridge
             if (focused) SendReady();
         }
 
-        void Update()
+        void OnApplicationPause(bool paused)
         {
-            if (Input.GetKeyUp(KeyCode.Escape)) RequestClose();
+            if (Allo.App.AppSession.State != null)
+                Send("appLifecycle", "\"active\":" + (paused ? "false" : "true"));
         }
 
+        void Update()
+        {
+            if (Input.GetKeyUp(KeyCode.Escape)) HandleBack();
+        }
+
+        [UnityEngine.Scripting.Preserve]
+        public void OnNativeBack(string unused) => HandleBack();
+
+        public static void HandleBack()
+        {
+            switch (Allo.App.AppSession.BackActionFor(Allo.App.AppSession.State))
+            {
+                case Allo.App.AppBackAction.NavigateHome:
+                    Allo.App.AppSession.Request("navigate", new Allo.App.AppAction { view = "home" });
+                    break;
+                case Allo.App.AppBackAction.BackgroundApp:
+#if UNITY_ANDROID && !UNITY_EDITOR
+                    using (var player = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
+                    using (var activity = player.GetStatic<AndroidJavaObject>("currentActivity"))
+                        activity.Call<bool>("moveTaskToBack", true);
+#endif
+                    break;
+                default:
+                    Send("close");
+                    break;
+            }
+        }
+
+        [UnityEngine.Scripting.Preserve]
         public void OnFlutterMessage(string json)
         {
             if (!MessageParser.TryParse(json, out var type, out var payload))
             {
-                Debug.LogWarning($"[FlutterBridge] 읽지 못한 메시지: {json}");
+                Debug.LogWarning("[FlutterBridge] 읽지 못한 메시지");
                 return;
             }
             switch (payload)
             {
+                case Allo.App.AppState app:
+                    Allo.App.AppSession.Receive(app);
+                    ClearLegacyEggForApp();
+                    break;
                 case SceneState s:
                     LastScene = s;
                     SceneChanged?.Invoke(s);
@@ -61,6 +95,7 @@ namespace Allo.Bridge
                     break;
                 case SettingsState st:
                     LastSettings = st;
+                    ClearLegacyEggForApp();
                     SettingsChanged?.Invoke(st);
                     break;
                 case ToastState t:
@@ -71,19 +106,31 @@ namespace Allo.Bridge
                     RouteChanged?.Invoke(r);
                     break;
                 case EggState e:
+                    if (UsesAppPresentation) break;
                     LastEgg = e;
                     EggChanged?.Invoke(e);
                     break;
                 default:
-                    Debug.Log($"[FlutterBridge] 무시: {type}");
+                    Debug.Log("[FlutterBridge] 알 수 없는 메시지");
                     break;
             }
         }
 
+        public static bool UsesAppPresentation =>
+            Allo.App.AppSession.State != null || (LastSettings != null && LastSettings.appMode);
+
+        static void ClearLegacyEggForApp()
+        {
+            if (!UsesAppPresentation || LastEgg?.state == "idle") return;
+            // An idle cache also prevents the legacy director's editor-only sample egg.
+            LastEgg = new EggState { state = "idle", eggId = "", bornText = "" };
+            EggChanged?.Invoke(LastEgg);
+        }
+
         static void SendReady() => Send("ready");
 
-        /// 탐험 화면 안의 닫기 버튼·뒤로 가기에서 부른다
-        public static void RequestClose() => Send("close");
+        /// Legacy exploration close buttons follow the app Back policy once the app is active.
+        public static void RequestClose() => HandleBack();
 
         /// Unity → Flutter 한 줄. fields 는 `"id":"x"` 처럼 이미 JSON 조각이어야 한다 (Field 로 만든다)
         public static void Send(string type, string fields = null) =>

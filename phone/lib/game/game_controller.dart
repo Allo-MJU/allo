@@ -55,6 +55,7 @@ class GameController extends ChangeNotifier {
     // A successful retry can arrive after pairing completed without a camp.
     // Restore observation before the display-signature early return.
     if (paired &&
+        !busy &&
         _sessionId?.isNotEmpty == true &&
         !sessionEnded &&
         !endingSession &&
@@ -886,6 +887,39 @@ class GameController extends ChangeNotifier {
       error = e.message;
     } catch (_) {
       error = '연결하지 못했어요. 네트워크와 차량의 새 QR을 확인해 주세요.';
+    } finally {
+      busy = false;
+      notifyListeners();
+    }
+  }
+
+  /// Save egg and fishing progress before clearing local pairing.
+  Future<bool> disconnect() async {
+    if (busy || endingSession) return false;
+    if (!await endSession()) return false;
+    busy = true;
+    notifyListeners();
+    try {
+      await fishing.detach();
+      if (fishing.hasPendingWrite) {
+        error = fishing.error;
+        return false;
+      }
+      await _pairingSave.catchError((_) {});
+      await pairingStore.clear();
+      await _eventsSub?.cancel();
+      _eventsSub = null;
+      _connection++;
+      paired = false;
+      _sessionId = null;
+      _invalidateInputs();
+      error = null;
+      notifyListeners();
+      return true;
+    } catch (_) {
+      error = '연결 정보를 지우지 못했어요. 다시 시도해 주세요.';
+      notifyListeners();
+      return false;
     } finally {
       busy = false;
       notifyListeners();

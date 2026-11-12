@@ -5,13 +5,17 @@ import 'package:go_router/go_router.dart';
 
 import 'dart:io' show Platform;
 
+import 'affinity/egg_demo_api.dart';
+import 'base_camp/base_camp_controller.dart';
+import 'base_camp/base_camp_store.dart';
+import 'fishing/fishing_store.dart';
+import 'unity_app/unity_app_controller.dart';
+import 'unity_app/unity_app_screen.dart';
 import 'explore/explore_screen.dart';
 import 'explore/unity_channel.dart';
 import 'feed/vehicle_feed.dart';
-import 'game/game_controller.dart';
-import 'base_camp/base_camp_controller.dart';
-import 'base_camp/base_camp_store.dart';
 import 'feed/fake_feed.dart';
+import 'game/game_controller.dart';
 import 'screens/companion_screen.dart';
 import 'screens/dex_screen.dart';
 import 'screens/base_camp_screen.dart';
@@ -20,7 +24,9 @@ import 'screens/incubating_screen.dart';
 import 'screens/pairing_screen.dart';
 import 'screens/session_end_screen.dart';
 import 'storage/dex_store.dart';
-import 'affinity/egg_demo_api.dart';
+
+const unityAppEnabled = bool.fromEnvironment('UNITY_APP', defaultValue: true);
+const unityDemoCreaturesEnabled = bool.fromEnvironment('UNITY_DEMO_CREATURES');
 
 class AlloApp extends StatefulWidget {
   const AlloApp(
@@ -29,44 +35,75 @@ class AlloApp extends StatefulWidget {
       this.monotonicMs,
       this.eggApi,
       this.createController,
-      this.frameBuilder});
+      this.frameBuilder,
+      this.useUnityApp,
+      this.demoCreatures = unityDemoCreaturesEnabled,
+      this.unityView});
 
-  /// App owns and closes this API. Absent configuration leaves server inputs unavailable.
+  /// App owns and closes this API; debug entrypoints can supply their adapter.
   final EggDemoApi? eggApi;
   final GameController Function()? createController;
   final Widget Function(BuildContext, GameController, Widget)? frameBuilder;
   final VehicleFeed feed;
   final int Function()? monotonicMs;
+  final bool? useUnityApp;
+  final bool demoCreatures;
+  final UnityViewBuilder? unityView;
 
   @override
   State<AlloApp> createState() => _AlloAppState();
 }
 
 class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
-  BaseCampController? _ownedCamp;
-  GameController _createController() {
-    final dex = DexStore();
-    _ownedCamp = BaseCampController(
-      store: SharedPreferencesBaseCampStore(
-          profile: widget.feed is FakeVehicleFeed ? 'demo' : 'default'),
-      dex: dex,
-    );
-    return GameController(
-        feed: widget.feed,
-        dex: dex,
-        baseCamp: _ownedCamp,
-        monotonicMs: widget.monotonicMs,
-        eggApi: widget.eggApi);
+  bool get _useUnity =>
+      widget.useUnityApp ?? (Platform.isAndroid && unityAppEnabled);
+  bool get _useDemoCreatures =>
+      _useUnity &&
+      widget.createController == null &&
+      widget.demoCreatures &&
+      widget.feed is FakeVehicleFeed;
+  late final GameController? _providedController =
+      widget.createController?.call();
+  late final DexStore dex = _providedController?.dex ??
+      DexStore(profile: _useDemoCreatures ? 'unity-demo-examples' : 'default');
+  late final BaseCampController camp = _providedController?.baseCamp ??
+      BaseCampController(
+          dex: dex,
+          store: SharedPreferencesBaseCampStore(
+              profile: _useDemoCreatures
+                  ? 'unity-demo-examples'
+                  : widget.feed is FakeVehicleFeed
+                      ? 'demo'
+                      : 'default'));
+  late final EggDemoApi? _eggApi = widget.eggApi ??
+      (_useUnity && _providedController == null ? _makeEggApi() : null);
+  EggDemoApi? _makeEggApi() {
+    try {
+      return HttpEggDemoApi.fromEnvironment();
+    } on EggDemoApiException {
+      return null;
+    }
   }
 
-  late final GameController controller =
-      widget.createController?.call() ?? _createController();
+  late final GameController controller = _providedController ??
+      GameController(
+          feed: widget.feed,
+          dex: dex,
+          monotonicMs: widget.monotonicMs,
+          eggApi: _eggApi,
+          fishingStore: _useDemoCreatures
+              ? FishingStore(profile: 'unity-demo-examples')
+              : null,
+          baseCamp: camp);
+  late final UnityAppController unityApp = UnityAppController(
+      game: controller, camp: camp, demoCreatures: _useDemoCreatures);
 
   late final _router = GoRouter(
-    initialLocation: '/pairing',
+    initialLocation: _useUnity ? '/unity' : '/pairing',
     refreshListenable: controller,
     redirect: (_, state) {
       final path = state.uri.path;
+      if (path == '/unity') return null;
       if (!controller.sessionEnded) {
         if (path == '/session-end') return '/pairing';
         if (const {'/hatching', '/companion'}.contains(path) &&
@@ -83,6 +120,11 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
       return null;
     },
     routes: [
+      GoRoute(
+          path: '/unity',
+          builder: (_, __) => UnityAppScreen(
+              controller: unityApp,
+              unityView: widget.unityView ?? androidUnityView)),
       GoRoute(
           path: '/session-end',
           builder: (_, __) => SessionEndScreen(controller: controller)),
@@ -117,6 +159,7 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     unityExploreOpen.addListener(_syncActive);
+    if (_useUnity) unawaited(unityApp.initialize());
     unawaited(controller.restorePairing());
   }
 
@@ -129,6 +172,10 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
   AppLifecycleState _lastLifecycle = AppLifecycleState.resumed;
 
   void _syncActive() {
+    if (_useUnity) {
+      unawaited(unityApp.setHostLifecycle(_lastLifecycle));
+      return;
+    }
     unawaited(controller.setAppActive(
         appActiveFor(_lastLifecycle, unityOpen: unityExploreOpen.value)));
   }
@@ -138,9 +185,13 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
     unityExploreOpen.removeListener(_syncActive);
     WidgetsBinding.instance.removeObserver(this);
     _router.dispose();
+    if (_useUnity) unityApp.dispose();
     controller.dispose();
-    _ownedCamp?.dispose();
-    widget.eggApi?.close();
+    if (_providedController == null ||
+        (_useUnity && _providedController?.baseCamp == null)) {
+      camp.dispose();
+    }
+    _eggApi?.close();
     super.dispose();
   }
 
