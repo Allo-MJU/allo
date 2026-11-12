@@ -10,7 +10,8 @@ class PlazaDialogueTest {
             .first { it.exists() }
         val species = SpeciesCatalog.parse(source.readText()).entries.keys
         assertEquals(12, species.size)
-        assertEquals(species, PlazaDialogue.lines.keys)
+        val supplied = SpeciesCatalog.parse(File("../../data/characters.json").readText()).entries.keys
+        assertEquals(species + supplied, PlazaDialogue.lines.keys)
         PlazaDialogue.lines.forEach { (id, lines) ->
             assertEquals(2, lines.distinct().size, id)
             lines.forEach { line ->

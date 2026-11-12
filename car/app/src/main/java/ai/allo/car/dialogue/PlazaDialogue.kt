@@ -13,6 +13,12 @@ internal class PlazaDialogue {
 
     companion object {
         val lines: Map<String, List<String>> = mapOf(
+            "breeze_wyrm" to listOf("바람 따라 산책할래. 산들산들.", "나뭇잎 춤을 보고 싶어. 살랑."),
+            "cloud_strider" to listOf("서두르지 않아도 좋아. 사뿐.", "느긋한 산책이 내 취향이야."),
+            "dewcap" to listOf("작은 이슬을 구경하고 싶어.", "쉬는 동안 마음도 촉촉해져."),
+            "dune_roller" to listOf("차근차근 걷는 게 좋아.", "둥근 돌을 떠올렸어. 또르르."),
+            "ember_crab" to listOf("살짝 인사하러 왔어. 반가워.", "포근하게 쉬고 싶은 날이야."),
+            "pebble_orbit" to listOf("동그란 모양이 참 재미있어.", "천천히 둘러보고 싶어. 빙글."),
             "road_sprout" to listOf("풀잎이 반짝인다! 정말 신기해.", "오늘도 새로운 친구를 만났어!"),
             "bridge_hopper" to listOf("광장을 한 바퀴 돌았어. 깡총!", "작은 길도 신나게 건너자!"),
             "mountain_sprite" to listOf("천천히 쉬어 가자. 여기선 괜찮아.", "나무처럼 든든하게 곁에 있을게."),
