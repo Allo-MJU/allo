@@ -21,17 +21,33 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
   test('saved affinity hatch unlocks camp ownership without restart', () async {
     var now = 0;
-    final camp = BaseCampController(store: SharedPreferencesBaseCampStore(profile: 'demo'), nowMs: () => now);
+    final camp = BaseCampController(
+        store: SharedPreferencesBaseCampStore(profile: 'demo'),
+        nowMs: () => now);
     final feed = RoundFeed();
-    final game = GameController(feed: feed, dex: DexStore(), monotonicMs: () => now, baseCamp: camp, eggApi: DemoApi());
-    addTearDown(game.dispose); addTearDown(camp.dispose);
+    final game = GameController(
+        feed: feed,
+        dex: DexStore(),
+        monotonicMs: () => now,
+        baseCamp: camp,
+        eggApi: DemoApi());
+    addTearDown(game.dispose);
+    addTearDown(camp.dispose);
     await game.pair(sessionA, pairCode: '123456');
-    expect(await game.startIncubating(EggTier.small, useAffinity: true), isTrue);
-    feed.sample(eta: 5400); await drain();
-    for (var i=0; i<17; i++) { now=i*10000; await game.petEgg(); }
+    expect(
+        await game.startIncubating(EggTier.small, useAffinity: true), isTrue);
+    feed.sample(eta: 5400);
+    await drain();
+    for (var i = 0; i < 17; i++) {
+      now = i * 10000;
+      await game.petEgg();
+    }
     expect(game.affinityRound!.phase, AffinityPhase.photoRequired);
-    await game.uploadEggPhoto(Uint8List.fromList([1,2,3]));
-    for (var i=0; i<12; i++) { now+=10000; await game.petEgg(); }
+    await game.uploadEggPhoto(Uint8List.fromList([1, 2, 3]));
+    for (var i = 0; i < 12; i++) {
+      now += 10000;
+      await game.petEgg();
+    }
     await drain();
     expect(game.game.stage, Stage.hatched);
     expect(camp.state.creatures.length, 1);
