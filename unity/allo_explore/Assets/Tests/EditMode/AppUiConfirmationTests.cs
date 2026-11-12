@@ -47,12 +47,12 @@ public class AppUiConfirmationTests
         Call("BuildCamp");
         ButtonNamed("이 작업 취소하기").onClick.Invoke();
         ClearContent(); Call("BuildConfirmation"); Canvas.ForceUpdateCanvases();
-        var map = Get<RectTransform>("_content").Find("Village map");
+        var map = Get<RectTransform>("_villageLayer");
         var group = map.GetComponent<CanvasGroup>();
         Assert.NotNull(group);
         Assert.IsFalse(group.interactable);
         Assert.IsFalse(group.blocksRaycasts);
-        var kitchen = map.Find("Facility node kitchen").GetComponent<Button>();
+        var kitchen = Get<RectTransform>("_villageContent").Find("Facility node kitchen").GetComponent<Button>();
         Assert.IsFalse(kitchen.IsInteractable());
         ExecuteEvents.Execute(kitchen.gameObject, new PointerEventData(EventSystem.current) { button = PointerEventData.InputButton.Left }, ExecuteEvents.pointerClickHandler);
         Assert.AreEqual("builder", Get<string>("_campTab"));

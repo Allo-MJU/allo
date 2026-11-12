@@ -44,11 +44,16 @@ namespace Allo.App
         }
 
         void OnDisable() { AppSession.Changed -= OnState; }
-        void OnState(AppState state) { _state = state; _dirty = true; }
+        void OnState(AppState state)
+        {
+            _state = state; _dirty = true;
+            if (_villageLayer != null) _villageLayer.gameObject.SetActive(state != null && state.ready && (state.view == "home" || state.view == "camp"));
+        }
 
         void LateUpdate()
         {
             ApplySafeArea();
+            UpdateVillageGeometry();
             foreach (var check in _liveChecks) check();
             if (!_dirty || _safe == null) return;
             UpdateChrome();
@@ -73,33 +78,43 @@ namespace Allo.App
             var scaler = canvasGo.GetComponent<CanvasScaler>(); scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1600, 720); scaler.matchWidthOrHeight = 1;
             _safe = Rect("Safe area", canvasGo.transform); Stretch(_safe);
-            var header = Surface("Compact application HUD", _safe, new Color(.949f, .933f, .898f, .97f));
-            Stretch(header, 14, -64, -14, -10, new Vector2(0, 1), Vector2.one);
-            _title = Label(header, "ALLO", 27, TextAnchor.MiddleLeft); Stretch(_title.rectTransform, 18, 0, -780, 0);
+            var header = Surface("Compact application HUD", _safe, new Color(.07f, .12f, .10f, .68f), false);
+            Stretch(header, 0, -62, 0, -8, new Vector2(0, 1), Vector2.one);
+            var crest = Button(header, "ALLO", () => Navigate("home"), Color.clear, 40, true, 24);
+            Stretch((RectTransform)crest.transform, 10, 7, 110, -7, Vector2.zero, new Vector2(0, 1)); crest.GetComponent<Outline>().enabled = false; _nav["home"] = crest;
+            _title = Label(header, "우리의 마을", 24, TextAnchor.MiddleLeft); _title.color = Cream; Stretch(_title.rectTransform, 124, 0, -780, 0);
             var balances = Rect("Material HUD", header); Stretch(balances, -700, 7, -180, -7, new Vector2(1, 0), Vector2.one); Row(balances, 8);
             foreach (var id in new[] { "wood", "stone", "ingredient" })
             {
-                var pill = Button(balances, "—", () => Navigate("inventory"), Cream, 40, true, 20);
-                _resourceTexts[id] = pill.GetComponentInChildren<Text>();
+                var pill = Button(balances, "—", () => Navigate("inventory"), new Color(0, 0, 0, .20f), 40, true, 20);
+                pill.GetComponent<Outline>().enabled = false;
+                _resourceTexts[id] = pill.GetComponentInChildren<Text>(); _resourceTexts[id].color = Cream;
             }
-            var connection = Surface("Connection chip", header, Cream, false);
+            var connection = Surface("Connection chip", header, new Color(0, 0, 0, .20f), false);
             Stretch(connection, -170, 7, -10, -7, new Vector2(1, 0), Vector2.one);
-            _connection = Label(connection, "연결 확인 중", 18, TextAnchor.MiddleCenter); Stretch(_connection.rectTransform, 4, 0, -4, 0);
+            _connection = Label(connection, "연결 확인 중", 18, TextAnchor.MiddleCenter); _connection.color = Cream; Stretch(_connection.rectTransform, 4, 0, -4, 0);
             connection.gameObject.AddComponent<Button>().onClick.AddListener(() => Navigate("settings"));
-            _content = Rect("Screen", _safe); Stretch(_content, 14, 88, -14, -78);
-            var nav = Surface("Navigation", _safe, new Color(.949f, .933f, .898f, .98f));
-            Stretch(nav, 14, 10, -14, 76, Vector2.zero, new Vector2(1, 0));
-            var navItems = Rect("Navigation items", nav); Stretch(navItems, 10, 4, -10, -4); Row(navItems, 8);
-            string[] ids = { "home", "cabin", "camp", "dex", "inventory", "settings" };
-            string[] labels = { "마을", "차 안", "시설", "친구", "가방", "설정" };
+            _content = Rect("Screen", _safe); Stretch(_content, 14, 20, -126, -78);
+            var rail = Rect("Village action rail", _safe);
+            Stretch(rail, -108, 16, -8, -78, new Vector2(1, 0), Vector2.one);
+            var railLayout = Column(rail, 8); railLayout.childAlignment = TextAnchor.MiddleCenter;
+            string[] ids = { "cabin", "camp", "dex", "inventory", "settings" };
+            string[] labels = { "차 안", "시설", "친구", "가방", "설정" };
             for (var i = 0; i < ids.Length; i++)
             {
                 var id = ids[i];
-                var button = Button(navItems, labels[i], () => Navigate(id), Cream, 56, true, 21);
-                var text = button.GetComponentInChildren<Text>(); Stretch(text.rectTransform, 46, 0, -8, 0);
-                var icon = Rect("Navigation icon", button.transform);
-                icon.anchorMin = icon.anchorMax = new Vector2(.22f, .5f); icon.sizeDelta = new Vector2(28, 28);
-                var image = icon.gameObject.AddComponent<Image>(); image.sprite = NavigationIcon(id); image.color = Ink; image.raycastTarget = false;
+                var button = Button(rail, labels[i], () => Navigate(id), Color.clear, 56, true, 19);
+                var layout = button.GetComponent<LayoutElement>(); layout.minHeight = layout.preferredHeight = 94;
+                button.GetComponent<Outline>().enabled = false;
+                var text = button.GetComponentInChildren<Text>(); text.color = Cream;
+                Stretch(text.rectTransform, 0, 0, 0, 24, Vector2.zero, new Vector2(1, 0));
+                var circle = Surface("Action circle", button.transform, new Color(.07f, .12f, .10f, .78f), false);
+                circle.anchorMin = circle.anchorMax = new Vector2(.5f, .65f); circle.sizeDelta = new Vector2(64, 64);
+                circle.GetComponent<Image>().sprite = ActionCircleSprite(); circle.GetComponent<Image>().type = Image.Type.Simple;
+                var ring = circle.gameObject.AddComponent<Outline>(); ring.effectColor = Yellow; ring.effectDistance = new Vector2(1.5f, -1.5f); ring.enabled = false;
+                button.targetGraphic = circle.GetComponent<Image>();
+                var icon = Rect("Navigation icon", circle); icon.anchorMin = icon.anchorMax = new Vector2(.5f, .5f); icon.sizeDelta = new Vector2(30, 30);
+                var image = icon.gameObject.AddComponent<Image>(); image.sprite = NavigationIcon(id); image.color = Cream; image.raycastTarget = false;
                 _nav[id] = button;
             }
             var status = Surface("Context toast", _safe, Cream);
@@ -124,10 +139,10 @@ namespace Allo.App
         void UpdateChrome()
         {
             var view = View;
-            _title.text = view == "home" ? "ALLO  /  우리의 마을" : "ALLO  /  " + ViewTitle(view);
+            _title.text = view == "home" ? "우리의 마을" : ViewTitle(view);
             var s = _state;
             _connection.text = s == null || !s.ready ? "불러오는 중" : s.busy ? "처리 중" : s.sessionEnded ? "여행 종료" : s.isDemo ? "체험 모드" : s.connected ? "차량 연결" : "연결하기";
-            _connection.color = s != null && s.connected ? Ink : Muted;
+            _connection.color = Cream;
             var error = s != null && !string.IsNullOrEmpty(s.error);
             _statusSurface.color = error ? CoralLight : s != null && s.busy ? Sky : Cream;
             _status.text = s == null || !s.ready ? "마을을 불러오고 있어요." : error ? ErrorLabel(s.error) : s.busy ? "처리 중이에요. 잠시 기다려 주세요." : s.notice ?? "";
@@ -139,7 +154,15 @@ namespace Allo.App
             }
             foreach (var entry in _nav)
             {
-                entry.Value.GetComponent<Image>().color = entry.Key == view ? Hex("DEE4D9") : Cream;
+                var selected = entry.Key == view;
+                entry.Value.GetComponent<Image>().color = Color.clear;
+                entry.Value.GetComponentInChildren<Text>().color = selected ? Yellow : Cream;
+                var circle = entry.Value.transform.Find("Action circle");
+                if (circle != null)
+                {
+                    circle.GetComponent<Outline>().enabled = selected;
+                    circle.Find("Navigation icon").GetComponent<Image>().color = selected ? Yellow : Cream;
+                }
                 entry.Value.interactable = s != null && s.ready && !s.busy;
             }
         }
@@ -154,6 +177,7 @@ namespace Allo.App
             _scrolls.Clear();
             if (_renderedView != View) { _confirmAction = null; _confirmTitle = null; }
             _renderedView = View;
+            if (_villageLayer != null) _villageLayer.gameObject.SetActive(_state != null && _state.ready && (View == "home" || View == "camp"));
             if (_state == null || !_state.ready)
             {
                 var loading = Sheet(_content);
