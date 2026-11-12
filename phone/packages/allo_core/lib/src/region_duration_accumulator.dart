@@ -86,6 +86,19 @@ class RegionDurationAccumulator {
     };
   }
 
+  /// Projects checkpoint totals without closing the live observation.
+  Map<String, Object?> snapshot(int atMs) {
+    final copy = RegionDurationAccumulator(startAtMs: _cursorMs)
+      .._durations.addAll(_durations)
+      .._unknownMs = _unknownMs
+      .._lastObservationMs = _lastObservationMs
+      .._expiresAtMs = _expiresAtMs
+      .._region = _region
+      .._finished = _finished
+      .._result = _result;
+    return copy.checkpoint(atMs);
+  }
+
   void _advance(int atMs) {
     final elapsed = atMs - _cursorMs;
     var known = 0;

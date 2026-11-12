@@ -1,4 +1,6 @@
+import 'dart:typed_data';
 import 'package:allo_core/allo_core.dart';
+import 'affinity_controller_test.dart' show DemoApi;
 import 'package:allo_phone/base_camp/base_camp_controller.dart';
 import 'package:allo_phone/base_camp/base_camp_store.dart';
 import 'package:allo_phone/game/game_controller.dart';
@@ -17,6 +19,24 @@ Future<void> drain() async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
+  test('saved affinity hatch unlocks camp ownership without restart', () async {
+    var now = 0;
+    final camp = BaseCampController(store: SharedPreferencesBaseCampStore(profile: 'demo'), nowMs: () => now);
+    final feed = RoundFeed();
+    final game = GameController(feed: feed, dex: DexStore(), monotonicMs: () => now, baseCamp: camp, eggApi: DemoApi());
+    addTearDown(game.dispose); addTearDown(camp.dispose);
+    await game.pair(sessionA, pairCode: '123456');
+    expect(await game.startIncubating(EggTier.small, useAffinity: true), isTrue);
+    feed.sample(eta: 5400); await drain();
+    for (var i=0; i<17; i++) { now=i*10000; await game.petEgg(); }
+    expect(game.affinityRound!.phase, AffinityPhase.photoRequired);
+    await game.uploadEggPhoto(Uint8List.fromList([1,2,3]));
+    for (var i=0; i<12; i++) { now+=10000; await game.petEgg(); }
+    await drain();
+    expect(game.game.stage, Stage.hatched);
+    expect(camp.state.creatures.length, 1);
+    expect(camp.state.creatures.values.single.speciesId, game.hatched!.id);
+  });
   test(
       'existing vehicle subscription earns camp materials and skips suspended distance',
       () async {
