@@ -20,6 +20,8 @@ namespace Allo
             QualitySettings.shadowResolution = ShadowResolution.Medium;
             QualitySettings.antiAliasing = 0;
             QualitySettings.pixelLightCount = 2;
+            if (Object.FindFirstObjectByType<FpsLog>() == null)
+                new GameObject("FpsLog").AddComponent<FpsLog>();
 #if !UNITY_EDITOR
             var w = Screen.width;
             var h = Screen.height;
@@ -30,6 +32,23 @@ namespace Allo
                 Screen.SetResolution(Mathf.RoundToInt(w * k), Mathf.RoundToInt(h * k), true);
             }
 #endif
+        }
+    }
+
+    /// 10초마다 평균 fps 와 가장 길었던 프레임(ms)을 로그로 남긴다 (`adb logcat -s Unity | grep Perf`). 실기기 측정용 (#77)
+    public sealed class FpsLog : MonoBehaviour
+    {
+        float _t, _worst;
+        int _n;
+
+        void Update()
+        {
+            var dt = Time.unscaledDeltaTime;
+            _t += dt; _n++;
+            if (dt > _worst) _worst = dt;
+            if (_t < 10) return;
+            Debug.Log($"[Perf] fps={_n / _t:F1} worst={_worst * 1000:F0}ms");
+            _t = 0; _n = 0; _worst = 0;
         }
     }
 }

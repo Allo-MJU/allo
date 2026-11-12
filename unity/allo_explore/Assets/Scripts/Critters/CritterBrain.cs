@@ -48,6 +48,9 @@ namespace Allo.Critters
         /// 담요를 덮었다. 깨울 때까지 계속 잔다
         public bool StayAsleep;
 
+        /// 이 시간(초) 동안은 밤·터널이어도 잠들지 않는다 (알에서 막 깨어났을 때)
+        public float AwakeFor;
+
         /// 현재 상태에서 흐른 비율 0~1 (점프·구르기)
         public float Progress => State switch
         {
@@ -110,6 +113,17 @@ namespace Allo.Critters
             Enter(CritterState.Jump, p, JumpSeconds);
         }
 
+        /// 그 면의 한 점에 바로 세운다 (알에서 깨어난 자리). 하던 행동은 멈춘다
+        public void Place(Vector3 at, int surface)
+        {
+            Surface = Mathf.Clamp(surface, 0, _g.Surfaces.Count - 1);
+            Position = Target = WalkGraph.Clamp(at, _g.Surfaces[Surface]);
+            JumpFrom = Position;
+            State = CritterState.Idle;
+            _stateTime = 0;
+            _timer = Range(1.5f, 3f);
+        }
+
         /// 제자리에서 높이 뛴다 (boost m 만큼 더)
         public void Hop(float boost)
         {
@@ -135,6 +149,7 @@ namespace Allo.Critters
         {
             _stateTime += dt;
             _timer -= dt;
+            if (AwakeFor > 0) AwakeFor -= dt;
             switch (State)
             {
                 case CritterState.Walk:
@@ -165,7 +180,7 @@ namespace Allo.Critters
             // 분위기가 바뀌면 오래 기다리지 않고 바로 반응한다
             if (StayAsleep && State == CritterState.Idle) Enter(CritterState.Sleep, Position, 3);
             if (Hold) return;
-            if (mood.night && State == CritterState.Idle) Enter(CritterState.Sleep, Position, Range(4, 9));
+            if (mood.night && AwakeFor <= 0 && State == CritterState.Idle) Enter(CritterState.Sleep, Position, Range(4, 9));
             if (!mood.night && !StayAsleep && State == CritterState.Sleep) Enter(CritterState.Idle, Position, Range(0.3f, 1));
             if (!mood.tunnel && State == CritterState.Huddle && _timer > 1) _timer = 1;
         }
@@ -182,7 +197,7 @@ namespace Allo.Critters
                 Enter(CritterState.Huddle, _g.RandomPoint(Surface, _rng), Range(3, 6));
                 return;
             }
-            if (mood.night && _rng.NextDouble() < 0.7)
+            if (mood.night && AwakeFor <= 0 && _rng.NextDouble() < 0.7)
             {
                 Enter(CritterState.Sleep, Position, Range(5, 10));
                 return;

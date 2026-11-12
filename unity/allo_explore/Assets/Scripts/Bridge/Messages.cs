@@ -5,7 +5,8 @@ namespace Allo.Bridge
     // Flutter → Unity 메시지 (v1). 설계: docs/superpowers/specs/2026-11-09-car-explore-design.md 3.1
     // JsonUtility 는 필드 이름으로 읽고, 모르는 필드는 무시한다.
     //
-    // Unity → Flutter (FlutterBridge.Send): ready · close · tap{id} · feed · endTrip · spotted{id}
+    // Unity → Flutter (FlutterBridge.Send): ready · close · tap{id|kind} · feed{kind} · drink · lookTogether · endTrip · spotted{id}
+    //   · care{kind} (품는 알 돌보기: tap·rub·sing·blanket)
     // 판정은 모두 Flutter(allo_core) 가 한다. Unity 는 의도만 보내고 보이는 반응만 그린다.
 
     [Serializable]
@@ -54,6 +55,18 @@ namespace Allo.Bridge
     {
         public CastMember companion;   // 동행 캐릭터. 없으면 null 또는 id 가 빈 값
         public CastMember[] friends;   // 모은 친구, 최대 3
+    }
+
+    /// 품고 있는 알 (explore_messages.dart eggMessage). state: idle | incubating | hatched
+    /// 같은 eggId 의 알이 incubating → hatched 로 바뀌면 둥지에서 깨어나는 연출을 한다
+    [Serializable]
+    public sealed class EggState
+    {
+        public string state;
+        public float progress;   // 0~1
+        public string eggId;     // 모르면 빈 값
+        public bool big;         // 중간·큰 알이면 조금 크게
+        public string bornText;  // 깨어날 때 보일 글. Flutter 가 정한다
     }
 
     [Serializable]

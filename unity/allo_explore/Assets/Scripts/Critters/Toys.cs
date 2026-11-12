@@ -6,7 +6,7 @@ namespace Allo.Critters
     /// 모든 물건은 원점이 바닥 가운데이고, 크기는 실제 장난감 정도(m)다.
     public static class Toys
     {
-        public enum Kind { Apple, Shell, Acorn, FishBun, Ball, Cup, Plush, Cushion, Blanket, Balloon }
+        public enum Kind { Apple, Shell, Acorn, FishBun, Ball, Cup, Plush, Cushion, Blanket, Balloon, Egg, EggTop, EggBottom, Nest, Tissue, EggWrap }
 
         /// 장면에 맞는 간식: 바다는 조개, 산은 도토리, 도시는 붕어빵, 그 밖은 사과
         public static Kind SnackFor(string scene) => scene switch
@@ -28,6 +28,7 @@ namespace Allo.Critters
             Kind.Plush => "plush",
             Kind.Cushion => "cushion",
             Kind.Blanket => "blanket",
+            Kind.Tissue => "tissue",
             _ => "",
         };
 
@@ -118,11 +119,140 @@ namespace Allo.Critters
                     Part(root, PrimitiveType.Sphere, new Vector3(0.9f, 2.1f, 0.2f), new Vector3(0.7f, 0.85f, 0.7f), new Color(1f, 0.85f, 0.3f));
                     break;
                 }
+                case Kind.Egg:
+                {
+                    // 알: 노란 껍데기(palette EGG) + 크림색 점. 원점이 바닥 가운데
+                    var body = Part(root, PrimitiveType.Sphere, new Vector3(0, EggH / 2, 0), new Vector3(EggW, EggH, EggW), EggYellow);
+                    body.name = "EggBody";
+                    var spots = new[] { new Vector3(0.35f, 0.15f, 0.36f), new Vector3(-0.4f, 0.28f, 0.25f), new Vector3(0.05f, -0.1f, 0.48f),
+                        new Vector3(-0.2f, 0.05f, -0.44f), new Vector3(0.42f, -0.05f, -0.2f), new Vector3(0.1f, 0.38f, -0.25f) };
+                    foreach (var d in spots)
+                    {
+                        var spot = Part(body, PrimitiveType.Sphere, d.normalized * 0.48f, new Vector3(0.22f, 0.18f, 0.22f), EggSpot);
+                        spot.localRotation = Quaternion.LookRotation(d.normalized);
+                        spot.localScale = new Vector3(0.24f, 0.2f, 0.08f);
+                    }
+                    break;
+                }
+                case Kind.EggBottom:
+                {
+                    // 깨진 아래 껍데기: 납작한 반쪽 + 들쭉날쭉한 테두리
+                    Part(root, PrimitiveType.Sphere, new Vector3(0, EggH * 0.2f, 0), new Vector3(EggW, EggH * 0.42f, EggW), EggYellow);
+                    for (var i = 0; i < 9; i++)
+                    {
+                        var a = i * Mathf.PI * 2 / 9;
+                        var tooth = Part(root, PrimitiveType.Cube, new Vector3(Mathf.Cos(a) * EggW * 0.43f, EggH * 0.4f, Mathf.Sin(a) * EggW * 0.43f),
+                            new Vector3(EggW * 0.22f, EggW * 0.22f, EggW * 0.05f), EggYellow);
+                        tooth.localRotation = Quaternion.Euler(0, -a * Mathf.Rad2Deg + 90, 45);
+                    }
+                    break;
+                }
+                case Kind.EggTop:
+                {
+                    // 깨진 윗 껍데기 (모자처럼 날아간다)
+                    Part(root, PrimitiveType.Sphere, new Vector3(0, EggH * 0.08f, 0), new Vector3(EggW * 0.82f, EggH * 0.32f, EggW * 0.82f), EggYellow);
+                    for (var i = 0; i < 7; i++)
+                    {
+                        var a = i * Mathf.PI * 2 / 7;
+                        var tooth = Part(root, PrimitiveType.Cube, new Vector3(Mathf.Cos(a) * EggW * 0.36f, -EggH * 0.02f, Mathf.Sin(a) * EggW * 0.36f),
+                            new Vector3(EggW * 0.2f, EggW * 0.2f, EggW * 0.05f), EggYellow);
+                        tooth.localRotation = Quaternion.Euler(0, -a * Mathf.Rad2Deg + 90, 45);
+                    }
+                    break;
+                }
+                case Kind.Nest:
+                {
+                    // 둥지: 밑판 + 짚 고리 + 삐죽 나온 짚
+                    var straw = new Color(0.86f, 0.68f, 0.38f);
+                    var dark = new Color(0.66f, 0.47f, 0.24f);
+                    Part(root, PrimitiveType.Cylinder, new Vector3(0, 0.008f, 0), new Vector3(0.15f, 0.008f, 0.15f), dark);
+                    for (var i = 0; i < 14; i++)
+                    {
+                        var a = i * Mathf.PI * 2 / 14;
+                        var twig = Part(root, PrimitiveType.Capsule, new Vector3(Mathf.Cos(a) * 0.072f, 0.022f, Mathf.Sin(a) * 0.072f),
+                            new Vector3(0.026f, 0.034f, 0.026f), i % 2 == 0 ? straw : dark);
+                        twig.localRotation = Quaternion.Euler(0, 90 - a * Mathf.Rad2Deg, 90); // 둥지 고리를 따라 눕힌다
+                    }
+                    for (var i = 0; i < 5; i++)
+                    {
+                        var a = i * 1.37f;
+                        var stick = Part(root, PrimitiveType.Cylinder, new Vector3(Mathf.Cos(a) * 0.085f, 0.035f, Mathf.Sin(a) * 0.085f),
+                            new Vector3(0.004f, 0.025f, 0.004f), straw);
+                        stick.localRotation = Quaternion.Euler(Mathf.Sin(a) * 50, 0, Mathf.Cos(a) * 50);
+                    }
+                    break;
+                }
+                case Kind.EggWrap:
+                {
+                    // 알을 감싸는 포대기: 아래 2/3 을 덮고 꼭대기는 보인다. 알(원점 바닥 가운데)에 붙여 같이 흔들린다
+                    var blue = new Color(0.55f, 0.75f, 0.95f);
+                    var cream = new Color(0.98f, 0.95f, 0.85f);
+                    Part(root, PrimitiveType.Sphere, new Vector3(0, EggH * 0.33f, 0), new Vector3(EggW * 1.12f, EggH * 0.78f, EggW * 1.12f), blue);
+                    // 천 무늬: 겉면에 작은 크림색 점 (테두리처럼 튀어나오지 않게 겉면에 붙인다)
+                    for (var i = 0; i < 10; i++)
+                    {
+                        var a = i * 2.4f;
+                        var y = 0.12f + 0.42f * ((i * 0.37f) % 1f);
+                        var r = Mathf.Sqrt(Mathf.Max(0, 1 - Mathf.Pow((y - 0.33f) / 0.39f, 2))) * EggW * 0.56f;
+                        var dir = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a));
+                        var dot = Part(root, PrimitiveType.Sphere, dir * r + Vector3.up * (EggH * y), new Vector3(EggW * 0.13f, EggW * 0.13f, EggW * 0.04f), cream);
+                        dot.localRotation = Quaternion.LookRotation(dir);
+                    }
+                    // 위쪽 접힌 단: 알 둘레를 따라 도톰하게
+                    for (var i = 0; i < 12; i++)
+                    {
+                        var a = i * Mathf.PI * 2 / 12;
+                        var hem = Part(root, PrimitiveType.Capsule, new Vector3(Mathf.Cos(a) * EggW * 0.5f, EggH * 0.68f, Mathf.Sin(a) * EggW * 0.5f),
+                            new Vector3(EggW * 0.16f, EggW * 0.17f, EggW * 0.16f), blue);
+                        hem.localRotation = Quaternion.Euler(0, 90 - a * Mathf.Rad2Deg, 90);
+                    }
+                    break;
+                }
+                case Kind.Tissue:
+                {
+                    var t = Part(root, PrimitiveType.Cube, Vector3.zero, new Vector3(0.12f, 0.003f, 0.1f), new Color(0.98f, 0.98f, 1f));
+                    t.localRotation = Quaternion.Euler(0, 0, 8);
+                    break;
+                }
             }
             return root;
         }
 
+        /// 알 크기 (m). 큰 알은 Unity 에서 1.25배로 키운다
+        public const float EggW = 0.1f, EggH = 0.125f;
+        static readonly Color EggYellow = new(0.99f, 0.8f, 0.27f);
+        static readonly Color EggSpot = new(1f, 0.95f, 0.78f);
+
+        /// 알에 금을 하나 더 긋는다 (step 0, 1, 2 …). 아이 쪽(+z)으로 지그재그
+        public static void AddCrack(Transform egg, int step)
+        {
+            var dark = new Color(0.45f, 0.3f, 0.12f);
+            var y0 = EggH * (0.55f + 0.08f * step);
+            var side = step % 2 == 0 ? 1 : -1;
+            for (var i = 0; i < 4; i++)
+            {
+                var ang = (step * 40 - 25 + i * 14) * Mathf.Deg2Rad;
+                var p = new Vector3(Mathf.Sin(ang) * EggW * 0.5f, y0 + (i % 2 == 0 ? 0.008f : -0.008f) * side, Mathf.Cos(ang) * EggW * 0.5f);
+                var seg = Part(egg, PrimitiveType.Cube, p, new Vector3(0.022f, 0.003f, 0.004f), dark);
+                seg.name = "Crack";
+                seg.localRotation = Quaternion.LookRotation(new Vector3(p.x, 0, p.z)) * Quaternion.Euler(0, 0, (i % 2 == 0 ? 35 : -35) * side);
+            }
+        }
+
         static Material _toon;
+        static readonly System.Collections.Generic.Dictionary<Color, Material> _byColor = new();
+
+        /// 색마다 재질 하나를 같이 쓴다 (장난감·껍데기·비눗방울을 만들 때마다 새로 만들면 쌓인다)
+        static Material ToonFor(Color color)
+        {
+            if (_byColor.TryGetValue(color, out var m) && m != null) return m;
+            _toon ??= new Material(Shader.Find("Allo/Toon"));
+            m = new Material(_toon) { color = color };
+            m.SetFloat("_OutlineWidth", 0.003f);
+            m.SetFloat("_HiSize", 0.25f);
+            _byColor[color] = m;
+            return m;
+        }
 
         static Transform Part(Transform parent, PrimitiveType t, Vector3 pos, Vector3 scale, Color color)
         {
@@ -132,11 +262,7 @@ namespace Allo.Critters
             go.transform.localPosition = pos;
             go.transform.localScale = scale;
             var r = go.GetComponent<Renderer>();
-            _toon ??= new Material(Shader.Find("Allo/Toon"));
-            var m = new Material(_toon) { color = color };
-            m.SetFloat("_OutlineWidth", 0.003f);
-            m.SetFloat("_HiSize", 0.25f);
-            r.sharedMaterial = m;
+            r.sharedMaterial = ToonFor(color);
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             return go.transform;
         }
