@@ -68,23 +68,36 @@ public class AppVillagePanTests
         var localEnd = localStart + new Vector3(viewport.rect.width * .06f, viewport.rect.height * .08f, 0);
         var start = RectTransformUtility.WorldToScreenPoint(null, viewport.TransformPoint(localStart));
         var end = RectTransformUtility.WorldToScreenPoint(null, viewport.TransformPoint(localEnd));
-        var pointer = new PointerEventData(EventSystem.current) { position = start, pressPosition = start, button = PointerEventData.InputButton.Left };
-        var hits = new List<RaycastResult>(); EventSystem.current.RaycastAll(pointer, hits);
-        Assert.IsNotEmpty(hits, "empty village must receive a real EventSystem raycast");
-        var handler = ExecuteEvents.GetEventHandler<IDragHandler>(hits[0].gameObject);
-        Assert.AreSame(scroll.gameObject, handler, "the topmost empty-world hit must route drag events to the village ScrollRect");
-        pointer.pointerCurrentRaycast = pointer.pointerPressRaycast = hits[0]; pointer.pointerDrag = handler;
-        var before = content.anchoredPosition; var hudBefore = hud.position;
-        ExecuteEvents.Execute(handler, pointer, ExecuteEvents.initializePotentialDrag);
-        ExecuteEvents.Execute(handler, pointer, ExecuteEvents.beginDragHandler);
-        pointer.dragging = true; pointer.position = end; pointer.delta = end - start;
-        ExecuteEvents.Execute(handler, pointer, ExecuteEvents.dragHandler);
-        ExecuteEvents.Execute(handler, pointer, ExecuteEvents.endDragHandler);
-        Canvas.ForceUpdateCanvases();
-        var movement = content.anchoredPosition - before;
-        Assert.Greater(Mathf.Abs(movement.x), 10, "real horizontal drag movement");
-        Assert.Greater(Mathf.Abs(movement.y), 10, "real vertical drag movement");
-        Assert.AreEqual(hudBefore, hud.position, "the fixed HUD must not move with the world");
+        // These runtime-only components do not automatically register OnEnable in EditMode.
+        var eventSystem = _root.GetComponentInChildren<EventSystem>() ?? _root.AddComponent<EventSystem>();
+        var raycaster = Get<RectTransform>("_safe").GetComponentInParent<GraphicRaycaster>();
+        Assert.NotNull(raycaster);
+        var registerRaycaster = !RaycasterManager.GetRaycasters().Contains(raycaster);
+        if (registerRaycaster) typeof(BaseRaycaster).GetMethod("OnEnable", Private).Invoke(raycaster, null);
+        try
+        {
+            var pointer = new PointerEventData(eventSystem) { position = start, pressPosition = start, button = PointerEventData.InputButton.Left };
+            var hits = new List<RaycastResult>(); eventSystem.RaycastAll(pointer, hits);
+            Assert.IsNotEmpty(hits, "empty village must receive a real EventSystem raycast");
+            var handler = ExecuteEvents.GetEventHandler<IDragHandler>(hits[0].gameObject);
+            Assert.AreSame(scroll.gameObject, handler, "the topmost empty-world hit must route drag events to the village ScrollRect");
+            pointer.pointerCurrentRaycast = pointer.pointerPressRaycast = hits[0]; pointer.pointerDrag = handler;
+            var before = content.anchoredPosition; var hudBefore = hud.position;
+            ExecuteEvents.Execute(handler, pointer, ExecuteEvents.initializePotentialDrag);
+            ExecuteEvents.Execute(handler, pointer, ExecuteEvents.beginDragHandler);
+            pointer.dragging = true; pointer.position = end; pointer.delta = end - start;
+            ExecuteEvents.Execute(handler, pointer, ExecuteEvents.dragHandler);
+            ExecuteEvents.Execute(handler, pointer, ExecuteEvents.endDragHandler);
+            Canvas.ForceUpdateCanvases();
+            var movement = content.anchoredPosition - before;
+            Assert.Greater(Mathf.Abs(movement.x), 10, "real horizontal drag movement");
+            Assert.Greater(Mathf.Abs(movement.y), 10, "real vertical drag movement");
+            Assert.AreEqual(hudBefore, hud.position, "the fixed HUD must not move with the world");
+        }
+        finally
+        {
+            if (registerRaycaster) typeof(BaseRaycaster).GetMethod("OnDisable", Private).Invoke(raycaster, null);
+        }
     }
 
     [Test]
