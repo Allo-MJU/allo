@@ -19,11 +19,13 @@ namespace Allo.Bridge
         public static event Action<SettingsState> SettingsChanged;
         public static event Action<ToastState> Toasted;
         public static event Action<RouteState> RouteChanged;
+        public static event Action<EggState> EggChanged;
 
         public static SceneState LastScene { get; private set; }
         public static CastState LastCast { get; private set; }
         public static SettingsState LastSettings { get; private set; }
         public static RouteState LastRoute { get; private set; }
+        public static EggState LastEgg { get; private set; }
 
         void Start() => SendReady();
 
@@ -71,13 +73,14 @@ namespace Allo.Bridge
         {
             if (!MessageParser.TryParse(json, out var type, out var payload))
             {
-                Debug.LogWarning($"[FlutterBridge] 읽지 못한 메시지: {json}");
+                Debug.LogWarning("[FlutterBridge] 읽지 못한 메시지");
                 return;
             }
             switch (payload)
             {
                 case Allo.App.AppState app:
                     Allo.App.AppSession.Receive(app);
+                    ClearLegacyEggForApp();
                     break;
                 case SceneState s:
                     LastScene = s;
@@ -92,6 +95,7 @@ namespace Allo.Bridge
                     break;
                 case SettingsState st:
                     LastSettings = st;
+                    ClearLegacyEggForApp();
                     SettingsChanged?.Invoke(st);
                     break;
                 case ToastState t:
@@ -101,10 +105,26 @@ namespace Allo.Bridge
                     LastRoute = r;
                     RouteChanged?.Invoke(r);
                     break;
+                case EggState e:
+                    if (UsesAppPresentation) break;
+                    LastEgg = e;
+                    EggChanged?.Invoke(e);
+                    break;
                 default:
-                    Debug.Log($"[FlutterBridge] 무시: {type}");
+                    Debug.Log("[FlutterBridge] 알 수 없는 메시지");
                     break;
             }
+        }
+
+        public static bool UsesAppPresentation =>
+            Allo.App.AppSession.State != null || (LastSettings != null && LastSettings.appMode);
+
+        static void ClearLegacyEggForApp()
+        {
+            if (!UsesAppPresentation || LastEgg?.state == "idle") return;
+            // An idle cache also prevents the legacy director's editor-only sample egg.
+            LastEgg = new EggState { state = "idle", eggId = "", bornText = "" };
+            EggChanged?.Invoke(LastEgg);
         }
 
         static void SendReady() => Send("ready");

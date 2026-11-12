@@ -35,6 +35,25 @@ namespace Allo.CameraRig
         public static LookState AddGyro(LookState s, Vector2 gyroDegrees, bool enabled) =>
             enabled ? Drag(s, gyroDegrees * GyroScale) : s;
 
+        /// eye 에서 point 를 보는 yaw·pitch (baseYaw 를 0 으로). pitch 는 ±PitchLimit 안으로, rail 은 그대로
+        public static LookState Toward(LookState s, Vector3 eye, Vector3 point, float baseYaw)
+        {
+            var d = point - eye;
+            var flat = new Vector2(d.x, d.z).magnitude;
+            s.yaw = Mathf.Repeat(Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg - baseYaw, 360f);
+            s.pitch = Mathf.Clamp(Mathf.Atan2(d.y, Mathf.Max(flat, 1e-4f)) * Mathf.Rad2Deg, -PitchLimit, PitchLimit);
+            return s;
+        }
+
+        /// a → b 를 k(0~1) 만큼. yaw 는 짧은 쪽으로 돈다
+        public static LookState Blend(LookState a, LookState b, float k)
+        {
+            a.yaw = Mathf.Repeat(a.yaw + Mathf.DeltaAngle(a.yaw, b.yaw) * k, 360f);
+            a.pitch = Mathf.Lerp(a.pitch, b.pitch, k);
+            a.rail = Mathf.Lerp(a.rail, b.rail, k);
+            return a;
+        }
+
         public static Vector3 RailPosition(float rail, Vector3 rear, Vector3 front) =>
             Vector3.Lerp(rear, front, Mathf.Clamp01(rail));
     }

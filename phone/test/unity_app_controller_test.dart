@@ -263,6 +263,8 @@ void main() {
       'training',
       'dex',
       'rewardStatus',
+      'fishingRecords',
+      'fishingError',
       'gyro',
       'reducedMotion',
       'assignments'

@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &4228518584241226284
+--- !u!1 &3475485670862630933
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 3060985527989596658}
-  - component: {fileID: 9058497860511372599}
-  - component: {fileID: 1881569899826687626}
+  - component: {fileID: 861168522417971807}
+  - component: {fileID: 3861453305879992173}
+  - component: {fileID: 3872749587555935113}
   m_Layer: 0
   m_Name: tree_pineSmallB(Clone)
   m_TagString: Untagged
@@ -18,36 +18,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &3060985527989596658
+--- !u!4 &861168522417971807
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4228518584241226284}
+  m_GameObject: {fileID: 3475485670862630933}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0.010648042, y: -0, z: -0.0032586977}
   m_LocalScale: {x: 0.9914518, y: 0.9914518, z: 0.9914518}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 7281357687206219269}
+  m_Father: {fileID: 52168804164352389}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &9058497860511372599
+--- !u!33 &3861453305879992173
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4228518584241226284}
+  m_GameObject: {fileID: 3475485670862630933}
   m_Mesh: {fileID: 896221231015809553, guid: 9e0592cd98f414228862f300c5f9c8fc, type: 3}
---- !u!23 &1881569899826687626
+--- !u!23 &3872749587555935113
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4228518584241226284}
+  m_GameObject: {fileID: 3475485670862630933}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -87,7 +87,7 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!1 &7116965076983456653
+--- !u!1 &7918356553629946366
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -95,7 +95,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 7281357687206219269}
+  - component: {fileID: 52168804164352389}
   m_Layer: 0
   m_Name: K_tree_pineSmallB
   m_TagString: Untagged
@@ -103,19 +103,19 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &7281357687206219269
+--- !u!4 &52168804164352389
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7116965076983456653}
+  m_GameObject: {fileID: 7918356553629946366}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 3060985527989596658}
+  - {fileID: 861168522417971807}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

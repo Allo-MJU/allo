@@ -10,6 +10,6 @@ UI palette: dark sage ink #263A32, forest accent #53765B, neutral paper #F2EEE5,
 
 Cabin preserves the existing immersive 3D car with a thin affinity/remaining HUD, compact action dock, optional text/zone drawers and a start/failure sheet. Egg visuals exist only there. Preserve focused text and independent scroll positions across authoritative snapshots. Missing character art uses an explicit small placeholder without changing canonical IDs.
 
-Dart controllers own all costs, affinity, ownership, saves and offline jobs. Pleos gathering integration awaits its upstream contract. Project-bound image assets/prompts are recorded in docs/village-art-provenance.md. Verification is recorded in docs/work-results/unity-phone/README.md.
+Dart controllers own all costs, affinity, ownership, saves and offline jobs. Latest dev parked-fishing and companion contracts are retained; converting gathered earnings into camp materials still awaits its upstream contract. Project-bound image assets/prompts are recorded in docs/village-art-provenance.md. Verification is recorded in docs/work-results/unity-phone/README.md.
 
 For the requested collected-character preview, enable only the isolated fake-feed demo examples profile. Use the actual canonical character sprites and real demo ownership, rather than UI-only pretend IDs. Existing production/default data stays separate.

@@ -44,4 +44,26 @@ public class LookMathTests
         Assert.AreEqual(front, LookMath.RailPosition(1, rear, front));
         Assert.AreEqual(Vector3.Lerp(rear, front, 0.5f), LookMath.RailPosition(0.5f, rear, front));
     }
+
+    [Test]
+    public void TowardLooksAtPointAndClampsPitch()
+    {
+        var s = Allo.CameraRig.LookMath.Toward(default, Vector3.zero, new Vector3(1, 0, 1), 0);
+        Assert.AreEqual(45f, s.yaw, 0.01f);
+        Assert.AreEqual(0f, s.pitch, 0.01f);
+        var down = Allo.CameraRig.LookMath.Toward(default, Vector3.zero, new Vector3(0, -5, 1), 0);
+        Assert.AreEqual(-Allo.CameraRig.LookMath.PitchLimit, down.pitch, 0.01f);
+        var based = Allo.CameraRig.LookMath.Toward(default, Vector3.zero, new Vector3(0, 0, 1), 90);
+        Assert.AreEqual(270f, based.yaw, 0.01f);
+    }
+
+    [Test]
+    public void BlendTurnsTheShortWay()
+    {
+        var a = new Allo.CameraRig.LookState { yaw = 350, pitch = 0 };
+        var b = new Allo.CameraRig.LookState { yaw = 10, pitch = -20 };
+        var m = Allo.CameraRig.LookMath.Blend(a, b, 0.5f);
+        Assert.AreEqual(0f, Mathf.DeltaAngle(0, m.yaw), 0.01f);
+        Assert.AreEqual(-10f, m.pitch, 0.01f);
+    }
 }

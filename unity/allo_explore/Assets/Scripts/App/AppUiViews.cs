@@ -235,7 +235,7 @@ namespace Allo.App
             Heading(right, detail.collected ? detail.name : "아직 만나지 못한 친구");
             if (!detail.collected)
             {
-                Copy(right, "여행하며 알을 키워 보세요. 이 친구를 만나면 이야기와 모습이 도감에 남아요.");
+                Copy(right, string.IsNullOrEmpty(detail.description) ? "여행하며 알을 키워 보세요. 이 친구를 만나면 이야기와 모습이 도감에 남아요." : detail.description);
                 Button(right, "차 안에서 알 키우기", () => Navigate("cabin"), Yellow, 72, CanAct); return;
             }
             Art(right, detail.sprite, 104);
@@ -250,6 +250,19 @@ namespace Allo.App
                 Button(right, creature.name + " · " + ShortId(creature.id), () => { _selectedCreature = selected.id; _dirty = true; }, _selectedCreature == creature.id ? Mint : Cream, 62, CanAct, 23);
             }
             var friend = owned.First(c => c.id == _selectedCreature);
+            var companionId = friend.id;
+            Button(right, "이 친구와 차량에서 함께하기", () =>
+            {
+                if (_state.connected && !_state.sessionEnded) Send("selectCarCompanion", new AppAction { creatureId = companionId });
+            }, Mint, 54, CanAct && _state.connected && !_state.sessionEnded, 21);
+            if (_state.sessionEnded) Note(right, "여행이 끝났어요. 차량과 다시 연결한 뒤 친구를 선택해 주세요.");
+            else if (!_state.connected) Note(right, "차량과 연결한 뒤 함께할 친구를 선택할 수 있어요.");
+            Copy(right, "차량 친구의 관찰 기록 " + _state.fishingRecords + "건", 21);
+            if (!string.IsNullOrEmpty(_state.fishingError))
+            {
+                Note(right, _state.fishingError);
+                Button(right, "낚시 저장 다시 확인", () => Send("retryFishingSave"), Cream, 48, CanAct, 20);
+            }
             CreatureActions(right, friend);
             Space(right); Copy(right, "친구에게 요리 주기", 27);
             FeedOptions(right, friend.id);
@@ -276,7 +289,7 @@ namespace Allo.App
             Heading(panel, "여행에서 모은 보급품");
             var materials = NewRow(panel, 48);
             foreach (var material in Items(_state.materials)) Button(materials, material.label + "  " + material.count + "개", null, Cream, 48, false, 22);
-            Note(panel, "주행과 창밖 관찰로 모은 재료예요. 낚시·벌목 보상은 아직 준비 중이에요.");
+            Note(panel, "주행과 창밖 관찰로 모은 재료예요. 낚시·벌목의 거점 재료 연동은 준비 중이에요.");
             var creatures = Items(_state.creatures);
             if (!creatures.Any(c => c.id == _selectedCreature)) _selectedCreature = creatures.FirstOrDefault()?.id;
             if (creatures.Length > 0)

@@ -106,4 +106,36 @@ void main() {
     expect(d.update(v(brake: 5, steer: 2)), isEmpty);
     expect(d.update(v(brake: 5, steer: 2)), isEmpty);
   });
+
+  test('egg 메시지는 단계·진행도(소수 둘째 자리)·알 id·큰 알 여부·태어남 문구를 담는다', () {
+    expect(
+        dec(eggMessage(
+            stage: Stage.incubating,
+            progress: 0.4567,
+            eggId: 'e1',
+            tier: EggTier.mid)),
+        {
+          'v': 1,
+          'type': 'egg',
+          'state': 'incubating',
+          'progress': 0.46,
+          'eggId': 'e1',
+          'big': true,
+          'bornText': '',
+        });
+    final hatched = dec(eggMessage(
+        stage: Stage.hatched, progress: 1.4, bornText: '퍼들핍이 태어났어요!'));
+    expect(hatched['state'], 'hatched');
+    expect(hatched['progress'], 1.0);
+    expect(hatched['eggId'], '');
+    expect(hatched['big'], isFalse);
+    expect(hatched['bornText'], '퍼들핍이 태어났어요!');
+    expect(dec(eggMessage(stage: Stage.idle, progress: 0))['state'], 'idle');
+  });
+
+  test('태어남 문구는 받침에 맞는 조사를 고른다', () {
+    expect(bornToast('퍼들핍'), '퍼들핍이 태어났어요!');
+    expect(bornToast('바다안개'), '바다안개가 태어났어요!');
+    expect(bornToast(null), '알에서 친구가 태어났어요!');
+  });
 }

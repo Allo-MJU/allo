@@ -12,6 +12,8 @@ namespace Allo.App
         public bool ready, busy, connected, isDemo, canStart, sessionEnded, speechAvailable, photoAvailable;
         public bool gyro = true, reducedMotion;
         public string error, notice, rewardStatus;
+        public int fishingRecords;
+        public string fishingError;
         public EggState egg;
         public MaterialState[] materials = Array.Empty<MaterialState>();
         public FacilityState[] facilities = Array.Empty<FacilityState>();

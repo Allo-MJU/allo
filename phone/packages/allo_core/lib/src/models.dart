@@ -9,7 +9,8 @@ enum EggTier {
   final int targetM;
   const EggTier(this.targetM);
 
-  static EggTier parse(String s) => EggTier.values.firstWhere((e) => e.name == s, orElse: () => EggTier.small);
+  static EggTier parse(String s) => EggTier.values
+      .firstWhere((e) => e.name == s, orElse: () => EggTier.small);
 }
 
 enum Attribute { normal, water, dark }
@@ -33,7 +34,10 @@ class Turn {
     if (j is! Map) return null;
     final type = j['type'];
     final inM = j['inM'];
-    if (type is! String || !types.contains(type) || inM is! num || !inM.isFinite) return null;
+    if (type is! String ||
+        !types.contains(type) ||
+        inM is! num ||
+        !inM.isFinite) return null;
     return Turn(type, inM.round().clamp(0, 1 << 30));
   }
 
@@ -48,7 +52,8 @@ class Turn {
   Map<String, Object?> toJson() => {'type': type, 'inM': inM};
 
   @override
-  bool operator ==(Object other) => other is Turn && other.type == type && other.inM == inM;
+  bool operator ==(Object other) =>
+      other is Turn && other.type == type && other.inM == inM;
 
   @override
   int get hashCode => Object.hash(type, inM);
@@ -74,6 +79,9 @@ class VehicleState {
   final double? headingDeg; // 진행 방향 0~360 (북 0, 시계 방향). null = 모름
   final List<String> capabilities;
 
+  /// Optional v1 parking/activity evidence. Missing or malformed is ineligible.
+  final Map<String, dynamic>? fishingPresence;
+
   const VehicleState({
     required this.ts,
     required this.gear,
@@ -89,6 +97,7 @@ class VehicleState {
     this.turns = const [],
     this.headingDeg,
     required this.capabilities,
+    this.fishingPresence,
   });
 
   factory VehicleState.fromJson(Map<String, dynamic> j) => VehicleState(
@@ -106,22 +115,45 @@ class VehicleState {
         turns: Turn.parseList(j['turns']),
         headingDeg: _heading(j['headingDeg']),
         capabilities: (j['capabilities'] as List?)?.cast<String>() ?? const [],
+        fishingPresence: j['fishingPresence'] is Map
+            ? Map<String, dynamic>.from(j['fishingPresence'] as Map)
+            : null,
       );
 
   VehicleState copyWith({
-    int? ts, String? gear, double? speedKph, double? distanceM, int? harshBrake, int? harshSteer,
-    int? wiperLevel, bool? headlightOn, bool? seatRow2, int? etaSec, bool clearEta = false,
-    List<String>? envTags, List<Turn>? turns, double? headingDeg, List<String>? capabilities,
+    int? ts,
+    String? gear,
+    double? speedKph,
+    double? distanceM,
+    int? harshBrake,
+    int? harshSteer,
+    int? wiperLevel,
+    bool? headlightOn,
+    bool? seatRow2,
+    int? etaSec,
+    bool clearEta = false,
+    List<String>? envTags,
+    List<Turn>? turns,
+    double? headingDeg,
+    List<String>? capabilities,
+    Map<String, dynamic>? fishingPresence,
   }) =>
       VehicleState(
-        ts: ts ?? this.ts, gear: gear ?? this.gear, speedKph: speedKph ?? this.speedKph,
-        distanceM: distanceM ?? this.distanceM, harshBrake: harshBrake ?? this.harshBrake,
-        harshSteer: harshSteer ?? this.harshSteer, wiperLevel: wiperLevel ?? this.wiperLevel,
-        headlightOn: headlightOn ?? this.headlightOn, seatRow2: seatRow2 ?? this.seatRow2,
+        ts: ts ?? this.ts,
+        gear: gear ?? this.gear,
+        speedKph: speedKph ?? this.speedKph,
+        distanceM: distanceM ?? this.distanceM,
+        harshBrake: harshBrake ?? this.harshBrake,
+        harshSteer: harshSteer ?? this.harshSteer,
+        wiperLevel: wiperLevel ?? this.wiperLevel,
+        headlightOn: headlightOn ?? this.headlightOn,
+        seatRow2: seatRow2 ?? this.seatRow2,
         etaSec: clearEta ? null : (etaSec ?? this.etaSec),
-        envTags: envTags ?? this.envTags, turns: turns ?? this.turns,
+        envTags: envTags ?? this.envTags,
+        turns: turns ?? this.turns,
         headingDeg: headingDeg ?? this.headingDeg,
         capabilities: capabilities ?? this.capabilities,
+        fishingPresence: fishingPresence ?? this.fishingPresence,
       );
 }
 
@@ -151,6 +183,9 @@ class GameState {
   final bool regionCollectionKnown;
   final List<String> uncollectedRegions;
 
+  /// Composed by the single phone writer, never published as a separate patch.
+  final Map<String, dynamic> vehicleFeatures;
+
   const GameState({
     required this.ts,
     required this.eggTier,
@@ -168,6 +203,7 @@ class GameState {
     this.photoQuestCompleted = false,
     this.regionCollectionKnown = false,
     this.uncollectedRegions = const [],
+    this.vehicleFeatures = const {},
   });
 
   Map<String, dynamic> toJson() => {
@@ -194,6 +230,14 @@ class GameState {
         'regionCollectionKnown': regionCollectionKnown,
         if (regionCollectionKnown)
           'uncollectedRegions': List<String>.of(uncollectedRegions),
+        for (final key in const [
+          'contractVersion',
+          'gameRevision',
+          'companion',
+          'transferResult',
+          'fishing'
+        ])
+          if (vehicleFeatures.containsKey(key)) key: vehicleFeatures[key],
       };
 
   GameState copyWith({
@@ -208,6 +252,7 @@ class GameState {
     int? lookOutCount,
     double? hatchAtM,
     int? hatchAtSec,
+    Map<String, dynamic>? vehicleFeatures,
     double? affinityScore,
     String? affinityPhase,
     bool? photoQuestCompleted,
@@ -232,6 +277,7 @@ class GameState {
         regionCollectionKnown:
             regionCollectionKnown ?? this.regionCollectionKnown,
         uncollectedRegions: uncollectedRegions ?? this.uncollectedRegions,
+        vehicleFeatures: vehicleFeatures ?? this.vehicleFeatures,
       );
 }
 

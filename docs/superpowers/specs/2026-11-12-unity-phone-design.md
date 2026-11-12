@@ -58,3 +58,9 @@ User clarified that Ninja Voltage remains the basic 2D village screen and Palwor
 
 ## User-requested pre-collected examples
 An explicit UNITY_DEMO_CREATURES build flag with the Unity host and actual FakeVehicleFeed enables the isolated unity-demo-examples profile. Add four existing canonical characters through local DexStore once, without materials or remote reward receipts. Default/original demo ownership, camp and incubation keys remain intact. Show up to four actual owned-character sprites on the 2D camp; marker taps select their precise identity. This exception is limited to the user's requested demonstration and does not change production acquisition rules.
+
+
+## Latest dev compatibility extension
+Merge latest dev 8a094f3 (#102, including #99/#91) while retaining current Unity presentation and original #93/#100 logic. The v1 app snapshot adds optional fishingRecords:int and fishingError:string. Validated intents selectCarCompanion(creatureId) and retryFishingSave() call existing GameController/FishingController APIs. Resolve the exact persisted DexEntry through the same camp ownership registry, including legacy occurrence IDs; never substitute the first record of a species. Full Unity Dex exposes the existing vehicle-companion selection, observation count and failed-save retry, with connection/session/busy gates. No new fishing reward, material conversion or remote schema is introduced.
+
+Retain authenticated pairing retry and whole-game v2 companion/fishing/gameRevision fields. The isolated example profile also isolates the new fishing store. The local-affinity Flutter debug harness remains explicit useUnityApp:false with its controller factory, frame builder and API lifetime. Legacy exploration egg/care/props remain usable outside app presentation; accepted full-app state clears legacy egg visuals and HUD, including home-to-cabin restoration.

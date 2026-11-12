@@ -1,25 +1,39 @@
 {
   "rules": {
+    ".read": false,
+    ".write": false,
     "sessions": {
       "$sid": {
-        ".read": "data.exists() && now - data.child('meta/createdAt').val() < 86400000",
-        ".write": "!data.exists() || now - data.child('meta/createdAt').val() < 86400000",
         "meta": {
-          ".validate": "newData.hasChildren(['createdAt', 'pairCode', 'paired', 'carAppVersion'])"
+          ".read": "auth != null && (auth.uid == root.child('sessions').child($sid).child('acl/carUid').val() || auth.uid == root.child('sessions').child($sid).child('acl/phoneUid').val()) && root.child('sessions').child($sid).child('meta/createdAt').isNumber() && root.child('sessions').child($sid).child('meta/createdAt').val() <= now && now - root.child('sessions').child($sid).child('meta/createdAt').val() < 86400000"
         },
         "vehicle": {
-          ".validate": "newData.hasChildren(['ts', 'gear'])",
-          "lat": { ".validate": false },
-          "lng": { ".validate": false },
-          "latitude": { ".validate": false },
-          "longitude": { ".validate": false }
+          ".read": "auth != null && (auth.uid == root.child('sessions').child($sid).child('acl/carUid').val() || auth.uid == root.child('sessions').child($sid).child('acl/phoneUid').val()) && root.child('sessions').child($sid).child('meta/createdAt').isNumber() && root.child('sessions').child($sid).child('meta/createdAt').val() <= now && now - root.child('sessions').child($sid).child('meta/createdAt').val() < 86400000",
+          ".write": "auth != null && auth.uid == root.child('sessions').child($sid).child('acl/carUid').val() && root.child('sessions').child($sid).child('meta/createdAt').isNumber() && root.child('sessions').child($sid).child('meta/createdAt').val() <= now && now - root.child('sessions').child($sid).child('meta/createdAt').val() < 86400000 && newData.exists()",
+          ".validate": "newData.hasChildren(['ts','gear']) && newData.child('ts').isNumber() && newData.child('ts').val() <= now + 300000 && newData.child('ts').val() >= now - 300000 && newData.child('gear').isString()",
+          "lat": {
+            ".validate": false
+          },
+          "lng": {
+            ".validate": false
+          },
+          "latitude": {
+            ".validate": false
+          },
+          "longitude": {
+            ".validate": false
+          }
         },
         "game": {
-          ".validate": "newData.hasChildren(['ts', 'stage'])"
+          ".read": "auth != null && (auth.uid == root.child('sessions').child($sid).child('acl/carUid').val() || auth.uid == root.child('sessions').child($sid).child('acl/phoneUid').val()) && root.child('sessions').child($sid).child('meta/createdAt').isNumber() && root.child('sessions').child($sid).child('meta/createdAt').val() <= now && now - root.child('sessions').child($sid).child('meta/createdAt').val() < 86400000",
+          ".write": "auth != null && auth.uid == root.child('sessions').child($sid).child('acl/phoneUid').val() && root.child('sessions').child($sid).child('meta/createdAt').isNumber() && root.child('sessions').child($sid).child('meta/createdAt').val() <= now && now - root.child('sessions').child($sid).child('meta/createdAt').val() < 86400000 && newData.exists()",
+          ".validate": "newData.hasChildren(['ts','stage']) && newData.child('ts').isNumber() && newData.child('ts').val() <= now + 300000 && newData.child('ts').val() >= now - 300000 && newData.child('stage').isString()"
         },
         "events": {
-          "$pushId": {
-            ".validate": "newData.hasChildren(['ts', 'type', 'by'])"
+          ".read": "auth != null && (auth.uid == root.child('sessions').child($sid).child('acl/carUid').val() || auth.uid == root.child('sessions').child($sid).child('acl/phoneUid').val()) && root.child('sessions').child($sid).child('meta/createdAt').isNumber() && root.child('sessions').child($sid).child('meta/createdAt').val() <= now && now - root.child('sessions').child($sid).child('meta/createdAt').val() < 86400000",
+          "$eventId": {
+            ".write": "!data.exists() && newData.exists() && root.child('sessions').child($sid).child('meta/createdAt').isNumber() && root.child('sessions').child($sid).child('meta/createdAt').val() <= now && now - root.child('sessions').child($sid).child('meta/createdAt').val() < 86400000 && ((auth != null && auth.uid == root.child('sessions').child($sid).child('acl/carUid').val() && newData.child('by').val() == 'car' && (newData.child('type').val() == 'sessionEnd' || newData.child('type').val() == 'destinationSuggest' || newData.child('type').val() == 'companionTransferRequested' || newData.child('type').val() == 'fishingRequested')) || (auth != null && auth.uid == root.child('sessions').child($sid).child('acl/phoneUid').val() && newData.child('by').val() == 'phone' && (newData.child('type').val() == 'hatched' || newData.child('type').val() == 'lookOutPrompt')))",
+            ".validate": "newData.hasChildren(['ts','type','by']) && newData.child('ts').isNumber() && newData.child('ts').val() <= now + 300000 && newData.child('ts').val() >= now - 300000"
           }
         }
       }

@@ -273,6 +273,8 @@ class UnityAppController extends ChangeNotifier {
             'count': _counts[s.id] ?? 0
           }
       ],
+      'fishingRecords': game.fishing.totalRecords,
+      'fishingError': game.fishing.error ?? '',
       'rewardStatus': '활동 연동 준비 중 · 주행 거리와 창밖 보기 재료만 반영돼요',
     };
   }
@@ -429,6 +431,8 @@ class UnityAppController extends ChangeNotifier {
     'cancel',
     'feedFood',
     'performAction',
+    'selectCarCompanion',
+    'retryFishingSave',
     'settings'
   };
   static bool _string(Object? value, [int max = 256]) =>
@@ -473,6 +477,7 @@ class UnityAppController extends ChangeNotifier {
           _string(m['targetId']),
       'feedFood' => CampCatalog.recipes.containsKey(m['recipeId']) &&
           _string(m['creatureId']),
+      'selectCarCompanion' => _string(m['creatureId']),
       'performAction' => CampCatalog.lessons.containsKey(m['actionId']) &&
           _string(m['creatureId']),
       'settings' => m['gyro'] is bool && m['reducedMotion'] is bool,
@@ -760,6 +765,42 @@ class UnityAppController extends ChangeNotifier {
         return camp.cancel(CampRole.values.byName(m['role']));
       case 'feedFood':
         return camp.feedFood(m['recipeId'], m['creatureId']);
+      case 'selectCarCompanion':
+        if (!game.paired ||
+            game.sessionEnded ||
+            game.endingSession ||
+            game.busy) {
+          _error = '차량에 먼저 연결한 뒤 친구를 골라 주세요.';
+          return false;
+        }
+        final id = m['creatureId'] as String;
+        final entry = await camp.ownedEntryForCreature(id);
+        if (_disposed ||
+            entry == null ||
+            camp.state.creatures[id]?.speciesId != entry.speciesId ||
+            !game.paired ||
+            game.sessionEnded ||
+            game.endingSession ||
+            game.busy) {
+          if (!_disposed) _error = '도감을 새로고침한 뒤 소유한 친구를 다시 골라 주세요.';
+          return false;
+        }
+        return game.selectCarCompanion(entry);
+      case 'retryFishingSave':
+        final previousError = game.error;
+        final previousFishingError = game.fishing.error;
+        await game.fishing.retrySave();
+        if (_disposed) return false;
+        final fishingError = game.fishing.error;
+        if (previousError != null &&
+            previousError != previousFishingError &&
+            (game.error == previousFishingError ||
+                game.error == fishingError)) {
+          game.error = previousError;
+        } else if (fishingError == null && game.error == previousFishingError) {
+          game.error = null;
+        }
+        return !game.fishing.hasPendingWrite && fishingError == null;
       case 'performAction':
         final result = camp.performAction(m['creatureId'], m['actionId']);
         if (result != null) _notice = _label(result);

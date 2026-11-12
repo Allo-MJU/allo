@@ -31,7 +31,7 @@ namespace Allo.Critters
 
         Allo.Hud HudOrNull => _hud != null ? _hud : _hud = FindFirstObjectByType<Allo.Hud>();
 
-        void Say(string text) => HudOrNull?.Show(text);
+        void Say(string text, float seconds = 2.4f) => HudOrNull?.Show(text, seconds);
 
         static Camera Cam => Camera.main;
 
@@ -269,7 +269,7 @@ namespace Allo.Critters
         /// 물병: 동행 옆에 컵을 놓으면 홀짝 마신다
         public void Water(Vector3 from)
         {
-            var c = Companion;
+            var c = Actor; // 동행이 없으면(알만 있을 때) 친구가 대신 논다
             if (c == null || _busy) return;
             StartCoroutine(GiveToy(Toys.Kind.Cup, from, c));
         }
@@ -277,7 +277,7 @@ namespace Allo.Critters
         /// 인형·쿠션: 작은 것이 동행 옆으로 통 날아간다
         public void Toy(Toys.Kind kind, Vector3 from)
         {
-            var c = Companion;
+            var c = Actor; // 동행이 없으면(알만 있을 때) 친구가 대신 논다
             if (c == null || _busy) return;
             StartCoroutine(GiveToy(kind, from, c));
         }
@@ -392,7 +392,7 @@ namespace Allo.Critters
         /// 유리에 그림을 그리는 동안 부른다: 동행이 그 창에 가까운 자리로 와서 구경한다
         public void Watch(Vector3 glassPoint)
         {
-            var c = Companion;
+            var c = Actor; // 동행이 없으면(알만 있을 때) 친구가 대신 논다
             if (c == null || _busy || Time.time - _watchAt < 2.5f) return;
             _watchAt = Time.time;
             var near = 0; var nd = float.MaxValue; var np = Vector3.zero;
@@ -422,7 +422,7 @@ namespace Allo.Critters
         /// 그림을 다 그렸다 (손을 뗌)
         public void DrawDone()
         {
-            var c = Companion;
+            var c = Actor; // 동행이 없으면(알만 있을 때) 친구가 대신 논다
             if (c == null || Time.time - _drawSent < 5f) return;
             _drawSent = Time.time;
             c.Cheer(1.5f);

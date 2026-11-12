@@ -28,6 +28,7 @@ namespace Allo.Bridge
                     "settings" => JsonUtility.FromJson<SettingsState>(json),
                     "toast" => JsonUtility.FromJson<ToastState>(json),
                     "route" => NormalizeRoute(JsonUtility.FromJson<RouteState>(json)),
+                    "egg" => NormalizeEgg(JsonUtility.FromJson<EggState>(json)),
                     _ => null,
                 };
                 return true;
@@ -42,6 +43,15 @@ namespace Allo.Bridge
         {
             r.turns ??= Array.Empty<TurnInfo>();
             return r;
+        }
+
+        static EggState NormalizeEgg(EggState e)
+        {
+            e.state ??= "idle";
+            e.eggId ??= "";
+            e.bornText ??= "";
+            e.progress = float.IsNaN(e.progress) ? 0 : Mathf.Clamp01(e.progress);
+            return e;
         }
 
         static CastState Normalize(CastState c)

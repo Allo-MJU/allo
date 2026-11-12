@@ -4,12 +4,15 @@ import 'package:allo_phone/app.dart';
 import 'package:allo_phone/base_camp/base_camp_store.dart';
 import 'package:allo_phone/feed/fake_feed.dart';
 import 'package:allo_phone/feed/vehicle_feed.dart';
+import 'package:allo_phone/fishing/fishing_controller.dart';
+import 'package:allo_phone/fishing/fishing_store.dart';
 import 'package:allo_phone/storage/dex_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'recurring_incubation_test.dart' show RoundFeed;
+import 'session_resume_test.dart' show sessionA;
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -124,10 +127,55 @@ void main() {
         sourceEggId: 'earned-example-profile'));
     final originalCamp = SharedPreferencesBaseCampStore(profile: 'demo');
     await originalCamp.save({'preserve': 'existing demo'});
+    final productionFishingStore = FishingStore();
+    final productionFishing =
+        FishingController(store: productionFishingStore, onChanged: () {});
+    await productionFishing.attach(sessionA);
+    await productionFishing.select((await original.all()).single);
+    final productionProfile = (await productionFishingStore.read())!;
+    final checkpoint = (productionProfile['entries']
+        as Map)[productionProfile['selected']] as Map<String, dynamic>;
+    checkpoint.addAll({
+      'state': 'paused',
+      'activityId': 'existing-production-activity',
+      'elapsedMs': 23000,
+      'totalRecords': 2
+    });
+    await productionFishingStore.write(productionProfile);
+    await productionFishing
+        .attach(sessionA); // Verify the saved checkpoint is valid.
+    expect(productionFishing.error, isNull);
+    productionFishing.dispose();
+    final prefs = await SharedPreferences.getInstance();
+    final productionRaw = prefs.getString(FishingStore.key);
+    expect(productionRaw, isNotNull);
     final first = await launch(
         tester, FakeVehicleFeed(scenario: FakeScenario.clear),
         enabled: true);
     final ids = (first['creatures'] as List).map((c) => c['id']).toList();
+    receive(jsonEncode({
+      'v': 1,
+      'type': 'appAction',
+      'requestId': 'pair-example-profile',
+      'action': 'pair',
+      'sessionId': sessionA,
+      'pairCode': '123456'
+    }));
+    await tester.pumpAndSettle();
+    final demoFishing =
+        await FishingStore(profile: 'unity-demo-examples').read();
+    expect(demoFishing,
+        isNotNull); // The actual app paired and attached its demo store.
+    expect(demoFishing!['session'], sessionA);
+    expect(demoFishing['selected'], isNull);
+    expect(demoFishing['entries'], isEmpty);
+    await prefs.reload();
+    expect(prefs.getString(FishingStore.key), productionRaw);
+    final demoCamp =
+        (await SharedPreferencesBaseCampStore(profile: 'unity-demo-examples')
+            .load())!['core'] as Map;
+    expect(demoCamp['creatures'], hasLength(5));
+    expect((demoCamp['materials'] as Map).values, everyElement(0));
     await close(tester);
     final second = await launch(
         tester, FakeVehicleFeed(scenario: FakeScenario.clear),
@@ -137,6 +185,8 @@ void main() {
         (await DexStore(profile: 'unity-demo-examples').all()), hasLength(5));
     expect((await original.all()).single.sourceEggId, 'earned-original');
     expect(await originalCamp.load(), {'preserve': 'existing demo'});
+    await prefs.reload();
+    expect(prefs.getString(FishingStore.key), productionRaw);
     await close(tester);
   });
   test('profile ownership and progress cannot overwrite default storage',

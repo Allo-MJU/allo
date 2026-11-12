@@ -3,13 +3,21 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:allo_core/allo_core.dart';
 
+import '../explore/explore_screen.dart';
 import '../game/game_controller.dart';
 import '../ui_mode.dart';
 import '../widgets/window_view.dart';
+import '../widgets/affinity_input_panel.dart';
 
 class IncubatingScreen extends StatefulWidget {
-  const IncubatingScreen({super.key, required this.controller});
+  const IncubatingScreen(
+      {super.key, required this.controller, this.enterExplore});
   final GameController controller;
+
+  /// 알을 품기 시작하면 바로 Unity 차 안 탐험으로 들어간다 (둥지의 알을 돌보다 그 안에서 깨어난다).
+  /// 탐험을 닫으면 이 화면에 남고, 오른쪽 위 버튼으로 다시 들어간다
+  /// null 이면 [autoEnterExplore] 를 따른다
+  final bool? enterExplore;
 
   @override
   State<IncubatingScreen> createState() => _IncubatingScreenState();
@@ -29,8 +37,20 @@ class _IncubatingScreenState extends State<IncubatingScreen>
     final v = widget.controller.vehicle;
     _harsh = (v?.harshBrake ?? 0) + (v?.harshSteer ?? 0);
     widget.controller.addListener(_onSignal);
+    exploreScreenOpen.addListener(_onExploreOpen);
     // 구독 직후 받은 신호로 화면이 열리기 전에 부화했을 수도 있다.
     _onSignal();
+    if (_enterExplore) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final c = widget.controller;
+        if (mounted &&
+            !_routing &&
+            !c.sessionEnded &&
+            c.game.stage == Stage.incubating) {
+          _openExplore();
+        }
+      });
+    }
   }
 
   void _onSignal() {
@@ -39,6 +59,9 @@ class _IncubatingScreenState extends State<IncubatingScreen>
     final harsh = (c.vehicle?.harshBrake ?? 0) + (c.vehicle?.harshSteer ?? 0);
     if (harsh > _harsh) _shake.forward(from: 0);
     _harsh = harsh;
+    // 차 안 탐험이 위에 떠 있으면 부화 화면으로 넘기지 않는다. 탐험 안에서 둥지의 알이 깨어나고,
+    // 탐험을 닫을 때 [_openExplore] 가 이어서 처리한다
+    if (_exploring) return;
     if (c.game.stage == Stage.hatched && !_routing) {
       _routing = true;
       final eggId = c.eggId;
@@ -55,6 +78,44 @@ class _IncubatingScreenState extends State<IncubatingScreen>
     }
   }
 
+  bool get _exploring => exploreScreenOpen.value;
+  bool _sawExplore = false;
+
+  // Unity exploration does not expose the affinity photo/talk/placement inputs.
+  // Keep that mode on its dedicated input screen even in Unity demo builds.
+  bool get _enterExplore =>
+      !widget.controller.usesAffinity &&
+      (widget.enterExplore ?? autoEnterExplore);
+
+  void _openExplore() => context.push('/explore');
+
+  /// 차 안 탐험이 닫혔다. 그 안에서 알이 깨어나는 연출을 봤으면 부화 화면을 건너뛰고 동행 화면으로,
+  /// 아니면 평소처럼 신호를 다시 본다 (깨어났으면 부화 화면).
+  /// 앱 라우터가 컨트롤러가 바뀔 때마다 경로를 다시 계산해 push 결과가 사라지므로, 결과 대신
+  /// [exploreScreenOpen]·[exploreHatchShown] 을 본다
+  void _onExploreOpen() {
+    if (exploreScreenOpen.value) {
+      _sawExplore = true;
+      return;
+    }
+    if (!_sawExplore) return;
+    _sawExplore = false;
+    final shown = exploreHatchShown;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final c = widget.controller;
+      if (shown &&
+          c.game.stage == Stage.hatched &&
+          !c.sessionEnded &&
+          !_routing) {
+        _routing = true;
+        context.go('/companion');
+        return;
+      }
+      _onSignal();
+    });
+  }
+
   void _care() {
     widget.controller.care();
     _shake.stop();
@@ -64,37 +125,55 @@ class _IncubatingScreenState extends State<IncubatingScreen>
   /// 차 안 화면만 꽉 채운다. 알 탭 = 감싸기, 길게 누르기 = 노래.
   Widget _fullscreen(GameController c, GameState g) => Scaffold(
         backgroundColor: Colors.black,
-        body: LayoutBuilder(
-          builder: (context, box) => WindowView(
-            vehicle: c.vehicle,
-            friends: c.collectedSpecies,
-            height: box.maxHeight,
-            rounded: false,
-            child: Semantics(
-              container: true, // 차 안 화면 라벨과 합쳐지지 않게 따로 둔다
-              button: true,
-              label: '자라고 있는 알, 돌봄 ${g.careCount}회',
-              child: GestureDetector(
-                onTap: _care,
-                onLongPressStart: (_) {
-                  _care();
-                  setState(() => _singing = true);
-                },
-                onLongPressEnd: (_) => setState(() => _singing = false),
-                child: AnimatedBuilder(
-                  animation: _shake,
-                  builder: (_, child) => Transform.rotate(
-                    angle: math.sin(_shake.value * math.pi * 8) *
-                        0.15 *
-                        (1 - _shake.value),
-                    child: child,
+        body: Stack(fit: StackFit.expand, children: [
+          _fullscreenCabin(c, g),
+          if (_enterExplore)
+            SafeArea(
+              child: Align(
+                alignment: Alignment.topRight,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: IconButton.filledTonal(
+                    tooltip: '차 안 둘러보기',
+                    icon: const Icon(Icons.threed_rotation),
+                    onPressed: _openExplore,
                   ),
-                  child: Icon(Icons.egg,
-                      size: box.maxHeight * 0.3,
-                      color: _singing
-                          ? Colors.teal.shade300
-                          : Colors.amber.shade300),
                 ),
+              ),
+            ),
+        ]),
+      );
+
+  Widget _fullscreenCabin(GameController c, GameState g) => LayoutBuilder(
+        builder: (context, box) => WindowView(
+          vehicle: c.vehicle,
+          friends: c.collectedSpecies,
+          height: box.maxHeight,
+          rounded: false,
+          child: Semantics(
+            container: true, // 차 안 화면 라벨과 합쳐지지 않게 따로 둔다
+            button: true,
+            label: '자라고 있는 알, 돌봄 ${g.careCount}회',
+            child: GestureDetector(
+              onTap: _care,
+              onLongPressStart: (_) {
+                _care();
+                setState(() => _singing = true);
+              },
+              onLongPressEnd: (_) => setState(() => _singing = false),
+              child: AnimatedBuilder(
+                animation: _shake,
+                builder: (_, child) => Transform.rotate(
+                  angle: math.sin(_shake.value * math.pi * 8) *
+                      0.15 *
+                      (1 - _shake.value),
+                  child: child,
+                ),
+                child: Icon(Icons.egg,
+                    size: box.maxHeight * 0.3,
+                    color: _singing
+                        ? Colors.teal.shade300
+                        : Colors.amber.shade300),
               ),
             ),
           ),
@@ -104,6 +183,7 @@ class _IncubatingScreenState extends State<IncubatingScreen>
   @override
   void dispose() {
     widget.controller.removeListener(_onSignal);
+    exploreScreenOpen.removeListener(_onExploreOpen);
     _shake.dispose();
     super.dispose();
   }
@@ -120,7 +200,7 @@ class _IncubatingScreenState extends State<IncubatingScreen>
             : g.hatchAtSec != null
                 ? '앞으로 ${((1 - g.progress) * g.hatchAtSec! / 60).ceil()}분'
                 : '앞으로 ${((1 - g.progress) * (g.hatchAtM ?? 0) / 1000).toStringAsFixed(1)}km';
-        if (fullscreenCabin) return _fullscreen(c, g);
+        if (fullscreenCabin && !c.usesAffinity) return _fullscreen(c, g);
         return Scaffold(
           appBar: AppBar(
               title: const Text('알 품기'),
@@ -162,7 +242,12 @@ class _IncubatingScreenState extends State<IncubatingScreen>
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text(_singing ? '노래를 듣고 편안해졌어요' : '흔들리면 알을 감싸 주세요',
+                Text(
+                    c.usesAffinity
+                        ? '알에게 마음을 전해 보세요'
+                        : _singing
+                            ? '노래를 듣고 편안해졌어요'
+                            : '흔들리면 알을 감싸 주세요',
                     textAlign: TextAlign.center),
                 const SizedBox(height: 16),
                 Wrap(
@@ -182,32 +267,39 @@ class _IncubatingScreenState extends State<IncubatingScreen>
                     textAlign: TextAlign.center),
                 if (c.error != null) Text(c.error!),
                 const SizedBox(height: 24),
-                FilledButton.icon(
-                    onPressed: _care,
-                    icon: const Icon(Icons.favorite),
-                    label: const Text('감싸기')),
+                if (c.usesAffinity) AffinityInputPanel(controller: c),
+                if (!c.usesAffinity)
+                  FilledButton.icon(
+                      onPressed: _care,
+                      icon: const Icon(Icons.favorite),
+                      label: const Text('감싸기')),
                 const SizedBox(height: 12),
-                Semantics(
-                  button: true,
-                  label: '길게 눌러 노래',
-                  onLongPress: _care,
-                  child: GestureDetector(
-                    onLongPressStart: (_) {
-                      _care();
-                      setState(() => _singing = true);
-                    },
-                    onLongPressEnd: (_) => setState(() => _singing = false),
-                    child: Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                            color: Colors.teal.shade50,
-                            borderRadius: BorderRadius.circular(24)),
-                        child: const Text('♫ 길게 눌러 노래',
-                            textAlign: TextAlign.center)),
+                if (!c.usesAffinity)
+                  Semantics(
+                    button: true,
+                    label: '길게 눌러 노래',
+                    onLongPress: _care,
+                    child: GestureDetector(
+                      onLongPressStart: (_) {
+                        _care();
+                        setState(() => _singing = true);
+                      },
+                      onLongPressEnd: (_) => setState(() => _singing = false),
+                      child: Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                              color: Colors.teal.shade50,
+                              borderRadius: BorderRadius.circular(24)),
+                          child: const Text('♫ 길게 눌러 노래',
+                              textAlign: TextAlign.center)),
+                    ),
                   ),
-                ),
+                if (c.usesAffinity)
+                  TextButton(
+                      onPressed: () => context.push('/dex'),
+                      child: const Text('함께하는 친구 · 낚시 기록')),
                 TextButton.icon(
-                    onPressed: () => context.push('/explore'),
+                    onPressed: _openExplore,
                     icon: const Icon(Icons.threed_rotation),
                     label: const Text('차 안 둘러보기')),
                 TextButton(

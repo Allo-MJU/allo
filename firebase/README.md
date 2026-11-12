@@ -1,22 +1,24 @@
 # Firebase
 
-Realtime Database 하나만 씁니다. 스키마는 `docs/schema.md` 3장이 기준입니다.
+게임 상태 전달 저장소는 Realtime Database를 씁니다. 스키마는 `docs/schema.md` 3장이 기준입니다.
 
-## 셋업 (C, Day 1)
+## 인증·세션 설정
 
-1. Firebase 콘솔에서 프로젝트 생성 → Realtime Database 생성 (asia-southeast1 권장)
-2. 규칙 탭에 `database.rules.json` 붙여넣기
-3. Android 앱 등록 두 개
-   - 차량 앱: 패키지 `ai.allo.car` → `google-services.json`을 `car/app/`에
-   - 폰 앱: `flutterfire configure` 로 `phone/lib/firebase_options.dart` 생성
-4. 두 파일 모두 **git에 올리지 않습니다** (`.gitignore` 처리됨). 팀 내 별도 채널로 공유
-5. DB URL을 팀에 공유 → `scripts/`의 `ALLO_DB_URL`로 사용
+실제 연결은 Firebase Authentication 익명 로그인, 서버 callable, RTDB 역할 규칙을 함께 사용한다. [인증·세션 계약 및 로컬 검증](AUTH_SESSION.md)을 따른다. 예전 무인증 규칙과 직접 meta 생성 경로는 더 이상 지원하지 않는다.
 
-## 규칙 요약
+1. 개발용 Firebase 프로젝트와 Realtime Database를 준비하고 Authentication의 Anonymous 제공자를 활성화한다.
+2. 폰 Android 앱 `ai.allo.allo_phone`을 등록한다. `phone/config/firebase.example.json`을 `firebase.local.json`으로 복사해 해당 앱 설정과 DB 루트 URL, Functions region을 채운다. 현재 코드는 명시적 FirebaseOptions 초기화를 사용한다.
+3. 차량 `car/local.properties`에 `ALLO_DB_URL`, `FIREBASE_API_KEY`, `FIREBASE_PROJECT_ID`, `FIREBASE_FUNCTIONS_REGION=asia-northeast3`를 넣는다. 차량은 Firebase SDK 대신 REST 인증을 사용한다. 서비스계정 키를 앱에 넣지 않는다.
+4. 서버의 `createVehicleSession`/`joinVehicleSession`/`renewVehiclePairing`과 이 디렉터리의 rules를 같은 프로젝트에 배포한 뒤 새 세션으로 연결한다. 기존 ACL 없는 세션은 규칙에서 차단된다. 이번 작업은 로컬 구현/검증이며 실제 배포를 실행하지 않았다.
+5. Functions 배포에는 Blaze 요금제가 필요하다. 결제 설정이나 플랜 변경은 이번 작업에서 하지 않는다. [공식 배포 안내](https://firebase.google.com/docs/functions/get-started)
 
-- 세션은 생성 후 24시간만 읽기·쓰기 가능
-- `vehicle`에 `lat`/`lng`/`latitude`/`longitude` 키는 규칙 단에서 거부
-- `vehicle`은 `ts`, `gear` 필수. `game`은 `ts`, `stage` 필수
+## 권한 요약
+
+- 서버가 세션 `acl`과 `meta`를 만들고 폰 한 대의 가입을 확정한다. 클라이언트는 이 값을 바꿀 수 없다.
+- 인증된 세션 참여자만 meta/vehicle/game/events를 읽는다. 루트 목록과 acl/pairing 비밀 읽기는 차단한다.
+- 차량 소유 UID만 vehicle, 가입된 폰 UID만 game을 작성한다. 이벤트는 역할과 type이 일치하는 새 항목만 허용한다.
+- 신규 폰 연결 코드는 10분 유효하며 오입력 5회 후 잠긴다. 동일 폰의 재연결은 세션 24시간 안에서 허용하며 종료 세션은 재사용하지 않는다.
+- 일반 앱은 모의 낚시 진입점과 별개이며, 모의 샘플 친구를 실제 도감에 자동 복사하지 않는다.
 
 ## 매일 만료 세션 정리 — 준비 상태
 

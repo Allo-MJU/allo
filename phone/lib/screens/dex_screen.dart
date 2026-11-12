@@ -36,6 +36,10 @@ class _DexScreenState extends State<DexScreen> {
               tooltip: '돌아가기',
               icon: const Icon(Icons.arrow_back),
               onPressed: () {
+                if (context.canPop()) {
+                  context.pop();
+                  return;
+                }
                 widget.controller.prepareNextFakeTrip();
                 context.go('/pairing');
               }),
@@ -145,6 +149,21 @@ class _DexScreenState extends State<DexScreen> {
               Text(
                   '속성: ${_attribute(species.attribute)} · 등급 ${records.first.tier}'),
               Text('총 ${records.length}번 만났어요'),
+              if (!widget.controller.paired)
+                const Text('차량과 연결한 뒤 함께할 친구를 선택할 수 있어요.'),
+              ListenableBuilder(
+                listenable: widget.controller,
+                builder: (context, _) => Column(children: [
+                  Text(
+                      '선택된 차량 친구의 관찰 기록 ${widget.controller.fishing.totalRecords}건'),
+                  if (widget.controller.fishing.error != null) ...[
+                    Text(widget.controller.fishing.error!),
+                    TextButton(
+                        onPressed: () => widget.controller.fishing.retrySave(),
+                        child: const Text('낚시 저장 다시 확인')),
+                  ],
+                ]),
+              ),
               const SizedBox(height: 12),
               for (final record in records)
                 Padding(
@@ -154,6 +173,29 @@ class _DexScreenState extends State<DexScreen> {
                     Text('환경: ${_environment(record.envTags)}',
                         textAlign: TextAlign.center),
                     Text('지역: ${_region(record.regionTag)}'),
+                    ListenableBuilder(
+                      listenable: widget.controller,
+                      builder: (context, _) => FilledButton.tonal(
+                        onPressed: !widget.controller.paired ||
+                                widget.controller.busy ||
+                                widget.controller.sessionEnded
+                            ? null
+                            : () async {
+                                final selected = await widget.controller
+                                    .selectCarCompanion(record);
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context)
+                                    .showSnackBar(SnackBar(
+                                        content: Text(
+                                  selected
+                                      ? '이 친구를 차량 동행으로 선택했어요. 주차 후 차량에서 낚시를 시작해 주세요.'
+                                      : widget.controller.error ??
+                                          '친구를 선택하지 못했어요.',
+                                )));
+                              },
+                        child: const Text('이 친구와 차량에서 함께하기'),
+                      ),
+                    ),
                   ]),
                 ),
             ],

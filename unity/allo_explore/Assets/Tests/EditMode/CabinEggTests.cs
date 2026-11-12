@@ -171,4 +171,172 @@ public class CabinEggTests
         Assert.AreEqual("", CabinEgg.GestureAction(2, 2, false, 100));
         Assert.AreEqual("", CabinEgg.GestureAction(120, 80, false, 100));
     }
+    [Test]
+    public void FullAppClearsLegacyEggAndRejectsLateLegacyUpdatesButLegacyExploreStillWorks()
+    {
+        var previousApp = AppSession.State;
+        var bridgeType = typeof(Allo.Bridge.FlutterBridge);
+        var previousSettings = Allo.Bridge.FlutterBridge.LastSettings;
+        var previousEgg = Allo.Bridge.FlutterBridge.LastEgg;
+        var events = bridgeType.GetField("EggChanged", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+        var previousEvents = events.GetValue(null);
+        var root = new GameObject("Legacy egg integration bridge");
+        try
+        {
+            typeof(AppSession).GetProperty(nameof(AppSession.State)).SetValue(null, null);
+            bridgeType.GetProperty("LastSettings").SetValue(null, null);
+            bridgeType.GetProperty("LastEgg").SetValue(null, null);
+            events.SetValue(null, null);
+            var observed = new System.Collections.Generic.List<Allo.Bridge.EggState>();
+            Allo.Bridge.FlutterBridge.EggChanged += observed.Add;
+            var bridge = root.AddComponent<Allo.Bridge.FlutterBridge>();
+            bridge.OnFlutterMessage("{\"v\":1,\"type\":\"egg\",\"state\":\"incubating\",\"eggId\":\"legacy-first\"}");
+            Assert.AreEqual("legacy-first", Allo.Bridge.FlutterBridge.LastEgg.eggId);
+            bridge.OnFlutterMessage("{\"v\":1,\"type\":\"settings\",\"appMode\":true}");
+            Assert.AreEqual("idle", Allo.Bridge.FlutterBridge.LastEgg.state);
+            bridge.OnFlutterMessage("{\"v\":1,\"type\":\"egg\",\"state\":\"incubating\",\"eggId\":\"late-settings\"}");
+            Assert.AreEqual("idle", Allo.Bridge.FlutterBridge.LastEgg.state);
+            bridge.OnFlutterMessage("{\"v\":1,\"type\":\"settings\",\"appMode\":false}");
+            bridge.OnFlutterMessage("{\"v\":1,\"type\":\"egg\",\"state\":\"incubating\",\"eggId\":\"legacy-return\"}");
+            Assert.AreEqual("legacy-return", Allo.Bridge.FlutterBridge.LastEgg.eggId);
+            bridge.OnFlutterMessage("{\"v\":2,\"type\":\"app\",\"revision\":1,\"view\":\"cabin\"}");
+            Assert.IsNull(AppSession.State);
+            Assert.AreEqual("legacy-return", Allo.Bridge.FlutterBridge.LastEgg.eggId);
+            bridge.OnFlutterMessage("{\"v\":1,\"type\":\"app\",\"revision\":1,\"view\":\"cabin\"}");
+            Assert.AreEqual("idle", Allo.Bridge.FlutterBridge.LastEgg.state);
+            bridge.OnFlutterMessage("{\"v\":1,\"type\":\"egg\",\"state\":\"hatched\",\"eggId\":\"late-app\"}");
+            Assert.AreEqual("idle", Allo.Bridge.FlutterBridge.LastEgg.state);
+            Assert.IsFalse(observed.Exists(e => e.eggId == "late-settings" || e.eggId == "late-app"));
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(root);
+            typeof(AppSession).GetProperty(nameof(AppSession.State)).SetValue(null, previousApp);
+            bridgeType.GetProperty("LastSettings").SetValue(null, previousSettings);
+            bridgeType.GetProperty("LastEgg").SetValue(null, previousEgg);
+            events.SetValue(null, previousEvents);
+        }
+    }
+
+    [Test]
+    public void AppSnapshotHidesLegacyCareHudBeforeItsSettingsArrive()
+    {
+        var previousApp = AppSession.State;
+        var root = new GameObject("Legacy care HUD regression");
+        Allo.Hud hud = null;
+        var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        try
+        {
+            typeof(AppSession).GetProperty(nameof(AppSession.State)).SetValue(null, null);
+            hud = root.AddComponent<Allo.Hud>();
+            if (root.transform.Find("Canvas") == null) typeof(Allo.Hud).GetMethod("Awake", flags).Invoke(hud, null);
+            typeof(Allo.Hud).GetMethod("OnDisable", flags).Invoke(hud, null);
+            typeof(Allo.Hud).GetMethod("OnEnable", flags).Invoke(hud, null);
+            typeof(Allo.Hud).GetMethod("OnSettings", flags).Invoke(hud, new object[] { new Allo.Bridge.SettingsState() });
+            Assert.IsTrue(root.transform.Find("Canvas").gameObject.activeSelf);
+            AppSession.Receive(new AppState { revision = 1, view = "cabin" });
+            Assert.IsFalse(root.transform.Find("Canvas").gameObject.activeSelf);
+            typeof(Allo.Hud).GetMethod("OnSettings", flags).Invoke(hud, new object[] { new Allo.Bridge.SettingsState() });
+            Assert.IsFalse(root.transform.Find("Canvas").gameObject.activeSelf);
+        }
+        finally
+        {
+            if (hud != null) typeof(Allo.Hud).GetMethod("OnDisable", flags).Invoke(hud, null);
+            UnityEngine.Object.DestroyImmediate(root);
+            typeof(AppSession).GetProperty(nameof(AppSession.State)).SetValue(null, previousApp);
+        }
+    }
+
+    [TestCase("cabin")]
+    [TestCase("home")]
+    public void AppTransitionCancelsAnAlreadyTrackedLegacyHatchVisual(string firstView)
+    {
+        var previousApp = AppSession.State;
+        var bridgeType = typeof(Allo.Bridge.FlutterBridge);
+        var previousSettings = Allo.Bridge.FlutterBridge.LastSettings;
+        var previousEgg = Allo.Bridge.FlutterBridge.LastEgg;
+        var events = bridgeType.GetField("EggChanged", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+        var previousEvents = events.GetValue(null);
+        var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        var directorType = typeof(Allo.Critters.CritterDirector);
+        var root = new GameObject("Legacy hatch transition regression");
+        Allo.Critters.CritterDirector director = null;
+        GameObject worldRoot = null, cameraRoot = null;
+        AppWorld world = null;
+        Action<AppState> applyWorld = null;
+        try
+        {
+            typeof(AppSession).GetProperty(nameof(AppSession.State)).SetValue(null, null);
+            bridgeType.GetProperty("LastSettings").SetValue(null, null);
+            bridgeType.GetProperty("LastEgg").SetValue(null, new Allo.Bridge.EggState { state = "hatched", eggId = "legacy" });
+            events.SetValue(null, null);
+            director = root.AddComponent<Allo.Critters.CritterDirector>();
+            directorType.GetMethod("OnDisable", flags).Invoke(director, null);
+            directorType.GetField("_graph", flags).SetValue(director, new Allo.Critters.WalkGraph(new System.Collections.Generic.List<Allo.Critters.WalkSurface>()));
+            var tracker = (Allo.Critters.EggTracker)directorType.GetField("_eggTracker", flags).GetValue(director);
+            tracker.Apply(new Allo.Bridge.EggState { state = "incubating", eggId = "legacy" });
+            tracker.Apply(new Allo.Bridge.EggState { state = "hatched", eggId = "legacy" });
+            Assert.IsFalse(tracker.Present, "The legacy tracker drops Present before its hatch animation finishes.");
+            var shell = new GameObject("Legacy egg still animating");
+            shell.transform.SetParent(root.transform);
+            directorType.GetField("_egg", flags).SetValue(director, shell.transform);
+            directorType.GetField("_hatching", flags).SetValue(director, true);
+            directorType.GetMethod("OnEnable", flags).Invoke(director, null);
+            var bridge = root.AddComponent<Allo.Bridge.FlutterBridge>();
+            if (firstView == "home")
+            {
+                if (Camera.main == null)
+                {
+                    cameraRoot = new GameObject("Legacy transition camera");
+                    cameraRoot.tag = "MainCamera";
+                    cameraRoot.AddComponent<Camera>();
+                }
+                worldRoot = new GameObject("Legacy transition app world");
+                world = worldRoot.AddComponent<AppWorld>();
+                applyWorld = state =>
+                {
+                    world.Apply(state);
+                    // AppSession skips runtime installation in EditMode, so replay lifecycle explicitly.
+                    directorType.GetMethod("OnDisable", flags).Invoke(director, null);
+                    if (root.activeInHierarchy) directorType.GetMethod("OnEnable", flags).Invoke(director, null);
+                };
+                AppSession.Changed += applyWorld;
+            }
+            bridge.OnFlutterMessage("{\"v\":1,\"type\":\"app\",\"revision\":1,\"view\":\"" + firstView + "\"}");
+            if (firstView == "home")
+            {
+                Assert.IsFalse(root.activeSelf, "The app hides the legacy director before bridge egg clearing.");
+                bridge.OnFlutterMessage("{\"v\":1,\"type\":\"app\",\"revision\":2,\"view\":\"cabin\"}");
+                Assert.IsTrue(root.activeSelf);
+            }
+            Assert.IsFalse(director.Hatching);
+            Assert.IsTrue(shell == null, "The legacy shell must be removed, leaving the app egg as the only presentation.");
+        }
+        finally
+        {
+            if (applyWorld != null) AppSession.Changed -= applyWorld;
+            if (world != null) world.SetView("cabin");
+            if (director != null) directorType.GetMethod("OnDisable", flags).Invoke(director, null);
+            UnityEngine.Object.DestroyImmediate(worldRoot);
+            UnityEngine.Object.DestroyImmediate(cameraRoot);
+            UnityEngine.Object.DestroyImmediate(root);
+            typeof(AppSession).GetProperty(nameof(AppSession.State)).SetValue(null, previousApp);
+            bridgeType.GetProperty("LastSettings").SetValue(null, previousSettings);
+            bridgeType.GetProperty("LastEgg").SetValue(null, previousEgg);
+            events.SetValue(null, previousEvents);
+        }
+    }
+
+    [Test]
+    public void InvalidBridgePayloadIsNotWrittenToTheLog()
+    {
+        var root = new GameObject("Private bridge payload regression");
+        try
+        {
+            UnityEngine.TestTools.LogAssert.Expect(LogType.Warning, "[FlutterBridge] 읽지 못한 메시지");
+            root.AddComponent<Allo.Bridge.FlutterBridge>().OnFlutterMessage("pair-code-and-private-speech");
+        }
+        finally { UnityEngine.Object.DestroyImmediate(root); }
+    }
+
 }

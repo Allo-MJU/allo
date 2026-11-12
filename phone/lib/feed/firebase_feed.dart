@@ -4,14 +4,22 @@ import 'package:allo_core/allo_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 
 import 'vehicle_feed.dart';
+import 'firebase_session_access.dart';
 import '../pairing/pairing_credentials.dart';
 
 /// Firebase Realtime Database 구현. 경로는 docs/schema.md 3장.
 class FirebaseVehicleFeed implements VehicleFeed {
-  FirebaseVehicleFeed({FirebaseDatabase? db})
-      : _db = db ?? FirebaseDatabase.instance;
+  FirebaseVehicleFeed(
+      {FirebaseDatabase? db,
+      FirebaseSessionAccess? sessionAccess,
+      String functionsRegion = 'asia-northeast3'})
+      : _db = db ?? FirebaseDatabase.instance,
+        _sessionAccess = sessionAccess ??
+            AuthenticatedFirebaseSessionAccess(
+                functionsRegion: functionsRegion);
 
   final FirebaseDatabase _db;
+  final FirebaseSessionAccess _sessionAccess;
   String? _sid;
 
   DatabaseReference get _session {
@@ -26,10 +34,9 @@ class FirebaseVehicleFeed implements VehicleFeed {
     final credentials =
         PairingCredentials.parseFields(sessionId, pairCode ?? '');
     final session = _db.ref('sessions/${credentials.sessionId}');
-    final snap =
-        await session.child('meta').get().timeout(const Duration(seconds: 10));
-    credentials.validateMeta(snap.exists ? _asMap(snap.value) : null,
-        now: DateTime.now());
+    // The server authenticates, verifies the code and claims this phone UID
+    // before any session data is readable. Membership/paired writes are server-only.
+    await _sessionAccess.join(credentials);
     final events = await session
         .child('events')
         .get()
@@ -42,17 +49,6 @@ class FirebaseVehicleFeed implements VehicleFeed {
           event['type'] == 'sessionEnd';
     });
     if (ended) throw const SessionEndedException();
-    final eventKey = session.child('events').push().key!;
-    // 페어링 표시와 이벤트를 한 번에 기록한 뒤에만 게임 발행을 허용한다.
-    await session.update({
-      'meta/paired': true,
-      'events/$eventKey': {
-        'ts': ServerValue.timestamp,
-        'type': 'paired',
-        'by': 'phone',
-        'payload': <String, Object?>{},
-      },
-    }).timeout(const Duration(seconds: 10));
     _sid = credentials.sessionId;
   }
 

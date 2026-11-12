@@ -8,6 +8,7 @@ import 'dart:io' show Platform;
 import 'affinity/egg_demo_api.dart';
 import 'base_camp/base_camp_controller.dart';
 import 'base_camp/base_camp_store.dart';
+import 'fishing/fishing_store.dart';
 import 'unity_app/unity_app_controller.dart';
 import 'unity_app/unity_app_screen.dart';
 import 'explore/explore_screen.dart';
@@ -31,9 +32,17 @@ class AlloApp extends StatefulWidget {
       {super.key,
       required this.feed,
       this.monotonicMs,
+      this.eggApi,
+      this.createController,
+      this.frameBuilder,
       this.useUnityApp,
       this.demoCreatures = unityDemoCreaturesEnabled,
       this.unityView});
+
+  /// App owns and closes this API; debug entrypoints can supply their adapter.
+  final EggDemoApi? eggApi;
+  final GameController Function()? createController;
+  final Widget Function(BuildContext, GameController, Widget)? frameBuilder;
   final VehicleFeed feed;
   final int Function()? monotonicMs;
   final bool? useUnityApp;
@@ -48,18 +57,25 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
   bool get _useUnity =>
       widget.useUnityApp ?? (Platform.isAndroid && unityAppEnabled);
   bool get _useDemoCreatures =>
-      _useUnity && widget.demoCreatures && widget.feed is FakeVehicleFeed;
-  late final DexStore dex =
+      _useUnity &&
+      widget.createController == null &&
+      widget.demoCreatures &&
+      widget.feed is FakeVehicleFeed;
+  late final GameController? _providedController =
+      widget.createController?.call();
+  late final DexStore dex = _providedController?.dex ??
       DexStore(profile: _useDemoCreatures ? 'unity-demo-examples' : 'default');
-  late final BaseCampController camp = BaseCampController(
-      dex: dex,
-      store: SharedPreferencesBaseCampStore(
-          profile: _useDemoCreatures
-              ? 'unity-demo-examples'
-              : widget.feed is FakeVehicleFeed
-                  ? 'demo'
-                  : 'default'));
-  late final EggDemoApi? _eggApi = _makeEggApi();
+  late final BaseCampController camp = _providedController?.baseCamp ??
+      BaseCampController(
+          dex: dex,
+          store: SharedPreferencesBaseCampStore(
+              profile: _useDemoCreatures
+                  ? 'unity-demo-examples'
+                  : widget.feed is FakeVehicleFeed
+                      ? 'demo'
+                      : 'default'));
+  late final EggDemoApi? _eggApi = widget.eggApi ??
+      (_useUnity && _providedController == null ? _makeEggApi() : null);
   EggDemoApi? _makeEggApi() {
     try {
       return HttpEggDemoApi.fromEnvironment();
@@ -68,12 +84,16 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
     }
   }
 
-  late final GameController controller = GameController(
-      feed: widget.feed,
-      dex: dex,
-      monotonicMs: widget.monotonicMs,
-      eggApi: _useUnity ? _eggApi : null,
-      baseCamp: _useUnity ? camp : null);
+  late final GameController controller = _providedController ??
+      GameController(
+          feed: widget.feed,
+          dex: dex,
+          monotonicMs: widget.monotonicMs,
+          eggApi: _eggApi,
+          fishingStore: _useDemoCreatures
+              ? FishingStore(profile: 'unity-demo-examples')
+              : null,
+          baseCamp: _useUnity ? camp : null);
   late final UnityAppController unityApp = UnityAppController(
       game: controller, camp: camp, demoCreatures: _useDemoCreatures);
 
@@ -162,10 +182,8 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
     _router.dispose();
     if (_useUnity) unityApp.dispose();
     controller.dispose();
-    if (_useUnity) {
-      camp.dispose();
-      _eggApi?.close();
-    }
+    if (_useUnity) camp.dispose();
+    _eggApi?.close();
     super.dispose();
   }
 
@@ -176,6 +194,11 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
       theme: ThemeData(
           colorSchemeSeed: const Color(0xFF4FB3A9), useMaterial3: true),
       routerConfig: _router,
+      builder: (context, child) =>
+          widget.frameBuilder
+              ?.call(context, controller, child ?? const SizedBox()) ??
+          child ??
+          const SizedBox(),
     );
   }
 }

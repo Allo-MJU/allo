@@ -293,6 +293,7 @@ namespace Allo.Critters
             FlutterBridge.CastChanged += OnCast;
             FlutterBridge.SceneChanged += OnScene;
             FlutterBridge.Jolted += OnJolt;
+            EggEnable();
         }
 
         void OnDisable()
@@ -300,6 +301,7 @@ namespace Allo.Critters
             FlutterBridge.CastChanged -= OnCast;
             FlutterBridge.SceneChanged -= OnScene;
             FlutterBridge.Jolted -= OnJolt;
+            EggDisable();
         }
 
         void Start()
@@ -315,6 +317,7 @@ namespace Allo.Critters
                     friends = new[] { new CastMember { id = "editor_b", attribute = "normal" }, new CastMember { id = "editor_c", attribute = "dark" } },
                 });
 #endif
+            EggStart();
         }
 
         void Update()
@@ -323,6 +326,7 @@ namespace Allo.Critters
             m.night |= _lightsOff; // 실내등을 끄면 밤처럼 존다
             foreach (var v in _views.Values) v.Brain.Tick(Time.deltaTime, m);
             PlayTick(Time.deltaTime);
+            EggTick(Time.deltaTime);
         }
 
         void OnScene(SceneState s)
@@ -356,6 +360,7 @@ namespace Allo.Critters
             foreach (var m in CastDiff.Members(cast))
             {
                 if (!add.Contains(m.id)) continue;
+                if (_hatching && m.id == CompanionId) continue; // 알이 깨지는 중: 다 깨지면 둥지에서 나온다 (SpawnFromEgg)
                 var go = new GameObject($"Critter_{m.id}");
                 go.transform.SetParent(transform, false);
                 var view = go.AddComponent<CritterView>();
@@ -363,6 +368,7 @@ namespace Allo.Critters
                 view.Init(m.id, new CritterBrain(_graph, start, seed * 7919), CritterArt.Placeholder(m.attribute, seed),
                     critterMaterial, shadowMaterial, CharacterModel.Find(m.id));
                 _views[m.id] = view;
+                if (BornNow(m.id)) StartAtNest(view);
                 if (!string.IsNullOrEmpty(m.sprite)) StartCoroutine(SpriteLoader.Load(m.sprite, art => { if (view != null) view.SetArt(art); }));
             }
         }
