@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &451594710599475428
+--- !u!1 &4114666558841702292
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,10 +8,10 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 2403313448762899510}
-  - component: {fileID: 619439555792542729}
-  - component: {fileID: 700467016635108807}
-  - component: {fileID: 1890272233672079502}
+  - component: {fileID: 775700317708232257}
+  - component: {fileID: 2990861057009877515}
+  - component: {fileID: 8030643106475453146}
+  - component: {fileID: 5453763024360305719}
   m_Layer: 0
   m_Name: Spotlight_01(Clone)
   m_TagString: Untagged
@@ -19,36 +19,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &2403313448762899510
+--- !u!4 &775700317708232257
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 451594710599475428}
+  m_GameObject: {fileID: 4114666558841702292}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0.000010058284, y: -0, z: -1.4769745}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 220727252935669852}
+  m_Father: {fileID: 8805693605259028621}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &619439555792542729
+--- !u!33 &2990861057009877515
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 451594710599475428}
+  m_GameObject: {fileID: 4114666558841702292}
   m_Mesh: {fileID: 1239738460709141287, guid: 064efdd2441176e49b4c3e8ea1e7e37f, type: 3}
---- !u!23 &700467016635108807
+--- !u!23 &8030643106475453146
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 451594710599475428}
+  m_GameObject: {fileID: 4114666558841702292}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -88,13 +88,13 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &1890272233672079502
+--- !u!64 &5453763024360305719
 MeshCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 451594710599475428}
+  m_GameObject: {fileID: 4114666558841702292}
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -110,7 +110,7 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 1239738460709141287, guid: 064efdd2441176e49b4c3e8ea1e7e37f, type: 3}
---- !u!1 &5247299096340191706
+--- !u!1 &8671100032990505136
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -118,7 +118,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 220727252935669852}
+  - component: {fileID: 8805693605259028621}
   m_Layer: 0
   m_Name: C_Spotlight_01
   m_TagString: Untagged
@@ -126,19 +126,19 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &220727252935669852
+--- !u!4 &8805693605259028621
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5247299096340191706}
+  m_GameObject: {fileID: 8671100032990505136}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 2403313448762899510}
+  - {fileID: 775700317708232257}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

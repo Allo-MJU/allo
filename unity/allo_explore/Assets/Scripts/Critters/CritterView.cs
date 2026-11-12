@@ -35,6 +35,9 @@ namespace Allo.Critters
         /// 발 사이로 보이는 밝은 배 밑은 셰이더가 바닥 그늘(_GroundShade)로 어둡게 한다
         public const float Sink = 0.016f;
 
+        /// 카메라가 내려다보는 각도의 이만큼을 그림 기울기로 쓴다 (1 = 완전히 카메라를 향함, 0 = 똑바로 섬)
+        public const float LeanRatio = 0.8f;
+
         public bool Is3D => _model != null;
 
         public string Id { get; private set; }
@@ -207,7 +210,8 @@ namespace Allo.Critters
             }
             _last = p;
             transform.position = p;
-            _body.position = p + Vector3.up * (lift + Height * sy / 2 - Sink * Mathf.Clamp01(1 - lift / 0.05f));
+            var sink = Sink * Mathf.Clamp01(1 - lift / 0.05f);
+            var feet = p + Vector3.up * lift; // 그림의 아래 가장자리가 놓이는 점
             // 창턱처럼 몸보다 좁은 면에 앉으면 그림을 차 안쪽(x=0 쪽)으로 당겨 문·유리 앞에 둔다
             var aspectNow = _art?.Aspect ?? 1;
             var ledgeWant = 0f;
@@ -222,28 +226,38 @@ namespace Allo.Critters
                 }
             }
             _ledge = Mathf.MoveTowards(_ledge, ledgeWant, dt * 0.8f);
-            if (_ledge > 0) _body.position -= new Vector3(Mathf.Sign(p.x) * _ledge, 0, 0);
+            if (_ledge > 0) feet -= new Vector3(Mathf.Sign(p.x) * _ledge, 0, 0);
             // 납작한 그림이 뒤쪽 의자·머리받침에 파묻히지 않게 카메라 쪽으로 몸 반 너비만큼 당긴다.
             // 아이 바로 옆 자리처럼 이미 가까우면 더 크게 보이기만 하므로 눈에서 NearLimit 안으로는 당기지 않는다
             // 당기는 건 카메라가 뒤(차 뒤쪽, -z)에 있을 때만: 아이 옆자리처럼 카메라가 옆에 있으면 당기다 팔걸이·문에 파묻힌다
             if (cam != null)
             {
-                var toCam = cam.transform.position - _body.position;
+                var toCam = cam.transform.position - (feet + Vector3.up * (Height * sy / 2));
                 toCam.y = 0;
                 if (toCam.sqrMagnitude > 1e-6f)
                 {
                     var dir = toCam.normalized;
                     var fromBehind = Mathf.Clamp01(-dir.z);
                     var pull = Mathf.Clamp(toCam.magnitude - NearLimit, 0, Height * 0.5f) * fromBehind;
-                    _body.position += dir * pull;
+                    feet += dir * pull;
                 }
             }
+            // 카메라를 보되, 위에서 내려다볼 때는 발을 축으로 뒤로 눕혀 세로가 눌려 보이지 않게 (기울기의 LeanRatio 만큼).
+            // 똑바로 세워 두면 아이 눈(시트보다 45cm 위)에서 30~45도로 내려다봐 그림이 찌부러져 보인다
+            var rot = Quaternion.Euler(0, 0, roll);
             if (cam != null)
             {
-                var fwd = _body.position - cam.transform.position;
-                fwd.y = 0;
-                if (fwd.sqrMagnitude > 1e-6f) _body.rotation = Quaternion.LookRotation(fwd) * Quaternion.Euler(0, 0, roll);
+                var toBody = feet + Vector3.up * (Height * sy / 2) - cam.transform.position;
+                var flat = new Vector3(toBody.x, 0, toBody.z);
+                if (flat.sqrMagnitude > 1e-6f)
+                {
+                    var pitch = Mathf.Atan2(-toBody.y, flat.magnitude) * Mathf.Rad2Deg; // 카메라가 위에 있으면 +
+                    var lean = Mathf.Clamp(pitch, -15f, 65f) * LeanRatio;
+                    rot = Quaternion.LookRotation(flat) * Quaternion.Euler(lean, 0, roll);
+                }
             }
+            _body.rotation = rot;
+            _body.position = feet + rot * Vector3.up * (Height * sy / 2 - sink);
             // 그림이 왼쪽을 보면 오른쪽으로 갈 때 뒤집는다 (Allo/Sprite 는 뒷면도 그린다)
             var aspect = _art?.Aspect ?? 1;
             var flip = _art != null && _art.FacesLeft ? -_facing : _facing;
