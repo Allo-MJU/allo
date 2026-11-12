@@ -505,17 +505,35 @@ class GameController extends ChangeNotifier {
   }
 
   // 동행 반응은 폰 안에서만 유지하며 부화 등급이나 서버 계약을 바꾸지 않는다.
-  void feedCompanion() {
+  /// [kind] 는 탐험 화면이 알려 준 먹이 종류 (문구만 바뀐다. 세는 방식은 같다)
+  void feedCompanion([String? kind]) {
     if (game.stage != Stage.hatched || sessionEnded || endingSession) return;
     feedCount++;
-    companionMessage = '${hatched?.nameKo ?? "친구"}가 맛있게 먹었어요!';
+    final name = hatched?.nameKo ?? '친구';
+    companionMessage = switch (kind) {
+      'water' => '$name가 물을 꿀꺽 마셨어요!',
+      'shell' => '$name가 조개를 맛있게 먹었어요!',
+      'acorn' => '$name가 도토리를 오독오독 먹었어요!',
+      'fishbun' => '$name가 붕어빵을 냠냠 먹었어요!',
+      _ => '$name가 맛있게 먹었어요!',
+    };
     notifyListeners();
   }
 
-  void playWithCompanion() {
+  /// [kind] 는 탐험 화면의 놀이 종류 (문구만 바뀐다. 세는 방식은 같다)
+  void playWithCompanion([String? kind]) {
     if (game.stage != Stage.hatched || sessionEnded || endingSession) return;
     playCount++;
-    companionMessage = '${hatched?.nameKo ?? "친구"}가 신나게 뛰어요!';
+    final name = hatched?.nameKo ?? '친구';
+    companionMessage = switch (kind) {
+      'pet' => '$name가 기분 좋아해요!',
+      'ball' => '$name가 공을 굴려 줬어요!',
+      'plush' => '$name가 인형을 꼭 안았어요!',
+      'cushion' => '$name가 쿠션에서 통통 뛰어요!',
+      'blanket' => '$name가 포근하게 자요',
+      'draw' => '$name가 그림을 구경해요!',
+      _ => '$name가 신나게 뛰어요!',
+    };
     notifyListeners();
   }
 

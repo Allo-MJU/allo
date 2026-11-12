@@ -175,10 +175,15 @@ class _ExploreScreenState extends State<ExploreScreen>
     if (msg is! Map) return;
     final c = widget.controller;
     switch (msg['type']) {
-      case 'tap': // 동행 캐릭터 탭 = 놀아주기
-        c.playWithCompanion();
-      case 'feed':
-        c.feedCompanion();
+      case 'tap': // 동행 캐릭터와 놀기 (kind: pet·ball·plush·cushion·blanket·draw, 없으면 탭)
+        c.playWithCompanion(msg['kind'] as String?);
+      case 'feed': // kind: apple·shell·acorn·fishbun
+        c.feedCompanion(msg['kind'] as String?);
+      case 'drink':
+        c.feedCompanion('water');
+      case 'lookTogether': // 동행이 가리킨 창밖을 아이가 같이 봄 = 창밖 보기
+        c.lookOut();
+        _link.post('toast', toastMessage('같이 봤어요!', ++_toastSeq));
       case 'endTrip': // 체험 주행에서만 (Unity 는 settings.canEndTrip 일 때만 버튼을 보인다)
         c.endFakeTrip();
       case 'spotted': // 창밖 친구 발견 = "봤어!"

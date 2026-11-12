@@ -39,6 +39,15 @@ namespace Allo.Critters
         /// 점프 출발점 (그리는 쪽이 포물선을 그린다)
         public Vector3 JumpFrom { get; private set; }
 
+        /// 점프를 보통보다 이만큼(m) 더 높이 (쿠션 트램펄린)
+        public float JumpBoost { get; private set; }
+
+        /// 놀이 중 (먹이·공·인형). 목적지에 닿아도 제멋대로 돌아다니지 않고 기다린다
+        public bool Hold;
+
+        /// 담요를 덮었다. 깨울 때까지 계속 잔다
+        public bool StayAsleep;
+
         /// 현재 상태에서 흐른 비율 0~1 (점프·구르기)
         public float Progress => State switch
         {
@@ -85,6 +94,43 @@ namespace Allo.Critters
 
         public bool AtTarget => Position == Target;
 
+        /// 다른 면의 한 점으로 간다: 같은 면이면 걷고, 아니면 그 점으로 바로 뛴다 (던진 먹이를 쫓을 때)
+        public void MoveTo(Vector3 target, int surface)
+        {
+            if (State == CritterState.Tumble) return;
+            surface = Mathf.Clamp(surface, 0, _g.Surfaces.Count - 1);
+            var p = WalkGraph.Clamp(target, _g.Surfaces[surface]);
+            if (surface == Surface)
+            {
+                Enter(CritterState.Walk, p, 0);
+                return;
+            }
+            JumpFrom = Position;
+            Surface = surface;
+            Enter(CritterState.Jump, p, JumpSeconds);
+        }
+
+        /// 제자리에서 높이 뛴다 (boost m 만큼 더)
+        public void Hop(float boost)
+        {
+            if (State == CritterState.Tumble) return;
+            JumpFrom = Position;
+            Enter(CritterState.Jump, Position, JumpSeconds);
+            JumpBoost = boost;
+        }
+
+        /// 그 자리에서 seconds 동안 가만히 (쓰다듬기)
+        public void Stay(float seconds)
+        {
+            if (State is CritterState.Tumble or CritterState.Jump) return;
+            Enter(CritterState.Idle, Position, seconds);
+        }
+
+        /// 그 자리에서 웅크리거나(인형 안기) 창밖을 보거나(그림 구경) 잔다
+        public void Huddle(float seconds) => Enter(CritterState.Huddle, Position, seconds);
+        public void Peek(float seconds) => Enter(CritterState.Peek, Position, seconds);
+        public void Nap(float seconds) => Enter(CritterState.Sleep, Position, seconds);
+
         public void Tick(float dt, Mood mood)
         {
             _stateTime += dt;
@@ -117,13 +163,17 @@ namespace Allo.Critters
                     break;
             }
             // 분위기가 바뀌면 오래 기다리지 않고 바로 반응한다
+            if (StayAsleep && State == CritterState.Idle) Enter(CritterState.Sleep, Position, 3);
+            if (Hold) return;
             if (mood.night && State == CritterState.Idle) Enter(CritterState.Sleep, Position, Range(4, 9));
-            if (!mood.night && State == CritterState.Sleep) Enter(CritterState.Idle, Position, Range(0.3f, 1));
+            if (!mood.night && !StayAsleep && State == CritterState.Sleep) Enter(CritterState.Idle, Position, Range(0.3f, 1));
             if (!mood.tunnel && State == CritterState.Huddle && _timer > 1) _timer = 1;
         }
 
         void Decide(Mood mood)
         {
+            if (StayAsleep) { Enter(CritterState.Sleep, Position, 3); return; }
+            if (Hold) { Enter(CritterState.Idle, Position, 0.5f); return; }
             var roam = mood.moving ? 1f : 0.5f; // 정차 중엔 더 자주 움직인다
             if (mood.tunnel)
             {
@@ -149,8 +199,25 @@ namespace Allo.Critters
             else if (r < 0.75 || _g.Neighbors(Surface).Count == 0)
                 Enter(CritterState.Walk, _g.RandomPoint(Surface, _rng), 0);
             else
-                JumpTo(_g.Neighbors(Surface)[_rng.Next(_g.Neighbors(Surface).Count)]);
+                JumpTo(PickNeighbor());
         }
+
+        /// 이웃 면을 고른다. 앞좌석 사이 바닥은 정면 화면 아래 밖이라 다른 면의 1/4 만 고른다
+        int PickNeighbor()
+        {
+            var ns = _g.Neighbors(Surface);
+            var total = 0f;
+            foreach (var n in ns) total += Weight(n);
+            var r = (float)_rng.NextDouble() * total;
+            foreach (var n in ns)
+            {
+                r -= Weight(n);
+                if (r <= 0) return n;
+            }
+            return ns[ns.Count - 1];
+        }
+
+        float Weight(int surface) => _g.Surfaces[surface].name == "Walk_Floor" ? 0.25f : 1f;
 
         void JumpTo(int surface)
         {
@@ -161,6 +228,7 @@ namespace Allo.Critters
 
         void Enter(CritterState s, Vector3 target, float seconds)
         {
+            JumpBoost = 0;
             State = s;
             Target = target;
             _timer = seconds;
@@ -190,13 +258,7 @@ namespace Allo.Critters
             return -1;
         }
 
-        static Vector3 Clamp(Vector3 p, WalkSurface s)
-        {
-            var hx = Mathf.Max(0, s.size.x / 2 - WalkGraph.EdgeMargin);
-            var hz = Mathf.Max(0, s.size.y / 2 - WalkGraph.EdgeMargin);
-            return new Vector3(Mathf.Clamp(p.x, s.center.x - hx, s.center.x + hx), s.center.y,
-                Mathf.Clamp(p.z, s.center.z - hz, s.center.z + hz));
-        }
+        static Vector3 Clamp(Vector3 p, WalkSurface s) => WalkGraph.Clamp(p, s);
 
         float Range(float a, float b) => a + (float)_rng.NextDouble() * (b - a);
     }
