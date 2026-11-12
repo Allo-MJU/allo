@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &502423230344779629
+--- !u!1 &2054711844386741848
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 7659564260652179962}
-  - component: {fileID: 3166286895615079051}
-  - component: {fileID: 7868658851598227300}
+  - component: {fileID: 2468563047809519342}
+  - component: {fileID: 5781195478017322409}
+  - component: {fileID: 1038538353813188348}
   m_Layer: 0
   m_Name: mushroom_tanGroup(Clone)
   m_TagString: Untagged
@@ -18,36 +18,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &7659564260652179962
+--- !u!4 &2468563047809519342
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 502423230344779629}
+  m_GameObject: {fileID: 2054711844386741848}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.0060437964, y: -0, z: 0.060221247}
   m_LocalScale: {x: 3.9922075, y: 3.9922075, z: 3.9922075}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 8958133326347630289}
+  m_Father: {fileID: 5459807572872888003}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &3166286895615079051
+--- !u!33 &5781195478017322409
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 502423230344779629}
+  m_GameObject: {fileID: 2054711844386741848}
   m_Mesh: {fileID: 5500321341413094623, guid: 14d6068762c074ae08c889f89e23024d, type: 3}
---- !u!23 &7868658851598227300
+--- !u!23 &1038538353813188348
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 502423230344779629}
+  m_GameObject: {fileID: 2054711844386741848}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -87,7 +87,7 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!1 &2142183263450568617
+--- !u!1 &3884444774232175147
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -95,7 +95,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 8958133326347630289}
+  - component: {fileID: 5459807572872888003}
   m_Layer: 0
   m_Name: K_mushroom_tanGroup
   m_TagString: Untagged
@@ -103,19 +103,19 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &8958133326347630289
+--- !u!4 &5459807572872888003
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2142183263450568617}
+  m_GameObject: {fileID: 3884444774232175147}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 7659564260652179962}
+  - {fileID: 2468563047809519342}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
