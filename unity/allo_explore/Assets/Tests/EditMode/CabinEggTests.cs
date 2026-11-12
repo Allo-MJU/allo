@@ -63,6 +63,83 @@ public class CabinEggTests
     }
 
     [Test]
+    public void InactiveDisabledSurfaceBoundsComeFromTransformedMesh()
+    {
+        var root = new GameObject("Inactive surface parent");
+        try
+        {
+            root.transform.position = new Vector3(2, 1, 3);
+            root.transform.rotation = Quaternion.Euler(0, 90, 0);
+            root.transform.localScale = new Vector3(2, 1, 0.5f);
+            var surface = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            surface.transform.SetParent(root.transform, false);
+            surface.transform.localPosition = new Vector3(1, 0.1f, -2);
+            surface.transform.localScale = new Vector3(0.4f, 0.02f, 1.6f);
+            var renderer = surface.GetComponent<Renderer>();
+            renderer.enabled = false;
+            root.SetActive(false);
+            // Android can leave this renderer cache empty; geometry remains available.
+            renderer.bounds = new Bounds(Vector3.zero, Vector3.zero);
+            var bounds = CabinEgg.SurfaceBounds(renderer);
+            Assert.Less(Vector3.Distance(new Vector3(1, 1.1f, 1), bounds.center), 0.0001f);
+            Assert.Less(Vector3.Distance(new Vector3(0.8f, 0.02f, 0.8f), bounds.size), 0.0001f);
+            Assert.AreEqual(1.23f, CabinEgg.PositionOnSurface(bounds).y, 0.0001f);
+        }
+        finally { UnityEngine.Object.DestroyImmediate(root); }
+    }
+
+    [Test]
+    public void HomeBeforeCabinKeepsFourInactiveSurfaceLocationsAndFullEggHeight()
+    {
+        var existing = new System.Collections.Generic.List<Transform>();
+        foreach (var t in UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            if (t.name == "Cabin") { existing.Add(t); t.name = "Existing cabin during bounds test"; }
+        var cabin = new GameObject("Cabin");
+        var host = new GameObject("Cabin egg regression host");
+        try
+        {
+            for (var i = 0; i < 4; i++)
+            {
+                var surface = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                surface.name = CabinEgg.ZoneSurfaceName(i);
+                surface.transform.SetParent(cabin.transform, false);
+                surface.transform.position = new Vector3(i + 1, 0.5f + i * 0.1f, i + 2);
+                surface.transform.localScale = new Vector3(0.2f, 0.02f, 0.4f);
+                var renderer = surface.GetComponent<Renderer>();
+                renderer.enabled = false;
+                renderer.bounds = new Bounds(Vector3.zero, Vector3.zero);
+            }
+            cabin.SetActive(false);
+            var component = host.AddComponent<CabinEgg>();
+            component.SetView("home");
+            component.Apply(new AppState { view = "home" });
+            var state = new AppState { view = "cabin", ready = true, egg = new EggState { id = "current", active = true } };
+            component.SetView("cabin");
+            component.Apply(state);
+            var visuals = host.transform.Find("Cabin egg visuals");
+            Assert.IsTrue(visuals.gameObject.activeSelf);
+            for (var i = 0; i < 4; i++)
+            {
+                var marker = visuals.Find("Egg zone " + i);
+                Assert.AreEqual(i + 1, marker.position.x, 0.0001f);
+                Assert.AreEqual(i + 2, marker.position.z, 0.0001f);
+                Assert.AreEqual(0.515f + i * 0.1f, marker.position.y, 0.0001f);
+            }
+            var egg = visuals.Find("Cabin egg");
+            Assert.IsTrue(egg.gameObject.activeSelf);
+            var local = egg.GetComponent<MeshFilter>().sharedMesh.bounds;
+            Assert.AreEqual(CabinEgg.EggHeight, local.size.y * egg.lossyScale.y, 0.0001f);
+            Assert.AreEqual(0.64f, egg.position.y, 0.0001f);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(host);
+            UnityEngine.Object.DestroyImmediate(cabin);
+            foreach (var t in existing) if (t != null) t.name = "Cabin";
+        }
+    }
+
+    [Test]
     public void GestureRequiresCurrentEggIdentityAndCabin()
     {
         var state = new AppState { ready = true, egg = new EggState { id = "current", active = true } };

@@ -42,6 +42,23 @@ namespace Allo.App
             return Surfaces[zone];
         }
 
+        public static Bounds SurfaceBounds(Renderer renderer)
+        {
+            // Walk renderers are disabled and the cabin may be inactive before its first view.
+            var filter = renderer.GetComponent<MeshFilter>();
+            var local = filter != null && filter.sharedMesh != null ? filter.sharedMesh.bounds : renderer.localBounds;
+            var matrix = renderer.transform.localToWorldMatrix;
+            var world = new Bounds(matrix.MultiplyPoint3x4(local.center), Vector3.zero);
+            for (var x = 0; x < 2; x++)
+            for (var y = 0; y < 2; y++)
+            for (var z = 0; z < 2; z++)
+                world.Encapsulate(matrix.MultiplyPoint3x4(new Vector3(
+                    x == 0 ? local.min.x : local.max.x,
+                    y == 0 ? local.min.y : local.max.y,
+                    z == 0 ? local.min.z : local.max.z)));
+            return world;
+        }
+
         public static Vector3 PositionOnSurface(Bounds surface) =>
             new Vector3(surface.center.x, surface.max.y + EggHeight * 0.5f, surface.center.z);
 
@@ -120,7 +137,7 @@ namespace Allo.App
                 foreach (var renderer in renderers)
                 {
                     if (renderer.name != ZoneSurfaceName(i)) continue;
-                    var position = PositionOnSurface(renderer.bounds);
+                    var position = PositionOnSurface(SurfaceBounds(renderer));
                     marker.transform.position = position - Vector3.up * (EggHeight * 0.5f - 0.005f);
                     _available[i] = true;
                     break;
@@ -131,7 +148,9 @@ namespace Allo.App
             _egg = body.transform;
             _egg.localScale = new Vector3(0.18f, EggHeight, 0.18f);
             _eggRenderer = body.GetComponent<Renderer>();
-            _eggMesh = body.GetComponent<MeshFilter>().mesh;
+            var bodyFilter = body.GetComponent<MeshFilter>();
+            _eggMesh = Instantiate(bodyFilter.sharedMesh);
+            bodyFilter.sharedMesh = _eggMesh;
             var vertices = _eggMesh.vertices;
             for (var i = 0; i < vertices.Length; i++)
             {
