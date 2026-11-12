@@ -21,6 +21,7 @@ namespace Allo.App
         string _confirmTitle, _confirmDescription;
         Action _confirmAction;
         readonly Dictionary<string, float> _scrollPositions = new Dictionary<string, float>();
+        readonly Dictionary<string, Text> _resourceTexts = new Dictionary<string, Text>();
         readonly Dictionary<string, Button> _nav = new Dictionary<string, Button>();
         readonly Dictionary<string, string> _workers = new Dictionary<string, string>();
         readonly List<Action> _liveChecks = new List<Action>();
@@ -68,46 +69,44 @@ namespace Allo.App
             }
             var canvasGo = new GameObject("Application UI", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             canvasGo.transform.SetParent(transform, false);
-            var canvas = canvasGo.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 100;
-            var scaler = canvasGo.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1280, 720);
-            scaler.matchWidthOrHeight = .5f;
-            _safe = Rect("Safe area", canvasGo.transform);
-            Stretch(_safe);
-
-            var header = Rect("Header", _safe);
-            Stretch(header, 24, -98, -24, -20, new Vector2(0, 1), new Vector2(1, 1));
-            var titleSurface = Surface("Title", header, Cream);
-            Stretch(titleSurface, 0, 0, -330, 0);
-            _title = Label(titleSurface, "ALLO", 34, TextAnchor.MiddleLeft);
-            Stretch(_title.rectTransform, 22, 0, -18, 0);
-            var connectionSurface = Surface("Connection", header, Cream);
-            Stretch(connectionSurface, -306, 0, 0, 0, new Vector2(1, 0), Vector2.one);
-            _connection = Label(connectionSurface, "연결 확인 중", 24, TextAnchor.MiddleCenter);
-            Stretch(_connection.rectTransform, 10, 0, -10, 0);
-            var connectionButton = connectionSurface.gameObject.AddComponent<Button>();
-            connectionButton.onClick.AddListener(() => Navigate("settings"));
-
-            _content = Rect("Screen", _safe);
-            Stretch(_content, 24, 172, -24, -116);
-            var status = Surface("Status", _safe, Cream);
-            Stretch(status, 24, 100, -24, 156, Vector2.zero, new Vector2(1, 0));
-            _statusSurface = status.GetComponent<Image>();
-            _status = Label(status, "캠프를 불러오고 있어요.", 22, TextAnchor.MiddleLeft);
-            Stretch(_status.rectTransform, 18, 0, -18, 0);
-            var nav = Rect("Navigation", _safe);
-            Stretch(nav, 24, 20, -24, 88, Vector2.zero, new Vector2(1, 0));
-            Row(nav, 10);
+            var canvas = canvasGo.GetComponent<Canvas>(); canvas.renderMode = RenderMode.ScreenSpaceOverlay; canvas.sortingOrder = 100;
+            var scaler = canvasGo.GetComponent<CanvasScaler>(); scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1600, 720); scaler.matchWidthOrHeight = 1;
+            _safe = Rect("Safe area", canvasGo.transform); Stretch(_safe);
+            var header = Surface("Compact application HUD", _safe, new Color(.949f, .933f, .898f, .97f));
+            Stretch(header, 14, -64, -14, -10, new Vector2(0, 1), Vector2.one);
+            _title = Label(header, "ALLO", 27, TextAnchor.MiddleLeft); Stretch(_title.rectTransform, 18, 0, -780, 0);
+            var balances = Rect("Material HUD", header); Stretch(balances, -700, 7, -180, -7, new Vector2(1, 0), Vector2.one); Row(balances, 8);
+            foreach (var id in new[] { "wood", "stone", "ingredient" })
+            {
+                var pill = Button(balances, "—", () => Navigate("inventory"), Cream, 40, true, 20);
+                _resourceTexts[id] = pill.GetComponentInChildren<Text>();
+            }
+            var connection = Surface("Connection chip", header, Cream, false);
+            Stretch(connection, -170, 7, -10, -7, new Vector2(1, 0), Vector2.one);
+            _connection = Label(connection, "연결 확인 중", 18, TextAnchor.MiddleCenter); Stretch(_connection.rectTransform, 4, 0, -4, 0);
+            connection.gameObject.AddComponent<Button>().onClick.AddListener(() => Navigate("settings"));
+            _content = Rect("Screen", _safe); Stretch(_content, 14, 88, -14, -78);
+            var nav = Surface("Navigation", _safe, new Color(.949f, .933f, .898f, .98f));
+            Stretch(nav, 14, 10, -14, 76, Vector2.zero, new Vector2(1, 0));
+            var navItems = Rect("Navigation items", nav); Stretch(navItems, 10, 4, -10, -4); Row(navItems, 8);
             string[] ids = { "home", "cabin", "camp", "dex", "inventory", "settings" };
-            string[] labels = { "광장", "차 안", "캠프", "친구 도감", "보급품", "설정" };
+            string[] labels = { "마을", "차 안", "시설", "친구", "가방", "설정" };
             for (var i = 0; i < ids.Length; i++)
             {
                 var id = ids[i];
-                _nav[id] = Button(nav, labels[i], () => Navigate(id), Cream, 64, true, 25);
+                var button = Button(navItems, labels[i], () => Navigate(id), Cream, 56, true, 21);
+                var text = button.GetComponentInChildren<Text>(); Stretch(text.rectTransform, 46, 0, -8, 0);
+                var icon = Rect("Navigation icon", button.transform);
+                icon.anchorMin = icon.anchorMax = new Vector2(.22f, .5f); icon.sizeDelta = new Vector2(28, 28);
+                var image = icon.gameObject.AddComponent<Image>(); image.sprite = NavigationIcon(id); image.color = Ink; image.raycastTarget = false;
+                _nav[id] = button;
             }
+            var status = Surface("Context toast", _safe, Cream);
+            Stretch(status, -430, -124, 430, -76, new Vector2(.5f, 1), new Vector2(.5f, 1));
+            _statusSurface = status.GetComponent<Image>();
+            _status = Label(status, "", 21, TextAnchor.MiddleCenter); Stretch(_status.rectTransform, 16, 2, -16, -2);
+            status.gameObject.SetActive(false);
             ApplySafeArea();
         }
 
@@ -125,16 +124,22 @@ namespace Allo.App
         void UpdateChrome()
         {
             var view = View;
-            _title.text = view == "home" ? "ALLO  ·  우리들의 작은 광장" : ViewTitle(view);
+            _title.text = view == "home" ? "ALLO  /  우리의 마을" : "ALLO  /  " + ViewTitle(view);
             var s = _state;
-            _connection.text = s == null || !s.ready ? "불러오는 중" : s.busy ? "처리 중" : s.sessionEnded ? "여행 종료" : s.connected ? (s.isDemo ? "체험 연결됨" : "차량 연결됨") : "차량 연결 안 됨";
+            _connection.text = s == null || !s.ready ? "불러오는 중" : s.busy ? "처리 중" : s.sessionEnded ? "여행 종료" : s.connected ? (s.isDemo ? "체험 연결" : "차량 연결") : "연결하기";
             _connection.color = s != null && s.connected ? Ink : Muted;
             var error = s != null && !string.IsNullOrEmpty(s.error);
             _statusSurface.color = error ? CoralLight : s != null && s.busy ? Sky : Cream;
-            _status.text = s == null || !s.ready ? "캠프를 불러오고 있어요." : error ? "! " + ErrorLabel(s.error) : s.busy ? "처리 중이에요. 잠시 기다려 주세요." : !string.IsNullOrEmpty(s.notice) ? s.notice : DefaultStatus(view);
+            _status.text = s == null || !s.ready ? "마을을 불러오고 있어요." : error ? ErrorLabel(s.error) : s.busy ? "처리 중이에요. 잠시 기다려 주세요." : s.notice ?? "";
+            _statusSurface.gameObject.SetActive(s == null || !s.ready || error || s.busy || !string.IsNullOrEmpty(s.notice));
+            foreach (var entry in _resourceTexts)
+            {
+                var material = s == null ? null : Array.Find(Items(s.materials), m => m.id == entry.Key);
+                entry.Value.text = material == null ? "—" : material.label + "  " + material.count;
+            }
             foreach (var entry in _nav)
             {
-                entry.Value.GetComponent<Image>().color = entry.Key == view ? Mint : Cream;
+                entry.Value.GetComponent<Image>().color = entry.Key == view ? Hex("DEE4D9") : Cream;
                 entry.Value.interactable = s != null && s.ready && !s.busy;
             }
         }
@@ -177,7 +182,8 @@ namespace Allo.App
 
         void BuildConfirmation()
         {
-            var sheet = Sheet(_content);
+            if (View == "home" || View == "camp") BuildVillageMap(0, false);
+            var sheet = DockSheet(480);
             Heading(sheet, _confirmTitle);
             Copy(sheet, _confirmDescription, 26);
             var row = NewRow(sheet);

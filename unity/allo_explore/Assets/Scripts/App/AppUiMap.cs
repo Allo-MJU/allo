@@ -8,12 +8,14 @@ namespace Allo.App
 {
     public sealed partial class AppUi
     {
-        bool _campDetail;
+        bool _campDetail, _speechDrawer, _zoneDrawer;
         readonly Dictionary<string, Sprite> _villageArt = new Dictionary<string, Sprite>();
+        readonly Dictionary<string, Sprite> _lineIcons = new Dictionary<string, Sprite>();
 
         void OpenVillageFacility(string id)
         {
             if (!CanAct) return;
+            if (_facility != id || !_campDetail) _scrollPositions.Remove("camp:view:0");
             _facility = id;
             var facility = Items(_state.facilities).FirstOrDefault(f => f.id == id);
             _campTab = facility != null && facility.level == 0 ? "builder" : id == "kitchen" ? "cook" : id == "training" ? "trainer" : "builder";
@@ -22,253 +24,110 @@ namespace Allo.App
             else Send("navigate", new AppAction { view = "camp" });
         }
 
-        void BuildVillageMap(float minX, bool home)
+        void BuildVillageMap(float unused, bool home)
         {
-            var root = Rect("Village overview", _content);
-            Stretch(root, minX > 0 ? 8 : 0, 0, 0, 0, new Vector2(minX, 0), Vector2.one);
-            var resources = Rect("Village resources", root);
-            Stretch(resources, 0, -58, 0, 0, new Vector2(0, 1), Vector2.one);
-            Row(resources, 12);
-            foreach (var material in Items(_state.materials))
-            {
-                var pill = Button(resources, material.label + "  " + material.count, () => Navigate("inventory"), Cream, 54, CanAct, 26);
-                pill.gameObject.name = "Resource " + material.id;
-            }
-            if (Items(_state.materials).Length == 0)
-            {
-                var text = Label(resources, "보급품을 확인하고 있어요", 24, TextAnchor.MiddleCenter);
-                text.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1;
-            }
-
-            var map = Surface("Village map", root, Hex("B8D9A6"));
-            Stretch(map, 0, 52, 0, -72);
+            var map = Rect("Village map", _content); Stretch(map);
             map.gameObject.AddComponent<RectMask2D>();
-            var meadow = Surface("Village meadow", map, Hex("D0E6AD"), false);
-            Stretch(meadow, 12, 14, -12, -12);
-            var center = MapPart(map, "Village clearing", .5f, .35f, .86f, .53f, Hex("DCE9B8"));
-            center.GetComponent<Image>().raycastTarget = false;
-            // All scenery is UI illustration; no scene camera or 3D world is involved.
-            MapPart(map, "Main village path", .5f, .22f, 1.08f, .115f, Hex("E8D3A3"));
-            MapPart(map, "Workshop path", .19f, .38f, .065f, .36f, Hex("E8D3A3"));
-            MapPart(map, "Kitchen path", .5f, .38f, .065f, .36f, Hex("E8D3A3"));
-            MapPart(map, "Training path", .81f, .38f, .065f, .36f, Hex("E8D3A3"));
-            MapPart(map, "Path center", .50f, .225f, .15f, .16f, Hex("F4E1B9"));
-            AddTree(map, .035f, .81f, .11f); AddTree(map, .96f, .80f, .12f);
-            AddTree(map, .045f, .30f, .095f); AddTree(map, .95f, .31f, .10f);
-            AddTree(map, .355f, .83f, .075f); AddTree(map, .65f, .85f, .085f);
-            for (var i = 0; i < 16; i++)
+            var background = Resources.Load<Texture2D>("VillageArt/background");
+            var canvas = Rect("Natural village landscape", map); Stretch(canvas);
+            var image = canvas.gameObject.AddComponent<RawImage>(); image.texture = background; image.raycastTarget = false;
+            image.color = background != null ? Color.white : Hex("7D8C67");
+            if (background != null)
             {
-                var x = .055f + (i * .137f) % .88f;
-                var y = i % 2 == 0 ? .075f : .94f;
-                MapPart(map, "Meadow flower", x, y, .006f, .013f, i % 3 == 0 ? Hex("F5BDA6") : Hex("FFF0BA"));
+                var fit = canvas.gameObject.AddComponent<AspectRatioFitter>(); fit.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent; fit.aspectRatio = (float)background.width / background.height;
             }
             string[] ids = { "workshop", "kitchen", "training" };
-            for (var i = 0; i < ids.Length; i++) BuildFacilityNode(map, ids[i], .19f + .31f * i, home);
-            AddVillageFriends(map);
-
-            var summary = Surface("Village activity summary", root, Cream, false);
-            Stretch(summary, 0, 0, 0, 42, Vector2.zero, new Vector2(1, 0));
-            var jobs = Items(_state.jobs);
-            var line = jobs.Length == 0 ? "시설을 눌러 건설 · 요리 · 훈련을 시작해요." : string.Join("   /   ", jobs.Select(j => j.label + " · " + TimeLabel(j.remainingSec)));
-            var caption = Label(summary, line, home ? 21 : 23, TextAnchor.MiddleCenter);
-            Stretch(caption.rectTransform, 12, 0, -12, 0);
+            for (var i = 0; i < ids.Length; i++) BuildFacilityNode(map, ids[i], .20f + .305f * i);
+            var hint = Surface("Village hint", map, new Color(.949f, .933f, .898f, .92f), false);
+            Stretch(hint, 14, -46, 430, -10, new Vector2(0, 1), new Vector2(0, 1));
+            var hintText = Label(hint, Items(_state.jobs).Length > 0 ? "친구들이 마을을 돌보고 있어요" : "시설을 눌러 함께할 일을 골라 주세요", 20, TextAnchor.MiddleCenter); Stretch(hintText.rectTransform, 8, 0, -8, 0);
+            AddOwnedFriendChip(map);
+            if (home)
+            {
+                var action = Button(map, "차 안으로 가기", () => Navigate("cabin"), Yellow, 54, CanAct, 22);
+                Stretch((RectTransform)action.transform, -224, 14, -14, 68, new Vector2(1, 0), new Vector2(1, 0));
+            }
         }
 
-        void BuildFacilityNode(RectTransform map, string id, float x, bool compact)
+        void BuildFacilityNode(RectTransform map, string id, float x)
         {
             var facility = Items(_state.facilities).FirstOrDefault(f => f.id == id);
             var role = id == "kitchen" ? "cook" : id == "training" ? "trainer" : "builder";
             var node = Rect("Facility node " + id, map);
-            Stretch(node, 0, 0, 0, 0, new Vector2(x - .14f, .14f), new Vector2(x + .14f, .87f));
+            node.anchorMin = node.anchorMax = new Vector2(x, .41f); node.pivot = new Vector2(.5f, 0); node.sizeDelta = new Vector2(300, 280);
             var hit = node.gameObject.AddComponent<Image>(); hit.color = Color.clear;
             var button = node.gameObject.AddComponent<Button>(); button.interactable = CanAct && facility != null;
             button.onClick.AddListener(() => OpenVillageFacility(id));
-            var art = Rect("Building illustration", node);
-            Stretch(art, 0, 70, 0, -8);
-            var image = art.gameObject.AddComponent<Image>();
-            image.sprite = VillageSprite(id, facility != null ? facility.level : 0); image.preserveAspect = true; image.raycastTarget = false;
-            var label = Surface("Facility name and level", node, facility != null && facility.level > 0 ? Cream : Hex("F0E5CB"));
-            Stretch(label, -4, 29, 4, 81, Vector2.zero, new Vector2(1, 0));
-            label.GetComponent<Image>().raycastTarget = false;
+            var art = Rect("Building illustration", node); Stretch(art);
+            var image = art.gameObject.AddComponent<Image>(); image.sprite = VillageSprite(id); image.preserveAspect = true; image.raycastTarget = false;
+            image.color = new Color(1, 1, 1, facility != null && facility.level > 0 ? 1 : .45f);
+            var label = Surface("Facility name and level", node, Cream);
+            Stretch(label, 30, -58, -30, -6, Vector2.zero, new Vector2(1, 0)); label.GetComponent<Image>().raycastTarget = true;
             button.targetGraphic = label.GetComponent<Image>();
-            var title = Label(label, (facility?.label ?? (id == "workshop" ? "작업장" : id == "kitchen" ? "주방" : "훈련장")) + "  Lv." + (facility != null ? facility.level.ToString() : "?"), compact ? 24 : 28, TextAnchor.MiddleCenter);
-            Stretch(title.rectTransform, 4, 0, -4, 0);
-            var assignment = Assignment(role);
-            var worker = string.IsNullOrEmpty(assignment) ? RoleLabel(role) + " 미배정" : CreatureName(assignment);
-            var workerText = Label(node, worker, compact ? 19 : 22, TextAnchor.MiddleCenter);
-            Stretch(workerText.rectTransform, -15, -2, 15, 29, Vector2.zero, new Vector2(1, 0));
+            var name = facility?.label ?? (id == "workshop" ? "작업장" : id == "kitchen" ? "주방" : "훈련장");
+            var title = Label(label, name + "  Lv." + (facility != null ? facility.level.ToString() : "?"), 22, TextAnchor.MiddleCenter); Stretch(title.rectTransform, 4, 15, -4, 0);
+            var subtitle = Label(label, facility == null ? "정보 확인 중" : facility.level == 0 ? "미건설 · 눌러서 짓기" : "시설 살펴보기", 17, TextAnchor.MiddleCenter); Stretch(subtitle.rectTransform, 4, 0, -4, -29);
             var jobs = Items(_state.jobs).Where(j => (j.role == role && (role != "builder" || j.targetId == id)) || (j.role == "builder" && j.targetId == id)).ToArray();
-            var status = facility == null ? "정보 확인 중" : jobs.Length > 0 ? string.Join(" · ", jobs.Select(j => j.role == "builder" ? "건설 중" : j.role == "cook" ? "요리 중" : "훈련 중")) + "  " + TimeLabel(jobs.Min(j => j.remainingSec)) : facility.level == 0 ? "미건설 · 눌러서 짓기" : string.IsNullOrEmpty(assignment) ? "친구를 정해 주세요" : "함께할 준비가 됐어요";
-            var bubble = Surface("Facility work status", node, jobs.Length > 0 ? Mint : Cream, false);
-            Stretch(bubble, -8, -20, 8, 28, new Vector2(0, 1), Vector2.one);
-            bubble.GetComponent<Image>().raycastTarget = false;
-            var statusText = Label(bubble, status, compact ? 18 : 21, TextAnchor.MiddleCenter);
-            Stretch(statusText.rectTransform, 6, 0, -6, 0);
-            if (jobs.Length > 0)
+            for (var jobIndex = 0; jobIndex < jobs.Length; jobIndex++)
             {
-                var track = Surface("Facility work progress", node, Hex("E8D3A3"), false);
-                Stretch(track, 12, 79, -12, 86, Vector2.zero, new Vector2(1, 0));
-                track.GetComponent<Image>().raycastTarget = false;
-                var fill = Surface("Confirmed job progress", track, Ink, false);
-                Stretch(fill, 0, 0, 0, 0, Vector2.zero, new Vector2(Mathf.Clamp01(jobs[0].progress), 1)); fill.GetComponent<Image>().raycastTarget = false;
+                var job = jobs[jobIndex];
+                var bubble = Surface("Facility working bubble", node, Cream);
+                Stretch(bubble, 26, -112 - jobIndex * 52, -26, -64 - jobIndex * 52, Vector2.zero, new Vector2(1, 0)); bubble.GetComponent<Image>().raycastTarget = false;
+                var text = Label(bubble, CreatureName(job.workerId) + " · " + TimeLabel(job.remainingSec), 18, TextAnchor.MiddleCenter); Stretch(text.rectTransform, 6, 9, -6, 0);
+                var track = Surface("Facility work progress", bubble, Disabled, false); Stretch(track, 10, 5, -10, 9, Vector2.zero, new Vector2(1, 0)); track.GetComponent<Image>().raycastTarget = false;
+                var fill = Surface("Confirmed job progress", track, Hex("53765B"), false); Stretch(fill, 0, 0, 0, 0, Vector2.zero, new Vector2(Mathf.Clamp01(job.progress), 1)); fill.GetComponent<Image>().raycastTarget = false;
             }
         }
 
-        void AddVillageFriends(RectTransform map)
+        void AddOwnedFriendChip(RectTransform parent)
         {
-            var friends = Items(_state.creatures).Take(3).ToArray();
-            for (var i = 0; i < friends.Length; i++)
+            var friend = Items(_state.creatures).FirstOrDefault();
+            var chip = Surface("Owned friend chip", parent, Cream);
+            Stretch(chip, 14, 14, 330, 94, Vector2.zero, Vector2.zero);
+            if (friend != null)
             {
-                var friend = friends[i];
-                var portrait = Rect("Village friend " + friend.id, map);
-                Stretch(portrait, 0, 0, 0, 0, new Vector2(.28f + i * .19f, .005f), new Vector2(.36f + i * .19f, .135f));
-                Art(portrait, friend.sprite, 60);
-                var hit = portrait.gameObject.AddComponent<Image>(); hit.color = Color.clear;
-                var button = portrait.gameObject.AddComponent<Button>(); button.interactable = CanAct;
-                button.onClick.AddListener(() => { _selectedDex = friend.speciesId; _selectedCreature = friend.id; Navigate("dex"); });
+                var portrait = Rect("Friend avatar", chip); Stretch(portrait, 4, 4, 76, -4, Vector2.zero, new Vector2(0, 1)); Art(portrait, friend.sprite, 72);
+                var title = Label(chip, friend.name, 22, TextAnchor.MiddleLeft); Stretch(title.rectTransform, 88, 32, -10, -8);
+                var copy = Label(chip, "함께하는 친구 " + Items(_state.creatures).Length + "명", 18, TextAnchor.MiddleLeft); Stretch(copy.rectTransform, 88, 7, -10, -42);
+                chip.gameObject.AddComponent<Button>().onClick.AddListener(() => { _selectedDex = friend.speciesId; _selectedCreature = friend.id; Navigate("dex"); });
+            }
+            else
+            {
+                var text = Label(chip, "차 안에서 첫 친구를 만나 보세요", 21, TextAnchor.MiddleCenter); Stretch(text.rectTransform, 10, 0, -10, 0);
             }
         }
 
-        RectTransform MapPart(Transform parent, string name, float x, float y, float w, float h, Color color)
+        Sprite VillageSprite(string kind)
         {
-            var rect = Surface(name, parent, color, false);
-            Stretch(rect, 0, 0, 0, 0, new Vector2(x - w / 2, y - h / 2), new Vector2(x + w / 2, y + h / 2));
-            rect.GetComponent<Image>().raycastTarget = false;
-            return rect;
-        }
-        void AddTree(Transform parent, float x, float y, float width)
-        {
-            var rect = MapPart(parent, "Village tree", x, y, width, width * 1.8f, Color.white);
-            var image = rect.GetComponent<Image>(); image.sprite = VillageSprite("tree", 0); image.type = Image.Type.Simple; image.preserveAspect = true;
-        }
-        Sprite VillageSprite(string kind, int level)
-        {
-            var key = kind + ":" + level;
-            if (_villageArt.TryGetValue(key, out var cached)) return cached;
-            var painter = new VillagePainter();
-            if (kind == "tree") painter.Tree(); else painter.Building(kind, level);
-            return _villageArt[key] = painter.Finish(key);
+            if (_villageArt.TryGetValue(kind, out var cached)) return cached;
+            var texture = Resources.Load<Texture2D>("VillageArt/" + kind);
+            if (texture == null) return null;
+            return _villageArt[kind] = Sprite.Create(texture, new UnityEngine.Rect(0, 0, texture.width, texture.height), new Vector2(.5f, .5f), 100);
         }
 
-        // Small authored raster illustrations, cached per building and confirmed level.
-        sealed class VillagePainter
+        Sprite NavigationIcon(string name)
         {
-            const int W = 384, H = 320;
-            readonly Color[] _pixels = new Color[W * H];
-            readonly Color _ink = Hex("70574F"), _wood = Hex("AD7C57"), _cream = Hex("FFF2CE");
-            void Pixel(int x, int y, Color c) { if (x >= 0 && x < W && y >= 0 && y < H) _pixels[y * W + x] = c; }
-            void Box(float x, float y, float w, float h, Color c)
-            { for (var py = Mathf.Max(0, (int)y); py < Mathf.Min(H, y + h); py++) for (var px = Mathf.Max(0, (int)x); px < Mathf.Min(W, x + w); px++) Pixel(px, py, c); }
-            void Oval(float x, float y, float rx, float ry, Color c)
+            if (_lineIcons.TryGetValue(name, out var cached)) return cached;
+            const int n = 64;
+            var pixels = new Color[n * n];
+            void Dot(float x, float y, float radius)
             {
-                for (var py = Mathf.Max(0, (int)(y - ry - 1)); py < Mathf.Min(H, y + ry + 1); py++)
-                for (var px = Mathf.Max(0, (int)(x - rx - 1)); px < Mathf.Min(W, x + rx + 1); px++)
-                {
-                    var d = Mathf.Sqrt((px - x) * (px - x) / (rx * rx) + (py - y) * (py - y) / (ry * ry));
-                    if (d <= 1) Pixel(px, py, c);
-                }
+                for (var py = Mathf.Max(0, (int)(y - radius - 1)); py < Mathf.Min(n, y + radius + 1); py++)
+                for (var px = Mathf.Max(0, (int)(x - radius - 1)); px < Mathf.Min(n, x + radius + 1); px++)
+                { var alpha = Mathf.Clamp01(radius + .5f - Vector2.Distance(new Vector2(x, y), new Vector2(px, py))); if (alpha > pixels[py * n + px].a) pixels[py * n + px] = new Color(1, 1, 1, alpha); }
             }
-            void Line(float ax, float ay, float bx, float by, float width, Color c)
-            {
-                var distance = Vector2.Distance(new Vector2(ax, ay), new Vector2(bx, by));
-                for (var i = 0; i <= Mathf.CeilToInt(distance); i++)
-                { var t = distance == 0 ? 0 : i / distance; Oval(Mathf.Lerp(ax, bx, t), Mathf.Lerp(ay, by, t), width / 2, width / 2, c); }
-            }
-            void Poly(Color c, params Vector2[] points)
-            {
-                var minX = Mathf.Max(0, Mathf.FloorToInt(points.Min(p => p.x))); var maxX = Mathf.Min(W - 1, Mathf.CeilToInt(points.Max(p => p.x)));
-                var minY = Mathf.Max(0, Mathf.FloorToInt(points.Min(p => p.y))); var maxY = Mathf.Min(H - 1, Mathf.CeilToInt(points.Max(p => p.y)));
-                for (var y = minY; y <= maxY; y++) for (var x = minX; x <= maxX; x++)
-                {
-                    var inside = false;
-                    for (int i = 0, j = points.Length - 1; i < points.Length; j = i++)
-                        if ((points[i].y > y) != (points[j].y > y) && x < (points[j].x - points[i].x) * (y - points[i].y) / (points[j].y - points[i].y) + points[i].x) inside = !inside;
-                    if (inside) Pixel(x, y, c);
-                }
-                for (var i = 0; i < points.Length; i++) Line(points[i].x, points[i].y, points[(i + 1) % points.Length].x, points[(i + 1) % points.Length].y, 5, _ink);
-            }
-            void FramedBox(float x, float y, float w, float h, Color c)
-            { Box(x - 3, y - 3, w + 6, h + 6, _ink); Box(x, y, w, h, c); }
-            void Window(float x, float y)
-            {
-                FramedBox(x, y, 40, 42, Hex("BFE5DC"));
-                Line(x + 20, y, x + 20, y + 42, 4, _wood); Line(x, y + 20, x + 40, y + 20, 4, _wood);
-                Box(x - 5, y - 7, 50, 7, _wood);
-            }
-            public void Tree()
-            {
-                Oval(192, 35, 102, 20, Hex("8BB78C"));
-                Line(192, 44, 192, 191, 25, _ink); Line(192, 46, 192, 189, 17, _wood);
-                Oval(192, 205, 111, 93, _ink); Oval(192, 208, 106, 88, Hex("76B98D"));
-                Oval(132, 210, 62, 59, Hex("8ACC9C")); Oval(223, 249, 62, 54, Hex("A4D5A0"));
-                Line(187, 104, 153, 140, 10, _wood); Line(196, 128, 228, 160, 10, _wood);
-            }
-            public void Building(string kind, int level)
-            {
-                var accent = kind == "kitchen" ? Hex("DE9980") : kind == "training" ? Hex("91BCCD") : Hex("8BC6AC");
-                Oval(192, 30, 157, 23, Hex("92B88F"));
-                if (level <= 0)
-                {
-                    Poly(Hex("D5C6A4"), new Vector2(55, 34), new Vector2(281, 34), new Vector2(331, 67), new Vector2(106, 67));
-                    for (var i = 0; i < 4; i++)
-                    { var x = 65 + i * 72; Box(x, 45, 12, 60, _wood); Box(x - 4, 96, 20, 8, _cream); }
-                    Line(71, 80, 287, 80, 8, _wood);
-                    FramedBox(111, 108, 160, 111, _cream); Box(184, 51, 14, 57, _wood);
-                    Poly(accent, new Vector2(137, 156), new Vector2(190, 199), new Vector2(244, 156));
-                    FramedBox(149, 123, 85, 34, Hex("E0D8BB")); Box(182, 123, 18, 28, _wood);
-                    Box(54, 108, 43, 10, _wood); Box(49, 120, 45, 10, Hex("C7A67A"));
-                    return;
-                }
-                if (level >= 2)
-                {
-                    FramedBox(272, 49, 65, 100, Hex("E5D7AE"));
-                    Poly(accent, new Vector2(258, 144), new Vector2(298, 191), new Vector2(349, 144));
-                    FramedBox(293, 77, 23, 35, Hex("BFE5DC"));
-                }
-                FramedBox(87, 50, 195, 151, _cream);
-                Box(92, 54, 185, 15, Hex("DCC69B"));
-                Box(253, 57, 24, 139, Hex("E9D6AD"));
-                if (kind == "kitchen")
-                {
-                    FramedBox(240, 211, 27, 59, Hex("B68B74"));
-                    Oval(257, 285, 17, 12, Hex("F4F2D9")); Oval(276, 305, 24, 14, Hex("F4F2D9"));
-                }
-                Poly(accent, new Vector2(65, 190), new Vector2(184, 278), new Vector2(303, 190));
-                Line(80, 188, 292, 188, 11, _wood);
-                Line(96, 212, 270, 212, 3, new Color(1, 1, 1, .7f));
-                Line(128, 235, 240, 235, 3, new Color(1, 1, 1, .7f));
-                FramedBox(163, 50, 48, 80, _wood); Oval(199, 89, 4, 4, Hex("FFE19A"));
-                Window(103, 108); Window(226, 108);
-                FramedBox(150, 143, 74, 27, Hex("F5D99A"));
-                if (kind == "workshop")
-                {
-                    Line(174, 148, 197, 165, 8, _wood); Line(178, 164, 188, 151, 6, _ink);
-                    Box(45, 50, 32, 14, _wood); Box(39, 68, 43, 12, Hex("CDA97D"));
-                }
-                else if (kind == "kitchen")
-                {
-                    Oval(187, 155, 17, 9, Hex("C68A6D")); Line(170, 153, 204, 153, 4, _ink);
-                    for (var i = 0; i < 5; i++) Box(93 + i * 37, 99, 18, 19, Hex("E9AD97"));
-                }
-                else
-                {
-                    Line(316, 50, 316, 245, 8, _wood);
-                    Poly(Hex("94C7DA"), new Vector2(318, 237), new Vector2(368, 219), new Vector2(318, 196));
-                    Oval(187, 156, 10, 10, accent); Line(181, 150, 195, 165, 4, _ink);
-                }
-                if (level >= 3)
-                {
-                    FramedBox(165, 212, 39, 39, Hex("F6E2AD")); Oval(185, 233, 13, 13, Hex("BFE5DC"));
-                    Line(185, 220, 185, 246, 3, _wood);
-                    for (var i = 0; i < 4; i++) { Line(68 + i * 80, 41, 68 + i * 80, 68, 4, Hex("76A975")); Oval(68 + i * 80, 69, 7, 7, Hex("E6A195")); }
-                }
-            }
-            public Sprite Finish(string name)
-            {
-                var texture = new Texture2D(W, H, TextureFormat.RGBA32, false) { name = "ALLO village " + name, filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
-                texture.SetPixels(_pixels); texture.Apply();
-                return Sprite.Create(texture, new UnityEngine.Rect(0, 0, W, H), new Vector2(.5f, .5f), 100);
-            }
+            void Line(float ax, float ay, float bx, float by)
+            { var distance = Vector2.Distance(new Vector2(ax, ay), new Vector2(bx, by)); for (var i = 0; i <= distance; i++) Dot(Mathf.Lerp(ax, bx, distance == 0 ? 0 : i / distance), Mathf.Lerp(ay, by, distance == 0 ? 0 : i / distance), 2.5f); }
+            void Circle(float x, float y, float radius)
+            { for (var i = 0; i < 72; i++) { var a = i * Mathf.PI / 36; Dot(x + Mathf.Cos(a) * radius, y + Mathf.Sin(a) * radius, 2.4f); } }
+            if (name == "home") { Line(8, 30, 32, 53); Line(32, 53, 56, 30); Line(14, 31, 14, 10); Line(14, 10, 50, 10); Line(50, 10, 50, 31); Line(27, 10, 27, 29); Line(27, 29, 38, 29); Line(38, 29, 38, 10); }
+            else if (name == "cabin") { Line(10, 18, 10, 39); Line(10, 39, 19, 49); Line(19, 49, 45, 49); Line(45, 49, 54, 39); Line(54, 39, 54, 18); Line(10, 18, 54, 18); Line(13, 34, 51, 34); Circle(20, 14, 5); Circle(45, 14, 5); }
+            else if (name == "camp") { Line(10, 12, 10, 42); Line(10, 42, 32, 54); Line(32, 54, 54, 42); Line(54, 42, 54, 12); Line(10, 12, 54, 12); Line(24, 12, 24, 31); Line(24, 31, 40, 31); Line(40, 31, 40, 12); }
+            else if (name == "dex") { Circle(32, 38, 13); Line(12, 10, 15, 20); Line(15, 20, 23, 27); Line(23, 27, 41, 27); Line(41, 27, 49, 20); Line(49, 20, 52, 10); Line(12, 10, 52, 10); }
+            else if (name == "inventory") { Line(15, 9, 10, 36); Line(10, 36, 54, 36); Line(54, 36, 49, 9); Line(49, 9, 15, 9); Line(22, 36, 25, 53); Line(25, 53, 39, 53); Line(39, 53, 42, 36); Line(22, 23, 42, 23); }
+            else { Circle(32, 32, 16); Circle(32, 32, 6); for (var i = 0; i < 8; i++) { var a = i * Mathf.PI / 4; Line(32 + Mathf.Cos(a) * 17, 32 + Mathf.Sin(a) * 17, 32 + Mathf.Cos(a) * 25, 32 + Mathf.Sin(a) * 25); } }
+            var texture = new Texture2D(n, n, TextureFormat.RGBA32, false) { name = "ALLO line icon " + name, filterMode = FilterMode.Bilinear }; texture.SetPixels(pixels); texture.Apply();
+            return _lineIcons[name] = Sprite.Create(texture, new UnityEngine.Rect(0, 0, n, n), new Vector2(.5f, .5f), 100);
         }
     }
 }

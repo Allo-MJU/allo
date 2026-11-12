@@ -8,7 +8,7 @@ namespace Allo.App
 {
     public sealed partial class AppUi
     {
-        static readonly Color Ink = Hex("5C4B51"), Cream = Hex("FBF3DD"), Mint = Hex("86D6AE"), Yellow = Hex("FFD966"), Sky = Hex("DDF1FD"), CoralLight = Hex("FDE3DF"), Muted = Hex("74636A"), Disabled = Hex("DEDACD");
+        static readonly Color Ink = Hex("263A32"), Cream = Hex("F2EEE5"), Mint = Hex("DDE5D9"), Yellow = Hex("D5A64A"), Sky = Hex("E4E9E2"), CoralLight = Hex("F0DDD3"), Muted = Hex("59675D"), Disabled = Hex("D8D8CE");
         static Color Hex(string value) { ColorUtility.TryParseHtmlString("#" + value, out var color); return color; }
 
         RectTransform Rect(string name, Transform parent)
@@ -30,15 +30,13 @@ namespace Allo.App
             if (border)
             {
                 var outline = rect.gameObject.AddComponent<Outline>();
-                outline.effectColor = Ink; outline.effectDistance = new Vector2(2, -2); outline.useGraphicAlpha = true;
-                var shadow = rect.gameObject.AddComponent<Shadow>();
-                shadow.effectColor = new Color(.20f, .14f, .11f, .18f); shadow.effectDistance = new Vector2(0, -5);
+                outline.effectColor = Hex("B8B7A7"); outline.effectDistance = new Vector2(1, -1); outline.useGraphicAlpha = true;
             }
             return rect;
         }
         RectTransform Sheet(Transform parent, float minX = 0, float maxX = 1, bool glass = false)
         {
-            var surface = Surface("Panel", parent, glass ? new Color(.984f, .953f, .867f, .93f) : Cream);
+            var surface = Surface("Panel", parent, glass ? new Color(.949f, .933f, .898f, .94f) : Cream);
             Stretch(surface, minX == 0 ? 0 : 8, 0, maxX == 1 ? 0 : -8, 0, new Vector2(minX, 0), new Vector2(maxX, 1));
             var viewport = Rect("Viewport", surface);
             Stretch(viewport, 8, 8, -8, -8);
@@ -46,8 +44,8 @@ namespace Allo.App
             var content = Rect("Content", viewport);
             content.anchorMin = new Vector2(0, 1); content.anchorMax = Vector2.one; content.pivot = new Vector2(.5f, 1);
             content.offsetMin = Vector2.zero; content.offsetMax = Vector2.zero;
-            var group = Column(content, 14);
-            group.padding = new RectOffset(18, 18, 16, 22);
+            var group = Column(content, 10);
+            group.padding = new RectOffset(16, 16, 14, 18);
             var fit = content.gameObject.AddComponent<ContentSizeFitter>(); fit.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
             var scroll = surface.gameObject.AddComponent<ScrollRect>();
             scroll.viewport = viewport; scroll.content = content; scroll.horizontal = false;
@@ -56,6 +54,12 @@ namespace Allo.App
             var key = _renderedView + (_confirmAction == null ? ":view:" : ":confirmation:") + _scrolls.Count;
             _scrolls[key] = scroll;
             return content;
+        }
+        RectTransform DockSheet(float width = 420)
+        {
+            var dock = Rect("Docked inspector", _content);
+            Stretch(dock, -width, 0, 0, 0, new Vector2(1, 0), Vector2.one);
+            return Sheet(dock);
         }
         VerticalLayoutGroup Column(RectTransform rect, float spacing = 12)
         {
@@ -72,7 +76,7 @@ namespace Allo.App
             g.childAlignment = TextAnchor.MiddleCenter;
             return g;
         }
-        RectTransform NewRow(Transform parent, float height = 68)
+        RectTransform NewRow(Transform parent, float height = 56)
         {
             var rect = Rect("Row", parent); Row(rect);
             var le = rect.gameObject.AddComponent<LayoutElement>(); le.preferredHeight = height; le.minHeight = height;
@@ -87,7 +91,7 @@ namespace Allo.App
             t.raycastTarget = false; t.supportRichText = false;
             return t;
         }
-        Text Copy(Transform parent, string value, int size = 24)
+        Text Copy(Transform parent, string value, int size = 22)
         {
             var text = Label(parent, value, size);
             var layout = text.gameObject.AddComponent<LayoutElement>();
@@ -95,15 +99,17 @@ namespace Allo.App
             // Text provides its wrapped preferred height to the layout group.
             return text;
         }
-        void Heading(Transform parent, string value) { Copy(parent, value, 32); }
-        void Note(Transform parent, string value) { var text = Copy(parent, value, 22); text.color = Muted; }
+        void Heading(Transform parent, string value) { Copy(parent, value, 27); }
+        void Note(Transform parent, string value) { var text = Copy(parent, value, 19); text.color = Muted; }
         void Space(Transform parent, float size = 8)
         { var rect = Rect("Space", parent); rect.gameObject.AddComponent<LayoutElement>().preferredHeight = size; }
 
-        Button Button(Transform parent, string value, Action action, Color color, float height = 68, bool enabled = true, int fontSize = 26)
+        Button Button(Transform parent, string value, Action action, Color color, float height = 56, bool enabled = true, int fontSize = 22)
         {
             var rect = Surface(value, parent, enabled ? color : Disabled);
             var element = rect.gameObject.AddComponent<LayoutElement>();
+            height = Mathf.Min(height, 58);
+            fontSize = Mathf.Min(fontSize, 23);
             element.preferredHeight = height; element.minHeight = height; element.flexibleWidth = 1; element.minWidth = 40;
             var button = rect.gameObject.AddComponent<Button>(); button.interactable = enabled;
             var colors = button.colors; colors.normalColor = Color.white; colors.highlightedColor = new Color(1, 1, 1, .93f);
@@ -132,16 +138,16 @@ namespace Allo.App
         InputField Field(Transform parent, string value, string placeholder, UnityAction<string> changed, int limit = 80, bool numeric = false)
         {
             var surface = Surface("Input: " + placeholder, parent, Color.white);
-            var layout = surface.gameObject.AddComponent<LayoutElement>(); layout.preferredHeight = 68; layout.minHeight = 68;
+            var layout = surface.gameObject.AddComponent<LayoutElement>(); layout.preferredHeight = 54; layout.minHeight = 54;
             var field = surface.gameObject.AddComponent<InputField>();
-            var text = Label(surface, "", 26, TextAnchor.MiddleLeft); text.raycastTarget = true;
+            var text = Label(surface, "", 22, TextAnchor.MiddleLeft); text.raycastTarget = true;
             Stretch(text.rectTransform, 16, 4, -16, -4);
-            var hint = Label(surface, placeholder, 24, TextAnchor.MiddleLeft); hint.color = Muted;
+            var hint = Label(surface, placeholder, 21, TextAnchor.MiddleLeft); hint.color = Muted;
             Stretch(hint.rectTransform, 16, 4, -16, -4);
             field.textComponent = text; field.placeholder = hint; field.characterLimit = limit;
             field.contentType = numeric ? InputField.ContentType.IntegerNumber : InputField.ContentType.Standard;
             field.lineType = InputField.LineType.SingleLine; field.text = value; field.caretColor = Ink; field.customCaretColor = true;
-            field.selectionColor = new Color(.52f, .84f, .68f, .55f); field.onValueChanged.AddListener(changed);
+            field.selectionColor = new Color(.33f, .46f, .36f, .30f); field.onValueChanged.AddListener(changed);
             field.interactable = CanAct;
             field.onEndEdit.AddListener(_ => _dirty = true);
             return field;
@@ -163,8 +169,9 @@ namespace Allo.App
             var child = Rect("Artwork", rect); Stretch(child);
             var image = child.gameObject.AddComponent<RawImage>(); image.raycastTarget = false; image.color = new Color(1, 1, 1, 0);
             var fit = child.gameObject.AddComponent<AspectRatioFitter>(); fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
-            var placeholder = Label(rect, "그림 준비 중", 22, TextAnchor.MiddleCenter);
-            placeholder.color = Muted; Stretch(placeholder.rectTransform);
+            var placeholder = Rect("Portrait silhouette", rect);
+            placeholder.anchorMin = placeholder.anchorMax = new Vector2(.5f, .5f); placeholder.sizeDelta = new Vector2(54, 54);
+            var silhouette = placeholder.gameObject.AddComponent<Image>(); silhouette.sprite = NavigationIcon("dex"); silhouette.color = Muted; silhouette.raycastTarget = false;
             StartCoroutine(SpriteLoader.Load(sprite, art =>
             {
                 if (image == null) return;
@@ -174,7 +181,7 @@ namespace Allo.App
         }
         static Sprite RoundedSprite()
         {
-            const int n = 64, radius = 23;
+            const int n = 32, radius = 8;
             var texture = new Texture2D(n, n, TextureFormat.RGBA32, false) { name = "ALLO UI rounded surface", filterMode = FilterMode.Bilinear };
             var pixels = new Color[n * n];
             for (var y = 0; y < n; y++) for (var x = 0; x < n; x++)
