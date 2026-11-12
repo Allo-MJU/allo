@@ -84,17 +84,17 @@ fun PleosStatusScreen(
         else -> null
     }
     ScreenFrame(route.label, if (route == PleosRoute.Disconnected) "폰 연결 끊김" else route.label) {
-        ScreenColumns(art = {
+        ScreenColumns(art = { artSize ->
             when {
-                route == PleosRoute.Starting -> AlloWordmark(Modifier.width(240.dp))
-                route == PleosRoute.TransferComplete && departure != null -> PetArt(departure, 240.dp,
+                route == PleosRoute.Starting -> AlloWordmark(Modifier.width(artSize))
+                route == PleosRoute.TransferComplete && departure != null -> PetArt(departure, artSize,
                     modifier = Modifier.graphicsLayer { translationX = departureFraction * 180.dp.toPx(); alpha = 1f - departureFraction },
                     pose = PetPose.Move, parked = false, connected = connected, runningMotion = true)
                 route == PleosRoute.TransferComplete -> Text("✓", style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.secondary)
                 route == PleosRoute.Empty -> Text("함께할 친구", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                summary.showArt -> PetArt(summary, 240.dp, pose = if (route == PleosRoute.Paused) PetPose.Sleep else PetPose.Fishing,
+                summary.showArt -> PetArt(summary, artSize, pose = if (route == PleosRoute.Paused) PetPose.Sleep else PetPose.Fishing,
                     parked = true, connected = connected && motionAllowed && route in setOf(PleosRoute.Fishing, PleosRoute.Paused))
-                else -> AlloWordmark(Modifier.width(180.dp))
+                else -> AlloWordmark(Modifier.width(minOf(180.dp, artSize)))
             }
         }, details = {
             Text(title, style = MaterialTheme.typography.headlineMedium)

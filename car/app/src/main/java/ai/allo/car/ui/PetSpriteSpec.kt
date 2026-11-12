@@ -7,11 +7,13 @@ data class PetSpriteSpec(
     val timeline: List<Int>,
     val columns: Int = 4,
     val rows: Int = 2,
+    val repeat: Boolean = true,
 ) {
     val durationMs: Int get() = frameMs * timeline.size
     fun frameAt(elapsedMs: Long, enabled: Boolean): Int {
         if (!enabled || elapsedMs < 0) return timeline.first()
-        return timeline[((elapsedMs % durationMs) / frameMs).toInt()]
+        val time = if (repeat) elapsedMs % durationMs else elapsedMs.coerceAtMost(durationMs - 1L)
+        return timeline[(time / frameMs).toInt()]
     }
     fun cell(frame: Int): Pair<Int, Int> {
         require(frame in 0 until columns * rows)
@@ -32,6 +34,7 @@ data class PetSpriteSpec(
 data class SpriteCell(val left: Int, val top: Int, val width: Int, val height: Int)
 
 object PetSpriteSheets {
+    val fall = PetSpriteSpec("poses/road_sprout/fall-sheet.png", 180, listOf(0, 1, 2, 3, 3, 4, 4, 5, 6, 7, 7), repeat = false)
     val run = PetSpriteSpec("poses/road_sprout/run-sheet.png", 100, (0..7).toList())
     // Hold the waiting and recovery poses so the catch-and-loss action reads clearly.
     val fish = PetSpriteSpec("poses/road_sprout/fish-sheet.png", 300, listOf(0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 7, 7))
@@ -42,7 +45,7 @@ object PetSpriteSheets {
     private val sheetsBySpecies = listOf(
         "road_sprout", "puddle_pip", "lamp_moth", "storm_lantern", "highway_comet", "sea_mist",
     ).associateWith { speciesId ->
-        mapOf(PetPose.Move to run, PetPose.Fishing to fish, PetPose.Sleep to sleep).mapValues { (_, sheet) ->
+        mapOf(PetPose.Move to run, PetPose.Fishing to fish, PetPose.Sleep to sleep, PetPose.Fall to fall).mapValues { (_, sheet) ->
             sheet.copy(path = "poses/$speciesId/${sheet.path.substringAfterLast('/')}")
         }
     }
@@ -50,7 +53,7 @@ object PetSpriteSheets {
     fun forDisplay(speciesId: String?, pose: PetPose, parked: Boolean, runningMotion: Boolean): PetSpriteSpec? {
         val sheets = sheetsBySpecies[speciesId] ?: return null
         val allowed = when (pose) {
-            PetPose.Move -> !parked && runningMotion
+            PetPose.Move, PetPose.Fall -> !parked && runningMotion
             PetPose.Fishing, PetPose.Sleep -> parked
             else -> false
         }

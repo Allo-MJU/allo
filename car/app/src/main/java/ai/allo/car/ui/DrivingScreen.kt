@@ -6,12 +6,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ai.allo.car.model.GameState
+import ai.allo.car.model.DrivingMotionState
 
 /** Driving has no actions. Existing run frames animate while connected, resumed and system motion is enabled. */
 @Composable
@@ -21,18 +23,41 @@ fun DrivingScreen(
     modifier: Modifier = Modifier,
     runningMotion: Boolean = true,
     statusMessage: String? = null,
+    drivingMotion: DrivingMotionState? = null,
 ) {
     val summary = PetSummary.from(game, connected, rememberSpeciesCatalog())
     ScreenFrame("주행 · 제한", statusMessage ?: if (connected) "폰 상태 연결됨" else "폰 상태 확인 중", modifier) {
         BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            val compact = maxWidth < 560.dp || maxHeight < 300.dp
-            val artSize = if (compact) 112.dp else 220.dp
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (summary.showArt) PetArt(summary, artSize, pose = PetPose.Move,
-                    connected = connected, runningMotion = runningMotion)
-                SummaryText(if (statusMessage != null) summary.copy(status = statusMessage) else summary, centered = true)
-                Text("자세한 내용은 주차 후 확인해 주세요.", style = MaterialTheme.typography.bodyMedium,
-                    color = AlloColors.MistDim, textAlign = TextAlign.Center)
+            val layout = DrivingWindowLayout.forContent(maxWidth.value, maxHeight.value, LocalDensity.current.fontScale)
+            val artSize = layout.artSizeDp.dp
+            val displayedSummary = if (statusMessage != null) summary.copy(status = statusMessage) else summary
+            val art: @Composable () -> Unit = {
+                if (summary.showArt && artSize > 0.dp) {
+                    if (drivingMotion != null) DrivingPetArt(summary, artSize, drivingMotion, connected, runningMotion)
+                    else PetArt(summary, artSize, pose = PetPose.Move,
+                        connected = connected, runningMotion = runningMotion)
+                }
+            }
+            val details: @Composable () -> Unit = {
+                Column(horizontalAlignment = if (layout.horizontal) Alignment.Start else Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SummaryText(displayedSummary, centered = !layout.horizontal)
+                    if (layout.showFootnote) Text("자세한 내용은 주차 후 확인해 주세요.", style = MaterialTheme.typography.bodyMedium,
+                        color = AlloColors.MistDim, textAlign = if (layout.horizontal) TextAlign.Start else TextAlign.Center,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            if (layout.horizontal) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                    art()
+                    Box(Modifier.weight(1f)) { details() }
+                }
+            } else {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    art()
+                    details()
+                }
             }
         }
     }

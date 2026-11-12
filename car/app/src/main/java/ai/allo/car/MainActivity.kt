@@ -73,6 +73,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val game by session.game.collectAsStateWithLifecycle()
+            val drivingMotion by session.drivingMotion.collectAsStateWithLifecycle()
             val meta by session.meta.collectAsStateWithLifecycle()
             val connected by session.gameConnected.collectAsStateWithLifecycle()
             val transfer by session.transferUi.collectAsStateWithLifecycle()
@@ -125,7 +126,7 @@ class MainActivity : ComponentActivity() {
                         onRenewCode = if (pairingReady && !meta.paired && parkedAllowed) ({ session.renewPairingCode() }) else null,
                         renewing = pairingRefresh.busy, renewalMessage = pairingRefresh.message)
                     PleosRoute.Driving -> DrivingScreen(game, connected && meta.paired && !ended,
-                        runningMotion = true, statusMessage = when {
+                        runningMotion = true, drivingMotion = drivingMotion, statusMessage = when {
                             ended -> "이번 연결이 끝났어요"
                             meta.paired && !connected -> "폰 연결이 끊겼어요"
                             !meta.paired -> "주차 후 폰을 연결해 주세요"

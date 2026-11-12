@@ -28,15 +28,15 @@ fun PairingScreen(meta: SessionMeta, dbUrl: String, sessionId: String = "",
     val qr = remember(payload) { payload?.let { qrBitmap(it, 512) } }
     ScreenFrame("폰 연결", if (ready) "폰 연결 기다리는 중" else "연결 준비 중") {
         BoxWithConstraints(Modifier.fillMaxSize()) {
-        val qrSize = if (maxWidth < 720.dp) minOf(160.dp, maxHeight * 0.4f) else 220.dp
         ScreenColumns(
-            art = {
+            art = { artSize ->
+                val qrSize = (artSize - 40.dp).coerceAtLeast(64.dp)
                 if (qr != null) {
                     Box(Modifier.clip(RoundedCornerShape(20.dp)).background(Color.White).padding(20.dp)) {
                         Image(bitmap = qr.asImageBitmap(), contentDescription = "폰 연결 QR 코드",
                             modifier = Modifier.size(qrSize))
                     }
-                } else AlloWordmark(Modifier.width(220.dp).height(140.dp))
+                } else AlloWordmark(Modifier.width(artSize).height(artSize * .65f))
             },
             details = {
                 Text(if (ready) "폰에서 알로를 열어 주세요" else "연결을 준비하고 있어요",
@@ -47,7 +47,8 @@ fun PairingScreen(meta: SessionMeta, dbUrl: String, sessionId: String = "",
                 if (ready) {
                     Text("연결 코드", style = MaterialTheme.typography.bodyMedium, color = AlloColors.MistDim)
                     Text(meta.pairCode.chunked(1).joinToString(" "),
-                        style = MaterialTheme.typography.headlineLarge, color = AlloColors.Egg)
+                        style = MaterialTheme.typography.headlineLarge, color = AlloColors.Egg,
+                        maxLines = 1, softWrap = false)
                 }
                 if (onRenewCode != null) {
                     OutlinedButton(onClick = onRenewCode, enabled = !renewing, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {

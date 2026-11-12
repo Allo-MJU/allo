@@ -46,8 +46,9 @@ internal fun PetSpriteSheet(
     description: String,
     size: Dp,
     modifier: Modifier = Modifier,
+    elapsedMs: Long? = null,
 ) {
-    val elapsed = if (enabled) {
+    val elapsed = elapsedMs ?: if (enabled) {
         val transition = rememberInfiniteTransition(label = "pet sprite action")
         val value by transition.animateFloat(0f, spec.durationMs.toFloat(),
             infiniteRepeatable(tween(spec.durationMs, easing = LinearEasing), RepeatMode.Restart), label = "sprite frame")

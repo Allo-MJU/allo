@@ -42,6 +42,7 @@ class SessionManager(private val context: Context) {
     val regionTagger = RegionTagger()
     private val vehicleReader = VehicleSignalReader(context, caps)
     private val aaos = AaosPropertyReader(context)
+    val drivingMotion = aaos.motion
     /** 운전자 음성. 차 화면에 게임을 띄우지 않고 말로만 알린다. */
     val voice = DriverVoice(context)
     /** 대사 뱅크 (data/dialogue.json). 디버그 빌드는 검수 전 문장도 쓴다, release 는 reviewedBy 가 있는 것만 */

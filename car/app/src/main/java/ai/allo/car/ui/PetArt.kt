@@ -13,6 +13,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import android.provider.Settings
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -46,6 +49,7 @@ fun PetArt(
     parked: Boolean = false,
     connected: Boolean = true,
     runningMotion: Boolean = false,
+    elapsedMs: Long? = null,
 ) {
     if (summary.showEgg) {
         EggMark(size = size, fill = summary.eggFill, modifier = modifier.semantics { contentDescription = "알" })
@@ -55,7 +59,7 @@ fun PetArt(
     val sheetSpec = PetSpriteSheets.forDisplay(summary.species?.id, pose, parked, runningMotion)
     val sheet = rememberPetSpriteSheet(sheetSpec)
     if (sheet != null && sheetSpec != null) {
-        PetSpriteSheet(sheet, sheetSpec, animate, "${summary.title} · ${pose.label}", size, modifier)
+        PetSpriteSheet(sheet, sheetSpec, animate, "${summary.title} · ${pose.label}", size, modifier, elapsedMs)
         return
     }
     val assets = LocalContext.current.assets
@@ -113,7 +117,7 @@ fun PetArt(
 }
 
 @Composable
-private fun ambientMotionAllowed(pose: PetPose, parked: Boolean, connected: Boolean, runningMotion: Boolean): Boolean {
+internal fun ambientMotionAllowed(pose: PetPose, parked: Boolean, connected: Boolean, runningMotion: Boolean): Boolean {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val resolver = LocalContext.current.contentResolver
     var resumed by remember(lifecycle) { mutableStateOf(lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) }
@@ -124,9 +128,16 @@ private fun ambientMotionAllowed(pose: PetPose, parked: Boolean, connected: Bool
             motionEnabled = runCatching { Settings.Global.getFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f }.getOrDefault(false)
         }
         val observer = LifecycleEventObserver { _, _ -> refresh() }
+        val settingsObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) { refresh() }
+        }
+        resolver.registerContentObserver(Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE), false, settingsObserver)
         lifecycle.addObserver(observer)
         refresh()
-        onDispose { lifecycle.removeObserver(observer) }
+        onDispose {
+            lifecycle.removeObserver(observer)
+            resolver.unregisterContentObserver(settingsObserver)
+        }
     }
     return PetPoses.animates(pose, parked, connected, resumed, motionEnabled, runningMotion)
 }

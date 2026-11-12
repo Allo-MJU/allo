@@ -12,7 +12,7 @@ import androidx.compose.ui.unit.dp
 fun SpeedNoticeScreen(onContinue: () -> Unit, onLater: (() -> Unit)? = null) {
     ScreenFrame("차량 정보 사용 안내", "주차 중") {
         ScreenColumns(
-            art = { AlloWordmark(Modifier.width(230.dp).height(150.dp)) },
+            art = { artSize -> AlloWordmark(Modifier.width(artSize).height(artSize * .65f)) },
             details = {
                 Text("속도 정보 사용을 허용해 주세요", style = MaterialTheme.typography.headlineMedium)
                 Text("차량의 움직임을 폰의 경험에 연결해요. 허용하지 않아도 가능한 기능은 사용할 수 있어요.",

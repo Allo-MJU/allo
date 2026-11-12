@@ -25,25 +25,27 @@ fun ScreenFrame(
     Surface(modifier.fillMaxSize(), color = AlloColors.Night) {
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
             val compact = maxWidth < 600.dp
-            Column(Modifier.fillMaxSize().padding(if (compact) 16.dp else 28.dp)) {
+            val short = maxHeight < 400.dp
+            val padding = if (short) 12.dp else if (compact) 16.dp else 28.dp
+            Column(Modifier.fillMaxSize().padding(padding)) {
                 if (compact) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        AlloWordmark(Modifier.width(84.dp).height(50.dp))
-                        Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                        AlloWordmark(Modifier.width(if (short) 64.dp else 84.dp).height(if (short) 38.dp else 50.dp))
+                        Text(title, style = if (short) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Text(status, style = MaterialTheme.typography.bodyMedium, color = AlloColors.MistDim,
-                        modifier = Modifier.padding(bottom = 12.dp))
+                        modifier = Modifier.padding(bottom = if (short) 4.dp else 12.dp), maxLines = if (short) 1 else 2, overflow = TextOverflow.Ellipsis)
                 } else {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                        AlloWordmark(Modifier.width(100.dp).height(60.dp))
-                        Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                        AlloWordmark(Modifier.width(if (short) 72.dp else 100.dp).height(if (short) 42.dp else 60.dp))
+                        Text(title, style = if (short) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(status, style = MaterialTheme.typography.bodyMedium, color = AlloColors.MistDim,
                             modifier = Modifier.widthIn(max = 340.dp), maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                 }
                 HorizontalDivider(color = AlloColors.Track)
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(if (short) 8.dp else 16.dp))
                 content()
             }
         }
@@ -52,24 +54,26 @@ fun ScreenFrame(
 
 @Composable
 fun AlloWordmark(modifier: Modifier = Modifier) {
-    Image(painterResource(R.drawable.allo_wordmark), contentDescription = "ALLO",
+    Image(painterResource(R.drawable.allo_logo), contentDescription = "ALLO",
         modifier = modifier, contentScale = ContentScale.Fit)
 }
 
 /** A scrollable layout that uses actual app-window width, including split/compact windows. */
 @Composable
 fun ScreenColumns(
-    art: @Composable () -> Unit,
+    art: @Composable (androidx.compose.ui.unit.Dp) -> Unit,
     details: @Composable ColumnScope.() -> Unit,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier.fillMaxSize()) {
         val compact = maxWidth < 720.dp
+        val artSize = if (compact) minOf(240.dp, maxWidth, maxHeight * .4f)
+            else minOf(240.dp, (maxWidth - 32.dp) / 2, maxHeight)
         if (compact) {
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                art()
+                art(artSize)
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp), content = details)
                 Spacer(Modifier.height(8.dp))
             }
@@ -78,7 +82,7 @@ fun ScreenColumns(
             Row(Modifier.fillMaxSize(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-                Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) { art() }
+                Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) { art(artSize) }
                 Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterVertically), content = details)
             }

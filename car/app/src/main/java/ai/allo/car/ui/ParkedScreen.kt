@@ -7,6 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
@@ -28,18 +29,18 @@ fun ParkedScreen(
     val hasCarPet = if (game.hasV2Contract) companionValid && game.companion?.location == "car"
         else summary.showArt && !summary.showEgg
     // Selection/connection changes reset transient navigation and never auto-start an activity.
-    var tab by remember(game.companion?.displayId, game.companion?.displayRevision, game.companion?.location, connected) { mutableStateOf("홈") }
-    var resting by remember(game.companion?.displayId, game.companion?.displayRevision, game.companion?.location, connected) { mutableStateOf(false) }
+    var tab by rememberSaveable(game.companion?.displayId, game.companion?.displayRevision, game.companion?.location, connected) { mutableStateOf("홈") }
+    var resting by rememberSaveable(game.companion?.displayId, game.companion?.displayRevision, game.companion?.location, connected) { mutableStateOf(false) }
     val fishingRunning = game.fishing?.takeIf { it.appliesTo(game) }?.state in setOf("running", "reward", "saving")
     if (resting && hasCarPet && connected && !fishingRunning) {
         PleosStatusScreen(PleosRoute.Paused, game, connected, onPrimary = { resting = false })
         return
     }
     ScreenFrame("주차 홈", if (connected) "폰 상태 연결됨" else "마지막으로 받은 상태", modifier) {
-        ScreenColumns(art = {
-            if (summary.showArt) PetArt(summary, 240.dp, pose = if (fishingRunning) PetPose.Fishing else PetPose.Sleep,
+        ScreenColumns(art = { artSize ->
+            if (summary.showArt) PetArt(summary, artSize, pose = if (fishingRunning) PetPose.Fishing else PetPose.Sleep,
                 parked = true, connected = connected && (!fishingRunning || fishingMotionAllowed && game.fishing?.state == "running"))
-            else AlloWordmark(Modifier.width(180.dp))
+            else AlloWordmark(Modifier.width(minOf(180.dp, artSize)))
         }, details = {
             when (tab) {
                 "홈" -> {

@@ -4,6 +4,7 @@ package ai.allo.car.ui
 enum class PetPose(val label: String, val asset: String) {
     Idle("쉬는 모습", "idle"),
     Move("함께 달리는 모습", "move"),
+    Fall("넘어졌다 일어나는 모습", "idle"),
     Sleep("잠자는 모습", "sleep"),
     Fishing("낚시하는 모습", "idle"),
 }
@@ -16,7 +17,7 @@ object PetPoses {
 
     fun animates(pose: PetPose, parked: Boolean, connected: Boolean, resumed: Boolean, motionEnabled: Boolean, runningMotion: Boolean = false): Boolean =
         connected && resumed && motionEnabled && (
-            parked && pose in setOf(PetPose.Sleep, PetPose.Fishing) || !parked && runningMotion && pose == PetPose.Move
+            parked && pose in setOf(PetPose.Sleep, PetPose.Fishing) || !parked && runningMotion && pose in setOf(PetPose.Move, PetPose.Fall)
         )
 }
 
