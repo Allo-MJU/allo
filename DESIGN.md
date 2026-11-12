@@ -1,11 +1,13 @@
 # ALLO Unity phone UI
 
-User rejected the first large cream/mint panel composition and unnatural colors. Replace it with an art-first village composition, not incremental decoration of that layout.
+The baseline is the 2D village composition of Ninja Voltage. Palworld informs ONLY the wilderness survival theme and material palette, not a 3D camera or 3D camp. The user explicitly corrected that distinction on 2026-11-12.
 
-Home/camp is an Experience surface: original hand-painted woodland, moss/olive greens, cedar wood, ochre dirt and muted stone. Native-color artwork lives in Assets/Resources/VillageArt. A compact54px HUD and66px icon navigation leave the village dominant. Three fixed facility illustrations open a single docked inspector; show real materials, levels, workers and jobs. Unbuilt facilities are clearly marked as previews. The inspector, dex, inventory and settings are Operate surfaces.
+Home/camp is a full-screen 2D illustrated woodland base with clean anime-game outlines and restrained cel shading. Three small transparent sprites show a timber workbench/canvas shelter, outdoor cauldron/prep table, and straw dummy/target training area. Use muted forest green, rough cedar, khaki canvas, stone and earth. Avoid ornate cottages, excess decorative ivy, glossy concept-art rendering and painterly haze.
 
-UI palette: dark sage ink #263A32, forest accent #53765B, neutral paper #F2EEE5, fine border #B8B7A7, amber primary #D5A64A. Do not tint the natural artwork mint or cover it with cream haze. Typography is embedded Do Hyeon; height-based1600×720 canvas with safe-area scaling.
+A persistent full-canvas UGUI layer contains the 2D terrain, sprites, labels, jobs and owned-friend marker. Everything in the world pans together on both axes inside a clamped oversized rectangle. The thin resource HUD and right circular action rail stay fixed, following Ninja Voltage's village composition. Pan survives snapshots, home/camp changes and inspector opening. Facility positions leave room for the right rail. A single docked inspector opens actual saved facility controls; unbuilt facilities are clearly labeled previews.
 
-Cabin is immersive3D with a thin affinity/remaining HUD, compact action dock, optional text/zone drawers and a start/failure sheet. No permanent opaque side panels over the car. Egg visuals exist only there. Preserve focused text and independent scroll positions across authoritative snapshots. Missing art uses a small explicit placeholder without changing canonical IDs.
+UI palette: dark sage ink #263A32, forest accent #53765B, neutral paper #F2EEE5, fine border #B8B7A7, amber primary #D5A64A. Typography is embedded Do Hyeon; height-based 1600×720 canvas with safe-area scaling. Keep the world dominant, with compact controls.
 
-Composition/interaction references: prioritize Ninja Voltage village facility selection; CookieRun production status and Slime kingdom growth are secondary. Project art is original; no game IP assets are imported. See docs/village-art-provenance.md for built-in image_gen prompts and paths.
+Cabin preserves the existing immersive 3D car with a thin affinity/remaining HUD, compact action dock, optional text/zone drawers and a start/failure sheet. Egg visuals exist only there. Preserve focused text and independent scroll positions across authoritative snapshots. Missing character art uses an explicit small placeholder without changing canonical IDs.
+
+Dart controllers own all costs, affinity, ownership, saves and offline jobs. Pleos gathering integration awaits its upstream contract. Project-bound image assets/prompts are recorded in docs/village-art-provenance.md. Verification is recorded in docs/work-results/unity-phone/README.md.
