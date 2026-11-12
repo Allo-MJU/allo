@@ -95,7 +95,7 @@ class PreviewActivity : ComponentActivity() {
                                     PleosRoute.Pairing -> PairingScreen(
                                         SessionMeta(1, "482619", carAppVersion = "preview"),
                                         dbUrl = "preview-only", sessionId = "ui-fixture-not-a-real-session")
-                                    PleosRoute.Driving -> DrivingScreen(game, connected = true, fishingMotion = true, drivingSignalFresh = true)
+                                    PleosRoute.Driving -> DrivingScreen(game, connected = true, fishingMotion = true, drivingSignalFresh = true, fishingElapsedMs = if (intent.hasExtra("fishingElapsedMs")) intent.getLongExtra("fishingElapsedMs", 0L) else null)
                                     PleosRoute.Home, PleosRoute.Empty -> ParkedScreen(game, connected = true,
                                         dialogueBank = dialogue, unreviewedDialoguePreview = true,
                                         onCallCompanion = { show(PleosRoute.TransferPending) })

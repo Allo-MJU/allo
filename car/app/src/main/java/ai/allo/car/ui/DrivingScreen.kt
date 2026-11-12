@@ -6,7 +6,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.animation.core.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -27,9 +28,19 @@ fun DrivingScreen(
     fishingMotion: Boolean = true,
     drivingSignalFresh: Boolean = false,
     statusMessage: String? = null,
+    fishingElapsedMs: Long? = null,
 ) {
     val summary = PetSummary.from(game, connected, rememberSpeciesCatalog())
     val fishingActive = connected && drivingSignalFresh && summary.showArt && !summary.showEgg
+    val animate = ambientMotionAllowed(PetPose.Fishing, false, fishingActive, false, fishingMotion)
+    val sceneElapsed = fishingElapsedMs ?: if (animate) {
+        val transition = rememberInfiniteTransition(label = "fishing scene")
+        val elapsed by transition.animateFloat(0f, PetSpriteSheets.fish.durationMs.toFloat(),
+            infiniteRepeatable(tween(PetSpriteSheets.fish.durationMs, easing = LinearEasing), RepeatMode.Restart),
+            label = "shared fishing frame")
+        elapsed.toLong()
+    } else 0L
+    val sceneFrame = PetSpriteSheets.fish.frameAt(sceneElapsed, animate)
     ScreenFrame(if (fishingActive) "주행 · 자동 낚시" else "주행 · 상태 확인", statusMessage ?: if (connected) "폰 상태 연결됨" else "연결 확인 필요", modifier) {
         BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             val layout = DrivingWindowLayout.forContent(maxWidth.value, maxHeight.value, LocalDensity.current.fontScale)
@@ -39,13 +50,13 @@ fun DrivingScreen(
             val art: @Composable (Modifier) -> Unit = { sceneModifier ->
                 BoxWithConstraints(sceneModifier.clip(RoundedCornerShape(32.dp))) {
                     val fittedArtSize = minOf(artSize, maxHeight * .86f, (maxWidth - 24.dp).coerceAtLeast(0.dp))
-                    FishingBackdrop(Modifier.fillMaxSize())
+                    FishingBackdrop(Modifier.fillMaxSize(), fittedArtSize, summary.species?.id, summary.showArt && !summary.showEgg, sceneFrame)
                     if (summary.showArt && artSize > 0.dp) {
                         // Keep the entire sprite sheet visible, including the fishing rod and catch.
                         Box(Modifier.fillMaxSize().padding(bottom = maxHeight * .10f), contentAlignment = Alignment.BottomCenter) {
                             PetArt(summary, fittedArtSize,
                                 pose = PetPoses.forRoute(PleosRoute.Driving, connected, drivingSignalFresh),
-                                connected = connected && drivingSignalFresh, drivingFishing = fishingMotion)
+                                connected = connected && drivingSignalFresh, drivingFishing = fishingMotion, elapsedMs = sceneElapsed)
                         }
                     }
                 }
