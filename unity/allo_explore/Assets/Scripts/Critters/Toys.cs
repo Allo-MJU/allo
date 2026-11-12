@@ -6,7 +6,7 @@ namespace Allo.Critters
     /// 모든 물건은 원점이 바닥 가운데이고, 크기는 실제 장난감 정도(m)다.
     public static class Toys
     {
-        public enum Kind { Apple, Shell, Acorn, FishBun, Ball, Cup, Plush, Cushion, Blanket, Balloon, Egg, EggTop, EggBottom, Nest, Tissue, EggWrap }
+        public enum Kind { Apple, Shell, Acorn, FishBun, Ball, Cup, Plush, Cushion, Blanket, Balloon, Egg, EggTop, EggBottom, Nest, Tissue, EggWrap, EggBit, Kite, Birds, Plane, Star, Whale }
 
         /// 장면에 맞는 간식: 바다는 조개, 산은 도토리, 도시는 붕어빵, 그 밖은 사과
         public static Kind SnackFor(string scene) => scene switch
@@ -105,11 +105,93 @@ namespace Allo.Critters
                 }
                 case Kind.Blanket:
                 {
-                    // 체크무늬 대신 두 색 띠
-                    var a = new Color(0.55f, 0.75f, 0.95f);
-                    var b = new Color(0.98f, 0.95f, 0.85f);
-                    for (var i = 0; i < 4; i++)
-                        Part(root, PrimitiveType.Cube, new Vector3(0, 0, -0.105f + i * 0.07f), new Vector3(0.3f, 0.012f, 0.07f), i % 2 == 0 ? a : b);
+                    // 덮어 준 담요: 캐릭터 아랫몸을 감싼 낮은 돔 + 둘레 주름 단 + 크림색 점. 원점이 캐릭터 발 자리, +z 가 카메라 쪽.
+                    // 돔은 뒤(-z)로 조금 물려 그림의 얼굴 쪽은 남기고, 높이는 몸의 2/5 까지만 — 머리와 등 잎이 담요 위로 나온다
+                    var H = CritterView.Height;
+                    var blue = new Color(0.55f, 0.75f, 0.95f);
+                    var cream = new Color(0.98f, 0.95f, 0.85f);
+                    var center = new Vector3(0, H * 0.06f, -H * 0.12f);
+                    var dome = Part(root, PrimitiveType.Sphere, center, new Vector3(H * 1.2f, H * 0.5f, H * 0.95f), blue);
+                    dome.name = "BlanketDome";
+                    for (var i = 0; i < 10; i++)
+                    {
+                        var a = i * Mathf.PI * 2 / 10;
+                        var hem = Part(root, PrimitiveType.Capsule, center + new Vector3(Mathf.Cos(a) * H * 0.56f, -H * 0.035f, Mathf.Sin(a) * H * 0.44f),
+                            new Vector3(H * 0.15f, H * 0.08f, H * 0.15f), blue);
+                        hem.localRotation = Quaternion.Euler(90, -a * Mathf.Rad2Deg, 0);
+                    }
+                    for (var i = 0; i < 6; i++)
+                    {
+                        var a = i * 2.4f + 0.7f; var u = 0.4f + (i % 3) * 0.2f; // 돔 윗면에 흩어진 점
+                        var dir = new Vector3(Mathf.Cos(a) * (1 - u), u * 1.1f, Mathf.Sin(a) * (1 - u)).normalized;
+                        var pos = center + Vector3.Scale(dir, new Vector3(H * 0.6f, H * 0.25f, H * 0.47f));
+                        var dot = Part(root, PrimitiveType.Sphere, pos, new Vector3(H * 0.11f, H * 0.11f, H * 0.03f), cream);
+                        dot.localRotation = Quaternion.LookRotation(dir);
+                    }
+                    break;
+                }
+                case Kind.Kite:
+                {
+                    // 마름모 연 + 꼬리 리본. 원점이 연 가운데
+                    var red = new Color(1f, 0.45f, 0.4f); var yellow = new Color(1f, 0.85f, 0.3f);
+                    var body = Part(root, PrimitiveType.Cube, Vector3.zero, new Vector3(1.2f, 1.2f, 0.05f), red);
+                    body.localRotation = Quaternion.Euler(0, 0, 45);
+                    Part(root, PrimitiveType.Cube, new Vector3(0, 0, -0.03f), new Vector3(0.85f, 0.06f, 0.02f), yellow).localRotation = Quaternion.Euler(0, 0, 45);
+                    Part(root, PrimitiveType.Cube, new Vector3(0, 0, -0.03f), new Vector3(0.85f, 0.06f, 0.02f), yellow).localRotation = Quaternion.Euler(0, 0, -45);
+                    for (var i = 0; i < 5; i++)
+                    {
+                        var bow = Part(root, PrimitiveType.Cube, new Vector3(0.15f * (i % 2 == 0 ? 1 : -1), -1.0f - i * 0.45f, 0), new Vector3(0.3f, 0.12f, 0.04f), i % 2 == 0 ? yellow : red);
+                        bow.localRotation = Quaternion.Euler(0, 0, 20);
+                    }
+                    Part(root, PrimitiveType.Cylinder, new Vector3(0, -1.9f, 0), new Vector3(0.025f, 1.2f, 0.025f), Color.white);
+                    break;
+                }
+                case Kind.Birds:
+                {
+                    // 새 떼: 브이(V) 자 세 마리. 날개는 "Wing" 이름으로 두고 밖에서 퍼덕인다
+                    var ink = new Color(0.2f, 0.2f, 0.28f);
+                    var offs = new[] { new Vector3(0, 0, 0), new Vector3(-1.1f, -0.25f, 0.4f), new Vector3(1.0f, -0.35f, -0.3f) };
+                    foreach (var o in offs)
+                    {
+                        var l = Part(root, PrimitiveType.Cube, o + new Vector3(-0.3f, 0, 0), new Vector3(0.6f, 0.05f, 0.14f), ink);
+                        l.name = "WingL"; l.localRotation = Quaternion.Euler(0, 0, 25);
+                        var r = Part(root, PrimitiveType.Cube, o + new Vector3(0.3f, 0, 0), new Vector3(0.6f, 0.05f, 0.14f), ink);
+                        r.name = "WingR"; r.localRotation = Quaternion.Euler(0, 0, -25);
+                    }
+                    break;
+                }
+                case Kind.Plane:
+                {
+                    // 작은 여객기: 동체 + 날개 + 꼬리. 원점이 동체 가운데, +x 가 앞
+                    var white = new Color(0.96f, 0.97f, 1f); var blue = new Color(0.4f, 0.6f, 0.95f);
+                    Part(root, PrimitiveType.Capsule, Vector3.zero, new Vector3(0.5f, 1.4f, 0.5f), white).localRotation = Quaternion.Euler(0, 0, 90);
+                    Part(root, PrimitiveType.Cube, new Vector3(0.1f, 0, 0), new Vector3(0.6f, 0.05f, 2.4f), blue);
+                    Part(root, PrimitiveType.Cube, new Vector3(-1.1f, 0.3f, 0), new Vector3(0.35f, 0.6f, 0.05f), blue);
+                    Part(root, PrimitiveType.Cube, new Vector3(-1.1f, 0.05f, 0), new Vector3(0.35f, 0.04f, 1f), blue);
+                    var light = Part(root, PrimitiveType.Sphere, new Vector3(0.1f, -0.1f, 1.2f), new Vector3(0.14f, 0.14f, 0.14f), new Color(1f, 0.3f, 0.3f));
+                    light.name = "Blink";
+                    break;
+                }
+                case Kind.Star:
+                {
+                    // 별똥별: 밝은 머리 + 꼬리 구슬 세 개 (-x 쪽으로). 원점이 머리
+                    var glow = new Color(1f, 0.97f, 0.75f);
+                    Part(root, PrimitiveType.Sphere, Vector3.zero, new Vector3(0.5f, 0.5f, 0.5f), Color.white);
+                    for (var i = 1; i <= 4; i++)
+                        Part(root, PrimitiveType.Sphere, new Vector3(-0.55f * i, 0.12f * i, 0), Vector3.one * (0.4f - i * 0.07f), glow);
+                    break;
+                }
+                case Kind.Whale:
+                {
+                    // 고래: 짙은 파랑 몸통 + 흰 배 + 꼬리. 원점이 수면 (몸의 아래 1/3 이 물 아래)
+                    var navy = new Color(0.25f, 0.4f, 0.7f); var belly = new Color(0.9f, 0.95f, 1f);
+                    Part(root, PrimitiveType.Sphere, new Vector3(0, 0.2f, 0), new Vector3(3.2f, 1.4f, 1.6f), navy);
+                    Part(root, PrimitiveType.Sphere, new Vector3(0.2f, -0.05f, 0), new Vector3(2.4f, 0.8f, 1.5f), belly);
+                    var tail = Part(root, PrimitiveType.Cube, new Vector3(-1.9f, 0.5f, 0), new Vector3(0.7f, 0.12f, 1.3f), navy);
+                    tail.name = "Tail";
+                    Part(root, PrimitiveType.Sphere, new Vector3(1.0f, 0.75f, 0.45f), new Vector3(0.18f, 0.18f, 0.18f), Color.black);
+                    var spout = Part(root, PrimitiveType.Sphere, new Vector3(0.6f, 1.0f, 0), new Vector3(0.1f, 0.1f, 0.1f), belly);
+                    spout.name = "Spout";
                     break;
                 }
                 case Kind.Balloon:
@@ -145,6 +227,13 @@ namespace Allo.Critters
                             new Vector3(EggW * 0.22f, EggW * 0.22f, EggW * 0.05f), EggYellow);
                         tooth.localRotation = Quaternion.Euler(0, -a * Mathf.Rad2Deg + 90, 45);
                     }
+                    break;
+                }
+                case Kind.EggBit:
+                {
+                    // 깨질 때 튀는 껍데기 조각: 바깥은 노랑, 안쪽은 크림색
+                    Part(root, PrimitiveType.Cube, Vector3.zero, new Vector3(EggW * 0.26f, EggW * 0.22f, EggW * 0.05f), EggYellow);
+                    Part(root, PrimitiveType.Cube, new Vector3(0, 0, -EggW * 0.012f), new Vector3(EggW * 0.2f, EggW * 0.16f, EggW * 0.04f), EggSpot);
                     break;
                 }
                 case Kind.EggTop:

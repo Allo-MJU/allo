@@ -58,6 +58,9 @@ namespace Allo.Critters
                     // 앞좌석 쪽은 아이에게서 HomeDepth 까지만 (창턱을 따라 앞문까지 가거나 앞좌석 밑으로 들어가지 않게). 둥지 콘솔·대시보드는 그대로
                     if (keep != null && childEye != null && !IsFarSurface(r.name))
                         keep = ClipDepth(keep.Value, childEye.position.z + HomeDepth);
+                    // 옆자리는 아이 코앞(0.42m 안)은 빼고 조금 떨어진 쪽만: 너무 가까우면 화면을 덮고 버튼을 가린다
+                    if (keep != null && home && childEye != null)
+                        keep = ClipNear(keep.Value, childEye.position.x, HomeGap);
                     if (keep == null)
                     {
                         Debug.Log($"[Critters] {r.name} 은 잘 보이는 부분이 없어 빼요");
@@ -113,6 +116,19 @@ namespace Allo.Critters
             if (name.StartsWith("Walk_Floor")) return 0.6f;
             if (name.StartsWith("Walk_DoorSill")) return 0.5f;
             return 1f;
+        }
+
+        /// 아이 눈에서 옆으로(x) 이만큼(m) 안쪽은 옆자리라도 쓰지 않는다
+        public const float HomeGap = 0.42f;
+
+        /// rect(x, z) 에서 |x - eyeX| < gap 인 부분을 자른다. 남는 폭이 너무 좁으면 null
+        public static Rect? ClipNear(Rect r, float eyeX, float gap)
+        {
+            var lo = eyeX - gap; var hi = eyeX + gap;
+            if (r.xMax <= lo || r.xMin >= hi) return r;
+            var leftW = lo - r.xMin; var rightW = r.xMax - hi;
+            if (leftW < 0.1f && rightW < 0.1f) return null;
+            return leftW >= rightW ? new Rect(r.xMin, r.yMin, leftW, r.height) : new Rect(hi, r.yMin, rightW, r.height);
         }
 
         /// rect(x, z) 를 z ≤ zMax 로 자른다. 남는 깊이가 너무 얕으면 null
@@ -254,6 +270,25 @@ namespace Allo.Critters
             if (v.Id == CompanionId) FlutterBridge.Send("tap", FlutterBridge.Field("id", v.Id));
         }
 
+#if UNITY_EDITOR
+        /// 에디터 캡처용: 그래프를 쓰고 캐릭터 하나를 면 위에 세운다 (AlloBuild.CaptureBlanket)
+        public CritterView EditorSpawn(WalkGraph g, string id, string sprite, string surfaceName, string attribute = "normal")
+        {
+            _graph = g;
+            CompanionId = id;
+            var surf = Mathf.Max(0, g.IndexOf(surfaceName));
+            var go = new GameObject($"Critter_{id}");
+            go.transform.SetParent(transform, false);
+            var view = go.AddComponent<CritterView>();
+            view.Init(id, new CritterBrain(g, surf, 1), CritterArt.Placeholder(attribute, 1), critterMaterial, shadowMaterial, null, g);
+            var art = SpriteLoader.LoadNow(sprite);
+            if (art != null) view.SetArt(art);
+            view.Brain.Place(g.Surfaces[surf].center, surf);
+            _views[id] = view;
+            return view;
+        }
+#endif
+
         void Awake()
         {
             _graph = BuildGraph();
@@ -351,6 +386,7 @@ namespace Allo.Critters
 
         void Start()
         {
+            StartCoroutine(Dialogue.Load());
             if (FlutterBridge.LastScene != null) OnScene(FlutterBridge.LastScene);
             if (FlutterBridge.LastCast != null) OnCast(FlutterBridge.LastCast);
 #if UNITY_EDITOR
@@ -372,6 +408,7 @@ namespace Allo.Critters
             foreach (var v in _views.Values) v.Brain.Tick(Time.deltaTime, m);
             PlayTick(Time.deltaTime);
             EggTick(Time.deltaTime);
+            TalkTick(Time.deltaTime);
         }
 
         void OnScene(SceneState s)
@@ -384,11 +421,13 @@ namespace Allo.Critters
             tunnel = s.kind == "tunnel",
             moving = s.moving,
         };
+            OnSceneTalk();
         }
 
         void OnJolt(string kind)
         {
             foreach (var v in _views.Values) v.Brain.Jolt();
+            Speak("jolt", "*", 2.6f);
         }
 
         void OnCast(CastState cast)

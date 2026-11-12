@@ -67,6 +67,26 @@ namespace Allo
 
         float _holdUntil;
 
+        CanvasGroup _flashGroup;
+        float _flashT, _flashSeconds;
+
+        /// 화면이 하얗게 번쩍했다가 seconds 동안 사라진다 (알이 깨질 때)
+        public void Flash(float seconds)
+        {
+            if (_flashGroup == null) return;
+            _flashSeconds = Mathf.Max(0.05f, seconds);
+            _flashT = _flashSeconds;
+            _flashGroup.alpha = 1;
+        }
+
+        void FlashTick()
+        {
+            if (_flashGroup == null || _flashT <= 0) return;
+            _flashT -= Time.unscaledDeltaTime;
+            var k = Mathf.Clamp01(_flashT / _flashSeconds);
+            _flashGroup.alpha = k * k;
+        }
+
         /// 다른 안내가 덮지 못하게 잠깐 붙잡아 두는 글 (알에서 태어날 때)
         public void ShowHold(string text, float seconds)
         {
@@ -105,6 +125,7 @@ namespace Allo
             }
             if (_toastGroup != null && _toastGroup.alpha > 0 && Time.unscaledTime > _toastUntil)
                 _toastGroup.alpha = Mathf.MoveTowards(_toastGroup.alpha, 0, Time.unscaledDeltaTime * 2.5f);
+            FlashTick();
         }
 
         void Build()
@@ -128,6 +149,17 @@ namespace Allo
             scaler.matchWidthOrHeight = 0.5f;
             go.AddComponent<GraphicRaycaster>();
             var root = go.transform;
+
+            // 번쩍임 막: 맨 아래에 깔아 버튼·안내 글을 가리지 않고, 터치도 막지 않는다
+            var flash = new GameObject("Flash");
+            flash.transform.SetParent(root, false);
+            var flashRect = flash.AddComponent<RectTransform>();
+            flashRect.anchorMin = Vector2.zero; flashRect.anchorMax = Vector2.one; flashRect.offsetMin = flashRect.offsetMax = Vector2.zero;
+            var flashImg = flash.AddComponent<Image>();
+            flashImg.color = new Color(1f, 0.98f, 0.88f);
+            flashImg.raycastTarget = false;
+            _flashGroup = flash.AddComponent<CanvasGroup>();
+            _flashGroup.alpha = 0; _flashGroup.blocksRaycasts = false; _flashGroup.interactable = false;
 
             Button(root, "←", new Vector2(0, 1), new Vector2(26, -26), new Vector2(64, 64), Cream, 34, FlutterBridge.RequestClose);
             _endGo = Button(root, "주행 종료", new Vector2(1, 1), new Vector2(-26, -26), new Vector2(170, 58), Cream, 26, EndTrip);

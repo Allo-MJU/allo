@@ -24,6 +24,17 @@ namespace Allo
             return d < 0.95f ? Color.Lerp(Color.white, new Color(1f, 0.93f, 0.5f), d) : Color.clear;
         });
 
+        static Texture2D _glow;
+        /// 알 속에서 새어 나오는 따뜻한 빛 (가운데가 밝고 가장자리로 사라진다). 스프라이트 재질은 미리 곱한 알파라 색에 알파를 곱해 둔다
+        public static Texture2D Glow => _glow ??= Draw(96, (u, v) =>
+        {
+            var r = Mathf.Sqrt(u * u + v * v);
+            var a = Mathf.Clamp01(1 - r);
+            a = a * a * (3 - 2 * a) * 0.9f;
+            var c = Color.Lerp(new Color(1f, 0.78f, 0.35f), Color.white, a);
+            return new Color(c.r * a, c.g * a, c.b * a, a);
+        });
+
         public static Texture2D Note => _note ??= Draw(64, (u, v) =>
         {
             // 음표: 머리(타원) + 기둥 + 깃발

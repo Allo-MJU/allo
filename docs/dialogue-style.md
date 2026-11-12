@@ -93,3 +93,13 @@
 | "가까운 곳은 다 가보셨어요. 다음 계절에 새 아이가 나와요." | 방문 기록·계절 해금을 모름 (#32) |
 | "을왕리해수욕장까지 안내를 시작할게요." | 내비에 요청만 했고 안내 시작은 확인 못 함 → "요청했어요" (#32) |
 | "조금만 더 가면 깨어나요." | 진행률을 확인하지 않는 분기 (#32) |
+
+## 5. 차 안 말풍선 뱅크 (`phone/assets/data/cabin_dialogue.json`, 2026-11-12 A)
+
+Unity 차 안에서 캐릭터 머리 위 말풍선으로 나오는 말. 3절의 뱅크와 같은 규칙(1절)을 따르고, `phone/test/cabin_dialogue_test.dart` 가 길이·문장 수·영어 단어 수·금지어를 검사한다.
+
+- 키 `상황|대상|문맥`. 대상은 종 id → `@속성` → `*` 순, 문맥은 그 문맥 → `*` 순으로 찾는다 (Unity `Dialogue.Pick`)
+- 상황: `hatch`(첫마디) · `scene`(장면이 바뀔 때, 문맥 = road coast mountain city highway tunnel night rain) · `idle`(혼잣말, 35~65초) · `request`(부탁: 공·간식·쓰다듬기·창밖) · `sleep_talk` · `snack` `ball` `pet` `blanket` `wake` `jolt` `nest` · `prop`(문맥 = bobble toycar music book bubble tissue) · `window` / `window_done`(창밖 손님, 문맥 = balloon kite birds plane star whale)
+- `name|종|*` 한 줄이 종 한글 이름. `{name}` 과 조사 `{name:이/가}` `{name:은/는}` `{name:아/야}` 를 채운다
+- 영어는 **창밖·놀이 사물 이름**을 한 문장에 하나, 한글 뜻과 같이 ("바다는 영어로 sea"). 되묻기 없음
+- 종별 말투는 2절대로. 지금은 길싹이(`road_sprout`)만 종별 줄이 있고 나머지는 속성·공통 줄을 쓴다 (D·C 가 채운다)

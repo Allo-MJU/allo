@@ -31,6 +31,10 @@ namespace Allo.Critters
         /// 그림 가운데를 창턱 위에 두면 절반이 문·유리 속으로 들어가 발과 잎이 잘려 보인다
         public const float LedgeOverhang = 0.01f;
 
+        /// 2D 그림을 면에 이만큼(m) 묻는다. D 의 그림이 발 아래에서 잘려 있어(여백 0) 그대로 두면 발이 뚝 잘린 채 떠 보이고
+        /// 그림에 남은 바닥 자국이 드러난다. 조금 묻으면 면이 가려 준다
+        public const float Sink = 0.02f;
+
         public bool Is3D => _model != null;
 
         public string Id { get; private set; }
@@ -100,6 +104,26 @@ namespace Allo.Critters
         /// 잠깐 기뻐하는 얼굴 (탭·먹이)
         public void Cheer(float seconds = 1.4f) => _cheer = Mathf.Max(_cheer, seconds);
 
+        float _born, _bornTotal;
+
+        /// 알에서 막 나왔다: seconds 동안 작게 웅크렸다가 폴짝 튀어나오며 커진다 (조금 넘쳤다가 제 크기로)
+        public void Born(float seconds)
+        {
+            _born = _bornTotal = Mathf.Max(0.2f, seconds);
+        }
+
+        /// 태어나는 동안의 크기 배율과 솟는 높이. 끝나면 (1, 0)
+        (float scale, float lift) BornPose()
+        {
+            if (_born <= 0) return (1, 0);
+            var k = 1 - _born / _bornTotal;
+            float sc;
+            if (k < 0.55f) { var e = k / 0.55f; sc = Mathf.Lerp(0.08f, 1.22f, e * e * (3 - 2 * e)); }
+            else { var e = (k - 0.55f) / 0.45f; sc = Mathf.Lerp(1.22f, 1f, e) + Mathf.Sin(e * Mathf.PI * 2) * 0.06f * (1 - e); }
+            var lift = Mathf.Sin(Mathf.Clamp01(k / 0.7f) * Mathf.PI) * 0.14f;
+            return (sc, lift);
+        }
+
         public ArtPose Shown => _shown;
 
         void Show(ArtPose p)
@@ -131,6 +155,8 @@ namespace Allo.Critters
             if (_brain == null) return;
             _t += dt;
             _cheer -= dt;
+            if (_born > 0) _born -= dt;
+            var (bornScale, bornLift) = BornPose();
             Show(PoseFor(_brain.State));
             var p = _brain.Position;
             var lift = 0f;
@@ -167,6 +193,8 @@ namespace Allo.Critters
                     break;
             }
             var move = p - _last;
+            lift += bornLift;
+            sx *= bornScale; sy *= bornScale;
             if (_model != null)
             {
                 Pose3D(cam, dt, p, move, lift, sx, sy, roll);
@@ -179,7 +207,7 @@ namespace Allo.Critters
             }
             _last = p;
             transform.position = p;
-            _body.position = p + Vector3.up * (lift + Height * sy / 2);
+            _body.position = p + Vector3.up * (lift + Height * sy / 2 - Sink * Mathf.Clamp01(1 - lift / 0.05f));
             // 창턱처럼 몸보다 좁은 면에 앉으면 그림을 차 안쪽(x=0 쪽)으로 당겨 문·유리 앞에 둔다
             var aspectNow = _art?.Aspect ?? 1;
             var ledgeWant = 0f;

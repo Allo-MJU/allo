@@ -78,7 +78,7 @@ namespace Allo.Critters
             var c = Actor;
             if (c != null)
             {
-                Say("흔들흔들~ 친구도 따라 해요");
+                if (Speak("prop", "bobble", 3f) == null) Say("흔들흔들~ 친구도 따라 해요");
                 for (var i = 0; i < 3 && c != null; i++)
                 {
                     c.Brain.Hop(0.02f);
@@ -113,7 +113,7 @@ namespace Allo.Critters
             var wheels = new List<Transform>();
             foreach (var t in car.GetComponentsInChildren<Transform>())
                 if (t.name.StartsWith("ToyCarWheel")) wheels.Add(t);
-            Say("부릉부릉! 장난감 차가 달려요");
+            if (Speak("prop", "toycar", 3f) == null) Say("부릉부릉! 장난감 차가 달려요");
             var c = Actor;
             if (c != null)
             {
@@ -167,7 +167,7 @@ namespace Allo.Critters
             var lid = Child(box, "MusicBoxLid");
             var (pivot, axis) = Hinge(lid, box, true);
             yield return Swing(lid, pivot, axis, -100, 0.4f);
-            Say(HasEgg ? "오르골 소리에 알이 살랑살랑" : "띵띵띵~ 오르골이 노래해요");
+            if (HasEgg || Speak("prop", "music", 3f) == null) Say(HasEgg ? "오르골 소리에 알이 살랑살랑" : "띵띵띵~ 오르골이 노래해요");
             if (HasEgg) SingToEgg(true);
             var c = Actor;
             for (var beat = 0; beat < 8; beat++)
@@ -193,7 +193,7 @@ namespace Allo.Critters
             var cover = Child(book, "BookCover");
             var (pivot, axis) = Hinge(cover, book, false);
             yield return Swing(cover, pivot, axis, -165, 0.6f);
-            Say("그림책을 펼쳤어요. 같이 봐요!");
+            if (Speak("prop", "book", 3f) == null) Say("그림책을 펼쳤어요. 같이 봐요!");
             var c = Actor;
             if (c != null && !_busy)
             {
@@ -262,7 +262,7 @@ namespace Allo.Critters
         {
             _propBusy.Add(jar);
             PunchAll(jar);
-            Say("후~ 비눗방울! 톡 쳐서 터뜨려 봐요");
+            if (Speak("prop", "bubble", 3f) == null) Say("후~ 비눗방울! 톡 쳐서 터뜨려 봐요");
             var from = jar.position + Vector3.up * 0.14f;
             var inward = Flat(Eye - from).normalized;
             for (var i = 0; i < 8; i++)
@@ -327,7 +327,7 @@ namespace Allo.Critters
             tissue.position = top;
             var c = Actor;
             var land = c != null ? c.Top + Vector3.down * 0.02f : top + Flat(Eye - top).normalized * 0.3f + Vector3.down * 0.1f;
-            Say("휴지가 폴폴~");
+            if (Speak("prop", "tissue", 3f) == null) Say("휴지가 폴폴~");
             // 위로 쏙 → 팔랑팔랑 내려앉는다
             for (var t = 0f; t < 0.35f; t += Time.deltaTime)
             {
