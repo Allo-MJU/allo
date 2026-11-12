@@ -187,7 +187,12 @@ namespace Allo.App
 
         void Confirm(string title, string description, Action action)
         { _confirmTitle = title; _confirmDescription = description; _confirmAction = action; _dirty = true; }
-        void Navigate(string view) { if (CanAct) Send("navigate", new AppAction { view = view }); }
+        void Navigate(string view)
+        {
+            if (!CanAct) return;
+            if (view == "home" || (view == "camp" && View != "camp")) _campDetail = false;
+            Send("navigate", new AppAction { view = view });
+        }
         void Send(string action, AppAction body = null) { if (action == "refresh" || CanAct) AppSession.Request(action, body); }
         string View => AppSession.CurrentView;
         bool CanAct => _state != null && _state.ready && !_state.busy;

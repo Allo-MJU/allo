@@ -11,23 +11,19 @@ namespace Allo.App
 
         void BuildHome()
         {
-            var panel = Sheet(_content, 0, .29f, true);
+            var panel = Sheet(_content, 0, .26f);
             Heading(panel, "오늘도 함께해요");
-            Copy(panel, "친구 " + Items(_state.creatures).Length + "명과 함께하는 작은 광장이에요.");
-            Space(panel);
-            Button(panel, "차 안으로 가기", () => Navigate("cabin"), Yellow, 72, CanAct);
-            Button(panel, "캠프 돌보기", () => Navigate("camp"), Mint, 68, CanAct);
-            Button(panel, "친구 만나기", () => Navigate("dex"), Cream, 68, CanAct);
-            Space(panel);
-            Copy(panel, "여행에서 모은 보급품", 25);
-            foreach (var material in Items(_state.materials)) Note(panel, material.label + "  " + material.count);
-            if (Items(_state.creatures).Length == 0) Note(panel, "아직 함께하는 친구가 없어요. 차 안에서 알을 키워 첫 친구를 만나 보세요.");
-            var jobs = Items(_state.jobs);
-            if (jobs.Length > 0)
+            var friend = Items(_state.creatures).FirstOrDefault();
+            if (friend != null)
             {
-                Space(panel); Copy(panel, "지금 캠프에서는", 25);
-                foreach (var job in jobs) Note(panel, job.label + " · " + TimeLabel(job.remainingSec));
+                Art(panel, friend.sprite, 130);
+                Copy(panel, friend.name + "와 친구 " + Items(_state.creatures).Length + "명이 기다려요.", 25);
             }
+            else Copy(panel, "첫 친구를 만나면 이 마을에서 함께 지낼 수 있어요.", 25);
+            Button(panel, "차 안으로 가기", () => Navigate("cabin"), Yellow, 72, CanAct);
+            Button(panel, "마을 둘러보기", () => Navigate("camp"), Cream, 64, CanAct, 24);
+            Note(panel, "마을의 시설을 눌러 친구와 함께 돌봐 주세요.");
+            BuildVillageMap(.27f, true);
         }
 
         void BuildCabin()
@@ -93,8 +89,10 @@ namespace Allo.App
 
         void BuildCamp()
         {
+            if (!_campDetail) { BuildVillageMap(0, false); return; }
             var left = Sheet(_content, 0, .34f);
             var right = Sheet(_content, .34f, 1);
+            Button(left, "마을 지도로 돌아가기", () => { _campDetail = false; _dirty = true; }, Mint, 64, true, 24);
             Heading(left, "누구와 일할까요?");
             var tabs = NewRow(left, 64);
             foreach (var role in new[] { "builder", "cook", "trainer" })
@@ -128,6 +126,13 @@ namespace Allo.App
                 Note(left, CreatureName(job.workerId) + (string.IsNullOrEmpty(job.targetId) ? "" : " → " + CreatureName(job.targetId)));
             }
             Heading(right, _campTab == "builder" ? "캠프를 넓혀요" : _campTab == "cook" ? "든든한 요리 시간" : "새로운 행동을 배워요");
+            if (_campTab != "builder")
+            {
+                var facilityId = _campTab == "cook" ? "kitchen" : "training";
+                var inspected = Items(_state.facilities).FirstOrDefault(f => f.id == facilityId);
+                if (inspected != null && inspected.level < 3)
+                    Button(right, inspected.label + " Lv." + inspected.level + " · " + (inspected.level == 0 ? "시설 짓기" : "더 넓히기"), () => { _facility = facilityId; _campTab = "builder"; _dirty = true; }, Cream, 62, CanAct, 24);
+            }
             if (running != null)
             {
                 Progress(right, running.progress, running.label + " · " + TimeLabel(running.remainingSec));
@@ -307,7 +312,7 @@ namespace Allo.App
                 Button(right, creature.name + " · " + RoleLabel(creature.role), () => { _selectedCreature = selected.id; _dirty = true; }, _selectedCreature == creature.id ? Mint : Cream, 62, CanAct, 24);
             }
             Space(right); FeedOptions(right, _selectedCreature);
-            Button(right, "캠프에서 요리하기", () => { _campTab = "cook"; Navigate("camp"); }, Cream, 66, CanAct);
+            Button(right, "캠프에서 요리하기", () => OpenVillageFacility("kitchen"), Cream, 66, CanAct);
         }
 
         void FeedOptions(Transform parent, string creatureId)

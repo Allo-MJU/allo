@@ -163,10 +163,13 @@ namespace Allo.App
             var child = Rect("Artwork", rect); Stretch(child);
             var image = child.gameObject.AddComponent<RawImage>(); image.raycastTarget = false; image.color = new Color(1, 1, 1, 0);
             var fit = child.gameObject.AddComponent<AspectRatioFitter>(); fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            var placeholder = Label(rect, "그림 준비 중", 22, TextAnchor.MiddleCenter);
+            placeholder.color = Muted; Stretch(placeholder.rectTransform);
             StartCoroutine(SpriteLoader.Load(sprite, art =>
             {
                 if (image == null) return;
                 image.texture = art[ArtPose.Idle]; image.color = Color.white; fit.aspectRatio = art.Aspect;
+                if (placeholder != null) placeholder.gameObject.SetActive(false);
             }));
         }
         static Sprite RoundedSprite()
