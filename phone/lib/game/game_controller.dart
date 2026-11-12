@@ -725,6 +725,29 @@ class GameController extends ChangeNotifier {
     }
   }
 
+  /// Save before detaching; failure leaves the existing connection usable.
+  Future<bool> disconnect() async {
+    if (busy || endingSession) return false;
+    if (!await endSession()) return false;
+    try {
+      await _pairingSave.catchError((_) {});
+      await pairingStore.clear();
+      await _eventsSub?.cancel();
+      _eventsSub = null;
+      _connection++;
+      paired = false;
+      _sessionId = null;
+      _invalidateInputs();
+      error = null;
+      notifyListeners();
+      return true;
+    } catch (_) {
+      error = '연결 정보를 지우지 못했어요. 다시 시도해 주세요.';
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// 알 고르기 → 품기 시작. 이전 주행에서 넘어온 거리는 DexStore 에 있다.
   Future<bool> startIncubating(EggTier tier, {bool useAffinity = false}) async {
     if (!canStart) return false;

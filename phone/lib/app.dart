@@ -5,9 +5,15 @@ import 'package:go_router/go_router.dart';
 
 import 'dart:io' show Platform;
 
+import 'affinity/egg_demo_api.dart';
+import 'base_camp/base_camp_controller.dart';
+import 'base_camp/base_camp_store.dart';
+import 'unity_app/unity_app_controller.dart';
+import 'unity_app/unity_app_screen.dart';
 import 'explore/explore_screen.dart';
 import 'explore/unity_channel.dart';
 import 'feed/vehicle_feed.dart';
+import 'feed/fake_feed.dart';
 import 'game/game_controller.dart';
 import 'screens/companion_screen.dart';
 import 'screens/dex_screen.dart';
@@ -17,24 +23,54 @@ import 'screens/pairing_screen.dart';
 import 'screens/session_end_screen.dart';
 import 'storage/dex_store.dart';
 
+const unityAppEnabled = bool.fromEnvironment('UNITY_APP', defaultValue: true);
+
 class AlloApp extends StatefulWidget {
-  const AlloApp({super.key, required this.feed, this.monotonicMs});
+  const AlloApp(
+      {super.key,
+      required this.feed,
+      this.monotonicMs,
+      this.useUnityApp,
+      this.unityView});
   final VehicleFeed feed;
   final int Function()? monotonicMs;
+  final bool? useUnityApp;
+  final UnityViewBuilder? unityView;
 
   @override
   State<AlloApp> createState() => _AlloAppState();
 }
 
 class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
+  bool get _useUnity =>
+      widget.useUnityApp ?? (Platform.isAndroid && unityAppEnabled);
+  late final BaseCampController camp = BaseCampController(
+      store: SharedPreferencesBaseCampStore(
+          profile: widget.feed is FakeVehicleFeed ? 'demo' : 'default'));
+  late final EggDemoApi? _eggApi = _makeEggApi();
+  EggDemoApi? _makeEggApi() {
+    try {
+      return HttpEggDemoApi.fromEnvironment();
+    } on EggDemoApiException {
+      return null;
+    }
+  }
+
   late final GameController controller = GameController(
-      feed: widget.feed, dex: DexStore(), monotonicMs: widget.monotonicMs);
+      feed: widget.feed,
+      dex: DexStore(),
+      monotonicMs: widget.monotonicMs,
+      eggApi: _useUnity ? _eggApi : null,
+      baseCamp: _useUnity ? camp : null);
+  late final UnityAppController unityApp =
+      UnityAppController(game: controller, camp: camp);
 
   late final _router = GoRouter(
-    initialLocation: '/pairing',
+    initialLocation: _useUnity ? '/unity' : '/pairing',
     refreshListenable: controller,
     redirect: (_, state) {
       final path = state.uri.path;
+      if (path == '/unity') return null;
       if (!controller.sessionEnded) {
         if (path == '/session-end') return '/pairing';
         if (const {'/hatching', '/companion'}.contains(path) &&
@@ -50,6 +86,11 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
       return null;
     },
     routes: [
+      GoRoute(
+          path: '/unity',
+          builder: (_, __) => UnityAppScreen(
+              controller: unityApp,
+              unityView: widget.unityView ?? androidUnityView)),
       GoRoute(
           path: '/session-end',
           builder: (_, __) => SessionEndScreen(controller: controller)),
@@ -81,6 +122,7 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     unityExploreOpen.addListener(_syncActive);
+    if (_useUnity) unawaited(unityApp.initialize());
     unawaited(controller.restorePairing());
   }
 
@@ -93,6 +135,10 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
   AppLifecycleState _lastLifecycle = AppLifecycleState.resumed;
 
   void _syncActive() {
+    if (_useUnity) {
+      unawaited(unityApp.setHostLifecycle(_lastLifecycle));
+      return;
+    }
     unawaited(controller.setAppActive(
         appActiveFor(_lastLifecycle, unityOpen: unityExploreOpen.value)));
   }
@@ -102,7 +148,12 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
     unityExploreOpen.removeListener(_syncActive);
     WidgetsBinding.instance.removeObserver(this);
     _router.dispose();
+    if (_useUnity) unityApp.dispose();
     controller.dispose();
+    if (_useUnity) {
+      camp.dispose();
+      _eggApi?.close();
+    }
     super.dispose();
   }
 
