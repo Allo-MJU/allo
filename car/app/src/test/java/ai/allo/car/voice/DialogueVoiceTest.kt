@@ -54,6 +54,7 @@ class DialogueVoiceTest {
         assertFalse(voice.speak("hello"))
         assertEquals(1, engine.stops)
         assertFalse(voice.state.value.speaking)
+        engine.event(DialogueSpeechEvent.Stopped)
         assertTrue(voice.speak("again"))
         engine.event(DialogueSpeechEvent.Failed("engine failed"))
         assertFalse(voice.state.value.speaking)
@@ -102,4 +103,71 @@ class DialogueVoiceTest {
         assertNotNull(second.state.value.error)
         assertFalse(second.speak("never"))
     }
+    @Test fun `replacement waits for delayed stop and rapid taps keep only newest line`() {
+        val engine = Engine()
+        val voice = DialogueVoice { engine }
+        voice.start()
+        engine.initialized(null)
+        assertTrue(voice.replace("first"))
+        assertEquals(0, engine.stops) // Idle character taps must not create a stray stop callback.
+        assertTrue(voice.replace("second"))
+        assertTrue(voice.replace("third"))
+        assertEquals(listOf("first"), engine.spoken)
+        assertEquals(1, engine.stops)
+        engine.event(DialogueSpeechEvent.Done) // Old playback may finish while stop is pending.
+        assertEquals(listOf("first"), engine.spoken)
+        engine.event(DialogueSpeechEvent.Stopped)
+        assertEquals(listOf("first", "third"), engine.spoken)
+        assertTrue(voice.state.value.speaking)
+        assertFalse(voice.speak("third")) // Bubble tap still stops the replacement.
+        assertEquals(2, engine.stops)
+    }
+
+    @Test fun `leaving screen or tapping stop cancels a pending replacement`() {
+        for (release in listOf(false, true)) {
+            val engine = Engine()
+            val voice = DialogueVoice { engine }
+            voice.start()
+            engine.initialized(null)
+            voice.replace("first")
+            voice.replace("pending")
+            if (release) voice.release() else voice.stop()
+            engine.event(DialogueSpeechEvent.Stopped)
+            assertEquals(listOf("first"), engine.spoken)
+            assertFalse(voice.state.value.speaking)
+        }
+    }
+
+    @Test fun `failed stop discards pending speech and permits an explicit retry`() {
+        val engine = Engine()
+        val voice = DialogueVoice { engine }
+        voice.start()
+        assertFalse(voice.replace("before ready"))
+        engine.initialized(null)
+        assertTrue(engine.spoken.isEmpty())
+        voice.replace("first")
+        voice.replace("pending")
+        engine.event(DialogueSpeechEvent.Failed("stop failed"))
+        assertEquals(listOf("first"), engine.spoken)
+        assertFalse(voice.state.value.speaking)
+        assertEquals("stop failed", voice.state.value.error)
+        assertTrue(voice.replace("retry"))
+        assertEquals(listOf("first", "retry"), engine.spoken)
+    }
+
+    @Test fun `new tap after explicit stop waits for acknowledgment and can be cancelled`() {
+        val engine = Engine()
+        val voice = DialogueVoice { engine }
+        voice.start()
+        engine.initialized(null)
+        voice.speak("first")
+        voice.stop()
+        assertTrue(voice.speak("retry"))
+        assertEquals(listOf("first"), engine.spoken)
+        assertFalse(voice.speak("retry"))
+        engine.event(DialogueSpeechEvent.Stopped)
+        assertEquals(listOf("first"), engine.spoken)
+        assertFalse(voice.state.value.speaking)
+    }
+
 }

@@ -31,9 +31,9 @@ fun ParkedScreen(
         (game.companion == null || game.companion?.location == "phone")
     val hasCarPet = if (game.hasV2Contract) companionValid && game.companion?.location == "car"
         else summary.showArt && !summary.showEgg
-    var tab by rememberSaveable(game.companion?.displayId, game.companion?.displayRevision, game.companion?.location, connected) { mutableStateOf("홈") }
-    val tabs = listOf("홈", "도감", "이야기", "거점", "여행", "폰 공유")
-    ScreenFrame("함께 쉬어가는 시간", if (connected) "폰 상태 연결됨" else "마지막으로 받은 상태", modifier) {
+    var tab by rememberSaveable(game.companion?.displayId, game.companion?.displayRevision, game.companion?.location, connected) { mutableStateOf("광장") }
+    val tabs = listOf("광장", "도감", "이야기", "거점", "여행", "폰 공유")
+    ScreenFrame(if (tab == "광장") "친구들의 광장" else "함께 쉬어가는 시간", if (connected) "폰 상태 연결됨" else "마지막으로 받은 상태", modifier) {
         BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
             val rail = maxWidth >= 880.dp && LocalDensity.current.fontScale <= 1.4f
             val menu: @Composable (String) -> Unit = { name ->
@@ -53,15 +53,8 @@ fun ParkedScreen(
                     Column(paneModifier.verticalScroll(rememberScrollState()).padding(4.dp),
                         verticalArrangement = Arrangement.spacedBy(20.dp)) {
                         when (tab) {
-                            "홈" -> {
-                                ParkedHero(summary, connected, false,
-                                    if (emptyCompanion) "함께할 친구를 골라 주세요" else summary.title,
-                                    when {
-                                        !companionValid -> "친구 상태를 다시 확인하고 있어요."
-                                        emptyCompanion -> "폰의 보유 친구 목록에서 차량과 함께할 친구를 선택해 주세요."
-                                        summary.showEgg -> summary.status
-                                        else -> "폰에서 선택한 친구가 함께해요."
-                                    })
+                            "광장" -> {
+                                PlazaScene(game, connected)
                                 MaterialInventory(game)
                                 ParkedCardGrid(listOf("도감 확인", "친구와 이야기", "거점 확인")) { label ->
                                     ScreenAction(label, { tab = when (label) { "도감 확인" -> "도감"; "친구와 이야기" -> "이야기"; else -> "거점" } }, secondary = true)

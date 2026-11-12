@@ -8,6 +8,7 @@ data class PetSpriteSpec(
     val columns: Int = 4,
     val rows: Int = 2,
     val repeat: Boolean = true,
+    val alphaCutoff: Int = 0,
 ) {
     val durationMs: Int get() = frameMs * timeline.size
     fun frameAt(elapsedMs: Long, enabled: Boolean): Int {

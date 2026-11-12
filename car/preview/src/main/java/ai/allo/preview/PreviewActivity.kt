@@ -36,10 +36,9 @@ class PreviewActivity : ComponentActivity() {
             intent.getStringExtra("mode") == "parked" -> PleosRoute.Home
             else -> PleosRoute.Starting
         }
-        val speciesOptions = linkedMapOf(
-            "road_sprout" to "길싹이", "puddle_pip" to "웅덩이삐약", "lamp_moth" to "등불나방",
-            "storm_lantern" to "폭풍등", "highway_comet" to "고속혜성", "sea_mist" to "바다안개",
-        )
+        val speciesOptions = SpeciesCatalog.parse(
+            assets.open("species.json").bufferedReader().use { it.readText() }
+        ).entries.mapValues { it.value.name }
         val initialSpecies = intent.getStringExtra("species")?.takeIf { it in speciesOptions } ?: "road_sprout"
         setContent {
             AlloTheme {
@@ -58,7 +57,8 @@ class PreviewActivity : ComponentActivity() {
                         structureIds = listOf("workshop", "kitchen"), lastMealId = "berry_snack", activeTaskKind = "cooking"),
                     collectionSummary = if (intent.getBooleanExtra("missingCollection", false)) null else
                         CollectionSummary(wood = 12, stone = 8, ingredient = 5,
-                            speciesIds = listOf("road_sprout", "puddle_pip", "lamp_moth")),
+                            speciesIds = if (intent.getBooleanExtra("plazaAllFriends", false)) speciesOptions.keys.toList()
+                                else listOf("road_sprout", "puddle_pip", "lamp_moth")),
                 )
                 val fishing = FishingDisplay(
                     elapsedSeconds = if (route in listOf(PleosRoute.Saving, PleosRoute.Reward, PleosRoute.SaveFailed)) 60 else 35,
