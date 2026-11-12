@@ -20,6 +20,13 @@
 | [architecture.md](./architecture.md) | 기술 스택 결정과 근거, 선례에서 확인된 제약 | 전원 |
 | [demo-scenario.md](./demo-scenario.md) | 시연 9단계와 Virtual Console 명령 | A·B·D |
 
+## 도감·거점·Pleos 통합
+
+- [모바일 도감](vehicle/dex-experience.md) · [거점 규칙](base-camp.md)
+- [질문 버튼 이야기](vehicle/companion-dialogue.md) · [주행 자동 낚시](vehicle/driving-auto-fishing.md)
+- [차량 UI 재설계](vehicle/car-ui-redesign.md) · [로컬 Firebase 실행](vehicle/local-firebase.md)
+- [통합 검증](vehicle/integrated-camp-verification.md) · [화면 캡처](vehicle/screenshots/integration/README.md)
+
 ## 읽는 순서
 
 처음 보는 사람 → `proposal.md` → `schema.md` → 자기 파트의 `roadmap.md`

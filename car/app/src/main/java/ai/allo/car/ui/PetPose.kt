@@ -1,5 +1,7 @@
 package ai.allo.car.ui
 
+import ai.allo.car.model.PleosRoute
+
 /** Visual poses only; these never change the phone's game state. */
 enum class PetPose(val label: String, val asset: String) {
     Idle("쉬는 모습", "idle"),
@@ -10,14 +12,23 @@ enum class PetPose(val label: String, val asset: String) {
 }
 
 object PetPoses {
+    /** A restricted Driving route alone is not proof of an active drive. */
+    fun forRoute(route: PleosRoute, connected: Boolean, drivingSignalFresh: Boolean = false): PetPose = when {
+        route == PleosRoute.Driving && connected && drivingSignalFresh -> PetPose.Fishing
+        route in setOf(PleosRoute.Home, PleosRoute.Paused, PleosRoute.Ended) -> PetPose.Sleep
+        else -> PetPose.Idle
+    }
+
     // The other six design characters do not match the current game catalog yet.
     private val supplied = setOf("road_sprout", "puddle_pip", "lamp_moth", "storm_lantern", "highway_comet", "sea_mist")
     fun assetPath(speciesId: String?, pose: PetPose): String? =
         speciesId?.takeIf { it in supplied }?.let { "poses/$it/${pose.asset}.png" }
 
-    fun animates(pose: PetPose, parked: Boolean, connected: Boolean, resumed: Boolean, motionEnabled: Boolean, runningMotion: Boolean = false): Boolean =
+    fun animates(pose: PetPose, parked: Boolean, connected: Boolean, resumed: Boolean, motionEnabled: Boolean, runningMotion: Boolean = false, drivingFishing: Boolean = false): Boolean =
         connected && resumed && motionEnabled && (
-            parked && pose in setOf(PetPose.Sleep, PetPose.Fishing) || !parked && runningMotion && pose in setOf(PetPose.Move, PetPose.Fall)
+            parked && pose in setOf(PetPose.Sleep, PetPose.Fishing) ||
+                !parked && drivingFishing && pose == PetPose.Fishing ||
+                !parked && runningMotion && pose in setOf(PetPose.Move, PetPose.Fall)
         )
 }
 

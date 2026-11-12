@@ -38,6 +38,9 @@ void main() {
       final feed = _TripFeed();
       await tester.pumpWidget(AlloApp(feed: feed));
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('알 품기 시작'), 120,
+          scrollable: find.byType(Scrollable).first);
+      await tester.pumpAndSettle();
       await tester.tap(find.text('알 품기 시작'));
       await tester.pumpAndSettle();
       for (var i = 0; i < 20 && find.text('알 품기').evaluate().isEmpty; i++) {
@@ -78,6 +81,9 @@ void main() {
       final start = tester.widget<OutlinedButton>(
           find.widgetWithText(OutlinedButton, '알 품기 시작'));
       expect(start.onPressed, isNull);
+      await tester.scrollUntilVisible(find.text('도감 보기'), 120,
+          scrollable: find.byType(Scrollable).first);
+      await tester.pumpAndSettle();
       await tester.tap(find.text('도감 보기'));
       await tester.pump();
       await _flushStorage(

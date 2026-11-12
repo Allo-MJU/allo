@@ -41,11 +41,11 @@ class DrivingMotionDemoActivity : ComponentActivity() {
                     Column(Modifier.windowInsetsPadding(WindowInsets.safeDrawing)) {
                         Text("실제 Pleos 차량 신호 · 캐릭터만 테스트 데이터 · Firebase 미사용",
                             modifier = Modifier.fillMaxWidth().padding(8.dp), style = MaterialTheme.typography.bodySmall)
-                        Text("${vehicle.gear} · ${"%.0f".format(motion.speedKph)} km/h · 달리기 ${"%.2f".format(motion.playbackRate)}배 · 급감속 ${motion.brakeSerial}회 · ${if (motion.fresh) "신호 수신" else "정지/신호 대기"}",
+                        Text("${vehicle.gear} · ${"%.0f".format(motion.speedKph)} km/h · 급감속 ${motion.brakeSerial}회 · ${if (motion.fresh) "신호 수신" else "정지/신호 대기"}",
                             modifier = Modifier.padding(horizontal = 8.dp), style = MaterialTheme.typography.bodySmall)
                         Box(Modifier.weight(1f)) {
-                            DrivingScreen(game, connected = true, drivingMotion = motion,
-                                statusMessage = "주행 신호 연동 검증")
+                            DrivingScreen(game, connected = true, drivingSignalFresh = motion.fresh,
+                                statusMessage = "자동 낚시 · 주행 신호 검증")
                         }
                     }
                 }

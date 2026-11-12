@@ -31,10 +31,15 @@ import java.util.UUID
  */
 class SessionManager(private val context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val endpoints = FirebaseEndpoints.resolve(BuildConfig.DEBUG, BuildConfig.FIREBASE_EMULATOR,
+        BuildConfig.FIREBASE_PROJECT_ID, BuildConfig.FIREBASE_FUNCTIONS_REGION, BuildConfig.ALLO_DB_URL)
     private val identity = FirebaseIdentity(BuildConfig.FIREBASE_API_KEY,
-        KeystoreRefreshTokenStore(context, BuildConfig.FIREBASE_PROJECT_ID, BuildConfig.FIREBASE_API_KEY))
-    private val sessionApi = FirebaseSessionApi(identity, BuildConfig.FIREBASE_PROJECT_ID, BuildConfig.FIREBASE_FUNCTIONS_REGION)
-    private val rest = FirebaseRest(if (sessionApi.configured) BuildConfig.ALLO_DB_URL else "", tokens = identity)
+        KeystoreRefreshTokenStore(context, BuildConfig.FIREBASE_PROJECT_ID, BuildConfig.FIREBASE_API_KEY,
+            localEmulator = endpoints.local), identityUrl = endpoints.identityUrl, refreshUrl = endpoints.refreshUrl)
+    private val sessionApi = FirebaseSessionApi(identity, BuildConfig.FIREBASE_PROJECT_ID,
+        BuildConfig.FIREBASE_FUNCTIONS_REGION, endpoint = endpoints.sessionUrl)
+    private val rest = FirebaseRest(if (sessionApi.configured) endpoints.databaseUrl else "", tokens = identity,
+        databaseNamespace = endpoints.databaseNamespace)
 
     val caps = CapabilityChecker()
     private val derivation = SignalDerivation()
@@ -144,8 +149,9 @@ class SessionManager(private val context: Context) {
     private fun fishingConnected(): Boolean = _gameConnected.value && _meta.value.paired && !_ended.value &&
         fishingFreshness.isFresh(android.os.SystemClock.elapsedRealtime())
 
-    private fun fishingPermitted(): Boolean = activityResumed && hasParkingPermission() && fishingConnected() &&
-        transfers.state.pending == null
+    // Parking is now inventory review. Do not run the hidden legacy fishing activity.
+    // Driving fishing is visual only and never uses fishing-v1 requests or presence.
+    private fun fishingPermitted(): Boolean = false
 
     @Synchronized
     private fun fishingPresence(): FishingPresence? {
@@ -153,7 +159,7 @@ class SessionManager(private val context: Context) {
         // Empty lease explicitly breaks old eligibility without echoing stale phone state.
         return FishingPresence(leaseId = if (fishingConnected()) f.leaseId else "",
             epoch = fishingEpoch, sequence = ++fishingSequence,
-            active = activityResumed && !_ended.value, parkedAllowed = hasParkingPermission() && !_ended.value)
+            active = false, parkedAllowed = false)
     }
 
     @Synchronized

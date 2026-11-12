@@ -289,7 +289,7 @@ namespace Allo.App
             Heading(panel, "여행에서 모은 보급품");
             var materials = NewRow(panel, 48);
             foreach (var material in Items(_state.materials)) Button(materials, material.label + "  " + material.count + "개", null, Cream, 48, false, 22);
-            Note(panel, "주행과 창밖 관찰로 모은 재료예요. 낚시·벌목의 거점 재료 연동은 준비 중이에요.");
+            Note(panel, "주행과 창밖 관찰로 모은 재료예요. 저장된 재료와 거점 요약을 차량에도 전달해요.");
             var creatures = Items(_state.creatures);
             if (!creatures.Any(c => c.id == _selectedCreature)) _selectedCreature = creatures.FirstOrDefault()?.id;
             if (creatures.Length > 0)

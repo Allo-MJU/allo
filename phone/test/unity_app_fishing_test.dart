@@ -14,6 +14,8 @@ import 'unity_app_controller_test.dart' show CampMemory;
 class MutableOwnedDex extends DexStore {
   final records = <Map<String, dynamic>>[];
   @override
+  Future<List<DexEntry>> all() async => records.map(DexEntry.fromJson).toList();
+  @override
   Future<List<Map<String, dynamic>>> allRecords() async =>
       records.map((r) => Map<String, dynamic>.from(r)).toList();
 }

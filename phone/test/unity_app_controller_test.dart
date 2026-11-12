@@ -409,7 +409,7 @@ void main() {
     expect(await action('startEgg', {'tier': 'mid'}), isFalse);
     expect(game.eggId, egg);
     expect(game.game.eggTier, EggTier.small);
-    expect(feed.watches, 1);
+    expect(feed.watches, 2); // Camp pairing watch, then egg watch.
   });
   test(
       'first boot can restore unfinished egg once and discarded egg can restart',
@@ -486,15 +486,15 @@ void main() {
         isTrue);
     expect(app.snapshot['canStart'], isFalse);
     expect(await action('startEgg', {'tier': 'mid'}), isFalse);
-    expect(feed.watches, 2);
+    expect(feed.watches, 4);
     expect(await action('startEgg', {'tier': 'small'}), isFalse);
     feed.sample();
     expect(game.eggId, egg);
     expect(game.affinityRound!.score, 3);
-    expect(feed.watches, 2);
+    expect(feed.watches, 4);
     expect(app.snapshot['canStart'], isFalse);
     expect(await action('startEgg', {'tier': 'small'}), isFalse);
-    expect(feed.watches, 2);
+    expect(feed.watches, 4);
   });
   for (final session in [sessionA, sessionB]) {
     test('direct pair $session resumes current egg and retains input timer',
@@ -504,7 +504,7 @@ void main() {
       final egg = game.eggId;
       expect(await action('pair', {'sessionId': session, 'pairCode': '123456'}),
           isTrue);
-      expect(feed.watches, 2);
+      expect(feed.watches, 4);
       feed.sample();
       expect(game.eggId, egg);
       expect(game.affinityRound!.score, 3);
@@ -515,7 +515,7 @@ void main() {
       expect(await action('petEgg', {'eggId': egg}), isTrue);
       expect(game.affinityRound!.score, 6);
       expect(await action('startEgg', {'tier': 'large'}), isFalse);
-      expect(feed.watches, 2);
+      expect(feed.watches, 4);
     });
   }
   test('real ended trip pairs a new vehicle and resumes unfinished egg once',
@@ -528,7 +528,7 @@ void main() {
     expect(game.sessionSaved, isTrue);
     expect(await action('pair', {'sessionId': sessionB, 'pairCode': '123456'}),
         isTrue);
-    expect(feed.watches, 2);
+    expect(feed.watches, 4);
     feed.sample();
     expect(game.eggId, egg);
     expect(game.affinityRound!.score, 3);
@@ -561,7 +561,7 @@ void main() {
     final egg = game.eggId;
     expect(await action('pair', {'sessionId': sessionA, 'pairCode': '123456'}),
         isTrue);
-    expect(feed.watches, 2);
+    expect(feed.watches, 4);
     expect(game.game.stage, Stage.hatched);
     expect(game.eggId, egg);
     expect(app.snapshot['canStart'], isFalse);
@@ -574,7 +574,7 @@ void main() {
     expect(game.eggId, isNot(egg));
     expect(game.game.stage, Stage.incubating);
     expect(game.game.eggTier, EggTier.small);
-    expect(feed.watches, 2);
+    expect(feed.watches, 4);
   });
   test(
       'new-session pair closes old saved hatch without auto-minting another egg',
@@ -583,11 +583,11 @@ void main() {
     expect(await action('pair', {'sessionId': sessionB, 'pairCode': '123456'}),
         isTrue);
     expect(game.game.stage, Stage.idle);
-    expect(feed.watches, 1);
+    expect(feed.watches, 3);
     expect((app.snapshot['egg'] as Map)['active'], isFalse);
     expect(app.snapshot['canStart'], isTrue);
     expect(await action('startEgg', {'tier': 'mid'}), isTrue);
-    expect(feed.watches, 2);
+    expect(feed.watches, 4);
     expect(game.game.stage, Stage.incubating);
     expect(game.game.eggTier, EggTier.mid);
   });

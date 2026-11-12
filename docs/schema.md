@@ -316,3 +316,10 @@ DB 규칙의 원본은 [`firebase/database.rules.json`](../firebase/database.rul
 ### 호감도 부화 연결 보완 (2026-11-12)
 
 PR #93의 `affinity {score, target, phase, photoCompleted}` 요약은 낚시·동행과 동일한 전체 game snapshot에 합성한다. `score`는 소수일 수 있으며, `phase`는 사진 퀘스트·저장 대기·결과를 구분한다. #91의 `gameRevision`은 유지하고 기존 `ready` 형식의 차량 입력도 호환한다. 구체적인 단계와 검증 경계는 [호감도 차량 연결](vehicle/affinity-integration.md)을 따른다.
+
+
+### 주차 재료·도감·거점 표시 확장 (2026-11-12)
+
+폰 단일 game writer가 `contractVersion=2`/`gameRevision`와 함께 저장된 PR100 상태를 읽기 전용으로 보낸다. `collectionSummary` v1은 wood/stone/ingredient 현재 보유량과 speciesIds(수집 종ID 중복 제거), speciesCount를 제공한다. Firebase의 빈 목록 생략 시 speciesCount=0으로 빈 도감을 구분한다. 블록 미수신/저장 로드 실패는 0개로 추정하지 않는다.
+
+`baseSummary`는 기존 역할/시설 요약에 facilityLevels(시설ID→0~3), activeTaskKinds(건설·요리·훈련 전체), foodInventory(음식ID→재고), recipeBook(음식ID→누적 제작 횟수)를 추가한다. 기존 필드는 호환하며 최근 식사를 추정하지 않는다. 차량은 주차 후 확인만 제공하고 보상/도감/시설을 변경하지 않는다. 상세 계약: [주행 자동 낚시와 주차 확인](vehicle/driving-auto-fishing.md).

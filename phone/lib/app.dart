@@ -18,6 +18,7 @@ import 'feed/fake_feed.dart';
 import 'game/game_controller.dart';
 import 'screens/companion_screen.dart';
 import 'screens/dex_screen.dart';
+import 'screens/base_camp_screen.dart';
 import 'screens/hatching_screen.dart';
 import 'screens/incubating_screen.dart';
 import 'screens/pairing_screen.dart';
@@ -93,7 +94,7 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
           fishingStore: _useDemoCreatures
               ? FishingStore(profile: 'unity-demo-examples')
               : null,
-          baseCamp: _useUnity ? camp : null);
+          baseCamp: camp);
   late final UnityAppController unityApp = UnityAppController(
       game: controller, camp: camp, demoCreatures: _useDemoCreatures);
 
@@ -112,7 +113,8 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
         return null;
       }
       if (!controller.sessionSaved ||
-          !const {'/session-end', '/pairing', '/dex'}.contains(path)) {
+          !const {'/session-end', '/pairing', '/dex', '/base-camp'}
+              .contains(path)) {
         return path == '/session-end' ? null : '/session-end';
       }
       return null;
@@ -138,6 +140,9 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
       GoRoute(
           path: '/companion',
           builder: (_, __) => CompanionScreen(controller: controller)),
+      GoRoute(
+          path: '/base-camp',
+          builder: (_, __) => BaseCampScreen(controller: controller)),
       GoRoute(
           path: '/dex', builder: (_, __) => DexScreen(controller: controller)),
       GoRoute(
@@ -182,7 +187,10 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
     _router.dispose();
     if (_useUnity) unityApp.dispose();
     controller.dispose();
-    if (_useUnity) camp.dispose();
+    if (_providedController == null ||
+        (_useUnity && _providedController?.baseCamp == null)) {
+      camp.dispose();
+    }
     _eggApi?.close();
     super.dispose();
   }

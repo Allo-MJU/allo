@@ -71,6 +71,7 @@ data class GameState(
     val baseSummary: BaseSummary? = null,
     val travelRequest: TravelRequest? = null,
     val fishing: FishingSnapshot? = null,
+    val collectionSummary: CollectionSummary? = null,
     @kotlinx.serialization.Transient val invalidBlocks: Set<String> = emptySet(),
 ) {
     val hasV2Contract: Boolean get() = contractVersion == 2 && gameRevision != null && gameRevision >= 0
@@ -95,7 +96,9 @@ data class TransferResult(val requestId: String, val displayId: String, val requ
 @Serializable
 data class BaseSummary(val builderSpeciesId: String? = null, val cookSpeciesId: String? = null,
     val trainerSpeciesId: String? = null, val structureIds: List<String> = emptyList(),
-    val lastMealId: String? = null, val activeTaskKind: String? = null)
+    val lastMealId: String? = null, val activeTaskKind: String? = null,
+    val facilityLevels: Map<String, Int> = emptyMap(), val activeTaskKinds: List<String> = emptyList(),
+    val foodInventory: Map<String, Long> = emptyMap(), val recipeBook: Map<String, Long> = emptyMap())
 @Serializable
 data class TravelRequest(val wishId: String, val targetRegion: String)
 
@@ -122,3 +125,8 @@ object Capability {
     const val ETA = "eta"
     const val TURNS = "turns"
 }
+
+/** Optional read-only phone inventory, published after storage succeeds. Not trip earnings. */
+@Serializable
+data class CollectionSummary(val version: Int = 1, val wood: Long, val stone: Long,
+    val ingredient: Long, val speciesIds: List<String>)

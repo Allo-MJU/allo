@@ -275,7 +275,7 @@ class UnityAppController extends ChangeNotifier {
       ],
       'fishingRecords': game.fishing.totalRecords,
       'fishingError': game.fishing.error ?? '',
-      'rewardStatus': '활동 연동 준비 중 · 주행 거리와 창밖 보기 재료만 반영돼요',
+      'rewardStatus': '주행·창밖 보기로 모은 재료와 거점 상태를 차량에 함께 전달해요',
     };
   }
 

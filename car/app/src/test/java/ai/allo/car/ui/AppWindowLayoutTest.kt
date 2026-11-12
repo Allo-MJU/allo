@@ -12,14 +12,14 @@ class AppWindowLayoutTest {
     @Test fun `portrait window keeps stacked composition and reserves readable text space`() {
         val layout = DrivingWindowLayout.forContent(320f, 260f, 1f)
         assertFalse(layout.horizontal)
-        assertTrue(layout.artSizeDp + 118f <= 260f)
+        assertTrue(layout.artSizeDp + 124f <= 260f)
         assertFalse(layout.showFootnote)
     }
     @Test fun `larger fonts yield artwork space rather than hiding status below the window`() {
         val normal = DrivingWindowLayout.forContent(320f, 300f, 1f)
         val enlarged = DrivingWindowLayout.forContent(320f, 300f, 1.5f)
         assertTrue(enlarged.artSizeDp < normal.artSizeDp)
-        assertTrue(enlarged.artSizeDp + 118f * 1.5f <= 300f)
+        assertTrue(enlarged.artSizeDp + 124f * 1.5f <= 300f)
     }
     @Test fun `temporary zero bounds during resize never yield a negative image size`() {
         for (width in listOf(0f, 200f, 320f, 600f, 1200f)) for (height in listOf(0f, 80f, 220f, 500f, 900f)) {
@@ -27,5 +27,17 @@ class AppWindowLayoutTest {
             assertTrue(layout.artSizeDp >= 0f)
             assertTrue(layout.artSizeDp <= minOf(width, height))
         }
+    }
+    @Test fun `wide driving window gives fishing character a large scene`() {
+        val layout = DrivingWindowLayout.forContent(1626f, 1000f, 1f)
+        assertTrue(layout.horizontal)
+        assertTrue(layout.artSizeDp >= 600f)
+        assertTrue(layout.artSizeDp <= 720f)
+    }
+    @Test fun `split portrait keeps large fishing above readable details`() {
+        val layout = DrivingWindowLayout.forContent(785f, 1000f, 1f)
+        assertFalse(layout.horizontal)
+        assertTrue(layout.artSizeDp >= 450f)
+        assertTrue(layout.artSizeDp + 196f + 72f <= 1000f)
     }
 }

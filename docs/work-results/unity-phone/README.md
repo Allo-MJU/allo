@@ -1,29 +1,35 @@
 # Unity phone implementation
 
-The Android phone app now boots the Unity application interface over the existing Dart affinity, collection and camp controllers. Views cover home, cabin, facilities, friends, inventory and settings. Egg models and gestures exist only inside the vehicle cabin. Saved materials, role assignments, build/cook/train costs, offline jobs and hatching rules remain owned by the original controllers.
+The Android phone app boots the Unity interface over existing Dart rules, storage and vehicle communication. Home, cabin, facilities, friends, inventory and settings use Unity. Egg models and gestures appear only inside the vehicle cabin.
 
-## Latest camp direction
-The user clarified that Ninja Voltage is the baseline 2D village screen; Palworld supplies ONLY the wilderness survival theme. The temporary 3D camp was removed. The final map uses original cel-shaded 2D woodland terrain and three transparent sprites: workbench/canvas shelter, outdoor cauldron/prep table, and training dummy/target. No reference-game IP assets were copied. Native color/alpha are preserved and assets/prompts are recorded in docs/village-art-provenance.md.
+## Latest dev integration
 
-Background, facility sprites, hit areas, labels, jobs and owned-friend marker pan together on both axes inside bounds. The thin HUD and right circular rail stay fixed. The original 3D cabin remains intact, and only that view shows the egg.
+The working branch includes dev through ffef8ea (PR #106), including #99/#91/#102. Existing authenticated pairing, gameRevision, companion/fishing state, driving auto-fishing presentation, and collectionSummary/baseSummary publication are retained. Vehicle summaries use successfully saved camp state and the existing whole-game writer. Driving distance/lookout rewards stay authoritative; no fish currency, animation/timer rewards or extra material credit was added.
+
+Unity friends detail also exposes the latest vehicle-companion selection, fishing record count and failed-save retry. Selection resolves the exact persisted ownership record through the existing camp registry, including duplicate-species and legacy occurrence IDs. Disconnected/ended/busy selection is rejected; saved work can be retried offline.
+
+The legacy exploration egg/care/props remain available outside full app presentation. Accepted app state clears legacy egg/HUD visuals, including an in-progress hatch restored after home → cabin. Malformed bridge payloads are not written to logs. Debug-only local affinity/Firebase entrypoints explicitly preserve their Flutter verification frames and injected controller/API ownership.
+
+## Camp direction
+
+Ninja Voltage is the baseline 2D village composition; Palworld supplies the wilderness survival theme. Original cel-shaded 2D terrain and small transparent workbench, outdoor cauldron and training sprites fill the screen beneath a thin HUD and right circular rail. Background, facilities, labels, jobs and up to four owned-character markers pan together within bounds. The HUD stays fixed and pan survives snapshots and facility detail changes. No reference game's IP artwork was imported; see docs/village-art-provenance.md.
+
+## Pre-collected examples
+
+UNITY_DEMO_CREATURES=true with FEED=fake and UNITY_APP=true enables the isolated unity-demo-examples profile with 길싹이, 웅덩이삐약, 등불나방 and 고속혜성. These are actual saved, assignable canonical ownership records, added idempotently without materials. Default/original demo data, incubation progress and fishing checkpoints stay separate. Store constructors retain both the latest namespace option and the existing profile option. Marker taps select the exact owned creature in friends detail.
 
 ## Verification
-- Final 2D source: Unity EditMode 95/95 passed (/tmp/allo-demo-friends-editmode.xml); PlayMode 1/1 passed (/tmp/allo-demo-friends-playmode.xml), both run after the final owned-character markers.
-- Real EventSystem PlayMode coverage verifies raycast drag movement on both axes with fixed HUD.
-- Phone suite: 302/302 passed after isolated demo ownership was added (/tmp/unity_app_demo_full.log); scoped analysis reported no issues.
 
-Final 2D Android export and debug APK build succeeded (/tmp/allo-camp2d-export.log and /tmp/allo-camp2d-apk.log, 40.4s APK build). Installed with adb install -r to Android 16/API 36 emulator-5554, preserving saved data. Actual Unity view showed the new 2D forest terrain, three correctly aligned survival station sprites, full-screen background and clear right rail.
+- Phone full suite: 404 passed; focused phase-2 integration: 72 passed.
+- Shared core: 93 passed.
+- Vehicle JVM tests: 293 passed in 47 suites with JDK 17.
+- Unity EditMode: 115 passed; PlayMode real EventSystem drag: 1 passed.
+- Scoped Dart analysis and independent integration reviews: clean.
+- Concurrent camp initialization and disconnect/load recovery were reproduced in failing tests, then fixed with a shared load future and busy observation fence.
+- Final scene/export and debug APK build succeeded (131.0s); data-preserving install and cold launch on Android 16/API 36 showed the 2D camp and all four canonical examples, with no Unity/AndroidRuntime/Flutter errors. 01-home.png records that final view.
 
-## Pre-collected character examples
-The user explicitly requested examples assuming the characters were collected. Build with UNITY_DEMO_CREATURES=true alongside FEED=fake and UNITY_APP=true to enable the isolated unity-demo-examples profile. It contains road_sprout (길싹이), puddle_pip (웅덩이삐약), lamp_moth (등불나방) and highway_comet (고속혜성), using existing canonical sprites. Ownership is saved idempotently through DexStore and can be assigned to existing camp roles. The default and original demo profiles, materials and incubation progress remain separate. No materials or remote reward receipts are seeded.
+Runtime logs/results are /tmp/allo_phase2_full.log, /tmp/allo_phase2_core.log, /tmp/allo-phase2-car-tests.log, /tmp/allo-latest-dev-ui-final-editmode.xml and /tmp/allo-latest-dev-final-playmode.xml.
 
-The 2D camp displays up to four authoritative owned-character markers, preserving them across state ticks. Their name badges update, removed characters are cleaned up, and tapping a marker selects its exact creature/species in the friends view. Missing art is explicitly labeled.
+## Remaining checks
 
-## Remaining integration limits
-Pleos fishing/logging rewards await the upstream contract; no remote reward schema, fake receipt or production balance was invented. Real vehicle sync and physical-device camera/microphone remain unverified. Manual emulator system Back/pan automation was inconclusive; no manual success is claimed for those checks. Character species without approved sprites use an explicit neutral placeholder without substituting another species.
-
-The runtime demonstration uses the opt-in isolated fake-feed example profile and preserves the prior profiles on installation. No credentials or runtime configuration values are stored here.
-
-Final character-preview verification: Unity EditMode 95/95, PlayMode 1/1, phone suite 302/302 and scoped analysis passed. After removing the redundant permanent sample banner, focused demo boundaries passed 5/5 again (/tmp/allo-demo-friends-no-banner-tests.log). Actual Android rendering showed all four canonical characters with their names over the 2D camp; no Unity/AndroidRuntime/Flutter errors were logged during the launch check.
-
-Final no-banner APK succeeded in 13.2s (/tmp/allo-demo-friends-final-apk.log), updated with data-preserving install and cold-launched. Actual final screenshot 01-home.png confirms all four characters, 2D survival facilities and the compact demo chip without the large notice banner.
+Real vehicle/network integration and physical-device camera/microphone remain unverified in this work. Manual emulator system Back/pan automation was inconclusive; the PlayMode test verifies actual raycast/drag dispatch and both axes. Species without approved sprites use a clearly labeled placeholder. Runtime credentials and generated Unity libraries/APKs are excluded from the PR.

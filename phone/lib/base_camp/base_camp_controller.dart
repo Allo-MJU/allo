@@ -48,7 +48,23 @@ class BaseCampController extends ChangeNotifier {
   /// The engine is mutable internally; callers receive a detached snapshot.
   BaseCamp get state => BaseCamp.fromJson(_camp.toJson());
 
-  Future<bool> load() => _enqueue(() async {
+  Future<bool>? _loadInFlight;
+  Future<bool> load() {
+    final pending = _loadInFlight;
+    if (pending != null) return pending;
+    final result = Completer<bool>();
+    _loadInFlight = result.future;
+    _loadOnce().then((value) {
+      _loadInFlight = null;
+      result.complete(value);
+    }, onError: (Object error, StackTrace stack) {
+      _loadInFlight = null;
+      result.completeError(error, stack);
+    });
+    return result.future;
+  }
+
+  Future<bool> _loadOnce() => _enqueue(() async {
         Map<String, dynamic>? saved;
         try {
           saved = await _store.load();

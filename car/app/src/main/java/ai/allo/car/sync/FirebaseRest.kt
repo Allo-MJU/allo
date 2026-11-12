@@ -42,7 +42,12 @@ class FirebaseRest(
     /** 일반 REST(PUT/PATCH/POST) 한 번의 전체 limit. 응답이 멈추면 IOException (PR #27 리뷰) */
     restCallTimeoutMs: Long = 10_000,
     private val tokens: FirebaseTokenProvider? = null,
+    private val databaseNamespace: String? = null,
 ) {
+    init {
+        require(databaseNamespace == null || databaseNamespace.matches(Regex("[a-z][a-z0-9-]{0,62}")))
+    }
+
     /**
      * SSE 와 같은 연결 풀을 쓰되 응답 대기를 제한한 클라이언트. readTimeout(0) 을 그대로 쓰면
      * 서버가 요청을 받고 응답하지 않을 때 PUT 이 끝나지 않아 1초 발행 루프와 sessionEnd 전송이 멈춘다.
@@ -78,6 +83,7 @@ class FirebaseRest(
 
     private fun authenticatedUrl(path: String, token: String?) = url(path).toHttpUrl().newBuilder().apply {
         if (token != null) addQueryParameter("auth", token)
+        if (databaseNamespace != null) addQueryParameter("ns", databaseNamespace)
     }.build()
 
     private class HttpFailure(val status: Int) : IOException("Firebase HTTP $status")
