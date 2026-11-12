@@ -48,7 +48,7 @@ namespace Allo.App
                 }
                 Copy(right, "알을 고른 뒤 함께할 시간을 시작해 주세요. 친밀도가 100이 되면 새 친구가 깨어나요.");
                 Button(right, egg != null && (egg.phase == "failed" || egg.phase == "discarded") ? "이 알로 다시 시작" : "이 알과 시작하기", () => Send("startEgg", new AppAction { tier = _tier }), Yellow, 72, CanAct && _state.canStart);
-                if (!_state.canStart) Note(right, _state.sessionEnded ? "여행이 끝났어요. 설정에서 다음 연결을 준비해 주세요." : "지금은 알을 시작할 수 없어요. 설정에서 차량 연결 상태를 확인해 주세요.");
+                if (!_state.canStart) Note(right, egg != null && egg.phase == "hatched" ? "새 친구와 함께하면서 다음 알을 기다려 주세요." : _state.sessionEnded ? "여행이 끝났어요. 설정에서 다음 연결을 준비해 주세요." : "지금은 알을 시작할 수 없어요. 설정에서 차량 연결 상태를 확인해 주세요.");
                 Button(right, "연결 상태 보기", () => Navigate("settings"), Cream);
                 return;
             }
