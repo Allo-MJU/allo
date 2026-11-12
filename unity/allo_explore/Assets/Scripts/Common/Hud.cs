@@ -11,6 +11,7 @@ namespace Allo
     /// - 왼쪽 위 돌아가기 → Flutter 로 close
     /// - 오른쪽 위 주행 종료 (체험 주행일 때만, settings.canEndTrip) → endTrip
     /// - 오른쪽 아래 먹이 주기 → 동행 캐릭터가 사과를 먹고, Flutter 로 feed
+    /// - 아직 알만 있으면 그 자리에 노래·담요 (알 돌보기 → care)
     /// - 아래 가운데 "봤어!" (창밖 친구가 보일 때만) → spotted
     /// - 위 가운데 안내 글 (Flutter 가 toast 로 보낸 문구)
     /// 글은 Flutter 가 정하고, 여기서는 버튼 이름 정도만 둔다.
@@ -27,7 +28,8 @@ namespace Allo
 
         Font _font;
         Sprite _pill;
-        GameObject _endGo, _spotGo;
+        GameObject _endGo, _spotGo, _snackGo, _ballGo, _singGo, _blanketGo;
+        Text _blanketLabel;
         Text _toast;
         CanvasGroup _toastGroup;
         float _toastUntil;
@@ -63,9 +65,19 @@ namespace Allo
 
         void OnToast(ToastState t) => Show(t.text, 2.6f);
 
+        float _holdUntil;
+
+        /// 다른 안내가 덮지 못하게 잠깐 붙잡아 두는 글 (알에서 태어날 때)
+        public void ShowHold(string text, float seconds)
+        {
+            _holdUntil = 0;
+            Show(text, seconds);
+            _holdUntil = Time.unscaledTime + seconds;
+        }
+
         public void Show(string text, float seconds = 2.4f)
         {
-            if (_toast == null) return;
+            if (_toast == null || Time.unscaledTime < _holdUntil) return;
             _toast.text = text;
             _toastGroup.alpha = 1;
             _toastUntil = Time.unscaledTime + seconds;
@@ -77,6 +89,19 @@ namespace Allo
             {
                 var show = world != null && world.Spottable != null;
                 if (_spotGo.activeSelf != show) _spotGo.SetActive(show);
+            }
+            // 동행 없이 알만 있으면 간식·공 대신 알 돌보기 버튼
+            if (critters != null && _singGo != null)
+            {
+                var eggMode = critters.Companion == null && (critters.HasEgg || critters.Hatching);
+                if (_singGo.activeSelf != eggMode)
+                {
+                    _singGo.SetActive(eggMode);
+                    _blanketGo.SetActive(eggMode);
+                    _snackGo.SetActive(!eggMode);
+                    _ballGo.SetActive(!eggMode);
+                }
+                if (eggMode) _blanketLabel.text = critters.EggCovered ? "담요 걷기" : "담요";
             }
             if (_toastGroup != null && _toastGroup.alpha > 0 && Time.unscaledTime > _toastUntil)
                 _toastGroup.alpha = Mathf.MoveTowards(_toastGroup.alpha, 0, Time.unscaledDeltaTime * 2.5f);
@@ -107,8 +132,13 @@ namespace Allo
             Button(root, "←", new Vector2(0, 1), new Vector2(26, -26), new Vector2(64, 64), Cream, 34, FlutterBridge.RequestClose);
             _endGo = Button(root, "주행 종료", new Vector2(1, 1), new Vector2(-26, -26), new Vector2(170, 58), Cream, 26, EndTrip);
             _endGo.SetActive(false);
-            Button(root, "간식", new Vector2(1, 0), new Vector2(-26, 26), new Vector2(150, 66), Yellow, 28, Feed);
-            Button(root, "공", new Vector2(1, 0), new Vector2(-190, 26), new Vector2(110, 66), Mint, 28, Ball);
+            _snackGo = Button(root, "간식", new Vector2(1, 0), new Vector2(-26, 26), new Vector2(150, 66), Yellow, 28, Feed);
+            _ballGo = Button(root, "공", new Vector2(1, 0), new Vector2(-190, 26), new Vector2(110, 66), Mint, 28, Ball);
+            _singGo = Button(root, "♪ 노래", new Vector2(1, 0), new Vector2(-26, 26), new Vector2(150, 66), Yellow, 28, Sing);
+            _blanketGo = Button(root, "담요", new Vector2(1, 0), new Vector2(-190, 26), new Vector2(130, 66), Mint, 28, Blanket);
+            _blanketLabel = _blanketGo.GetComponentInChildren<Text>();
+            _singGo.SetActive(false);
+            _blanketGo.SetActive(false);
             _spotGo = Button(root, "봤어!", new Vector2(0.5f, 0), new Vector2(0, 26), new Vector2(170, 66), Mint, 30, Spot);
             _spotGo.SetActive(false);
 
@@ -198,6 +228,10 @@ namespace Allo
         void Feed() => critters?.Hold(false);
 
         void Ball() => critters?.Hold(true);
+
+        void Sing() => critters?.SingToEgg();
+
+        void Blanket() => critters?.ToggleEggBlanket();
 
         void Spot()
         {

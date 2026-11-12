@@ -10,8 +10,10 @@ namespace Allo
     ///
     /// - 간식·공을 들고 있으면: 톡 치거나 휙 밀어 그쪽으로 던진다
     /// - 캐릭터 위에서 시작한 끌기: 쓰다듬기 (짧게 떼면 탭 = 폴짝, 자고 있으면 담요)
+    /// - 둥지의 알 위에서 시작한 끌기: 알 문지르기 (짧게 떼면 톡톡)
     /// - 유리를 꾹(0.45초) 누르면 입김, 김 서린 유리 위를 끌면 그림
-    /// - 짧은 탭: 창밖 친구 발견, 물병(물)·인형·쿠션(작은 장난감), 천장등(불 끄면 잠), 머리받침 등 흔들림, 유리 반짝
+    /// - 짧은 탭: 창밖 친구 발견, 비눗방울 터뜨리기, 놀이 물건(흔들 인형·장난감 차·오르골·그림책·비눗방울 병·휴지),
+    ///   둥지(알이 없으면 동행이 쉰다), 물병(물)·인형·쿠션(작은 장난감), 천장등(불 끄면 잠), 머리받침 등 흔들림, 유리 반짝
     /// - 그 밖의 끌기: 둘러보기 (CameraRig). 위 동작 중에는 CameraRig.Locked 로 둘러보기를 멈춘다
     [RequireComponent(typeof(Camera))]
     public sealed class TapInput : MonoBehaviour
@@ -20,7 +22,7 @@ namespace Allo
         public WorldDirector world;
         public Light cabinLight;
 
-        enum Mode { None, Look, Throw, Pet, Draw }
+        enum Mode { None, Look, Throw, Pet, Draw, Egg }
 
         const float LongPress = 0.45f;
 
@@ -84,6 +86,7 @@ namespace Allo
             if (!Physics.Raycast(_cam.ScreenPointToRay(p), out var hit, 80f)) return;
             var critter = hit.collider.GetComponentInParent<CritterView>();
             if (critter != null) { _petting = critter; Lock(Mode.Pet); return; }
+            if (critters != null && critters.HasEgg && (critters.IsEgg(hit.collider) || critters.IsNest(hit.collider))) { Lock(Mode.Egg); return; }
             var glass = hit.collider.GetComponent<FogGlass>();
             if (glass != null)
             {
@@ -119,6 +122,14 @@ namespace Allo
                     {
                         critters?.Pet(_petting);
                         _rub = Screen.height * 0.03f; // 계속 문지르면 계속 좋아한다
+                    }
+                    break;
+                case Mode.Egg:
+                    _rub += (p - _prev).magnitude;
+                    if (_rub > Screen.height * 0.05f)
+                    {
+                        critters?.RubEgg();
+                        _rub = Screen.height * 0.03f;
                     }
                     break;
                 case Mode.Draw:
@@ -163,6 +174,9 @@ namespace Allo
                 case Mode.Draw:
                     if (_drawn > 0.5f) critters?.DrawDone();
                     return;
+                case Mode.Egg:
+                    if (quick) critters?.TapEgg();
+                    return;
                 default:
                     if (quick) Tap(p);
                     return;
@@ -186,6 +200,11 @@ namespace Allo
             if (!Physics.Raycast(_cam.ScreenPointToRay(screen), out var hit, 80f)) return;
             var friend = hit.collider.GetComponentInParent<Passerby>();
             if (friend != null) { world?.Spot(friend); return; }
+            if (critters != null)
+            {
+                if (critters.TryProp(hit)) return;
+                if (critters.IsNest(hit.collider)) { critters.TapNest(); return; }
+            }
             var wobble = hit.collider.GetComponentInParent<Wobble>();
             if (wobble != null)
             {

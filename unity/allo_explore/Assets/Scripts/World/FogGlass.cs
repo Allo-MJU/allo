@@ -8,9 +8,9 @@ namespace Allo.World
     [RequireComponent(typeof(Renderer))]
     public sealed class FogGlass : MonoBehaviour
     {
-        const int W = 128;
+        const int W = 320;           // 김서림 텍스처 가로 칸 수 (옆 유리 약 2.4m → 칸당 약 0.8cm)
         const float Breath = 0.2f;    // 입김 반지름 (가로 UV 기준)
-        const float Brush = 0.045f;   // 손가락 굵기
+        const float Brush = 0.012f;   // 손가락 굵기 (가로 UV 기준 반지름. 선 굵기 약 6cm)
         const float RainFog = 0.5f;   // 비 올 때 저절로 서리는 정도 (아래쪽. 위로 갈수록 옅다)
         const float ClearSeconds = 60; // 다 걷히는 시간
 
@@ -21,7 +21,8 @@ namespace Allo.World
         int _h;
         float _aspect = 2;
         bool _dirty, _hasFog;
-        float _applyAt;
+        float _applyAt, _tick;
+        byte[] _px;
         Renderer _r;
         MaterialPropertyBlock _mpb;
 
@@ -95,7 +96,15 @@ namespace Allo.World
         void Update()
         {
             if (!Raining && !_hasFog && !_dirty) return;
-            var dt = Time.deltaTime;
+            // 김은 수십 초에 걸쳐 서리고 걷히므로 0.1초마다 한 번만 계산한다 (닦은 자리는 Stamp 가 바로 바꾼다)
+            _tick += Time.deltaTime;
+            if (_tick < 0.1f)
+            {
+                if (_dirty && Time.unscaledTime >= _applyAt) Push();
+                return;
+            }
+            var dt = _tick;
+            _tick = 0;
             var any = false;
             _hasFog = false;
             for (var i = 0; i < _fog.Length; i++)
@@ -113,7 +122,8 @@ namespace Allo.World
 
         void Push()
         {
-            var px = new byte[_fog.Length];
+            if (_px == null || _px.Length != _fog.Length) _px = new byte[_fog.Length]; // 매번 새로 만들지 않는다 (GC 멈춤)
+            var px = _px;
             for (var i = 0; i < px.Length; i++) px[i] = (byte)(Mathf.Clamp01(_fog[i]) * 255);
             _tex.LoadRawTextureData(px);
             _tex.Apply(false);

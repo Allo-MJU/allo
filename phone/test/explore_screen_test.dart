@@ -306,4 +306,110 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     expect(closed, 1);
   });
+
+  testWidgets('탐험 중 품던 알이 깨어나면 egg 가 hatched·태어남 문구로 바뀌고, 닫을 때 true 를 돌려준다',
+      (tester) async {
+    final c = fakeController();
+    addTearDown(c.dispose);
+    c.game = c.game.copyWith(stage: Stage.incubating, progress: 0.7);
+    final sent = <String>[];
+    void Function(String)? toFlutter;
+    Object? result = 'none';
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(
+        builder: (context) => TextButton(
+          onPressed: () async {
+            result = await Navigator.of(context).push<bool>(MaterialPageRoute(
+              builder: (_) => ExploreScreen(
+                controller: c,
+                unityAvailable: true,
+                unityView: ({required onCreated, required onMessage}) {
+                  toFlutter = onMessage;
+                  onCreated(sent.add);
+                  return const SizedBox.expand();
+                },
+              ),
+            ));
+          },
+          child: const Text('열기'),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('열기'));
+    await tester.pumpAndSettle();
+    toFlutter!('{"v":1,"type":"ready"}');
+    List<Map> eggs() => [
+          for (final s in sent)
+            if ((jsonDecode(s) as Map)['type'] == 'egg') jsonDecode(s) as Map
+        ];
+    expect(eggs().last['state'], 'incubating');
+    expect(eggs().last['progress'], 0.7);
+    // egg 는 cast 보다 먼저 간다 (Unity 가 새 동행을 둥지에서 꺼내려면)
+    final types = [for (final s in sent) (jsonDecode(s) as Map)['type']];
+    expect(types.indexOf('egg'), lessThan(types.indexOf('cast')));
+
+    // 돌보기
+    toFlutter!('{"v":1,"type":"care","kind":"rub"}');
+    expect(c.careCount, 1);
+
+    c.hatched = const Species(
+        id: 'puddle_pip',
+        nameEn: 'Puddle Pip',
+        nameKo: '퍼들핍',
+        attribute: Attribute.water,
+        tier: 1,
+        requiredTags: [],
+        maxHarsh: null,
+        hint: '',
+        sprite: 'species/puddle_pip.png');
+    c.game = c.game.copyWith(stage: Stage.hatched, progress: 1);
+    c.notifyListeners();
+    expect(eggs().last['state'], 'hatched');
+    expect(eggs().last['bornText'], '퍼들핍이 태어났어요!');
+
+    toFlutter!('{"v":1,"type":"close"}');
+    await tester.pumpAndSettle();
+    expect(result, isTrue);
+  });
+
+  testWidgets('이미 부화한 뒤에 들어오면 태어남 문구 없이 hatched 만 보내고, 닫을 때 false', (tester) async {
+    final c = fakeController();
+    addTearDown(c.dispose);
+    c.game = c.game.copyWith(stage: Stage.hatched, progress: 1);
+    final sent = <String>[];
+    void Function(String)? toFlutter;
+    Object? result = 'none';
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(
+        builder: (context) => TextButton(
+          onPressed: () async {
+            result = await Navigator.of(context).push<bool>(MaterialPageRoute(
+              builder: (_) => ExploreScreen(
+                controller: c,
+                unityAvailable: true,
+                unityView: ({required onCreated, required onMessage}) {
+                  toFlutter = onMessage;
+                  onCreated(sent.add);
+                  return const SizedBox.expand();
+                },
+              ),
+            ));
+          },
+          child: const Text('열기'),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('열기'));
+    await tester.pumpAndSettle();
+    toFlutter!('{"v":1,"type":"ready"}');
+    final egg = [
+      for (final s in sent)
+        if ((jsonDecode(s) as Map)['type'] == 'egg') jsonDecode(s) as Map
+    ].last;
+    expect(egg['state'], 'hatched');
+    expect(egg['bornText'], '');
+    toFlutter!('{"v":1,"type":"close"}');
+    await tester.pumpAndSettle();
+    expect(result, isFalse);
+  });
 }

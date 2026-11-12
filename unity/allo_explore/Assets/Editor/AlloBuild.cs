@@ -88,6 +88,10 @@ public static class AlloBuild
             else if (r.name.StartsWith("Plush") || r.name.StartsWith("Cushion") || r.name.StartsWith("Bottle")) Tappable(r, (14, 0.12f));
             else if (r.name.StartsWith("GrabHandle")) Tappable(r, (18, 0.02f));
             else if (r.name.StartsWith("DomeLight") || r.name.StartsWith("Armrest")) Tappable(r, (3, 0.03f));
+            // 놀이 물건 (CritterDirector.Props): 흔들리는 것과, 뚜껑·표지가 열리거나 달리는 것(흔들림 없이 충돌체만)
+            else if (r.name.StartsWith("Bobble")) Tappable(r, (24, 0.04f));
+            else if (r.name.StartsWith("BubbleJar") || r.name.StartsWith("TissueBox")) Tappable(r, (12, 0.08f));
+            else if (r.name.StartsWith("ToyCar") || r.name.StartsWith("MusicBox") || r.name.StartsWith("Book")) Tappable(r, null);
         }
 
         // 앞좌석 머리받침을 끝까지 내린다: 뒷좌석 가운데 아이 눈에 앞유리가 보이게 (천장이 낮아 눈을 더 올릴 수 없다)
@@ -320,6 +324,43 @@ public static class AlloBuild
         cam.targetTexture = null;
         RenderTexture.active = null;
         Debug.Log($"[AlloBuild] captured views to {outDir}");
+    }
+
+    /// 둥지의 알(곧 깨어날 때)과 놀이 물건을 찍는다 (빌드 없이 배치 확인). docs/work-results/explore/unity_egg_*.png
+    ///   Unity -batchmode -quit -projectPath unity/allo_explore -executeMethod AlloBuild.CaptureEgg
+    public static void CaptureEgg()
+    {
+        EditorSceneManager.OpenScene(ScenePath);
+        var cam = Camera.main;
+        var rig = cam.GetComponent<Allo.CameraRig.CameraRig>();
+        var dir = rig.lookTarget.position - rig.rearAnchor.position;
+        var baseYaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+        var outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../../../docs/work-results/explore"));
+        Directory.CreateDirectory(outDir);
+        var director = Object.FindFirstObjectByType<Allo.Critters.CritterDirector>();
+        var graph = director.BuildGraph();
+        director.EditorPreview(graph, 0.97f);
+        var rt = new RenderTexture(1600, 720, 24);
+        cam.targetTexture = rt;
+        var shots = new (string name, float yaw, float pitch)[]
+        {
+            ("unity_egg_front", 0, -12), ("unity_egg_left", -60, -25), ("unity_egg_right", 60, -25),
+            ("unity_egg_down", 0, -45), ("unity_egg_back", 180, 0), ("unity_egg_armrest", 25, -55),
+        };
+        foreach (var (name, yaw, pitch) in shots)
+        {
+            cam.transform.position = rig.rearAnchor.position;
+            cam.transform.rotation = Quaternion.Euler(-pitch, baseYaw + yaw, 0);
+            cam.Render();
+            RenderTexture.active = rt;
+            var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+            tex.Apply();
+            File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+        }
+        cam.targetTexture = null;
+        RenderTexture.active = null;
+        Debug.Log($"[AlloBuild] captured egg views to {outDir}");
     }
 
     /// 장면마다 창밖을 만들어 앞·옆을 찍는다 (빌드 없이 확인)

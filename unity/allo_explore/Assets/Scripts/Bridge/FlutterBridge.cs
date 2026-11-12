@@ -19,11 +19,13 @@ namespace Allo.Bridge
         public static event Action<SettingsState> SettingsChanged;
         public static event Action<ToastState> Toasted;
         public static event Action<RouteState> RouteChanged;
+        public static event Action<EggState> EggChanged;
 
         public static SceneState LastScene { get; private set; }
         public static CastState LastCast { get; private set; }
         public static SettingsState LastSettings { get; private set; }
         public static RouteState LastRoute { get; private set; }
+        public static EggState LastEgg { get; private set; }
 
         void Start() => SendReady();
 
@@ -67,6 +69,10 @@ namespace Allo.Bridge
                 case RouteState r:
                     LastRoute = r;
                     RouteChanged?.Invoke(r);
+                    break;
+                case EggState e:
+                    LastEgg = e;
+                    EggChanged?.Invoke(e);
                     break;
                 default:
                     Debug.Log($"[FlutterBridge] 무시: {type}");

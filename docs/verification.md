@@ -521,3 +521,30 @@ Pleos Connect v2.1.0 에뮬레이터(차량 앱 debug) + 휴대폰 에뮬레이�
 - 캐릭터가 아이 시야 밖이나 가려진 곳으로 가던 문제: 장면 빌드 때 면마다 9×9 보임 지도를 구워(편한 각도 + 앞좌석·머리받침에 안 가림) 그 칸에만 선다. 창턱은 보이는 0.74m 만, 계기판은 머리받침 뒤를 뺀 0.9m 만 쓴다. 바닥은 정면 화면 밖이라 1/4 확률로만 간다
 - 2D 캐릭터 탭 상자가 발밑에 작게 있어 날개·당겨 그린 그림을 눌러도 유리가 눌리던 문제 → 상자가 그림을 따라간다
 - 테스트: Unity EditMode 60개 (놀이 5개 추가), `flutter test` 178개
+
+## 탐험 화면 — 알·부화 연출, 차 안 물건 놀이 (2026-11-12, A)
+
+Unity 6000.0.85f2, 휴대폰 에뮬레이터(Medium Phone API 37, `-gpu host`), `FEED=fake SCENARIO=scene_tour EXPLORE_UNITY=true FAKE_TIME_SCALE=2`. debug 와 release 둘 다 확인.
+
+흐름: 체험 시작 → 알을 받으면 **바로 Unity 차 안**(센터 콘솔 위 둥지에 알) → 돌보다가 그 안에서 깨어남 → 둥지에서 동행이 나옴. 탐험을 닫으면 품기 화면, 오른쪽 위 버튼으로 다시 들어감. 탐험 안에서 깨어나는 장면을 봤으면 닫을 때 부화 화면을 건너뛰고 동행 화면으로 간다.
+
+| 항목 | 결과 |
+| --- | --- |
+| `egg` 메시지(Flutter → Unity): 단계·진행도·알 id·큰 알·태어남 문구. `cast` 보다 먼저 보낸다 | ✅ `explore_messages_test`·`explore_screen_test`, Unity `MessageParserTests`·`EggTrackerTests` |
+| 알: 진행도에 따라 더 자주 들썩, 50·80·95% 에 금. 톡톡(탭)·문지르기·노래(버튼·오르골)·담요 → `care{kind}` → `GameController.care()` (같은 종류는 2~5초에 한 번) | ✅ 에뮬레이터: `care tap/rub/sing/blanket` 수신 |
+| 깨어나기: 흔들림 → 금 → 빛 → 윗껍데기 날아감 → 둥지에서 동행 등장 + "OO이/가 태어났어요!"(3.5초 동안 다른 안내가 덮지 않음). 다른 곳을 보고 있으면 카메라가 둥지 쪽으로 돈다 | ✅ 에뮬레이터 debug·release 모두 `hatch start` → 약 2.6초 뒤 `hatched` |
+| 차 안 물건(Blender `cabin.py`): 흔들 인형(대시보드)·장난감 자동차(바닥)·오르골(오른쪽 자리)·그림책(왼쪽 자리)·비눗방울 병(팔걸이 컵홀더)·휴지 상자(뒷선반), 알이 없을 때 둥지 = 동행 쉼터 | ✅ 오르골·장난감 차·비눗방울 기기 확인. 그림책·휴지·흔들 인형은 같은 경로, 기기 미확인 |
+| 알만 있을 때 아래 버튼이 간식·공 대신 노래·담요 | ✅ |
+
+함께 고친 것:
+1. **release 빌드에서 Unity ↔ Flutter 연결이 끊김** (`ClassNotFoundException: ai.allo.allo_phone.ExploreBridge`). 코드 축소(R8)가 Unity 가 이름으로 찾는 클래스를 지웠다 → `phone/android/app/proguard-rules.pro`. 이전 release 빌드도 같은 문제였을 것으로 본다(추정, 이전 빌드는 다시 확인하지 않음)
+2. 앱 라우터가 컨트롤러가 바뀔 때마다 경로를 다시 계산해 `push` 결과 Future 가 돌아오지 않음 → 탐험이 열려 있는지(`exploreScreenOpen`)로 판단
+3. 동행 반응 문구 조사가 늘 "가"(폭풍등가) → 받침에 맞게 (`GameController.subjectOf`)
+4. 담요가 알 위에 뜬 납작한 판 → 알을 감싸는 포대기, 알과 같이 흔들림
+5. 김 서린 창 그림 선이 너무 굵음(약 19cm) → 텍스처 128 → 320칸, 붓 반지름 0.045 → 0.012 (약 6cm)
+6. 끊김 줄이기: 김서림 계산을 0.1초마다(매 프레임 전체 계산 → 10Hz), 텍스처 버퍼 재사용(GC), 효과·장난감 재질을 색·그림마다 하나만 만들어 재사용(이전에는 만들 때마다 새 재질이 쌓였다)
+7. 막 깨어난 동행이 터널·밤이면 바로 잠들던 것 → 8초 동안 깨어 있음
+
+성능(에뮬레이터, 참고용): debug 빌드는 3~5fps, 2~25초 멈춤(디버그 JIT + 같은 프로세스). release 빌드는 28~60fps, 가끔 120~380ms 끊김. 에뮬레이터 기본 설정은 GPU 대신 CPU 렌더링(lavapipe·SwiftShader)이라 `-gpu host` 로 띄웠다. 측정 당시 Mac 에서 Spotlight 색인과 다른 가상 머신이 함께 돌았다. **실기기 측정은 #77** — Unity 가 10초마다 `[Perf] fps=… worst=…ms` 를 로그로 남긴다.
+
+테스트: Unity EditMode 71개, `flutter test` 186개, `flutter analyze lib test` 문제 없음.
