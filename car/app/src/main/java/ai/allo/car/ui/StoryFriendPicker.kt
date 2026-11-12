@@ -22,9 +22,7 @@ internal fun StoryFriendPicker(
                 verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("수집한 친구와 이야기해요. 광장 표시와 차량 동행은 바뀌지 않아요.",
                     style = MaterialTheme.typography.bodyMedium)
-                OutlinedButton(onClick = { onSelect(null) }, modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)) {
-                    Text("차량 동행과 이야기")
-                }
+                ToyButton("차량 동행과 이야기", { onSelect(null) }, Modifier.fillMaxWidth())
                 if (available.isEmpty()) Text("폰에서 수집한 친구 정보를 기다리고 있어요.")
                 available.forEach { id ->
                     val species = catalog[id] ?: return@forEach
@@ -41,5 +39,5 @@ internal fun StoryFriendPicker(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("닫기") } })
+        confirmButton = { ToyButton("닫기", onDismiss) })
 }

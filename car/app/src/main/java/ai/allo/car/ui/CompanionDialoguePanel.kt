@@ -85,10 +85,8 @@ fun CompanionDialoguePanel(
             }
         }, onDismiss = { pickerOpen = false })
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        OutlinedButton(onClick = { pickerOpen = true }, enabled = connected,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp)) {
-            Text("대화할 친구 바꾸기 · $displayedName", style = MaterialTheme.typography.titleSmall)
-        }
+        ToyButton("대화할 친구 바꾸기 · $displayedName", { pickerOpen = true },
+            modifier = Modifier.fillMaxWidth(), enabled = connected)
         if (subject == null) {
             ParkedInfoCard("대화 준비 중", if (!connected) "폰 연결을 확인해 주세요." else "대화할 친구 바꾸기에서 수집한 친구를 불러 주세요.")
         } else {
@@ -154,20 +152,13 @@ fun CompanionDialoguePanel(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             CompanionDialogue.QUESTIONS.forEach { question ->
                 val chosen = answer?.questionId == question.id
-                Surface(onClick = {
+                ToyButton(question.label, onClick = {
                     // Revalidate the live subject; an old tap cannot answer for a replacement.
                     if (dialogue.subject(latestGame, latestConnected, latestGuestSpeciesId)?.key == subject.key) {
                         voice.stop()
                         answer = dialogue.answer(question.id, latestGame, latestConnected, latestGuestSpeciesId)
                     }
-                }, selected = chosen, modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                    color = if (chosen) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
-                    contentColor = if (chosen) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface) {
-                    Box(Modifier.padding(18.dp), contentAlignment = androidx.compose.ui.Alignment.CenterStart) {
-                        Text(question.label, style = MaterialTheme.typography.titleLarge)
-                    }
-                }
+                }, primary = chosen, modifier = Modifier.fillMaxWidth())
             }
             }
             Text(if (unreviewedPreview) "개발용 미리보기 · 검수 전 대사가 포함될 수 있어요."

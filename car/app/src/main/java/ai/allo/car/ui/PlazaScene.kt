@@ -107,9 +107,7 @@ internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride
                         }
 
                     }
-                    Surface(Modifier.align(Alignment.BottomCenter).padding(horizontal = 24.dp, vertical = 14.dp).fillMaxWidth(),
-                        shape = RoundedCornerShape(32.dp), color = if (dark) Color(0xED26382D) else Color(0xEDFAF7E7),
-                        border = BorderStroke(1.dp, Color(0xFFB9C8A1))) { dock() }
+                    Box(Modifier.align(Alignment.BottomCenter).padding(horizontal = 24.dp, vertical = 14.dp).fillMaxWidth()) { dock() }
                     visible.forEachIndexed { index, id -> key(id) {
                         val species = catalog[id]!!
                         // A local clock pauses exactly where the user tapped and resumes without a jump.

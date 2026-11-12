@@ -6,6 +6,7 @@ import ai.allo.car.model.PlazaPopulation
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.platform.LocalContext
 import android.content.Context
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -52,11 +53,10 @@ fun ParkedScreen(
             Column(Modifier.fillMaxSize().padding(if (compact) 12.dp else 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     AlloWordmark(Modifier.width(if (compact) 88.dp else 132.dp).height(64.dp))
-                    Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf("광장", "이야기", "여행").forEach { name ->
-                            FilterChip(selected = tab == name, onClick = { tab = name },
-                                label = { Text(name, style = MaterialTheme.typography.titleSmall) },
-                                modifier = Modifier.heightIn(min = 56.dp), shape = RoundedCornerShape(50))
+                            ToyNavigationButton(label = name, selected = tab == name,
+                                dark = dark, onClick = { tab = name })
                         }
                     }
                     if (!compact) Text(if (connected) "친구 상태 연결됨" else "마지막으로 받은 상태",
@@ -64,7 +64,7 @@ fun ParkedScreen(
                 }
                 if (tab !in listOf("광장", "이야기", "여행")) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        OutlinedButton(onClick = { tab = "광장" }, modifier = Modifier.heightIn(min = 64.dp)) { Text("‹ 광장으로") }
+                        ToyButton("‹ 광장으로", { tab = "광장" })
                         Text(tab, style = MaterialTheme.typography.titleLarge)
                     }
                 }
@@ -74,11 +74,9 @@ fun ParkedScreen(
                         Column(Modifier.verticalScroll(rememberScrollState())) {
                         // Keep the scene usable in short windows; scroll instead of squeezing touch targets.
                         PlazaScene(game, connected, sceneHeightOverride = availableHeight, selectedResidents = visibleFriends) {
-                            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)) {
                                 listOf("친구들" to "친구들", "모은 재료" to "재료", "거점" to "거점").forEach { (label, destination) ->
-                                    TextButton(onClick = { if (destination == "재료") materialsOpen = true else tab = destination }, modifier = Modifier.heightIn(min = 64.dp)) {
-                                        Text(label, style = MaterialTheme.typography.titleSmall)
-                                    }
+                                    ToyButton(label, { if (destination == "재료") materialsOpen = true else tab = destination }, Modifier.widthIn(min = 144.dp))
                                 }
                             }
                         }
@@ -126,13 +124,13 @@ fun ParkedScreen(
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { tab = "폰 공유" }) { Text("폰 연결 · 공유") }
+                    ToyButton("폰 연결 · 공유", { tab = "폰 공유" })
                 }
             }
         }
     }
     if (materialsOpen) AlertDialog(onDismissRequest = { materialsOpen = false },
         title = { Text("모은 재료") }, text = { Column(Modifier.verticalScroll(rememberScrollState())) { MaterialInventory(game) } },
-        confirmButton = { TextButton(onClick = { materialsOpen = false }) { Text("닫기") } })
+        confirmButton = { ToyButton("닫기", { materialsOpen = false }) })
 
 }

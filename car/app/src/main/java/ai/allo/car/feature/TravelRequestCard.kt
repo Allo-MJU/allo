@@ -2,6 +2,7 @@ package ai.allo.car.feature
 
 import ai.allo.car.gleo.TravelRequestFlow
 import ai.allo.car.model.GameState
+import ai.allo.car.ui.ScreenAction
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -31,7 +32,7 @@ fun TravelRequestCard(
             Text("다음 여행 부탁 · $region", style = MaterialTheme.typography.titleMedium)
             Text("부모님과 후보를 살펴본 뒤 운전자가 내비 요청을 수락해 주세요.")
             if (!connected) Text("폰 연결과 주행 세션을 확인해 주세요.")
-            Button(onClick = onOffer, enabled = connected) { Text("여행 후보 보기") }
+            ScreenAction("여행 후보 보기", onOffer, enabled = connected)
             when (offer) {
                 is TravelRequestFlow.Offer.Made -> {
                     if (offer.suggestions.all { it.distanceKm == null }) Text("현재 위치를 몰라 거리가 없는 기본 후보를 보여드려요.")
@@ -39,7 +40,7 @@ fun TravelRequestCard(
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(suggestion.destination.name)
                             suggestion.distanceKm?.let { Text("직선 거리 ${String.format(Locale.ROOT, "%.1f", it)} km") }
-                            OutlinedButton(onClick = { onAccept(offer.token, index) }, enabled = connected) { Text("운전자 내비 요청 수락") }
+                            ScreenAction("운전자 내비 요청 수락", { onAccept(offer.token, index) }, enabled = connected, secondary = true)
                         }
                     }
                 }
