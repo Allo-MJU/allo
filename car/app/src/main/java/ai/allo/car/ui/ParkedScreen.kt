@@ -12,8 +12,9 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 
 /** Parked review of phone-owned information. Every mutation remains a supplied callback. */
 @Composable
@@ -27,50 +28,51 @@ fun ParkedScreen(
     val catalog = rememberSpeciesCatalog()
     val summary = PetSummary.from(game, connected, catalog)
     val companionValid = "companion" !in game.invalidBlocks
-    val emptyCompanion = game.hasV2Contract && companionValid &&
-        (game.companion == null || game.companion?.location == "phone")
     val hasCarPet = if (game.hasV2Contract) companionValid && game.companion?.location == "car"
         else summary.showArt && !summary.showEgg
     var tab by rememberSaveable(game.companion?.displayId, game.companion?.displayRevision, game.companion?.location, connected) { mutableStateOf("광장") }
-    val tabs = listOf("광장", "도감", "이야기", "거점", "여행", "폰 공유")
-    ScreenFrame(if (tab == "광장") "친구들의 광장" else "함께 쉬어가는 시간", if (connected) "폰 상태 연결됨" else "마지막으로 받은 상태", modifier) {
-        BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
-            val rail = maxWidth >= 880.dp && LocalDensity.current.fontScale <= 1.4f
-            val menu: @Composable (String) -> Unit = { name ->
-                val selected = tab == name
-                Surface(onClick = { tab = name }, selected = selected,
-                    shape = RoundedCornerShape(18.dp),
-                    color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-                    contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = (if (rail) Modifier.fillMaxWidth() else Modifier.widthIn(min = 100.dp)).heightIn(min = 64.dp)) {
-                    Box(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), contentAlignment = Alignment.CenterStart) {
-                        Text(name, style = MaterialTheme.typography.titleMedium)
+    var materialsOpen by remember { mutableStateOf(false) }
+    val dark = MaterialTheme.colorScheme.surface.luminance() < .35f
+    val paper = if (dark) MaterialTheme.colorScheme.surface else Color(0xFFFAF7EE)
+    Surface(modifier.fillMaxSize(), color = paper) {
+        BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
+            val compact = maxWidth < 700.dp
+            Column(Modifier.fillMaxSize().padding(if (compact) 12.dp else 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    AlloWordmark(Modifier.width(if (compact) 88.dp else 132.dp).height(64.dp))
+                    Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("광장", "이야기", "여행").forEach { name ->
+                            FilterChip(selected = tab == name, onClick = { tab = name },
+                                label = { Text(name, style = MaterialTheme.typography.titleSmall) },
+                                modifier = Modifier.heightIn(min = 56.dp), shape = RoundedCornerShape(50))
+                        }
                     }
+                    if (!compact) Text(if (connected) "친구 상태 연결됨" else "마지막으로 받은 상태",
+                        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-            }
-            val content: @Composable (Modifier) -> Unit = { paneModifier ->
-                key(tab) {
-                    Column(paneModifier.verticalScroll(rememberScrollState()).padding(4.dp),
-                        verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                if (tab == "광장") {
+                    BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                        val availableHeight = maxHeight
+                        Column(Modifier.verticalScroll(rememberScrollState())) {
+                        // Keep the scene usable in short windows; scroll instead of squeezing touch targets.
+                        PlazaScene(game, connected, sceneHeightOverride = availableHeight) {
+                            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                listOf("친구들" to "도감", "모은 재료" to "재료", "거점" to "거점").forEach { (label, destination) ->
+                                    TextButton(onClick = { if (destination == "재료") materialsOpen = true else tab = destination }, modifier = Modifier.heightIn(min = 64.dp)) {
+                                        Text(label, style = MaterialTheme.typography.titleSmall)
+                                    }
+                                }
+                            }
+                        }
+                        }
+                    }
+                } else key(tab) {
+                    BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                    val pageHeight = maxHeight
+                    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                         when (tab) {
-                            "광장" -> {
-                                PlazaScene(game, connected)
-                                MaterialInventory(game)
-                                ParkedCardGrid(listOf("도감 확인", "친구와 이야기", "거점 확인")) { label ->
-                                    ScreenAction(label, { tab = when (label) { "도감 확인" -> "도감"; "친구와 이야기" -> "이야기"; else -> "거점" } }, secondary = true)
-                                }
-                                if (hasCarPet) {
-                                    onCallCompanion?.let { ScreenAction("폰으로 친구 부르기", it, enabled = connected, secondary = true) }
-                                    onRetryTransfer?.let { ScreenAction("이동 상태 다시 확인", it, enabled = connected, secondary = true) }
-                                }
-                                transferMessage?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
-                                Text("친구 변경은 폰의 보유 친구 목록에서", style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
                             "도감" -> CollectionDex(game, catalog)
-                            "이야기" -> {
-                                CompanionDialoguePanel(game, connected, dialogueBank, summary.title, unreviewedDialoguePreview)
-                            }
+                            "이야기" -> CompanionDialoguePanel(game, connected, dialogueBank, summary.title, unreviewedDialoguePreview, pageHeight)
                             "거점" -> {
                                 ParkedSectionTitle("우리 거점", "건설·요리·훈련 조작은 폰에서 진행해 주세요.")
                                 MaterialInventory(game)
@@ -81,56 +83,33 @@ fun ParkedScreen(
                                     ParkedInfoCard(pieces.first(), pieces.getOrElse(1) { "폰에 저장된 상태" })
                                 }
                             }
-                            "여행" -> {
-                                ParkedSectionTitle("함께 떠날 곳", "다음 여행의 목적지를 함께 골라요.")
+                            "여행" -> TravelNotebook(game, connected, pageHeight) {
                                 if (travelContent != null) travelContent() else ParkedInfoCard("여행 부탁 대기", "폰에서 여행 부탁을 보내 주세요.")
                             }
                             "폰 공유" -> {
                                 ParkedSectionTitle("폰 화면 함께 보기", "주차 중에 폰에서 화면 공유를 시작해 주세요.")
-                                ParkedInfoCard("큰 화면으로 함께", "연결된 폰의 화면을 차량에서 확인할 수 있어요.")
                                 if (onShare != null) ScreenAction("폰 화면 공유", onShare, enabled = connected)
                                 else Text("이 버전에서는 화면 공유를 지원하지 않아요.")
+                                if (hasCarPet) {
+                                    onCallCompanion?.let { ScreenAction("폰으로 친구 부르기", it, enabled = connected, secondary = true) }
+                                    onRetryTransfer?.let { ScreenAction("이동 상태 다시 확인", it, enabled = connected, secondary = true) }
+                                }
+                                transferMessage?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
                             }
                         }
-                        Spacer(Modifier.height(8.dp))
                     }
                 }
-            }
-            if (rail) Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                Column(Modifier.width(152.dp).fillMaxHeight().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("둘러보기", Modifier.padding(16.dp), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    tabs.forEach { menu(it) }
                 }
-                content(Modifier.weight(1f).fillMaxHeight())
-            } else Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) { tabs.forEach { menu(it) } }
-                content(Modifier.fillMaxWidth().weight(1f))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (tab in listOf("광장", "이야기", "여행")) "친구와 쌓아가는 작은 추억" else tab,
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { tab = "폰 공유" }) { Text("폰 연결 · 공유") }
+                }
             }
         }
     }
-}
+    if (materialsOpen) AlertDialog(onDismissRequest = { materialsOpen = false },
+        title = { Text("모은 재료") }, text = { Column(Modifier.verticalScroll(rememberScrollState())) { MaterialInventory(game) } },
+        confirmButton = { TextButton(onClick = { materialsOpen = false }) { Text("닫기") } })
 
-@Composable
-private fun ParkedHero(summary: PetSummary, connected: Boolean, talking: Boolean, title: String, subtitle: String) {
-    Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(28.dp)) {
-        BoxWithConstraints(Modifier.fillMaxWidth().padding(24.dp)) {
-            val horizontal = maxWidth >= 500.dp && LocalDensity.current.fontScale < 1.6f
-            val art: @Composable () -> Unit = {
-                if (summary.showArt) PetArt(summary, if (talking) 112.dp else if (horizontal) 220.dp else 160.dp,
-                    pose = if (talking) PetPose.Idle else PetPose.Sleep, parked = true, connected = connected)
-                else AlloWordmark(Modifier.width(140.dp).height(80.dp))
-            }
-            val words: @Composable () -> Unit = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(if (talking) "오늘의 이야기 친구" else "나의 동행", style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer)
-                    Text(title, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSecondaryContainer)
-                    Text(subtitle, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSecondaryContainer)
-                }
-            }
-            if (horizontal) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                art(); Box(Modifier.weight(1f)) { words() }
-            } else Column(verticalArrangement = Arrangement.spacedBy(16.dp)) { art(); words() }
-        }
-    }
 }

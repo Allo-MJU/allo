@@ -34,6 +34,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.LineBreak
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -42,7 +46,8 @@ import kotlinx.coroutines.isActive
 
 /** Parked-only local presentation. Tapping never changes ownership or selected companion. */
 @Composable
-internal fun PlazaScene(game: GameState, connected: Boolean) {
+internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride: androidx.compose.ui.unit.Dp? = null,
+    dock: @Composable () -> Unit = {}) {
     val catalog = rememberSpeciesCatalog()
     val dialogue = remember { PlazaDialogue() }
     val residents = PlazaPopulation.residents(game).filter { catalog[it] != null }
@@ -72,14 +77,16 @@ internal fun PlazaScene(game: GameState, connected: Boolean) {
                 game.collectionSummary == null || "collectionSummary" in game.invalidBlocks -> "폰의 수집 정보를 기다리고 있어요."
                 else -> "폰에서 수집한 친구들이 이곳에 찾아와요."
             })
+            dock()
         } else {
             BoxWithConstraints(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))) {
                 val sceneWidth = maxWidth
                 val compact = sceneWidth < 700.dp
-                val lawnHeight = if (compact) (sceneWidth * 1.4f).coerceIn(660.dp, 850.dp)
+                val naturalLawnHeight = if (compact) (sceneWidth * 1.4f).coerceIn(660.dp, 850.dp)
                     else (sceneWidth * .53f).coerceIn(440.dp, 650.dp)
                 val headroom = 100.dp
-                val sceneHeight = lawnHeight + headroom
+                val sceneHeight = sceneHeightOverride?.coerceAtLeast(if (compact) 700.dp else 570.dp) ?: (naturalLawnHeight + headroom)
+                val lawnHeight = sceneHeight - headroom - 100.dp
                 Box(Modifier.fillMaxWidth().height(sceneHeight)) {
                     Image(painterResource(R.drawable.plaza_garden), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                     Canvas(Modifier.fillMaxSize()) {
@@ -92,14 +99,19 @@ internal fun PlazaScene(game: GameState, connected: Boolean) {
                         }
                     }
                     Row(Modifier.fillMaxWidth().padding(20.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Column {
+                        Column(Modifier.weight(1f)) {
                             Text(if (dark) "달빛 아래, 친구들의 쉼터" else "오늘도, 함께 놀아요", color = Color.White, style = MaterialTheme.typography.titleLarge)
                             Text("친구를 톡 눌러 인사해 보세요", color = Color.White.copy(alpha = .9f), style = MaterialTheme.typography.bodyMedium)
                         }
-                        if (sceneWidth > 460.dp) Surface(color = Color(0xFF173F30).copy(alpha = .82f), shape = RoundedCornerShape(50)) {
-                            Text("${visible.size} / 6", Modifier.padding(horizontal = 16.dp, vertical = 10.dp), color = Color.White, style = MaterialTheme.typography.titleMedium)
+                        Surface(color = Color(0xFF173F30).copy(alpha = .82f), shape = RoundedCornerShape(50)) {
+                            TextButton(onClick = { if (residents.size > 6) { voice.stop(); page = (page + 1) % ((residents.size + 5) / 6) } }) {
+                                Text(if (residents.size > 6) "다른 친구 · ${page + 1}/${(residents.size + 5) / 6}" else "${visible.size} / 6", color = Color.White, style = MaterialTheme.typography.labelMedium)
+                            }
                         }
                     }
+                    Surface(Modifier.align(Alignment.BottomCenter).padding(horizontal = 24.dp, vertical = 14.dp).fillMaxWidth(),
+                        shape = RoundedCornerShape(32.dp), color = if (dark) Color(0xED26382D) else Color(0xEDFAF7E7),
+                        border = BorderStroke(1.dp, Color(0xFFB9C8A1))) { dock() }
                     visible.forEachIndexed { index, id -> key(id) {
                         val species = catalog[id]!!
                         // A local clock pauses exactly where the user tapped and resumes without a jump.
@@ -152,42 +164,47 @@ internal fun PlazaScene(game: GameState, connected: Boolean) {
                                     shadow = Shadow(Color.Black.copy(alpha = .75f), Offset(0f, 2f), 5f)))
                         }
                         if (focused) {
-                            val bubbleWidth = (sceneWidth - 24.dp).coerceAtMost(340.dp)
+                            val bubbleWidth = (sceneWidth - 24.dp).coerceAtMost(380.dp)
                             val bubbleX = (x + petSize / 2 - bubbleWidth / 2)
                                 .coerceIn(12.dp, sceneWidth - bubbleWidth - 12.dp)
                             val density = LocalDensity.current
-                            val paper = if (dark) Color(0xFFFFEDC5) else Color(0xFFFFFCED)
-                            val ink = Color(0xFF243C2B)
+                            val paper = if (dark) Color(0xFFE8DFC5) else Color(0xFFFFFBE9)
+                            val ink = Color(0xFF304729)
                             Column(Modifier.offset(bubbleX, (y - bubbleHeight + 12.dp).coerceAtLeast(8.dp))
                                 .width(bubbleWidth).zIndex(20f)
                                 .onSizeChanged { bubbleHeight = with(density) { it.height.toDp() } }) {
                                 Surface(onClick = { line?.let { voice.speak(it) } },
                                     enabled = connected && line != null && speech.ready,
                                     color = paper, contentColor = ink, border = BorderStroke(2.dp, ink),
-                                    shape = RoundedCornerShape(22.dp), shadowElevation = 5.dp,
+                                    shape = RoundedCornerShape(42.dp), shadowElevation = 3.dp,
                                     modifier = Modifier.fillMaxWidth().semantics { contentDescription = "광장 대사 다시 듣기" }) {
-                                    Column(Modifier.padding(horizontal = 18.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                        Text(species.name, style = MaterialTheme.typography.labelLarge, color = Color(0xFF56774E))
-                                        Text(line ?: "이 친구의 대사는 아직 준비 중이에요.", style = MaterialTheme.typography.titleLarge)
+                                    Column(Modifier.padding(horizontal = 26.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(species.name, style = MaterialTheme.typography.labelSmall, color = Color(0xFF657256))
+                                        Text(line ?: "이 친구의 대사는 아직 준비 중이에요.", modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+                                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, lineBreak = LineBreak.Heading))
                                         Text(speech.error ?: when {
                                             speech.speaking -> "누르면 멈춰요"
                                             !speech.ready -> "음성을 준비하고 있어요"
                                             else -> "누르면 다시 들어요"
-                                        }, style = MaterialTheme.typography.bodySmall)
+                                        }, style = MaterialTheme.typography.labelSmall, color = Color(0xFF657256), textAlign = TextAlign.Center)
                                     }
                                 }
-                                Canvas(Modifier.fillMaxWidth().height(18.dp)) {
+                                Canvas(Modifier.fillMaxWidth().height(24.dp)) {
                                     val tip = (x + petSize / 2 - bubbleX).toPx().coerceIn(24.dp.toPx(), size.width - 24.dp.toPx())
-                                    val half = 12.dp.toPx()
+                                    val half = 14.dp.toPx()
                                     val tail = Path().apply {
                                         moveTo(tip - half, -3.dp.toPx())
-                                        lineTo(tip, size.height)
-                                        lineTo(tip + half, -3.dp.toPx())
+                                        quadraticBezierTo(tip - half * .5f, size.height * .7f, tip - 6.dp.toPx(), size.height)
+                                        quadraticBezierTo(tip + half * .6f, size.height * .5f, tip + half, -3.dp.toPx())
                                         close()
                                     }
                                     drawPath(tail, paper)
-                                    drawLine(ink, Offset(tip - half, 0f), Offset(tip, size.height), 2.dp.toPx())
-                                    drawLine(ink, Offset(tip, size.height), Offset(tip + half, 0f), 2.dp.toPx())
+                                    val edges = Path().apply {
+                                        moveTo(tip - half, 0f)
+                                        quadraticBezierTo(tip - half * .5f, size.height * .7f, tip - 6.dp.toPx(), size.height)
+                                        quadraticBezierTo(tip + half * .6f, size.height * .5f, tip + half, 0f)
+                                    }
+                                    drawPath(edges, ink, style = Stroke(2.dp.toPx()))
                                 }
                             }
                         }
@@ -195,9 +212,7 @@ internal fun PlazaScene(game: GameState, connected: Boolean) {
                 }
             }
             if (!connected) Text("마지막으로 받은 친구들이에요. 폰 연결을 확인해 주세요.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (residents.size > PlazaPopulation.LIMIT) ScreenAction("다른 친구 보기 · ${page + 1}/${(residents.size + 5) / 6}", {
-                voice.stop(); page = (page + 1) % ((residents.size + 5) / 6)
-            }, secondary = true)
+
         }
     }
 }
