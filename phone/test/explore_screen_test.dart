@@ -209,12 +209,19 @@ void main() {
     expect(c.playCount, 1);
     expect(c.feedCount, 1);
     expect(c.lookOutCount, 1);
+    toFlutter!('{"v":1,"type":"tap","kind":"ball"}');
+    toFlutter!('{"v":1,"type":"drink"}');
+    toFlutter!('{"v":1,"type":"lookTogether"}');
+    expect(c.playCount, 2);
+    expect(c.feedCount, 2);
+    expect(c.lookOutCount, 2);
     final toasts = [
       for (final s in sent)
         if ((jsonDecode(s) as Map)['type'] == 'toast')
           (jsonDecode(s) as Map)['text']
     ];
     expect(toasts, contains('봤어!'));
+    expect(toasts, contains('같이 봤어요!'));
     expect(toasts, contains(c.companionMessage),
         reason: '먹이·놀이 반응 문구도 Unity 에 보낸다');
   });
