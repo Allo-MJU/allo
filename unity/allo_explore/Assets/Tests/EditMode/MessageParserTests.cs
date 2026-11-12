@@ -62,4 +62,27 @@ public class MessageParserTests
         Assert.IsFalse(MessageParser.TryParse("", out _, out _));
         Assert.IsFalse(MessageParser.TryParse(null, out _, out _));
     }
+
+    [Test]
+    public void ParsesEggAndClampsProgress()
+    {
+        Assert.IsTrue(MessageParser.TryParse(
+            "{\"v\":1,\"type\":\"egg\",\"state\":\"incubating\",\"progress\":1.7,\"eggId\":\"e1\",\"big\":true,\"bornText\":\"\"}",
+            out var type, out var payload));
+        Assert.AreEqual("egg", type);
+        var e = (EggState)payload;
+        Assert.AreEqual("incubating", e.state);
+        Assert.AreEqual(1f, e.progress);
+        Assert.AreEqual("e1", e.eggId);
+        Assert.IsTrue(e.big);
+    }
+
+    [Test]
+    public void EggWithoutFieldsDefaultsToIdle()
+    {
+        Assert.IsTrue(MessageParser.TryParse("{\"v\":1,\"type\":\"egg\"}", out _, out var payload));
+        var e = (EggState)payload;
+        Assert.AreEqual("idle", e.state);
+        Assert.AreEqual("", e.eggId);
+    }
 }

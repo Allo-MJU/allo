@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &471978520676318070
+--- !u!1 &6203621249930745968
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 7651559598456203690}
-  - component: {fileID: 2537214717787614540}
-  - component: {fileID: 4666683217205049634}
+  - component: {fileID: 8267068411050452039}
+  - component: {fileID: 3313117496817692504}
+  - component: {fileID: 7951234279837533475}
   m_Layer: 0
   m_Name: crop_pumpkin(Clone)
   m_TagString: Untagged
@@ -18,36 +18,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &7651559598456203690
+--- !u!4 &8267068411050452039
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 471978520676318070}
+  m_GameObject: {fileID: 6203621249930745968}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0, y: -0, z: -0}
   m_LocalScale: {x: 2.995537, y: 2.995537, z: 2.995537}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 861452665906851869}
+  m_Father: {fileID: 6896921223079764234}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &2537214717787614540
+--- !u!33 &3313117496817692504
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 471978520676318070}
+  m_GameObject: {fileID: 6203621249930745968}
   m_Mesh: {fileID: 3885360946888979178, guid: 2c17e29566886403e889624d4bc8732e, type: 3}
---- !u!23 &4666683217205049634
+--- !u!23 &7951234279837533475
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 471978520676318070}
+  m_GameObject: {fileID: 6203621249930745968}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -87,7 +87,7 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!1 &987612205745303785
+--- !u!1 &6260909262764638093
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -95,7 +95,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 861452665906851869}
+  - component: {fileID: 6896921223079764234}
   m_Layer: 0
   m_Name: K_crop_pumpkin
   m_TagString: Untagged
@@ -103,19 +103,19 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &861452665906851869
+--- !u!4 &6896921223079764234
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 987612205745303785}
+  m_GameObject: {fileID: 6260909262764638093}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 7651559598456203690}
+  - {fileID: 8267068411050452039}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

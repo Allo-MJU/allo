@@ -42,6 +42,9 @@ namespace Allo.CameraRig
 
         bool _uiTouch; // 버튼 위에서 시작한 터치는 둘러보기로 치지 않는다
 
+        /// 쓰다듬기·던지기·유리 그림처럼 손가락이 다른 일을 하는 동안 둘러보기를 멈춘다 (TapInput 이 켠다)
+        public static bool Locked;
+
         void Update()
         {
             var degPerPixel = 180f / Mathf.Max(1, Screen.width);
@@ -50,7 +53,7 @@ namespace Allo.CameraRig
                 _uiTouch = UnityEngine.EventSystems.EventSystem.current != null &&
                            UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject(Input.GetTouch(0).fingerId);
             if (Input.touchCount == 0) _uiTouch = false;
-            if (!_uiTouch && Input.touchCount == 1 && Input.GetTouch(0).phase == TouchPhase.Moved)
+            if (!_uiTouch && !Locked && Input.touchCount == 1 && Input.GetTouch(0).phase == TouchPhase.Moved)
             {
                 var d = Input.GetTouch(0).deltaPosition * degPerPixel;
                 Turn(new Vector2(-d.x, -d.y));
@@ -65,7 +68,7 @@ namespace Allo.CameraRig
                 dragging = true;
             }
 #if UNITY_EDITOR
-            if (Input.GetMouseButton(0))
+            if (Input.GetMouseButton(0) && !Locked)
             {
                 var d = new Vector2(Input.GetAxis("Mouse X"), Input.GetAxis("Mouse Y")) * 6f;
                 Turn(new Vector2(-d.x, -d.y));
@@ -79,12 +82,40 @@ namespace Allo.CameraRig
                 _state = LookMath.Drag(_state, _velocity * Time.deltaTime);
                 _velocity = Vector2.Lerp(_velocity, Vector2.zero, Time.deltaTime / 0.3f);
             }
+            GlanceTick(dragging);
             if (_gyro && SystemInfo.supportsGyroscope)
             {
                 var g = Input.gyro.rotationRateUnbiased * Mathf.Rad2Deg * Time.deltaTime;
                 _state = LookMath.AddGyro(_state, new Vector2(-g.y, g.x), true);
             }
             Apply();
+        }
+
+        static CameraRig _instance;
+        Vector3? _glanceAt;
+        float _glanceT;
+        LookState _glanceFrom;
+
+        void Awake() => _instance = this;
+
+        /// 그 점 쪽으로 천천히 고개를 돌린다 (알이 깨어날 때). 아이가 손가락으로 둘러보면 바로 멈춘다
+        public static void Glance(Vector3 point)
+        {
+            if (_instance == null) return;
+            _instance._glanceAt = point;
+            _instance._glanceT = 0;
+            _instance._glanceFrom = _instance._state;
+            _instance._velocity = Vector2.zero;
+        }
+
+        void GlanceTick(bool dragging)
+        {
+            if (_glanceAt == null) return;
+            if (dragging) { _glanceAt = null; return; }
+            _glanceT += Time.deltaTime / 0.9f;
+            var to = LookMath.Toward(_glanceFrom, transform.position, _glanceAt.Value, _baseYaw);
+            _state = LookMath.Blend(_glanceFrom, to, Mathf.SmoothStep(0, 1, _glanceT));
+            if (_glanceT >= 1) _glanceAt = null;
         }
 
         void Turn(Vector2 deg)

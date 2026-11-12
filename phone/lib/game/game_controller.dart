@@ -583,18 +583,52 @@ class GameController extends ChangeNotifier {
     return ('창밖에 무엇이 보이나요?', 'window');
   }
 
+  /// "퍼들핍이" · "바다안개가" — 받침 유무로 주격 조사를 고른다
+  static String subjectOf(String name) {
+    if (name.isEmpty) return name;
+    final code = name.codeUnitAt(name.length - 1);
+    final batchim =
+        code >= 0xAC00 && code <= 0xD7A3 && (code - 0xAC00) % 28 != 0;
+    return '$name${batchim ? '이' : '가'}';
+  }
+
   // 동행 반응은 폰 안에서만 유지하며 부화 등급이나 서버 계약을 바꾸지 않는다.
-  void feedCompanion() {
+  /// [kind] 는 탐험 화면이 알려 준 먹이 종류 (문구만 바뀐다. 세는 방식은 같다)
+  void feedCompanion([String? kind]) {
     if (game.stage != Stage.hatched || sessionEnded || endingSession) return;
     feedCount++;
-    companionMessage = '${hatched?.nameKo ?? "친구"}가 맛있게 먹었어요!';
+    final name = hatched?.nameKo ?? '친구';
+    companionMessage = switch (kind) {
+      'water' => '${subjectOf(name)} 물을 꿀꺽 마셨어요!',
+      'shell' => '${subjectOf(name)} 조개를 맛있게 먹었어요!',
+      'acorn' => '${subjectOf(name)} 도토리를 오독오독 먹었어요!',
+      'fishbun' => '${subjectOf(name)} 붕어빵을 냠냠 먹었어요!',
+      _ => '${subjectOf(name)} 맛있게 먹었어요!',
+    };
     notifyListeners();
   }
 
-  void playWithCompanion() {
+  /// [kind] 는 탐험 화면의 놀이 종류 (문구만 바뀐다. 세는 방식은 같다)
+  void playWithCompanion([String? kind]) {
     if (game.stage != Stage.hatched || sessionEnded || endingSession) return;
     playCount++;
-    companionMessage = '${hatched?.nameKo ?? "친구"}가 신나게 뛰어요!';
+    final name = hatched?.nameKo ?? '친구';
+    companionMessage = switch (kind) {
+      'pet' => '${subjectOf(name)} 기분 좋아해요!',
+      'ball' => '${subjectOf(name)} 공을 굴려 줬어요!',
+      'plush' => '${subjectOf(name)} 인형을 꼭 안았어요!',
+      'cushion' => '${subjectOf(name)} 쿠션에서 통통 뛰어요!',
+      'blanket' => '${subjectOf(name)} 포근하게 자요',
+      'draw' => '${subjectOf(name)} 그림을 구경해요!',
+      'bobble' => '${subjectOf(name)} 흔들 인형을 따라 해요!',
+      'toycar' => '${subjectOf(name)} 장난감 차를 쫓아가요!',
+      'music' => '${subjectOf(name)} 오르골에 맞춰 춤춰요!',
+      'book' => '${subjectOf(name)} 그림책을 같이 봐요!',
+      'bubble' => '${subjectOf(name)} 비눗방울을 잡으려 해요!',
+      'tissue' => '${subjectOf(name)} 에취! 재채기를 했어요',
+      'nest' => '${subjectOf(name)} 둥지에서 쉬어요',
+      _ => '${subjectOf(name)} 신나게 뛰어요!',
+    };
     notifyListeners();
   }
 

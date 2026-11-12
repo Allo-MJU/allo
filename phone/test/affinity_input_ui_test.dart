@@ -19,8 +19,11 @@ void main() {
       'fullscreen preference still exposes affinity inputs and cooldowns',
       (tester) async {
     final original = fullscreenCabin;
+    final originalAutoExplore = autoEnterExplore;
     fullscreenCabin = true;
+    autoEnterExplore = true;
     addTearDown(() => fullscreenCabin = original);
+    addTearDown(() => autoEnterExplore = originalAutoExplore);
     final feed = RoundFeed();
     late GameController c;
     await tester.runAsync(() async {

@@ -27,6 +27,10 @@ EggDemoApi? configuredEggApi() {
 const _scenario =
     String.fromEnvironment('SCENARIO', defaultValue: 'rainy_highway');
 
+/// --dart-define=FAKE_TIME_SCALE=2 → 가짜 주행을 느리게 (기본 20배속).
+/// 탐험 화면에서 알을 돌보다가 그 안에서 깨어나는 장면을 보여 줄 때 쓴다 (시연·확인용)
+const _fakeTimeScale = int.fromEnvironment('FAKE_TIME_SCALE', defaultValue: 20);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // 앱 전체 가로 고정 (탐험 게임 설계 5절)
@@ -49,7 +53,9 @@ Future<Widget> createApp({
 }) async {
   if (feedKind == 'fake') {
     return AlloApp(
-        feed: FakeVehicleFeed(scenario: FakeScenario.byName(scenario)),
+        feed: FakeVehicleFeed(
+            scenario: FakeScenario.byName(scenario),
+            timeScale: _fakeTimeScale.toDouble()),
         eggApi: configuredEggApi());
   }
   if (feedKind != 'firebase') {

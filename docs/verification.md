@@ -463,3 +463,88 @@ Unity 6000.0.85f2, 휴대폰 에뮬레이터(Medium Phone API 37, arm64, 4코어
 2. **Props.fbx 메시가 읽기 불가**라 기기에서 조각 메시 합치기가 실패(`Cannot combine mesh that does not allow access`)해 나무·바위 등이 안 보였다 → 장면 빌드가 `isReadable` 을 켠다
 3. 후처리 셰이더 `#pragma` 를 한 줄에 몰아 써 기기에서 검은 화면 → 줄 나눔 + 지원 안 되는 셰이더면 후처리 건너뜀
 4. 성능: 에뮬레이터(4코어/4GB) 3.5~4.8fps. 전 빌드도 2~22fps 라 에뮬레이터로는 판단 불가 (#77 실기기)
+
+## 탐험 화면 — 캐릭터 그림·3D 모델 준비·걷는 면 (2026-11-11, A)
+
+Unity 6000.0.85f2, 휴대폰 에뮬레이터(Medium Phone API 37), debug, `FEED=fake SCENARIO=scene_tour EXPLORE_UNITY=true`.
+
+| 항목 | 결과 |
+| --- | --- |
+| D 캐릭터 그림 6종 × 포즈 4개 (`phone/assets/species/{id}.png`, `{id}_move/happy/sleep.png`). 원본은 #86 `docs/mockups/assets/`, 피그마 "Species sheets — character-production-01" A~F 와 같은 그림 | ✅ 에뮬레이터: 바다안개가 D 그림으로 나옴. 나머지 6종(G~L)은 `species.json` 과 이름이 달라(#53 D12) 임시 얼굴 |
+| 행동별 포즈: 걷기·점프 move, 자기·웅크리기 sleep, 탭·먹이 뒤 happy, 그 밖 idle. 그림이 왼쪽을 보므로 오른쪽으로 갈 때 뒤집음. 창밖 친구는 차가 오는 쪽을 보고, 발견되면 happy | ✅ `unity_*.png` |
+| `Allo/Sprite` 셰이더: premultiplied alpha + 밉맵(반투명 가장자리 계단·검은 테두리 없음), 장면 빛을 조금 따름 | ✅ |
+| D 그림 아래 함께 그려진 연한 회색 바닥판을 Unity 가 읽을 때만 지움 (`SpriteLoader.RemoveFloor`, 원본 파일은 그대로) | ✅ 3D 창턱 위에서 떠 있는 판처럼 보이던 문제 해결 |
+| 3D 모델 경로: `scripts/import_characters.sh` → `CharacterImport.Run` → `Resources/Characters/C_{id}.prefab`. 모델이 있으면 차 안·창밖 모두 3D, 없으면 2D 그림 | ✅ 임시 모델(Quaternius 양·퍼그)로 에디터·에뮬레이터 확인 후 지움. 실제 모델은 이미지→3D 서비스로 생성 예정 |
+| 걷는 면 가림 검사: 장면 빌드 때 면 위 9곳에 아이 눈·카메라 레일 앞끝에서 광선을 쏴 절반 넘게 가려지면 뺌 (유리·가는 물체 제외) | ✅ 뒷유리 아래 선반(`Walk_RearShelf`)만 빠짐. 아이 눈 0.89m < 등받이 위 1.03m 라 어디서도 안 보였음 |
+| 앞·뒷좌석 사이 바닥 (`Walk_Floor`, cabin.py). 방석 바로 앞 0.4m 는 아이 방석에 가려져 앞좌석 쪽만 | ✅ `unity_floor.png`. 뒷좌석·창턱과 점프로 오감 |
+| 오른쪽 뒷좌석 인형을 구석으로 옮기고 걷는 면을 그 앞쪽만 | ✅ 캐릭터가 인형을 뚫고 지나가지 않음 |
+| 테스트 | ✅ Unity EditMode 53개 (가림·바닥 5개, 3D 모델 3개 추가), `flutter test` 177개 |
+
+기기에서 찾아 고친 것:
+1. 새 에셋을 넣은 뒤 빌드한 APK 에 그림이 빠져 있었다. Flutter 빌드 캐시(`.dart_tool/flutter_build`)가 이전 에셋 목록을 그대로 썼다 → 캐시와 `build/app/intermediates/flutter` 를 지우고 다시 빌드. `assets/species/` 에 파일을 추가하면 같은 일이 생길 수 있다
+
+## 탐험 화면 — 주행 중 연결 1차 (Pleos 에뮬 → Firebase → 폰 → Unity, 2026-11-11, A) — #79
+
+Pleos Connect v2.1.0 에뮬레이터(차량 앱 debug) + 휴대폰 에뮬레이터(Medium Phone API 37, `--dart-define-from-file=config/firebase.local.json --dart-define=EXPLORE_UNITY=true`). 한 Mac 에서 두 에뮬레이터 동시 실행. 페어링은 세션 ID + 6자리 코드 수동 입력.
+
+| 항목 | 결과 |
+| --- | --- |
+| 폰 Firebase 초기화 (Android 앱 `ai.allo.allo_phone` 을 Firebase 프로젝트에 등록) | ✅ 페어링 화면까지 약 30초 (첫 실행) |
+| 페어링: 폰 → `meta.paired` → 차 화면 | ✅ 차 화면이 "뒷자리 폰에서 알을 골라 주세요"로 바뀜 |
+| 폰 → `/game` → 차 화면 | ✅ 부화 상태가 차 화면에 "깨어났어요! sea_mist" 로 표시 |
+| 폰 → Unity 탐험 화면 (D 그림 바다안개) | ✅ |
+| 차 지역 태그 → 폰 → Unity scene | ✅ `scripts/demo_sea_trip.sh` 로 도심 → 고속도로 → 바다, Unity 로그 `scene=city → road → coast` |
+| 차 속도·기어 → Unity 창밖 움직임 | ❌ 이번 실행에서는 확인 못 함. 아래 1 |
+| 급제동 → jolt 한 번, 지연 시간, `turns`·`headingDeg` 수신 | ⏸ 아래 2 때문에 다음에 다시 |
+
+찾은 것:
+1. **한 번 차량 앱이 차 신호를 못 받는 것처럼 보였다(재현 안 됨).** 과부하 상태에서 Virtual Console 로 D·30km/h 를 주자 클러스터는 D·30 인데 차량 앱은 새 세션을 만들지 않았고, 앱을 다시 켜자 정상이었다. 그 뒤 차량 에뮬레이터만 콜드 부팅해 (a) 부팅 직후 앱 실행 → D·30, (b) debug 세션 종료 → D 로 다시 확인했으나 둘 다 정상(`gear=D speedKph=30`, `new session (gear=D)`). 과부하로 에뮬레이터가 멈췄던 것으로 보고 코드는 고치지 않았다. 차량 서비스 재시작 상황은 root 권한이 없어 재현하지 못했다. 시연 전에는 차량 앱을 켠 뒤 VC 로 D 를 한 번 줘서 차 화면이 주행으로 바뀌는지 확인한다
+2. **두 에뮬레이터 + Unity 를 한 Mac 에서 돌리면 폰 에뮬레이터가 버티지 못한다.** 바다 구간에서 Unity 0.2fps 로 떨어진 뒤 폰 에뮬레이터 시스템 전체가 재시작(`DeadSystemException: The system died`). 앱 문제가 아닌 호스트 부하로 본다(추정). 남은 확인은 폰 실기기 + Pleos 에뮬레이터로 하는 편이 낫다
+3. Pleos 에뮬레이터 시계가 폰보다 약 하루 늦다(차 11-10 20:28, 폰 11-11 13:28). 지금 `dev` 는 차가 폰 시각을 비교하지 않아 문제없지만, PR #88(`/game.ts` 생존 신호, 15초 TTL)이 들어오면 이 조합에서 계속 "연결 안 됨"이 된다
+
+## 탐험 화면 — 차 안 놀이 (2026-11-11, A)
+
+휴대폰 에뮬레이터, `SCENARIO=scene_tour EXPLORE_UNITY=true`. 판정은 하지 않고 Flutter 에 의도만 보낸다 (`tap`·`feed`·`drink`·`lookTogether`, `kind` 는 문구용). 돌봄 횟수에 넣을지는 C 결정 대기.
+
+| 놀이 | 조작 | 결과 |
+| --- | --- | --- |
+| 간식 던지기 | "간식" → 화면 톡/휙. 장면별 간식(바다 조개·산 도토리·도시 붕어빵·그 밖 사과). 빗나가면 굴러가고 주우러 감 | ✅ 에뮬레이터: 조개 → 바닥 → 먹음 → "바다안개가 조개를 맛있게 먹었어요!" |
+| 공 던지기 | "공" → 던지면 달려가 아이 쪽으로 굴려 줌 | ✅ 창턱 → "공을 굴려 줬어요!" |
+| 쓰다듬기 | 캐릭터 위를 문지름 (시점 고정) | ✅ 하트 + "기분 좋아해요!" |
+| 쿠션 / 인형 / 물병 | 탭하면 작은 것이 친구 옆에 → 통통 뛰기 / 안고 쉬기(불 끄면 잠) / 마시기 | ✅ 쿠션 기기 확인. 인형·물병은 같은 경로(GiveToy), 기기 미확인 |
+| 실내등 | 천장등 탭 → 끄면 잠듦 | ✅ |
+| 담요 | 자는 친구 탭 → 덮어 주면 계속 잠, 다시 탭하면 깸 | ⚠️ 탭 순간 친구가 움직여 기기 확인 못 함. EditMode 테스트로 확인 |
+| 김 서린 창 | 유리 꾹(0.45초) → 입김, 그 위를 끌면 지워져 그림. 비 오면 저절로 서림(아래가 짙게), 1분에 걸쳐 걷힘. 친구가 와서 구경 | ✅ 입김·구경 기기 확인. 선 긋기는 짧은 점 간격을 이어 칠하도록 고침 |
+| 같이 창밖 보기 | 50~90초마다 창밖에 풍선. 친구가 창을 보고 안내 문구. 아이가 그쪽을 0.4초 보면 반짝 + `lookTogether`(= 창밖 보기 횟수) | ✅ 풍선·안내 확인. 시선 판정은 기기 미확인 |
+
+함께 고친 것:
+- 캐릭터가 아이 시야 밖이나 가려진 곳으로 가던 문제: 장면 빌드 때 면마다 9×9 보임 지도를 구워(편한 각도 + 앞좌석·머리받침에 안 가림) 그 칸에만 선다. 창턱은 보이는 0.74m 만, 계기판은 머리받침 뒤를 뺀 0.9m 만 쓴다. 바닥은 정면 화면 밖이라 1/4 확률로만 간다
+- 2D 캐릭터 탭 상자가 발밑에 작게 있어 날개·당겨 그린 그림을 눌러도 유리가 눌리던 문제 → 상자가 그림을 따라간다
+- 테스트: Unity EditMode 60개 (놀이 5개 추가), `flutter test` 178개
+
+## 탐험 화면 — 알·부화 연출, 차 안 물건 놀이 (2026-11-12, A)
+
+Unity 6000.0.85f2, 휴대폰 에뮬레이터(Medium Phone API 37, `-gpu host`), `FEED=fake SCENARIO=scene_tour EXPLORE_UNITY=true FAKE_TIME_SCALE=2`. debug 와 release 둘 다 확인.
+
+흐름: 체험 시작 → 알을 받으면 **바로 Unity 차 안**(센터 콘솔 위 둥지에 알) → 돌보다가 그 안에서 깨어남 → 둥지에서 동행이 나옴. 탐험을 닫으면 품기 화면, 오른쪽 위 버튼으로 다시 들어감. 탐험 안에서 깨어나는 장면을 봤으면 닫을 때 부화 화면을 건너뛰고 동행 화면으로 간다.
+
+| 항목 | 결과 |
+| --- | --- |
+| `egg` 메시지(Flutter → Unity): 단계·진행도·알 id·큰 알·태어남 문구. `cast` 보다 먼저 보낸다 | ✅ `explore_messages_test`·`explore_screen_test`, Unity `MessageParserTests`·`EggTrackerTests` |
+| 알: 진행도에 따라 더 자주 들썩, 50·80·95% 에 금. 톡톡(탭)·문지르기·노래(버튼·오르골)·담요 → `care{kind}` → `GameController.care()` (같은 종류는 2~5초에 한 번) | ✅ 에뮬레이터: `care tap/rub/sing/blanket` 수신 |
+| 깨어나기: 흔들림 → 금 → 빛 → 윗껍데기 날아감 → 둥지에서 동행 등장 + "OO이/가 태어났어요!"(3.5초 동안 다른 안내가 덮지 않음). 다른 곳을 보고 있으면 카메라가 둥지 쪽으로 돈다 | ✅ 에뮬레이터 debug·release 모두 `hatch start` → 약 2.6초 뒤 `hatched` |
+| 차 안 물건(Blender `cabin.py`): 흔들 인형(대시보드)·장난감 자동차(바닥)·오르골(오른쪽 자리)·그림책(왼쪽 자리)·비눗방울 병(팔걸이 컵홀더)·휴지 상자(뒷선반), 알이 없을 때 둥지 = 동행 쉼터 | ✅ 오르골·장난감 차·비눗방울 기기 확인. 그림책·휴지·흔들 인형은 같은 경로, 기기 미확인 |
+| 알만 있을 때 아래 버튼이 간식·공 대신 노래·담요 | ✅ |
+
+함께 고친 것:
+1. **release 빌드에서 Unity ↔ Flutter 연결이 끊김** (`ClassNotFoundException: ai.allo.allo_phone.ExploreBridge`). 코드 축소(R8)가 Unity 가 이름으로 찾는 클래스를 지웠다 → `phone/android/app/proguard-rules.pro`. 이전 release 빌드도 같은 문제였을 것으로 본다(추정, 이전 빌드는 다시 확인하지 않음)
+2. 앱 라우터가 컨트롤러가 바뀔 때마다 경로를 다시 계산해 `push` 결과 Future 가 돌아오지 않음 → 탐험이 열려 있는지(`exploreScreenOpen`)로 판단
+3. 동행 반응 문구 조사가 늘 "가"(폭풍등가) → 받침에 맞게 (`GameController.subjectOf`)
+4. 담요가 알 위에 뜬 납작한 판 → 알을 감싸는 포대기, 알과 같이 흔들림
+5. 김 서린 창 그림 선이 너무 굵음(약 19cm) → 텍스처 128 → 320칸, 붓 반지름 0.045 → 0.012 (약 6cm)
+6. 끊김 줄이기: 김서림 계산을 0.1초마다(매 프레임 전체 계산 → 10Hz), 텍스처 버퍼 재사용(GC), 효과·장난감 재질을 색·그림마다 하나만 만들어 재사용(이전에는 만들 때마다 새 재질이 쌓였다)
+7. 막 깨어난 동행이 터널·밤이면 바로 잠들던 것 → 8초 동안 깨어 있음
+
+성능(에뮬레이터, 참고용): debug 빌드는 3~5fps, 2~25초 멈춤(디버그 JIT + 같은 프로세스). release 빌드는 28~60fps, 가끔 120~380ms 끊김. 에뮬레이터 기본 설정은 GPU 대신 CPU 렌더링(lavapipe·SwiftShader)이라 `-gpu host` 로 띄웠다. 측정 당시 Mac 에서 Spotlight 색인과 다른 가상 머신이 함께 돌았다. **실기기 측정은 #77** — Unity 가 10초마다 `[Perf] fps=… worst=…ms` 를 로그로 남긴다.
+
+테스트: Unity EditMode 71개, `flutter test` 186개, `flutter analyze lib test` 문제 없음.

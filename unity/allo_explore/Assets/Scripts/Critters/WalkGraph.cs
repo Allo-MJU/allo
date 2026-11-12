@@ -29,6 +29,9 @@ namespace Allo.Critters
         public IReadOnlyList<WalkSurface> Surfaces { get; }
         readonly List<int>[] _neighbors;
 
+        /// 자리를 고를 때 이 조건을 만족하는 점을 먼저 고른다 (아이가 정면을 볼 때 편하게 보이는 곳). 없으면 아무 데나
+        public Func<Vector3, bool> Comfortable;
+
         public WalkGraph(IReadOnlyList<WalkSurface> surfaces, float maxJump = 0.9f, float maxRise = 0.75f)
         {
             Surfaces = surfaces;
@@ -64,6 +67,19 @@ namespace Allo.Critters
 
         public Vector3 RandomPoint(int i, System.Random rng)
         {
+            if (Comfortable == null) return AnyPoint(i, rng);
+            var first = AnyPoint(i, rng);
+            if (Comfortable(first)) return first;
+            for (var k = 0; k < 15; k++)
+            {
+                var p = AnyPoint(i, rng);
+                if (Comfortable(p)) return p;
+            }
+            return first;
+        }
+
+        Vector3 AnyPoint(int i, System.Random rng)
+        {
             var s = Surfaces[i];
             if (Mathf.Min(s.size.x, s.size.y) < NarrowSurface) return s.center;
             var hx = Mathf.Max(0, s.size.x / 2 - EdgeMargin);
@@ -72,6 +88,15 @@ namespace Allo.Critters
                 s.center.x + (float)(rng.NextDouble() * 2 - 1) * hx,
                 s.center.y,
                 s.center.z + (float)(rng.NextDouble() * 2 - 1) * hz);
+        }
+
+        /// 면 안(가장자리 여유 안쪽)으로 끌어들인 점. 높이는 면 높이
+        public static Vector3 Clamp(Vector3 p, WalkSurface s)
+        {
+            var hx = Mathf.Max(0, s.size.x / 2 - EdgeMargin);
+            var hz = Mathf.Max(0, s.size.y / 2 - EdgeMargin);
+            return new Vector3(Mathf.Clamp(p.x, s.center.x - hx, s.center.x + hx), s.center.y,
+                Mathf.Clamp(p.z, s.center.z - hz, s.center.z + hz));
         }
 
         public int Nearest(Vector3 p)

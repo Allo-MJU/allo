@@ -100,4 +100,16 @@ public class CritterBrainTests
         var seen = Run(new CritterBrain(g, 0, 8), Day, 120);
         Assert.IsFalse(seen.Contains(CritterState.Jump), "CritterState.Jump");
     }
+
+    [Test]
+    public void AwakeForKeepsNewbornUpAtNight()
+    {
+        var g = new Allo.Critters.WalkGraph(new[] { new Allo.Critters.WalkSurface("a", Vector3.zero, new Vector2(1, 1)) });
+        var b = new Allo.Critters.CritterBrain(g, 0, 3) { AwakeFor = 8 };
+        var night = new Allo.Critters.Mood { night = true };
+        for (var t = 0f; t < 6; t += 0.1f) b.Tick(0.1f, night);
+        Assert.AreNotEqual(Allo.Critters.CritterState.Sleep, b.State);
+        for (var t = 0f; t < 20; t += 0.1f) b.Tick(0.1f, night);
+        Assert.AreEqual(Allo.Critters.CritterState.Sleep, b.State, "깨어 있는 시간이 지나면 밤에는 다시 존다");
+    }
 }

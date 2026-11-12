@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:allo_core/allo_core.dart';
 import 'package:flutter/material.dart';
 
 import '../game/game_controller.dart';
@@ -21,6 +22,13 @@ typedef UnityViewBuilder = Widget Function({
 /// Unity 탐험 화면이 앞에 떠 있는지. Unity 는 별도 안드로이드 화면이라, 이때 Flutter 는
 /// 백그라운드로 보이지만 아이는 같은 앱에서 놀고 있다. 앱 활성 판단([appActiveFor])에 쓴다.
 final unityExploreOpen = ValueNotifier<bool>(false);
+
+/// 탐험 화면이 떠 있는지 (Unity·대체 화면 모두). 품기 화면이 이 동안 부화 화면으로 넘기지 않는다
+final exploreScreenOpen = ValueNotifier<bool>(false);
+
+/// 마지막으로 닫힌 탐험 화면에서 품던 알이 깨어나는 연출을 Unity 가 보여 줬는지.
+/// [exploreScreenOpen] 이 꺼지기 전에 정해 둔다
+bool exploreHatchShown = false;
 
 /// 게임 진행(알 성장·주행 신호 처리)을 할지. 평소에는 Flutter 화면이 보일 때만,
 /// Unity 탐험 화면이 열려 있으면 Flutter 가 가려져 있어도 진행한다.
@@ -69,6 +77,13 @@ class _ExploreScreenState extends State<ExploreScreen>
   int _toastSeq = 0;
   (int, int)? _careKey; // (feedCount, playCount) — 바뀔 때만 동행 반응 문구를 보낸다
 
+  /// 이 화면이 열린 동안 품던 알이 깨어났다 (Unity 가 둥지에서 깨어나는 연출을 했다).
+  /// 닫을 때 결과로 돌려줘서, 품기 화면이 부화 화면을 다시 보여 주지 않고 동행 화면으로 가게 한다
+  bool _hatchShown = false;
+  bool _unityReady = false;
+  bool _sawIncubating = false;
+  String? _incubatingEggId;
+
   bool get _useUnity =>
       (widget.unityAvailable ?? exploreUnityEnabled) &&
       widget.unityView != null;
@@ -79,11 +94,15 @@ class _ExploreScreenState extends State<ExploreScreen>
     WidgetsBinding.instance.addObserver(this);
     widget.controller.addListener(_publish);
     if (_useUnity) unityExploreOpen.value = true;
+    exploreHatchShown = false;
+    exploreScreenOpen.value = true;
   }
 
   @override
   void dispose() {
     widget.controller.removeListener(_publish);
+    exploreHatchShown = _hatchShown;
+    exploreScreenOpen.value = false;
     if (_useUnity) {
       unityExploreOpen.value = false;
       // Flutter 가 먼저 이 화면을 떠나면(주행 종료 → 종료 화면) 앞에 떠 있는 Unity 도 내린다
@@ -120,6 +139,24 @@ class _ExploreScreenState extends State<ExploreScreen>
         'route',
         routeMessage(c.vehicle?.turns ?? const [],
             headingDeg: c.vehicle?.headingDeg));
+    final g = c.game;
+    if (g.stage == Stage.incubating) {
+      _hatchShown = false;
+      _sawIncubating = true;
+      _incubatingEggId = c.eggId;
+    }
+    final born = g.stage == Stage.hatched &&
+        _sawIncubating &&
+        _incubatingEggId == c.eggId;
+    // 알을 먼저 보낸다: 같은 알이 깨어났다는 걸 Unity 가 알아야 새 동행을 둥지에서 꺼낸다
+    _link.post(
+        'egg',
+        eggMessage(
+            stage: g.stage,
+            progress: g.progress,
+            eggId: c.eggId,
+            tier: g.eggTier,
+            bornText: born ? bornToast(c.hatched?.nameKo) : null));
     _link.post(
         'cast', castMessage(companion: c.hatched, friends: c.collectedSpecies));
     final v = c.vehicle;
@@ -162,11 +199,12 @@ class _ExploreScreenState extends State<ExploreScreen>
       if (!wasClosing &&
           mounted &&
           (ModalRoute.of(context)?.isCurrent ?? false)) {
-        Navigator.of(context).pop();
+        Navigator.of(context).pop(_hatchShown);
       }
       return;
     }
     if (msg is Map && msg['type'] == 'ready') {
+      _unityReady = true;
       _publish();
       _link.post('settings', _settings());
       _link.onReady();
@@ -175,10 +213,34 @@ class _ExploreScreenState extends State<ExploreScreen>
     if (msg is! Map) return;
     final c = widget.controller;
     switch (msg['type']) {
-      case 'tap': // 동행 캐릭터 탭 = 놀아주기
-        c.playWithCompanion();
-      case 'feed':
-        c.feedCompanion();
+      case 'hatchShown':
+        // 상태 발행/ready 는 연출 완료가 아니다. 현재 화면에서 품던 같은 알의
+        // Unity 완료 확인만 인정한다. 구 Unity export 는 확인을 안 보내므로
+        // 닫을 때 기존 Flutter 부화 화면으로 안전하게 돌아간다.
+        if (_useUnity &&
+            _unityReady &&
+            mounted &&
+            !_closing &&
+            (ModalRoute.of(context)?.isCurrent ?? false) &&
+            !c.sessionEnded &&
+            c.game.stage == Stage.hatched &&
+            _sawIncubating &&
+            _incubatingEggId == c.eggId &&
+            msg['eggId'] == (c.eggId ?? '')) {
+          _hatchShown = true;
+        }
+
+      case 'care': // 품는 알 돌보기 (kind: tap·rub·sing·blanket). 품기 화면의 감싸기·노래와 같다
+        c.care();
+      case 'tap': // 동행 캐릭터와 놀기 (kind: pet·ball·plush·cushion·blanket·draw·bobble·toycar·music·book·bubble·tissue·nest, 없으면 탭)
+        c.playWithCompanion(msg['kind'] as String?);
+      case 'feed': // kind: apple·shell·acorn·fishbun
+        c.feedCompanion(msg['kind'] as String?);
+      case 'drink':
+        c.feedCompanion('water');
+      case 'lookTogether': // 동행이 가리킨 창밖을 아이가 같이 봄 = 창밖 보기
+        c.lookOut();
+        _link.post('toast', toastMessage('같이 봤어요!', ++_toastSeq));
       case 'endTrip': // 체험 주행에서만 (Unity 는 settings.canEndTrip 일 때만 버튼을 보인다)
         c.endFakeTrip();
       case 'spotted': // 창밖 친구 발견 = "봤어!"

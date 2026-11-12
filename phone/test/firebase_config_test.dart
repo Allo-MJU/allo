@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:allo_phone/app.dart';
+import 'package:allo_phone/affinity/egg_demo_api.dart';
 import 'package:allo_phone/config/firebase_config.dart';
 import 'package:allo_phone/feed/fake_feed.dart';
 import 'package:allo_phone/main.dart';
@@ -53,6 +54,25 @@ void main() {
     expect(app, isA<AlloApp>());
     expect((app as AlloApp).feed, isA<FakeVehicleFeed>());
     await app.feed.dispose();
+  });
+
+  test('Fake startup preserves demo speed and optional affinity API together',
+      () async {
+    final app = await createApp(feedKind: 'fake') as AlloApp;
+    final feed = app.feed as FakeVehicleFeed;
+    expect(
+        feed.timeScale,
+        const int.fromEnvironment('FAKE_TIME_SCALE', defaultValue: 20)
+            .toDouble());
+    const apiUrl = String.fromEnvironment('ALLO_DEMO_API_URL');
+    const apiToken = String.fromEnvironment('ALLO_DEMO_TOKEN');
+    if (apiUrl.isNotEmpty && apiToken.isNotEmpty) {
+      expect(app.eggApi, isA<HttpEggDemoApi>());
+    } else {
+      expect(app.eggApi, isNull);
+    }
+    app.eggApi?.close();
+    await feed.dispose();
   });
 
   test('Firebase 초기화 완료 후에만 feed를 생성한다', () async {

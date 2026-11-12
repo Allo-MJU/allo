@@ -31,11 +31,12 @@ REQUIRED = [
     "Armrest", "Dashboard", "Wheel", "Mirror", "MirrorCharm", "DoorPanel_L",
     "DoorPanel_R", "DoorPanel_RL", "DoorPanel_RR", "Glass_Front", "Glass_L",
     "Glass_R", "Glass_Back", "Cushion", "Plush", "Bottle", "DomeLight",
-    "RearShelf",
+    "RearShelf", "Bobble", "ToyCar", "MusicBox", "MusicBoxLid", "Book", "BookCover", "BubbleJar",
+    "TissueBox",
 ]
 WALKS = [
     "Walk_RearSeat_L", "Walk_RearSeat_R", "Walk_Armrest", "Walk_RearShelf", "Walk_Dashboard",
-    "Walk_DoorSill_L", "Walk_DoorSill_R",
+    "Walk_DoorSill_L", "Walk_DoorSill_R", "Walk_Floor", "Walk_Console",
 ]
 
 
@@ -267,15 +268,68 @@ def props():
     """뒷좌석 위 장난감들. 캐릭터가 밀거나 올라갈 수 있다."""
     kit.rounded_box("Cushion", (0.3, 0.22, 0.09), (0.42, 0.24, 0.49), P.CUSHION,
                     bevel=0.04, rotation=(0, 0, 12))
-    body = kit.sphere("Plush", 0.09, (-0.45, 0.28, 0.53), P.PLUSH, scale=(1, 0.9, 1.05))
-    head = kit.sphere("PlushHead", 0.065, (-0.45, 0.29, 0.66), P.PLUSH)
+    # 인형은 오른쪽 자리의 문 쪽·등받이 구석에 둔다 (캐릭터가 걷는 자리와 겹치지 않게)
+    PX, PY = -0.55, 0.36
+    body = kit.sphere("Plush", 0.09, (PX, PY, 0.53), P.PLUSH, scale=(1, 0.9, 1.05))
+    head = kit.sphere("PlushHead", 0.065, (PX, PY + 0.01, 0.66), P.PLUSH)
     kit.parent(head, body)
     for k, dx in enumerate((-0.045, 0.045)):
-        ear = kit.sphere(f"PlushEar{k}", 0.025, (-0.45 + dx, 0.29, 0.72), P.PLUSH_DARK)
+        ear = kit.sphere(f"PlushEar{k}", 0.025, (PX + dx, PY + 0.01, 0.72), P.PLUSH_DARK)
         kit.parent(ear, head)
     bottle = kit.cylinder("Bottle", 0.03, 0.2, (HALF - 0.06, 0.1, 0.24), P.BOTTLE)
     cap = kit.cylinder("BottleCap", 0.022, 0.03, (HALF - 0.06, 0.1, 0.355), "#F1E6CF")
     kit.parent(cap, bottle)
+    play_props()
+
+
+def play_props():
+    """아이가 탭해서 노는 물건 (Unity CritterDirector.Props). 최상위 이름이 Unity 에서 찾는 이름이다."""
+    b = kit.rounded_box
+    # 흔들 인형: 대시보드 위. 받침 → 용수철 → 몸 → 큰 머리 (아이 쪽 +Y 를 본다)
+    BX, BY, BZ = -0.14, -1.66, 0.98
+    base = kit.cylinder("Bobble", 0.026, 0.012, (BX, BY, BZ + 0.006), P.DASH_TOP)
+    spring = kit.cylinder("BobbleSpring", 0.007, 0.03, (BX, BY, BZ + 0.027), P.STEEL)
+    body = kit.sphere("BobbleBody", 0.026, (BX, BY, BZ + 0.055), P.EGG, scale=(1, 1, 1.15))
+    head = kit.sphere("BobbleHead", 0.042, (BX, BY, BZ + 0.11), P.CUSHION)
+    for k, dx in enumerate((-0.016, 0.016)):
+        kit.parent(kit.sphere(f"BobbleEye{k}", 0.007, (BX + dx, BY + 0.038, BZ + 0.118), P.RUBBER), head)
+    for o in (spring, body, head):
+        kit.parent(o, base)
+    # 장난감 자동차: 앞좌석 사이 바닥 매트 위. 길이가 차 안 가로(X) 방향이다 (Unity 에서 좌우로 달린다)
+    CX, CY = 0.3, -0.6
+    car = b("ToyCar", (0.13, 0.065, 0.035), (CX, CY, 0.035), "#E8604C", bevel=0.012)
+    kit.parent(b("ToyCarTop", (0.07, 0.056, 0.03), (CX - 0.01, CY, 0.065), "#F4A08F", bevel=0.01), car)
+    for k, (dx, dy) in enumerate(((-0.04, -0.034), (0.04, -0.034), (-0.04, 0.034), (0.04, 0.034))):
+        kit.parent(kit.cylinder(f"ToyCarWheel{k}", 0.018, 0.012, (CX + dx, CY + dy, 0.018), P.RUBBER,
+                                rotation=(90, 0, 0)), car)
+    # 오르골: 오른쪽 자리 앞 구석 (인형 옆)
+    MX, MY, MZ = -0.6, 0.06, 0.44
+    box = b("MusicBox", (0.09, 0.07, 0.055), (MX, MY, MZ + 0.0275), "#F29BB8", bevel=0.008)
+    lid = b("MusicBoxLid", (0.095, 0.075, 0.014), (MX, MY, MZ + 0.062), "#D9708F", bevel=0.005)
+    kit.parent(kit.sphere("MusicBoxStar", 0.012, (MX, MY, MZ + 0.071), P.LOGO_YELLOW, scale=(1, 1, 0.5)), lid)
+    kit.parent(lid, box)
+    kit.parent(kit.cylinder("MusicBoxCrank", 0.005, 0.03, (MX - 0.06, MY, MZ + 0.03), P.STEEL,
+                            rotation=(0, 90, 0)), box)
+    # 그림책: 왼쪽 자리 문 쪽 앞 구석. 표지를 열면 해·언덕 그림
+    KX, KY, KZ = 0.62, 0.06, 0.44
+    pages = b("Book", (0.13, 0.1, 0.02), (KX, KY, KZ + 0.01), "#FBF6EA", bevel=0.004)
+    kit.parent(kit.cylinder("BookPicSun", 0.018, 0.002, (KX + 0.03, KY + 0.015, KZ + 0.0205), P.LOGO_YELLOW), pages)
+    kit.parent(b("BookPicHill", (0.08, 0.03, 0.002), (KX - 0.015, KY - 0.025, KZ + 0.0205), P.CUSHION, bevel=0.0008), pages)
+    cover = b("BookCover", (0.135, 0.105, 0.006), (KX, KY, KZ + 0.023), "#5BA4E6", bevel=0.002)
+    kit.parent(kit.sphere("BookCoverDot", 0.016, (KX, KY, KZ + 0.026), P.EGG, scale=(1, 1, 0.25)), cover)
+    kit.parent(cover, pages)
+    # 비눗방울 병: 팔걸이 컵홀더에 꽂혀 있다
+    JX, JY, JZ = 0.05, 0.1, 0.53
+    jar = kit.cylinder("BubbleJar", 0.022, 0.08, (JX, JY, JZ + 0.04), "#9ED8F0")
+    kit.parent(kit.cylinder("BubbleJarCap", 0.024, 0.014, (JX, JY, JZ + 0.087), "#F29BB8"), jar)
+    kit.parent(kit.cylinder("BubbleJarStick", 0.003, 0.05, (JX, JY, JZ + 0.115), "#F1E6CF"), jar)
+    kit.parent(kit.torus("BubbleJarWand", 0.014, 0.003, (JX, JY, JZ + 0.152), "#F1E6CF", rotation=(90, 0, 0)), jar)
+    # 휴지 상자: 뒷선반 위 (뒤돌아보면 보인다)
+    TX, TY, TZ = 0.32, BACK - 0.08, BELT + 0.083
+    tbox = b("TissueBox", (0.2, 0.1, 0.07), (TX, TY, TZ + 0.035), "#F5E1A4", bevel=0.01)
+    kit.parent(b("TissueBoxHole", (0.1, 0.03, 0.004), (TX, TY, TZ + 0.0705), P.DOOR_DARK, bevel=0.001), tbox)
+    kit.parent(b("TissueBoxPaper", (0.06, 0.004, 0.05), (TX, TY, TZ + 0.09), "#FFFFFF", bevel=0.001,
+                 rotation=(0, 12, 0)), tbox)
 
 
 def walk_surfaces():
@@ -284,13 +338,19 @@ def walk_surfaces():
     c = P.WALK
     # 뒷좌석은 팔걸이 양옆 두 칸 (팔걸이 아래로 파고들지 않게)
     w("Walk_RearSeat_L", (0.48, 0.4), (0.39, 0.22, 0.445), c)
-    w("Walk_RearSeat_R", (0.48, 0.4), (-0.39, 0.22, 0.445), c)
+    # 오른쪽 자리는 구석의 인형 앞쪽만 (인형을 뚫고 지나가지 않게)
+    w("Walk_RearSeat_R", (0.36, 0.3), (-0.33, 0.17, 0.445), c)
     w("Walk_Armrest", (0.2, 0.38), (0, 0.24, 0.556), c)
     w("Walk_RearShelf", (W - 0.2, 0.2), (0, BACK - 0.06, BELT + 0.083), c)
     w("Walk_Dashboard", (W - 0.3, 0.3), (0, -1.74, 0.982), c)
     # 머리받침·등받이 위는 좁고 캐릭터가 의자에 묻혀 보여서 걷는 면에서 뺐다 (대시보드는 창턱으로 간다)
     w("Walk_DoorSill_L", (0.06, BACK - FRONT - 0.5), (HALF - 0.04, -0.6, BELT + 0.005), c)
     w("Walk_DoorSill_R", (0.06, BACK - FRONT - 0.5), (-HALF + 0.04, -0.6, BELT + 0.005), c)
+    # 앞좌석 등받이 뒤와 뒷좌석 방석 앞 사이 발 놓는 바닥 (발판 매트 위).
+    # 방석 바로 앞(약 0.4m)은 아이 자리에서 방석에 가려지므로 앞좌석 쪽으로만 둔다 (앞좌석 방석 아래 빈 곳까지)
+    w("Walk_Floor", (W - 0.24, 0.32), (0, -0.56, 0.012), c)
+    # 앞좌석 사이 센터 콘솔 위: 아이가 정면을 보면 두 등받이 사이로 보인다. 알 둥지를 여기에 둔다 (Unity CritterDirector.Egg)
+    w("Walk_Console", (0.2, 0.2), (0, -1.06, 0.382), c)
 
 
 def build():

@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &1849659550024845153
+--- !u!1 &2756411741714377588
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,10 +8,10 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 797775944766641387}
-  - component: {fileID: 8484256777694243727}
-  - component: {fileID: 6919470696463333527}
-  - component: {fileID: 343892732174476698}
+  - component: {fileID: 6504293451520354881}
+  - component: {fileID: 8595360972996758677}
+  - component: {fileID: 153017491335222712}
+  - component: {fileID: 5644800159173666925}
   m_Layer: 0
   m_Name: Eco_Building_Grid(Clone)
   m_TagString: Untagged
@@ -19,36 +19,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &797775944766641387
+--- !u!4 &6504293451520354881
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1849659550024845153}
+  m_GameObject: {fileID: 2756411741714377588}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0, y: 0.0010604858, z: 0.6716137}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 27911594678029411}
+  m_Father: {fileID: 1947770580772162874}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &8484256777694243727
+--- !u!33 &8595360972996758677
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1849659550024845153}
+  m_GameObject: {fileID: 2756411741714377588}
   m_Mesh: {fileID: -3037267497684229356, guid: 5b21ed48fda4eee4eb66e846136bd98e, type: 3}
---- !u!23 &6919470696463333527
+--- !u!23 &153017491335222712
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1849659550024845153}
+  m_GameObject: {fileID: 2756411741714377588}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -89,13 +89,13 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &343892732174476698
+--- !u!64 &5644800159173666925
 MeshCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1849659550024845153}
+  m_GameObject: {fileID: 2756411741714377588}
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -111,7 +111,7 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: -3037267497684229356, guid: 5b21ed48fda4eee4eb66e846136bd98e, type: 3}
---- !u!1 &3334726251956244691
+--- !u!1 &5345162581748341297
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -119,7 +119,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 27911594678029411}
+  - component: {fileID: 1947770580772162874}
   m_Layer: 0
   m_Name: C_Eco_Building_Grid
   m_TagString: Untagged
@@ -127,19 +127,19 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &27911594678029411
+--- !u!4 &1947770580772162874
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3334726251956244691}
+  m_GameObject: {fileID: 5345162581748341297}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 797775944766641387}
+  - {fileID: 6504293451520354881}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

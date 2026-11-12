@@ -34,6 +34,33 @@ namespace Allo
             return Color.clear;
         });
 
+        /// 비눗방울: 옅은 무지개 테두리 + 하이라이트
+        public static Texture2D Bubble => _bubble ??= Draw(96, (u, v) =>
+        {
+            var r = Mathf.Sqrt(u * u + v * v);
+            if (r > 0.98f) return Color.clear;
+            var hx = u + 0.38f; var hy = v - 0.38f;
+            if (hx * hx + hy * hy < 0.03f) return new Color(1, 1, 1, 0.95f);
+            var edge = Mathf.Clamp01((r - 0.72f) / 0.26f);
+            var hue = Color.HSVToRGB(Mathf.Repeat(Mathf.Atan2(v, u) / (2 * Mathf.PI) + 0.5f, 1), 0.35f, 1);
+            return new Color(hue.r, hue.g, hue.b, 0.08f + edge * 0.55f);
+        });
+
+        static Texture2D _bubble;
+
+        /// 카메라를 향하는 그림 한 장 (비눗방울 등). Floaty 없이 직접 움직인다
+        public static GameObject Sprite(Texture2D tex, Material baseMat, float size)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            Object.Destroy(go.GetComponent<Collider>());
+            var r = go.GetComponent<Renderer>();
+            r.sharedMaterial = Mat(baseMat, tex);
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            go.transform.localScale = new Vector3(size, size, 1);
+            return go;
+        }
+
         static Texture2D Draw(int n, System.Func<float, float, Color> f)
         {
             var t = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
@@ -46,10 +73,16 @@ namespace Allo
             return t;
         }
 
+        static readonly Dictionary<Texture2D, Material> _mats = new();
+
         static Material Mat(Material baseMat, Texture2D tex)
         {
             if (_mat == null) _mat = new Material(baseMat ?? new Material(Shader.Find("Legacy Shaders/Transparent/Cutout/Diffuse")));
-            return new Material(_mat) { mainTexture = tex };
+            // 그림마다 재질 하나를 같이 쓴다 (효과마다 새로 만들면 지워지지 않고 쌓인다)
+            if (_mats.TryGetValue(tex, out var m) && m != null) return m;
+            m = new Material(_mat) { mainTexture = tex };
+            _mats[tex] = m;
+            return m;
         }
 
         /// at 주변에서 n 개가 0.9초 동안 떠오르며 사라진다. size 는 미터

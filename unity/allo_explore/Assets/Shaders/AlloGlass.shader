@@ -8,6 +8,8 @@ Shader "Allo/Glass"
         _Rain ("Rain", Range(0, 1)) = 0
         _Tiling ("Drop Grid (x, y)", Vector) = (40, 18, 0, 0)
         _DropColor ("Drop Color", Color) = (0.9, 0.95, 1, 0.36)
+        _FogTex ("Fog (R, FogGlass 가 그린다)", 2D) = "black" {}
+        _FogColor ("Fog Color", Color) = (0.93, 0.95, 0.97, 0.78)
     }
     SubShader
     {
@@ -22,7 +24,8 @@ Shader "Allo/Glass"
             #pragma vertex vert
             #pragma fragment frag
             #include "UnityCG.cginc"
-            fixed4 _Color, _DropColor;
+            fixed4 _Color, _DropColor, _FogColor;
+            sampler2D _FogTex;
             half _Rain;
             float4 _Tiling;
 
@@ -69,6 +72,14 @@ Shader "Allo/Glass"
                     half ring = smoothstep(0.55, 1.0, d) ;
                     c.rgb = lerp(c.rgb, lerp(_DropColor.rgb * 0.7, _DropColor.rgb, ring), saturate(d * 1.4));
                     c.a = saturate(c.a + d * _DropColor.a);
+                }
+                // 김서림: 뿌옇게 + 아주 옅은 얼룩. 손가락으로 지운 곳은 맑게
+                half fog = tex2D(_FogTex, i.uv).r;
+                if (fog > 0.002)
+                {
+                    half grain = 0.85 + 0.15 * hash(floor(i.uv * float2(90, 50)));
+                    c.rgb = lerp(c.rgb, _FogColor.rgb * grain, saturate(fog * 1.1));
+                    c.a = max(c.a, fog * _FogColor.a);
                 }
                 return c;
             }
