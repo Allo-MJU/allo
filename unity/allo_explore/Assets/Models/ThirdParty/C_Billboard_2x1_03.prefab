@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &1186998769512350308
+--- !u!1 &6670051540388937068
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,10 +8,10 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 33005981581970470}
-  - component: {fileID: 3999558677964776155}
-  - component: {fileID: 8692740094605671169}
-  - component: {fileID: 7652700664489021458}
+  - component: {fileID: 9138179391303017896}
+  - component: {fileID: 6550241209667035393}
+  - component: {fileID: 2007758723154681629}
+  - component: {fileID: 3700321697216880057}
   m_Layer: 0
   m_Name: Billboard_2x1_03(Clone)
   m_TagString: Untagged
@@ -19,36 +19,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &33005981581970470
+--- !u!4 &9138179391303017896
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1186998769512350308}
+  m_GameObject: {fileID: 6670051540388937068}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -3.67659, y: -0.00000047683716, z: 2.707288}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 7966159828623475863}
+  m_Father: {fileID: 902131318837201334}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &3999558677964776155
+--- !u!33 &6550241209667035393
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1186998769512350308}
+  m_GameObject: {fileID: 6670051540388937068}
   m_Mesh: {fileID: -5822691923602213122, guid: 38ece1fa3545976429f08a93a8a60000, type: 3}
---- !u!23 &8692740094605671169
+--- !u!23 &2007758723154681629
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1186998769512350308}
+  m_GameObject: {fileID: 6670051540388937068}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -88,13 +88,13 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &7652700664489021458
+--- !u!64 &3700321697216880057
 MeshCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1186998769512350308}
+  m_GameObject: {fileID: 6670051540388937068}
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -110,7 +110,7 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: -5822691923602213122, guid: 38ece1fa3545976429f08a93a8a60000, type: 3}
---- !u!1 &7522181645990398237
+--- !u!1 &8102418609828152610
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -118,7 +118,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 7966159828623475863}
+  - component: {fileID: 902131318837201334}
   m_Layer: 0
   m_Name: C_Billboard_2x1_03
   m_TagString: Untagged
@@ -126,19 +126,19 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &7966159828623475863
+--- !u!4 &902131318837201334
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7522181645990398237}
+  m_GameObject: {fileID: 8102418609828152610}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 33005981581970470}
+  - {fileID: 9138179391303017896}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
