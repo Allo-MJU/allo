@@ -363,6 +363,54 @@ public static class AlloBuild
         Debug.Log($"[AlloBuild] captured egg views to {outDir}");
     }
 
+    /// 옆자리의 동행: 서 있는 모습(발 묻힘)·말풍선·담요 덮은 모습을 찍는다 (빌드 없이 확인). docs/work-results/explore/unity_seat_*.png
+    ///   Unity -batchmode -quit -projectPath unity/allo_explore -executeMethod AlloBuild.CaptureBlanket
+    public static void CaptureBlanket()
+    {
+        EditorSceneManager.OpenScene(ScenePath);
+        var cam = Camera.main;
+        var rig = cam.GetComponent<Allo.CameraRig.CameraRig>();
+        var dir = rig.lookTarget.position - rig.rearAnchor.position;
+        var baseYaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+        var outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../../../docs/work-results/explore"));
+        Directory.CreateDirectory(outDir);
+        var director = Object.FindFirstObjectByType<Allo.Critters.CritterDirector>();
+        var graph = director.BuildGraph();
+        var v = director.EditorSpawn(graph, "road_sprout", "species/road_sprout.png", "Walk_RearSeat_R");
+        var bank = Path.GetFullPath(Path.Combine(Application.dataPath, "../../../phone/assets/data/cabin_dialogue.json"));
+        if (File.Exists(bank)) Allo.Critters.Dialogue.Parse(File.ReadAllText(bank));
+        var rt = new RenderTexture(1600, 720, 24);
+        cam.targetTexture = rt;
+        void Shot(string name, float yaw, float pitch)
+        {
+            cam.transform.position = rig.rearAnchor.position;
+            cam.transform.rotation = Quaternion.Euler(-pitch, baseYaw + yaw, 0);
+            for (var i = 0; i < 4; i++) v.Pose(cam, 0.1f);
+            director.EditorBubbleTick();
+            cam.Render();
+            RenderTexture.active = rt;
+            var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+            tex.Apply();
+            File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+        }
+        // 1) 옆자리에 서서 첫마디 (말풍선)
+        director.Speak("hatch", "*", 30f, v);
+        Shot("unity_seat_idle_bubble", 75, -32);
+        // 발밑 그림자 없이 (발밑 흰 자국이 그림자 판인지 가려내는 용도)
+        var shadow = v.transform.Find("Shadow");
+        if (shadow != null) { shadow.gameObject.SetActive(false); Shot("unity_seat_noshadow", 75, -32); shadow.gameObject.SetActive(true); }
+        // 2) 잠든 모습에 담요를 덮어 준다
+        v.Brain.Nap(60);
+        v.Pose(cam, 0.1f);
+        director.ToggleBlanket(v);
+        Shot("unity_seat_blanket", 75, -32);
+        Shot("unity_seat_blanket_front", 45, -28);
+        cam.targetTexture = null;
+        RenderTexture.active = null;
+        Debug.Log($"[AlloBuild] captured seat views to {outDir}");
+    }
+
     /// 장면마다 창밖을 만들어 앞·옆을 찍는다 (빌드 없이 확인)
     ///   Unity -batchmode -quit -projectPath unity/allo_explore -executeMethod AlloBuild.CaptureWorld
     public static void CaptureWorld()

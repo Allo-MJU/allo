@@ -22,10 +22,10 @@ namespace Allo.Critters
         Transform _blanket;
         CritterView _blanketOn;
         bool _busy;
-        float _petHeart, _petSent, _drawSent, _watchAt;
-        float _lookTimer = 40;
-        Transform _balloon;
-        float _balloonAge, _balloonSeen;
+        float _petHeart, _petSent, _petTalk, _drawSent, _watchAt;
+        float _lookTimer = 30;
+        Transform _sky;         // 창밖 손님 (풍선·연·새·비행기·별똥별·고래)
+        float _skyAge, _skySeen;
         readonly System.Random _play = new(77);
         Allo.Hud _hud;
 
@@ -197,6 +197,7 @@ namespace Allo.Critters
             {
                 Fx.Burst(c.Top, Fx.Heart, critterMaterial, 6, 0.07f);
                 FlutterBridge.Send("feed", FlutterBridge.Field("kind", Toys.Code(kind)));
+                Speak("snack", null, 3f, c);
                 Debug.Log($"[Play] ate {kind}");
                 c.Brain.Hold = false;
             }
@@ -226,6 +227,7 @@ namespace Allo.Critters
                 Fx.Burst(c.Top, Fx.Heart, critterMaterial, 5, 0.06f);
                 FlutterBridge.Send("tap", FlutterBridge.Field("kind", "ball"));
                 Debug.Log("[Play] ball back");
+                Speak("ball", "*", 3f, c);
                 c.Brain.Hold = false;
             }
             _busy = false;
@@ -261,6 +263,11 @@ namespace Allo.Critters
                 _petSent = Time.time;
                 FlutterBridge.Send("tap", FlutterBridge.Field("kind", "pet"));
                 Debug.Log("[Play] pet");
+            }
+            if (Time.time - _petTalk > 9f && v.Brain.State != CritterState.Sleep)
+            {
+                _petTalk = Time.time;
+                Speak("pet", "*", 2.6f, v);
             }
         }
 
@@ -364,17 +371,19 @@ namespace Allo.Critters
                 RemoveBlanket();
                 v.Brain.StayAsleep = false;
                 v.Brain.Poke();
+                Speak("wake", "*", 2.8f, v);
                 return true;
             }
             if (v.Brain.State != CritterState.Sleep) return false;
             RemoveBlanket();
             _blanket = Toys.Make(Toys.Kind.Blanket);
             _blanket.SetParent(v.transform, false);
-            _blanket.localPosition = Vector3.up * (CritterView.Height * 0.35f);
-            _blanket.localScale = new Vector3(1.1f, 1, 1.1f);
+            _blanket.localPosition = Vector3.zero; // 발 자리에 돔을 씌운다 (그림 아래 절반을 가려 머리만 내놓는다)
+            _blanket.rotation = Quaternion.LookRotation(Flat(Cam.transform.position - v.transform.position).normalized); // 접힌 윗단이 카메라 쪽
             _blanketOn = v;
             v.Brain.StayAsleep = true;
             Fx.Burst(v.Top, Fx.Heart, critterMaterial, 3, 0.05f);
+            Speak("blanket", "*", 3f, v);
             if (v.Id == CompanionId) FlutterBridge.Send("tap", FlutterBridge.Field("kind", "blanket"));
             return true;
         }
@@ -434,48 +443,143 @@ namespace Allo.Critters
 
         void PlayTick(float dt)
         {
-            if (_balloon != null) { BalloonTick(dt); return; }
+            if (_sky != null) { SkyTick(dt); return; }
             if (Companion == null || _busy || Holding || !_mood.moving || _mood.tunnel) return;
             _lookTimer -= dt;
             if (_lookTimer > 0) return;
-            _lookTimer = 50 + (float)_play.NextDouble() * 40;
-            SpawnBalloon();
+            _lookTimer = 32 + (float)_play.NextDouble() * 25;
+            SpawnSky();
         }
 
         Vector3 Eye => childEye != null ? childEye.position : Cam.transform.position;
 
         Vector3 Fwd => frontEye != null && childEye != null ? Forward : Flat(Cam.transform.forward).normalized;
 
-        void SpawnBalloon()
+        /// 장면에 어울리는 창밖 손님을 고른다. 비·터널에서는 없다
+        Toys.Kind? PickSky()
         {
+            if (_mood.tunnel || _mood.rain) return null;
+            Toys.Kind[] pool = _mood.night ? new[] { Toys.Kind.Star, Toys.Kind.Star, Toys.Kind.Plane }
+                : _scene switch
+                {
+                    "coast" => new[] { Toys.Kind.Whale, Toys.Kind.Birds, Toys.Kind.Kite },
+                    "mountain" => new[] { Toys.Kind.Balloon, Toys.Kind.Birds, Toys.Kind.Kite },
+                    "city" => new[] { Toys.Kind.Kite, Toys.Kind.Plane, Toys.Kind.Balloon },
+                    "highway" => new[] { Toys.Kind.Plane, Toys.Kind.Birds, Toys.Kind.Balloon },
+                    _ => new[] { Toys.Kind.Balloon, Toys.Kind.Birds, Toys.Kind.Kite },
+                };
+            return pool[_play.Next(pool.Length)];
+        }
+
+        static string SkyName(Toys.Kind k) => k switch
+        {
+            Toys.Kind.Kite => "kite", Toys.Kind.Birds => "birds", Toys.Kind.Plane => "plane",
+            Toys.Kind.Star => "star", Toys.Kind.Whale => "whale", _ => "balloon",
+        };
+
+        /// 창밖 손님: 풍선·연·새 떼·비행기·별똥별·고래. 옆 창 밖에 나타나 천천히 지나간다.
+        /// 동행이 그쪽을 보며 말하고, 아이가 그쪽을 보면 같이 봤다고 알린다
+        void SpawnSky()
+        {
+            var kind = PickSky();
+            if (kind == null) return;
             var right = Vector3.Cross(Vector3.up, Fwd).normalized;
             var c = Companion;
             var side = c != null && Vector3.Dot(c.Brain.Position - Eye, right) < 0 ? -1 : 1;
-            _balloon = Toys.Make(Toys.Kind.Balloon);
-            _balloon.position = Eye + right * (side * 9) + Fwd * 9 + Vector3.down * 1.2f;
-            _balloonAge = 0;
-            _balloonSeen = 0;
+            _skyKind = kind.Value;
+            _sky = Toys.Make(_skyKind);
+            _skySide = side;
+            _skyAge = 0;
+            _skySeen = 0;
+            var basePos = Eye + right * (side * 9) + Fwd * 9;
+            switch (_skyKind)
+            {
+                case Toys.Kind.Kite: _sky.position = basePos + Vector3.up * 1.5f; _sky.localScale = Vector3.one * 0.9f; break;
+                case Toys.Kind.Birds: _sky.position = basePos + Fwd * 4 + Vector3.up * 2.2f; _sky.localScale = Vector3.one * 0.7f; break;
+                case Toys.Kind.Plane: _sky.position = Eye + right * (side * 14) + Fwd * 30 + Vector3.up * 9f; _sky.localScale = Vector3.one * 1.6f; break;
+                case Toys.Kind.Star: _sky.position = Eye + right * (side * 12) + Fwd * 10 + Vector3.up * 8f; _sky.localScale = Vector3.one * 0.9f; break;
+                case Toys.Kind.Whale: _sky.position = Eye + right * (side * 16) + Fwd * 6 + Vector3.down * 1.2f; _sky.localScale = Vector3.one * 1.3f; break;
+                default: _sky.position = basePos + Vector3.down * 1.2f; break;
+            }
+            _skyLook = _skyKind == Toys.Kind.Balloon ? Vector3.up * 1.6f : Vector3.up * 0.5f;
             if (c != null && c.Brain.State != CritterState.Sleep)
             {
                 c.Brain.Peek(5);
                 Fx.Burst(c.Top, Fx.Spark, critterMaterial, 3, 0.05f);
             }
-            Debug.Log($"[Play] balloon side={side}");
-            Say(side > 0 ? "오른쪽 창밖에 풍선이 있어요! 같이 볼까요?" : "왼쪽 창밖에 풍선이 있어요! 같이 볼까요?");
+            Debug.Log($"[Play] sky {_skyKind} side={side}");
+            var name = SkyName(_skyKind);
+            if (Speak("window", name, 3.6f) == null)
+                Say((side > 0 ? "오른쪽" : "왼쪽") + " 창밖을 봐요! 같이 볼까요?");
         }
 
-        void BalloonTick(float dt)
+        Toys.Kind _skyKind;
+        int _skySide;
+        Vector3 _skyLook;
+
+        void SkyTick(float dt)
         {
-            _balloonAge += dt;
-            // 차보다 조금 느리게 날아 천천히 뒤로 지나간다
-            _balloon.position += (-Fwd * 1.2f + Vector3.up * 0.15f) * dt;
-            _balloon.Rotate(0, 20 * dt, 0);
-            var cam = Cam;
-            var to = _balloon.position + Vector3.up * 1.6f - cam.transform.position;
-            if (Vector3.Angle(cam.transform.forward, to) < 16) _balloonSeen += dt;
-            if (_balloonSeen > 0.4f)
+            _skyAge += dt;
+            var t = _skyAge;
+            switch (_skyKind)
             {
-                Fx.Burst(_balloon.position + Vector3.up * 1.6f, Fx.Spark, critterMaterial, 8, 0.8f, 0.8f);
+                case Toys.Kind.Kite:
+                    _sky.position += (-Fwd * 0.9f + Vector3.up * 0.12f) * dt;
+                    _sky.rotation = Quaternion.LookRotation(Flat(Eye - _sky.position).normalized) * Quaternion.Euler(Mathf.Sin(t * 1.7f) * 14, 0, Mathf.Sin(t * 2.3f) * 18);
+                    break;
+                case Toys.Kind.Birds:
+                    _sky.position += (-Fwd * 0.6f + Vector3.up * 0.05f + Vector3.Cross(Vector3.up, Fwd) * _skySide * -0.3f) * dt;
+                    _sky.rotation = Quaternion.LookRotation(Flat(Eye - _sky.position).normalized);
+                    foreach (Transform w in _sky)
+                    {
+                        if (w.name == "WingL") w.localRotation = Quaternion.Euler(0, 0, 10 + Mathf.Sin(t * 9) * 35);
+                        else if (w.name == "WingR") w.localRotation = Quaternion.Euler(0, 0, -10 - Mathf.Sin(t * 9) * 35);
+                    }
+                    break;
+                case Toys.Kind.Plane:
+                    _sky.position += (-Fwd * 6f) * dt; // 하늘 높이 앞에서 뒤로
+                    _sky.rotation = Quaternion.LookRotation(Vector3.Cross(Vector3.up, -Fwd)) * Quaternion.Euler(0, -90, 0);
+                    foreach (Transform w in _sky) if (w.name == "Blink") w.gameObject.SetActive(Mathf.Repeat(t, 1f) < 0.5f);
+                    break;
+                case Toys.Kind.Star:
+                {
+                    // 2초마다 한 번씩 슝 떨어진다 (세 번)
+                    var cycle = Mathf.Repeat(t, 2.4f);
+                    var k = Mathf.Clamp01(cycle / 1.1f);
+                    var right = Vector3.Cross(Vector3.up, Fwd);
+                    var from = Eye + right * (_skySide * 12) + Fwd * 10 + Vector3.up * 8f;
+                    _sky.position = from + (Fwd * -5f + Vector3.down * 4.5f) * k;
+                    _sky.rotation = Quaternion.LookRotation(Flat(Eye - _sky.position).normalized) * Quaternion.Euler(0, 0, -35);
+                    _sky.gameObject.SetActive(cycle < 1.1f);
+                    if (k > 0.1f && Mathf.Repeat(t, 0.15f) < dt) Fx.Burst(_sky.position, Fx.Spark, critterMaterial, 1, 0.5f, 0.2f);
+                    break;
+                }
+                case Toys.Kind.Whale:
+                {
+                    _sky.position += (-Fwd * 0.8f) * dt;
+                    var bob = Mathf.Sin(t * 1.2f) * 0.35f;
+                    var p = _sky.position; p.y = Eye.y - 1.2f + bob; _sky.position = p;
+                    _sky.rotation = Quaternion.LookRotation(-Fwd) * Quaternion.Euler(0, 90, 0) * Quaternion.Euler(Mathf.Sin(t * 1.2f) * 6, 0, 0);
+                    foreach (Transform w in _sky)
+                    {
+                        if (w.name == "Tail") w.localRotation = Quaternion.Euler(0, 0, Mathf.Sin(t * 2.5f) * 18);
+                        else if (w.name == "Spout") w.localScale = Vector3.one * (0.1f + Mathf.Max(0, Mathf.Sin(t * 1.2f)) * 0.5f);
+                    }
+                    if (Mathf.Repeat(t, 5.2f) < dt) Fx.Burst(_sky.position + Vector3.up * 1.4f, Fx.Bubble, critterMaterial, 6, 0.6f, 0.9f);
+                    break;
+                }
+                default: // 풍선
+                    _sky.position += (-Fwd * 1.2f + Vector3.up * 0.15f) * dt;
+                    _sky.Rotate(0, 20 * dt, 0);
+                    break;
+            }
+            var cam = Cam;
+            var to = _sky.position + _skyLook - cam.transform.position;
+            if (Vector3.Angle(cam.transform.forward, to) < 16) _skySeen += dt;
+            var life = _skyKind == Toys.Kind.Plane ? 11f : _skyKind == Toys.Kind.Star ? 7.3f : 14f;
+            if (_skySeen > 0.4f)
+            {
+                Fx.Burst(_sky.position + _skyLook, Fx.Spark, critterMaterial, 8, 0.8f, 0.8f);
                 var c = Companion;
                 if (c != null)
                 {
@@ -484,15 +588,17 @@ namespace Allo.Critters
                     Fx.Burst(c.Top, Fx.Heart, critterMaterial, 5, 0.06f);
                 }
                 FlutterBridge.Send("lookTogether");
-                Debug.Log("[Play] looked together");
-                Destroy(_balloon.gameObject);
-                _balloon = null;
+                Debug.Log($"[Play] looked together ({_skyKind})");
+                Speak("window_done", SkyName(_skyKind), 3.4f);
+                Destroy(_sky.gameObject);
+                _sky = null;
+                _lookTimer = 25 + (float)_play.NextDouble() * 20; // 같이 본 뒤엔 조금 더 빨리 다음 손님
                 return;
             }
-            if (_balloonAge > 14)
+            if (_skyAge > life)
             {
-                Destroy(_balloon.gameObject);
-                _balloon = null;
+                Destroy(_sky.gameObject);
+                _sky = null;
             }
         }
 

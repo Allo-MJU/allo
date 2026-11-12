@@ -68,4 +68,35 @@ public class WalkGraphTests
         var rng = new System.Random(1);
         for (var k = 0; k < 20; k++) Assert.AreEqual(g.Surfaces[0].center, g.RandomPoint(0, rng));
     }
+
+    [Test]
+    public void RandomPointNearStaysWithinRadius()
+    {
+        var g = new WalkGraph(new List<WalkSurface> { new WalkSurface("A", new Vector3(0, 0, 0), new Vector2(2f, 2f)) });
+        var rng = new System.Random(5);
+        var from = new Vector3(0.3f, 0, -0.2f);
+        for (var i = 0; i < 50; i++)
+            Assert.LessOrEqual((g.RandomPointNear(0, from, 0.3f, rng) - from).magnitude, 0.3f + 1e-4f);
+    }
+
+    [Test]
+    public void RandomPointNearPrefersComfortableThenNearest()
+    {
+        var g = new WalkGraph(new List<WalkSurface> { new WalkSurface("A", new Vector3(0, 0, 0), new Vector2(2f, 2f)) });
+        g.Comfortable = p => p.x > 0.9f; // 반지름 안엔 편한 자리가 없다
+        var rng = new System.Random(6);
+        var from = new Vector3(-0.8f, 0, 0);
+        var p = g.RandomPointNear(0, from, 0.2f, rng);
+        Assert.LessOrEqual((p - from).magnitude, 0.2f + 1e-4f, "편한 자리가 없어도 가까운 자리를 고른다");
+    }
+
+    [Test]
+    public void WeightDefaultsToOneAndClampsNegative()
+    {
+        var g = Sample();
+        Assert.AreEqual(1f, g.WeightOf(0));
+        g.Weight = i => i == 0 ? -1 : 0.5f;
+        Assert.AreEqual(0f, g.WeightOf(0));
+        Assert.AreEqual(0.5f, g.WeightOf(1));
+    }
 }
