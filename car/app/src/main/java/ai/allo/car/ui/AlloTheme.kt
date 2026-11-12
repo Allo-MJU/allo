@@ -1,8 +1,10 @@
 package ai.allo.car.ui
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -10,7 +12,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 /**
- * 차 화면 공통 테마. #92 차량 화면 설계의 먹색·본문·강조색을 사용한다.
+ * 시스템 주야간 설정에 따른 차량 공통 테마. 기존 먹색 야간과 흰색·녹색 주간을 지원한다.
  * 실제 창 크기에 맞춘 화면 배치와 함께 사용하며 기기 시인성 검증은 별도다.
  */
 object AlloColors {
@@ -23,7 +25,7 @@ object AlloColors {
     val Track = Color(0xFF596A61)       // 진행바 바탕
 }
 
-private val colors = darkColorScheme(
+private val darkColors = darkColorScheme(
     primary = AlloColors.Egg,
     onPrimary = AlloColors.Night,
     secondary = AlloColors.EggDeep,
@@ -54,6 +56,38 @@ private val colors = darkColorScheme(
     outlineVariant = Color(0xFF3F4D46),
 )
 
+/** White surfaces with green actions; semantic text roles remain readable on every card layer. */
+private val lightColors = lightColorScheme(
+    primary = Color(0xFF28633F),
+    onPrimary = Color.White,
+    secondary = Color(0xFF4F6942),
+    onSecondary = Color.White,
+    primaryContainer = Color(0xFFD8EEDC),
+    onPrimaryContainer = Color(0xFF102D1B),
+    secondaryContainer = Color(0xFFE1ECD9),
+    onSecondaryContainer = Color(0xFF20341A),
+    tertiary = Color(0xFF456B55),
+    onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFD9EDDF),
+    onTertiaryContainer = Color(0xFF183426),
+    background = Color.White,
+    onBackground = Color(0xFF1C271F),
+    surface = Color.White,
+    onSurface = Color(0xFF1C271F),
+    surfaceVariant = Color(0xFFE6EDE3),
+    onSurfaceVariant = Color(0xFF4B594D),
+    surfaceContainer = Color(0xFFF0F5ED),
+    surfaceContainerHigh = Color(0xFFE8F0E5),
+    surfaceContainerHighest = Color(0xFFDEE9DA),
+    surfaceContainerLow = Color(0xFFF6F9F3),
+    surfaceContainerLowest = Color.White,
+    surfaceBright = Color.White,
+    surfaceDim = Color(0xFFDCE5D8),
+    surfaceTint = Color(0xFF28633F),
+    outline = Color(0xFF667662),
+    outlineVariant = Color(0xFFC4D0BE),
+)
+
 private val type = Typography(
     displayLarge = TextStyle(fontSize = 88.sp, fontWeight = FontWeight.Bold, lineHeight = 100.sp),
     displayMedium = TextStyle(fontSize = 64.sp, fontWeight = FontWeight.Bold, lineHeight = 76.sp, letterSpacing = 4.sp),
@@ -66,5 +100,8 @@ private val type = Typography(
     labelLarge = TextStyle(fontSize = 22.sp, lineHeight = 30.sp, fontWeight = FontWeight.SemiBold),
 )
 
+internal fun alloColorScheme(darkTheme: Boolean) = if (darkTheme) darkColors else lightColors
+
 @Composable
-fun AlloTheme(content: @Composable () -> Unit) = MaterialTheme(colorScheme = colors, typography = type, content = content)
+fun AlloTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) =
+    MaterialTheme(colorScheme = alloColorScheme(darkTheme), typography = type, content = content)

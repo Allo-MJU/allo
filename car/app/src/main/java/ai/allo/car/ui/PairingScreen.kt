@@ -43,11 +43,11 @@ fun PairingScreen(meta: SessionMeta, dbUrl: String, sessionId: String = "",
                     style = MaterialTheme.typography.headlineMedium)
                 Text(if (ready) "QR을 스캔하거나 연결 코드를 입력해 주세요."
                     else "잠시 후 다시 확인해 주세요. 준비가 끝나면 연결 코드를 보여드려요.",
-                    style = MaterialTheme.typography.bodyLarge, color = AlloColors.MistDim)
+                    style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (ready) {
-                    Text("연결 코드", style = MaterialTheme.typography.bodyMedium, color = AlloColors.MistDim)
+                    Text("연결 코드", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(meta.pairCode.chunked(1).joinToString(" "),
-                        style = MaterialTheme.typography.headlineLarge, color = AlloColors.Egg,
+                        style = MaterialTheme.typography.headlineLarge, color = MaterialTheme.colorScheme.primary,
                         maxLines = 1, softWrap = false)
                 }
                 if (onRenewCode != null) {
@@ -55,10 +55,10 @@ fun PairingScreen(meta: SessionMeta, dbUrl: String, sessionId: String = "",
                         Text(if (renewing) "새 코드 확인 중" else if (renewalMessage != null) "새 코드 다시 확인" else "새 연결 코드")
                     }
                     Text(renewalMessage ?: "코드는 10분 동안 유효해요. 만료되면 새 코드를 받아 주세요.",
-                        style = MaterialTheme.typography.bodyMedium, color = AlloColors.MistDim)
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text("폰이 연결되면 함께할 친구를 확인해요.",
-                    style = MaterialTheme.typography.bodyMedium, color = AlloColors.MistDim)
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             },
         )
         }

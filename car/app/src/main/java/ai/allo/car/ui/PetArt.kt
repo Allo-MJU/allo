@@ -16,6 +16,7 @@ import android.provider.Settings
 import android.database.ContentObserver
 import android.os.Handler
 import android.os.Looper
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -142,6 +143,9 @@ internal fun ambientMotionAllowed(pose: PetPose, parked: Boolean, connected: Boo
     return PetPoses.animates(pose, parked, connected, resumed, motionEnabled, runningMotion)
 }
 
+// Character facial features are painted artwork, not foreground text; keep them dark in both themes.
+private val PetInk = Color(0xFF181C1E)
+
 @Composable
 private fun PlaceholderPet(summary: PetSummary, size: Dp, modifier: Modifier, pose: PetPose) {
     val color = when (summary.species?.attribute) {
@@ -157,13 +161,13 @@ private fun PlaceholderPet(summary: PetSummary, size: Dp, modifier: Modifier, po
         drawOval(color, Offset(w * .60f, h * .08f), Size(w * .22f, h * .42f))
         drawOval(color, Offset(w * .10f, h * .28f), Size(w * .80f, h * .60f))
         if (pose == PetPose.Sleep) {
-            drawLine(AlloColors.Night, Offset(w * .30f, h * .56f), Offset(w * .40f, h * .56f), w * .025f)
-            drawLine(AlloColors.Night, Offset(w * .60f, h * .56f), Offset(w * .70f, h * .56f), w * .025f)
+            drawLine(PetInk, Offset(w * .30f, h * .56f), Offset(w * .40f, h * .56f), w * .025f)
+            drawLine(PetInk, Offset(w * .60f, h * .56f), Offset(w * .70f, h * .56f), w * .025f)
         } else {
-            drawCircle(AlloColors.Night, w * .035f, Offset(w * .35f, h * .55f))
-            drawCircle(AlloColors.Night, w * .035f, Offset(w * .65f, h * .55f))
+            drawCircle(PetInk, w * .035f, Offset(w * .35f, h * .55f))
+            drawCircle(PetInk, w * .035f, Offset(w * .65f, h * .55f))
         }
-        drawArc(AlloColors.Night, 15f, 150f, false, Offset(w * .43f, h * .60f), Size(w * .14f, h * .10f), style = Stroke(w * .025f))
+        drawArc(PetInk, 15f, 150f, false, Offset(w * .43f, h * .60f), Size(w * .14f, h * .10f), style = Stroke(w * .025f))
         drawCircle(Color(0xFFE99EA9), w * .055f, Offset(w * .25f, h * .66f))
         drawCircle(Color(0xFFE99EA9), w * .055f, Offset(w * .75f, h * .66f))
     }
@@ -173,6 +177,7 @@ private fun PlaceholderPet(summary: PetSummary, size: Dp, modifier: Modifier, po
 /** Illustrated props animate around the supplied PNG poses; the character art is preserved. */
 @Composable
 private fun RestScene(pose: PetPose, phase: Float, motion: PetMotion, size: Dp, animate: Boolean) {
+    val colors = MaterialTheme.colorScheme
     Canvas(Modifier.size(size)) {
         val w = this.size.width
         val h = this.size.height
@@ -183,7 +188,7 @@ private fun RestScene(pose: PetPose, phase: Float, motion: PetMotion, size: Dp, 
             drawOval(pond.copy(alpha = .32f), Offset(w * .63f, h * .80f), Size(w * .36f, h * .15f))
             drawOval(pond.copy(alpha = .6f), Offset(w * .68f, h * .83f), Size(w * .26f, h * .07f), style = Stroke(w * .01f))
             drawLine(Color(0xFFD3AC76), Offset(w * .49f, h * .63f), tip, w * .025f)
-            drawLine(Color(0xFFE5E6EF), tip, bob, w * .008f)
+            drawLine(colors.onSurfaceVariant, tip, bob, w * .008f)
             drawCircle(Color(0xFFFFCC55), w * .025f, bob)
             if (motion.fish) {
                 val wiggle = kotlin.math.sin(phase * 95f) * .018f
@@ -198,7 +203,7 @@ private fun RestScene(pose: PetPose, phase: Float, motion: PetMotion, size: Dp, 
                 }
                 drawPath(tail, fishColor)
                 drawOval(fishColor, Offset(center.x - w * .055f, center.y - h * .035f), Size(w * .13f, h * .075f))
-                drawCircle(AlloColors.Night, w * .009f, Offset(center.x + w * .04f, center.y - h * .008f))
+                drawCircle(PetInk, w * .009f, Offset(center.x + w * .04f, center.y - h * .008f))
             }
             if (motion.stage == FishingStage.Splash) {
                 val splash = motion.splash
@@ -219,13 +224,13 @@ private fun RestScene(pose: PetPose, phase: Float, motion: PetMotion, size: Dp, 
                 val y = h * (.34f - drift * .30f)
                 val length = w * (.045f + drift * .04f)
                 val alpha = if (animate) kotlin.math.sin(drift * Math.PI).toFloat().coerceIn(0f, 1f) else .6f
-                val c = Color(0xFFCCD6F6).copy(alpha = alpha)
+                val c = colors.onSurfaceVariant.copy(alpha = alpha)
                 drawLine(c, Offset(x, y), Offset(x + length, y), w * .012f)
                 drawLine(c, Offset(x + length, y), Offset(x, y + length), w * .012f)
                 drawLine(c, Offset(x, y + length), Offset(x + length, y + length), w * .012f)
             }
         } else if (pose == PetPose.Move && animate) {
-            val ground = Color(0xFFB5DCCD)
+            val ground = colors.secondary
             drawOval(ground.copy(alpha = .16f), Offset(w * (.22f + .05f * motion.bounce), h * .91f),
                 Size(w * (.56f - .10f * motion.bounce), h * .07f))
             repeat(3) { i ->

@@ -16,9 +16,9 @@ fun SpeedNoticeScreen(onContinue: () -> Unit, onLater: (() -> Unit)? = null) {
             details = {
                 Text("속도 정보 사용을 허용해 주세요", style = MaterialTheme.typography.headlineMedium)
                 Text("차량의 움직임을 폰의 경험에 연결해요. 허용하지 않아도 가능한 기능은 사용할 수 있어요.",
-                    style = MaterialTheme.typography.bodyLarge, color = AlloColors.MistDim)
+                    style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("다음 단계에서 시스템 권한 창이 열려요. 속도 권한이 ‘위치 정보’로 표시될 수 있어요.",
-                    style = MaterialTheme.typography.bodyMedium, color = AlloColors.MistDim)
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 ScreenAction("계속", onContinue)
                 onLater?.let { ScreenAction("나중에", it, secondary = true) }
             },
