@@ -87,7 +87,6 @@ class UnityAppController extends ChangeNotifier {
           .all;
       if (demoCreatures && game.isFake) {
         await seedUnityDemoCreatures(game.dex, _species);
-        _notice = '수집 예시 친구가 있는 체험 모드예요.';
       }
       final loaded =
           camp.ready ? await camp.refreshOwnership() : await camp.load();

@@ -84,7 +84,6 @@ void main() {
     }
     expect((snapshot['materials'] as List).map((m) => m['count']),
         everyElement(0));
-    expect(snapshot['notice'], contains('예시'));
     for (final role in ['builder', 'cook', 'trainer']) {
       final worker = creatures.firstWhere((c) => c['role'] == role);
       receive(jsonEncode({

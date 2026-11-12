@@ -54,3 +54,7 @@ User explicitly approved keeping building artwork but reducing its size, replaci
 
 ## Latest correction: 2D baseline, survival theme only
 User clarified that Ninja Voltage remains the basic 2D village screen and Palworld is ONLY the theme reference. The temporary isolated 3D camp/RenderTexture implementation is removed. The persistent full-screen 2D world and bounded horizontal/vertical panning remain; replace cottages with original crisp cel-shaded workbench, outdoor cauldron and training sprites over a woodland terrain background. Keep small facility labels, fixed thin HUD/right circular rail and existing saved rules. The cabin alone retains its existing 3D presentation.
+
+
+## User-requested pre-collected examples
+An explicit UNITY_DEMO_CREATURES build flag with the Unity host and actual FakeVehicleFeed enables the isolated unity-demo-examples profile. Add four existing canonical characters through local DexStore once, without materials or remote reward receipts. Default/original demo ownership, camp and incubation keys remain intact. Show up to four actual owned-character sprites on the 2D camp; marker taps select their precise identity. This exception is limited to the user's requested demonstration and does not change production acquisition rules.
