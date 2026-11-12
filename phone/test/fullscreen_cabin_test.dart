@@ -63,14 +63,21 @@ void main() {
     semantics.dispose();
   });
 
-  testWidgets('부화 후 같이 가자를 누르면 바로 차 안 탐험 화면으로 간다', (tester) async {
+  testWidgets('Unity 빌드: 알을 품으면 바로 탐험, 그 안에서 부화하고 닫으면 부화 화면 → 같이 가자로 다시 탐험',
+      (tester) async {
     autoEnterExplore = true;
     addTearDown(() => autoEnterExplore = false);
     await startTrip(tester);
-    // 체험 주행은 100배속이라 기다리면 부화한다
+    await tester.pumpAndSettle();
+    expect(find.byType(ExploreScreen), findsOneWidget, reason: '품기 시작과 함께 탐험으로');
+    // 체험 주행은 100배속이라 기다리면 부화한다. 탐험이 떠 있는 동안은 부화 화면으로 넘기지 않는다
     for (var i = 0; i < 40 && find.text('같이 가자').evaluate().isEmpty; i++) {
       await tester.pump(const Duration(seconds: 1));
     }
+    expect(find.byType(ExploreScreen), findsOneWidget);
+    expect(find.text('같이 가자'), findsNothing);
+    // 테스트에는 Unity 가 없어 깨어나는 연출을 못 봤으므로, 닫으면 부화 화면을 보여 준다
+    await tester.tap(find.byTooltip('돌아가기'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('같이 가자'));
     await tester.pumpAndSettle();
