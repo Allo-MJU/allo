@@ -11,6 +11,7 @@ import '../base_camp/base_camp_controller.dart';
 import '../explore/explore_messages.dart';
 import '../game/game_controller.dart';
 import '../pairing/pairing_credentials.dart';
+import 'unity_demo_creatures.dart';
 import '../scene/window_scene.dart';
 
 const _nativeInput = MethodChannel('allo/egg-input');
@@ -20,6 +21,7 @@ class UnityAppController extends ChangeNotifier {
   UnityAppController(
       {required this.game,
       required this.camp,
+      this.demoCreatures = false,
       Future<String?> Function()? speechInput,
       Future<Uint8List?> Function()? photoInput})
       : _speechInput =
@@ -33,6 +35,7 @@ class UnityAppController extends ChangeNotifier {
 
   final GameController game;
   final BaseCampController camp;
+  final bool demoCreatures;
   final Future<String?> Function() _speechInput;
   final Future<Uint8List?> Function() _photoInput;
   final _handled = <String>{};
@@ -82,6 +85,10 @@ class UnityAppController extends ChangeNotifier {
                   await rootBundle.loadString('assets/data/species.json'))
               as Map<String, dynamic>)
           .all;
+      if (demoCreatures && game.isFake) {
+        await seedUnityDemoCreatures(game.dex, _species);
+        _notice = '수집 예시 친구가 있는 체험 모드예요.';
+      }
       final loaded =
           camp.ready ? await camp.refreshOwnership() : await camp.load();
       await _readCounts();

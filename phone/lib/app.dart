@@ -24,6 +24,7 @@ import 'screens/session_end_screen.dart';
 import 'storage/dex_store.dart';
 
 const unityAppEnabled = bool.fromEnvironment('UNITY_APP', defaultValue: true);
+const unityDemoCreaturesEnabled = bool.fromEnvironment('UNITY_DEMO_CREATURES');
 
 class AlloApp extends StatefulWidget {
   const AlloApp(
@@ -31,10 +32,12 @@ class AlloApp extends StatefulWidget {
       required this.feed,
       this.monotonicMs,
       this.useUnityApp,
+      this.demoCreatures = unityDemoCreaturesEnabled,
       this.unityView});
   final VehicleFeed feed;
   final int Function()? monotonicMs;
   final bool? useUnityApp;
+  final bool demoCreatures;
   final UnityViewBuilder? unityView;
 
   @override
@@ -44,9 +47,18 @@ class AlloApp extends StatefulWidget {
 class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
   bool get _useUnity =>
       widget.useUnityApp ?? (Platform.isAndroid && unityAppEnabled);
+  bool get _useDemoCreatures =>
+      _useUnity && widget.demoCreatures && widget.feed is FakeVehicleFeed;
+  late final DexStore dex =
+      DexStore(profile: _useDemoCreatures ? 'unity-demo-examples' : 'default');
   late final BaseCampController camp = BaseCampController(
+      dex: dex,
       store: SharedPreferencesBaseCampStore(
-          profile: widget.feed is FakeVehicleFeed ? 'demo' : 'default'));
+          profile: _useDemoCreatures
+              ? 'unity-demo-examples'
+              : widget.feed is FakeVehicleFeed
+                  ? 'demo'
+                  : 'default'));
   late final EggDemoApi? _eggApi = _makeEggApi();
   EggDemoApi? _makeEggApi() {
     try {
@@ -58,12 +70,12 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
 
   late final GameController controller = GameController(
       feed: widget.feed,
-      dex: DexStore(),
+      dex: dex,
       monotonicMs: widget.monotonicMs,
       eggApi: _useUnity ? _eggApi : null,
       baseCamp: _useUnity ? camp : null);
-  late final UnityAppController unityApp =
-      UnityAppController(game: controller, camp: camp);
+  late final UnityAppController unityApp = UnityAppController(
+      game: controller, camp: camp, demoCreatures: _useDemoCreatures);
 
   late final _router = GoRouter(
     initialLocation: _useUnity ? '/unity' : '/pairing',
