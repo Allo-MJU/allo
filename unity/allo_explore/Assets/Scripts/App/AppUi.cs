@@ -96,7 +96,7 @@ namespace Allo.App
             var status = Surface("Status", _safe, Cream);
             Stretch(status, 24, 100, -24, 156, Vector2.zero, new Vector2(1, 0));
             _statusSurface = status.GetComponent<Image>();
-            _status = Label(status, "저장된 캠프를 불러오고 있어요.", 22, TextAnchor.MiddleLeft);
+            _status = Label(status, "캠프를 불러오고 있어요.", 22, TextAnchor.MiddleLeft);
             Stretch(_status.rectTransform, 18, 0, -18, 0);
             var nav = Rect("Navigation", _safe);
             Stretch(nav, 24, 20, -24, 88, Vector2.zero, new Vector2(1, 0));
@@ -127,11 +127,11 @@ namespace Allo.App
             var view = View;
             _title.text = view == "home" ? "ALLO  ·  우리들의 작은 광장" : ViewTitle(view);
             var s = _state;
-            _connection.text = s == null || !s.ready ? "불러오는 중" : s.busy ? "저장 확인 중" : s.sessionEnded ? "여행 종료" : s.connected ? (s.isDemo ? "체험 연결됨" : "차량 연결됨") : "차량 연결 안 됨";
+            _connection.text = s == null || !s.ready ? "불러오는 중" : s.busy ? "처리 중" : s.sessionEnded ? "여행 종료" : s.connected ? (s.isDemo ? "체험 연결됨" : "차량 연결됨") : "차량 연결 안 됨";
             _connection.color = s != null && s.connected ? Ink : Muted;
             var error = s != null && !string.IsNullOrEmpty(s.error);
             _statusSurface.color = error ? CoralLight : s != null && s.busy ? Sky : Cream;
-            _status.text = s == null || !s.ready ? "저장된 캠프를 불러오고 있어요." : error ? "! " + ErrorLabel(s.error) : s.busy ? "저장 결과를 확인하고 있어요. 잠시 기다려 주세요." : !string.IsNullOrEmpty(s.notice) ? s.notice : DefaultStatus(view);
+            _status.text = s == null || !s.ready ? "캠프를 불러오고 있어요." : error ? "! " + ErrorLabel(s.error) : s.busy ? "처리 중이에요. 잠시 기다려 주세요." : !string.IsNullOrEmpty(s.notice) ? s.notice : DefaultStatus(view);
             foreach (var entry in _nav)
             {
                 entry.Value.GetComponent<Image>().color = entry.Key == view ? Mint : Cream;
@@ -207,6 +207,6 @@ namespace Allo.App
             }
         }
         static string ViewTitle(string view) => view == "cabin" ? "차 안에서 알 키우기" : view == "camp" ? "함께 만드는 캠프" : view == "dex" ? "우리 친구 도감" : view == "inventory" ? "보급품 가방" : "연결과 설정";
-        static string DefaultStatus(string view) => view == "home" ? "광장의 친구들과 함께, 다음 여행을 준비해요." : view == "cabin" ? "알을 쓰다듬고 말을 걸어 주세요. 결과가 저장되면 반영돼요." : view == "camp" ? "건설 · 요리 · 훈련은 각 담당 친구와 함께 진행해요." : view == "inventory" ? "지금 저장된 재료와 요리만 보여 드려요." : view == "dex" ? "함께한 친구를 골라 요리와 배운 행동을 확인해요." : "차량에 표시된 세션 ID와 페어링 코드를 입력해 주세요.";
+        static string DefaultStatus(string view) => view == "home" ? "광장의 친구들과 함께, 다음 여행을 준비해요." : view == "cabin" ? "알을 쓰다듬고 말을 걸며 가까워져요." : view == "camp" ? "건설 · 요리 · 훈련은 각 담당 친구와 함께 진행해요." : view == "inventory" ? "여행에서 모은 재료와 완성한 요리를 확인해요." : view == "dex" ? "함께한 친구를 골라 요리와 배운 행동을 확인해요." : "차량에 표시된 세션 ID와 페어링 코드를 입력해 주세요.";
     }
 }

@@ -37,9 +37,9 @@ namespace Allo.App
             var right = Sheet(_content, .70f, 1, true);
             if (egg == null || !egg.active)
             {
-                Heading(left, egg != null && egg.phase == "hatched" ? "새 친구를 만났어요" : egg != null && egg.phase == "failed" ? "알이 잠들었어요" : egg != null && egg.phase == "discarded" ? "다시 시작할까요?" : "함께할 알 고르기");
+                Heading(left, egg != null && egg.phase == "hatched" ? "새 친구를 만났어요" : egg != null && egg.phase == "failed" ? "알이 떠났어요" : egg != null && egg.phase == "discarded" ? "다시 시작할까요?" : "함께할 알 고르기");
                 Copy(left, egg != null && egg.phase == "hatched" ? "부화한 친구는 광장과 도감에서 다시 만날 수 있어요." : "차 안에서 알을 쓰다듬고 말을 걸며 천천히 가까워져요.");
-                if (egg != null && !string.IsNullOrEmpty(egg.feedback)) Note(left, egg.feedback);
+                if (egg != null && !string.IsNullOrEmpty(egg.feedback)) Note(left, EggFeedbackLabel(egg.feedback));
                 if (egg != null && egg.phase == "hatched") Button(left, "새 친구 보러 가기", () => Navigate("dex"), Mint);
                 Heading(right, "새로운 만남");
                 var row = NewRow(right);
@@ -50,7 +50,7 @@ namespace Allo.App
                     var tier = tiers[i];
                     Button(row, names[i], () => { _tier = tier; _dirty = true; }, _tier == tier ? Mint : Cream, 68, CanAct, 22);
                 }
-                Copy(right, "알을 고른 뒤 시작해 주세요. 키우는 과정과 부화 결과는 저장된 상태로 확인해요.");
+                Copy(right, "알을 고른 뒤 함께할 시간을 시작해 주세요. 친밀도가 100이 되면 새 친구가 깨어나요.");
                 Button(right, egg != null && (egg.phase == "failed" || egg.phase == "discarded") ? "이 알로 다시 시작" : "이 알과 시작하기", () => Send("startEgg", new AppAction { tier = _tier }), Yellow, 72, CanAct && _state.canStart);
                 if (!_state.canStart) Note(right, _state.sessionEnded ? "여행이 끝났어요. 설정에서 다음 연결을 준비해 주세요." : "지금은 알을 시작할 수 없어요. 설정에서 차량 연결 상태를 확인해 주세요.");
                 Button(right, "연결 상태 보기", () => Navigate("settings"), Cream);
@@ -59,8 +59,8 @@ namespace Allo.App
             Heading(left, egg.photoRequired ? "함께 사진을 남겨요" : "조금씩 가까워져요");
             Progress(left, egg.score / 100f, "친밀도  " + Mathf.FloorToInt(egg.score) + " / 100");
             if (!string.IsNullOrEmpty(egg.remainingLabel)) Copy(left, egg.remainingLabel, 26);
-            if (!string.IsNullOrEmpty(egg.feedback)) Note(left, egg.feedback);
-            Note(left, egg.photoRequired ? "50에서 잠시 멈췄어요. 실제 카메라로 사진을 찍고 업로드가 확인되면 65가 돼요." : "100이 되면 저장된 부화 결과로 새 친구를 만나요.");
+            if (!string.IsNullOrEmpty(egg.feedback)) Note(left, EggFeedbackLabel(egg.feedback));
+            Note(left, egg.photoRequired ? "50에서 잠시 멈췄어요. 함께 사진을 찍고 보내면 친밀도가 65가 돼요." : "친밀도가 100이 되면 새 친구가 깨어나요.");
             Note(left, "화면 속 알을 문지르면 쓰다듬을 수 있어요. 알을 끌거나 자리를 눌러 옮겨 보세요.");
             Copy(left, "알이 있는 자리", 25);
             string[] zones = { "대시보드", "왼쪽 창턱", "오른쪽 창턱", "앞 바닥" };
@@ -78,13 +78,13 @@ namespace Allo.App
             Heading(right, "알과 시간 보내기");
             Button(right, CooldownLabel("쓰다듬기", egg.petCooldown), () => Send("petEgg"), egg.photoRequired ? Cream : Yellow, 72, CanAct && !egg.photoRequired && egg.petCooldown <= 0);
             Button(right, egg.speechBusy ? "말을 듣고 있어요" : CooldownLabel("말 걸기", egg.speechCooldown), () => Send("speech"), Mint, 68, CanAct && !egg.photoRequired && !egg.speechBusy && egg.speechCooldown <= 0 && _state.speechAvailable);
-            if (!_state.speechAvailable) Note(right, "음성 입력을 사용할 수 없어요. 아래에 직접 말을 적어 주세요.");
+            if (!_state.speechAvailable) Note(right, "지금은 대화를 연결할 수 없어요. 잠시 후 다시 시도해 주세요.");
             Field(right, _speech, "알에게 해 줄 말", text => _speech = text, 240);
-            LiveEnable(Button(right, "적은 말 전하기", () => { Send("submitSpeech", new AppAction { text = _speech.Trim() }); _speech = ""; }, Cream, 62, CanAct && !egg.photoRequired && !egg.speechBusy && egg.speechCooldown <= 0 && !string.IsNullOrWhiteSpace(_speech), 24), () => CanAct && _state.egg != null && !_state.egg.photoRequired && !_state.egg.speechBusy && _state.egg.speechCooldown <= 0 && !string.IsNullOrWhiteSpace(_speech), Cream);
+            LiveEnable(Button(right, "적은 말 전하기", () => { Send("submitSpeech", new AppAction { text = _speech.Trim() }); _speech = ""; }, Cream, 62, CanAct && _state.speechAvailable && !egg.photoRequired && !egg.speechBusy && egg.speechCooldown <= 0 && !string.IsNullOrWhiteSpace(_speech), 24), () => CanAct && _state.speechAvailable && _state.egg != null && !_state.egg.photoRequired && !_state.egg.speechBusy && _state.egg.speechCooldown <= 0 && !string.IsNullOrWhiteSpace(_speech), Cream);
             if (egg.photoRequired)
             {
                 Button(right, egg.photoBusy ? "사진 업로드 확인 중" : "카메라로 함께 찍기", () => Send("photo"), Yellow, 72, CanAct && _state.photoAvailable && !egg.photoBusy);
-                if (!_state.photoAvailable) Note(right, "카메라를 사용할 수 없어요. 기기의 권한과 연결을 확인해 주세요.");
+                if (!_state.photoAvailable) Note(right, "지금은 사진을 연결할 수 없어요. 잠시 후 다시 시도해 주세요.");
                 Button(right, "보류한 사진 다시 확인", () => Send("recoverPhoto"), Cream, 62, CanAct && !egg.photoBusy, 22);
             }
             Space(right);
@@ -131,8 +131,8 @@ namespace Allo.App
             if (running != null)
             {
                 Progress(right, running.progress, running.label + " · " + TimeLabel(running.remainingSec));
-                Note(right, "작업은 저장된 시간에 따라 진행돼요. 다른 역할의 작업은 함께 진행할 수 있어요.");
-                Button(right, "이 작업 취소하기", () => Confirm("진행 중인 작업을 취소할까요?", "작업을 멈추고 사용한 재료를 돌려받아요. 저장 결과가 확인되면 보급품에 반영돼요.", () => Send("cancel", new AppAction { role = _campTab })), Cream, 66, CanAct);
+                Note(right, "앱을 닫아도 작업이 계속 진행돼요. 다른 역할의 작업은 함께 진행할 수 있어요.");
+                Button(right, "이 작업 취소하기", () => Confirm("진행 중인 작업을 취소할까요?", "취소하면 사용한 재료가 돌아와요.", () => Send("cancel", new AppAction { role = _campTab })), Cream, 66, CanAct);
                 return;
             }
             if (_campTab == "builder") BuildConstruction(right);
@@ -176,7 +176,7 @@ namespace Allo.App
             Note(panel, "완성한 요리는 도감이나 보급품에서 친구에게 줄 수 있어요.");
             var reason = !selected.unlocked ? "주방 Lv." + selected.requiredLevel + "에서 열려요." : WorkReason("cook", 0, 0, selected.costIngredient);
             if (reason != null) Note(panel, reason);
-            Button(panel, "이 요리 만들기", () => Confirm(selected.label + " 요리를 시작할까요?", Cost(0, 0, selected.costIngredient) + "를 사용해요. 완성 후 저장이 확인되면 보유 요리에 추가돼요.", () => Send("cook", new AppAction { recipeId = selected.id })), Yellow, 72, CanAct && reason == null);
+            Button(panel, "이 요리 만들기", () => Confirm(selected.label + " 요리를 시작할까요?", Cost(0, 0, selected.costIngredient) + "를 사용해요. 완성한 요리는 보급품에 모여요.", () => Send("cook", new AppAction { recipeId = selected.id })), Yellow, 72, CanAct && reason == null);
         }
 
         void BuildTraining(Transform panel)
@@ -294,8 +294,8 @@ namespace Allo.App
             }
             Space(left, 20); Copy(left, "여행 활동 연결", 27);
             Copy(left, RewardLabel(_state.rewardStatus));
-            Note(left, "낚시·벌목 보상은 연결 계약을 준비하고 있어요. 확인되지 않은 활동이나 보상은 가방에 추가되지 않아요.");
-            Note(left, "현재 재료는 저장된 주행 거리·관찰 규칙에 따라 반영돼요.");
+            Note(left, "낚시·벌목 보상은 아직 준비 중이에요. 활동을 해도 지금은 재료가 추가되지 않아요.");
+            Note(left, "주행과 창밖 관찰로 모은 재료예요.");
             Heading(right, "완성한 요리");
             var creatures = Items(_state.creatures);
             if (creatures.Length == 0) { Copy(right, "함께하는 친구가 생기면 완성한 요리를 줄 수 있어요."); foreach (var f in Items(_state.foods)) Note(right, f.label + " · " + f.count + "개"); return; }
@@ -317,7 +317,7 @@ namespace Allo.App
             foreach (var food in foods)
             {
                 var selected = food;
-                Button(parent, food.label + "  " + food.count + "개 · 1개 주기", () => Confirm(CreatureName(creatureId) + "에게 요리를 줄까요?", selected.label + " 1개를 사용해요. 저장 결과가 확인되면 친구에게 적용돼요.", () => Send("feedFood", new AppAction { recipeId = selected.id, creatureId = creatureId })), Cream, 64, CanAct && food.count > 0, 24);
+                Button(parent, food.label + "  " + food.count + "개 · 1개 주기", () => Confirm(CreatureName(creatureId) + "에게 요리를 줄까요?", selected.label + " 1개를 사용해 친구에게 힘을 보태요.", () => Send("feedFood", new AppAction { recipeId = selected.id, creatureId = creatureId })), Cream, 64, CanAct && food.count > 0, 24);
             }
         }
 
@@ -330,13 +330,13 @@ namespace Allo.App
             Copy(left, "세션 ID", 24); Field(left, _sessionId, "차량에 표시된 세션 ID", text => _sessionId = text, 160);
             Copy(left, "페어링 코드", 24); Field(left, _pairCode, "차량에 표시된 코드", text => _pairCode = text, 32);
             LiveEnable(Button(left, "차량과 연결하기", () => Send("pair", new AppAction { sessionId = _sessionId.Trim(), pairCode = _pairCode.Trim() }), Yellow, 72, CanAct && !string.IsNullOrWhiteSpace(_sessionId) && !string.IsNullOrWhiteSpace(_pairCode)), () => CanAct && !string.IsNullOrWhiteSpace(_sessionId) && !string.IsNullOrWhiteSpace(_pairCode), Yellow);
-            if (_state.connected) Button(left, "차량 연결 끊기", () => Confirm("차량 연결을 끊을까요?", "차량에서 오는 정보를 더 이상 받지 않아요. 저장된 친구와 보급품은 그대로예요.", () => Send("disconnect")), Cream, 66, CanAct);
+            if (_state.connected) Button(left, "차량 연결 끊기", () => Confirm("차량 연결을 끊을까요?", "차량에서 오는 정보를 더 이상 받지 않아요. 함께한 친구와 보급품은 그대로예요.", () => Send("disconnect")), Cream, 66, CanAct);
             Heading(right, "편안하게 즐기기");
             Button(right, "기울여 둘러보기  ·  " + (_state.gyro ? "켜짐" : "꺼짐"), () => Send("settings", new AppAction { gyro = !_state.gyro, reducedMotion = _state.reducedMotion }), _state.gyro ? Mint : Cream, 72, CanAct, 25);
             Note(right, "기기의 움직임으로 차 안을 둘러봐요.");
             Button(right, "움직임 줄이기  ·  " + (_state.reducedMotion ? "켜짐" : "꺼짐"), () => Send("settings", new AppAction { gyro = _state.gyro, reducedMotion = !_state.reducedMotion }), _state.reducedMotion ? Mint : Cream, 72, CanAct, 25);
             Note(right, "자동으로 흔들리거나 움직이는 연출을 줄여요.");
-            Space(right); Button(right, "저장 상태 다시 확인", () => Send("refresh"), Cream, 66, CanAct);
+            Space(right); Button(right, "다시 확인하기", () => Send("refresh"), Cream, 66, CanAct);
             if (_state.isDemo && _state.connected && !_state.sessionEnded) Button(right, "체험 여행 끝내기", () => Confirm("체험 여행을 끝낼까요?", "현재 체험 주행이 종료돼요. 다음 여행은 새로운 연결로 시작해 주세요.", () => Send("endTrip")), Cream, 66, CanAct);
         }
 
@@ -365,6 +365,21 @@ namespace Allo.App
             var parts = new System.Collections.Generic.List<string>();
             if (wood > 0) parts.Add("목재 " + wood); if (stone > 0) parts.Add("돌 " + stone); if (ingredient > 0) parts.Add("식재료 " + ingredient);
             return parts.Count == 0 ? "없음" : string.Join(" · ", parts);
+        }
+        static string EggFeedbackLabel(string feedback)
+        {
+            switch (feedback)
+            {
+                case "none": return "";
+                case "positive": return "알이 기뻐하고 있어요.";
+                case "negative": return "알이 조금 속상해해요.";
+                case "neutral": return "...";
+                case "vibration": return "알이 흔들림을 느꼈어요. 부드럽게 움직여 주세요.";
+                case "photoRequired": return "함께 사진을 찍어 주세요.";
+                case "hatched": return "새 친구가 깨어났어요!";
+                case "fled": return "알이 떠났어요. 새로운 알과 다시 시작할 수 있어요.";
+                default: return "";
+            }
         }
         static string RewardLabel(string status) => status == "pendingPleos" || string.IsNullOrEmpty(status) ? "Pleos 활동 보상 연결 준비 중" : status;
     }
