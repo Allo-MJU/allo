@@ -9,12 +9,15 @@ class DexStore {
   static const _kProgress = 'hatch.progress.v2.';
   static const _kCarry = 'hatch.carried.v1.'; // + eggTier
 
-  Future<List<DexEntry>> all() async {
+  Future<List<DexEntry>> all() async =>
+      (await allRecords()).map(DexEntry.fromJson).toList();
+
+  /// Read saved fields without dropping forward-compatible ownership IDs.
+  /// Callers interpreting a record still validate it with DexEntry.fromJson.
+  Future<List<Map<String, dynamic>>> allRecords() async {
     final p = await SharedPreferences.getInstance();
     final raw = p.getStringList(_kDex) ?? const [];
-    return raw
-        .map((s) => DexEntry.fromJson(jsonDecode(s) as Map<String, dynamic>))
-        .toList();
+    return raw.map((s) => jsonDecode(s) as Map<String, dynamic>).toList();
   }
 
   Future<void> add(DexEntry e) async {
