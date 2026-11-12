@@ -54,3 +54,9 @@ server/affinity/.venv/bin/python -m unittest discover -s server/affinity/tests -
 ```
 
 Tests run actual ephemeral localhost HTTP servers, temporary SQLite databases/files, and Pillow encode/decode. External provider transport/verdict is injected; no paid provider call, deployment, phone camera, or speech-recognition quality is tested. A real SQLite abort trigger verifies rollback cleanup without mocking local storage.
+
+### Live development check 2026-11-12
+
+A separate authenticated localhost HTTP check used the real `gpt-4.1-mini-2025-04-14` Responses API. Initial development rounds matched 23/24 and 35/36 synthetic cases; the policy was clarified for egg-directed curiosity questions and the scope of negated wishes. The final round matched 42/42 predetermined labels, with median 1,145ms and maximum 3,290ms latency.
+
+The synthetic fixtures and sanitized metrics are in `evals/ko_20261112.json` and `evals/result_20261112.json`. These are development/tuning samples, not an independent production accuracy claim. No real child's speech, API credential or provider response body is stored in these artifacts. Native speech recognition, camera/UI and deployed HTTPS networking were not validated by this check.

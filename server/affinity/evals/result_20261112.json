@@ -1,0 +1,280 @@
+{
+  "date": "2026-11-12",
+  "model": "gpt-4.1-mini-2025-04-14",
+  "pipeline": "authenticated local HTTP endpoint -> real OpenAI Responses API -> correlated verdict",
+  "cases": "ko_20261112.json",
+  "responses": 42,
+  "matched": 42,
+  "total": 42,
+  "latency_median_ms": 1145.0,
+  "latency_max_ms": 3290,
+  "development_rounds": [
+    {
+      "cases": 24,
+      "matched": 23
+    },
+    {
+      "cases": 36,
+      "matched": 35
+    },
+    {
+      "cases": 42,
+      "matched": 42
+    }
+  ],
+  "independent_production_accuracy": false,
+  "rows": [
+    {
+      "id": "pos01",
+      "actual": "positive",
+      "matched": true,
+      "latency_ms": 1577
+    },
+    {
+      "id": "pos02",
+      "actual": "positive",
+      "matched": true,
+      "latency_ms": 1035
+    },
+    {
+      "id": "pos03",
+      "actual": "positive",
+      "matched": true,
+      "latency_ms": 1335
+    },
+    {
+      "id": "pos04",
+      "actual": "positive",
+      "matched": true,
+      "latency_ms": 841
+    },
+    {
+      "id": "pos05",
+      "actual": "positive",
+      "matched": true,
+      "latency_ms": 1064
+    },
+    {
+      "id": "pos06",
+      "actual": "positive",
+      "matched": true,
+      "latency_ms": 872
+    },
+    {
+      "id": "pos07",
+      "actual": "positive",
+      "matched": true,
+      "latency_ms": 1495
+    },
+    {
+      "id": "pos08",
+      "actual": "positive",
+      "matched": true,
+      "latency_ms": 1069
+    },
+    {
+      "id": "neg01",
+      "actual": "negative",
+      "matched": true,
+      "latency_ms": 2460
+    },
+    {
+      "id": "neg02",
+      "actual": "negative",
+      "matched": true,
+      "latency_ms": 1573
+    },
+    {
+      "id": "neg03",
+      "actual": "negative",
+      "matched": true,
+      "latency_ms": 1171
+    },
+    {
+      "id": "neg04",
+      "actual": "negative",
+      "matched": true,
+      "latency_ms": 912
+    },
+    {
+      "id": "neg05",
+      "actual": "negative",
+      "matched": true,
+      "latency_ms": 1067
+    },
+    {
+      "id": "neg06",
+      "actual": "negative",
+      "matched": true,
+      "latency_ms": 1942
+    },
+    {
+      "id": "neg07",
+      "actual": "negative",
+      "matched": true,
+      "latency_ms": 3290
+    },
+    {
+      "id": "neg08",
+      "actual": "negative",
+      "matched": true,
+      "latency_ms": 1255
+    },
+    {
+      "id": "neu01",
+      "actual": "neutral",
+      "matched": true,
+      "latency_ms": 1529
+    },
+    {
+      "id": "neu02",
+      "actual": "neutral",
+      "matched": true,
+      "latency_ms": 923
+    },
+    {
+      "id": "neu03",
+      "actual": "neutral",
+      "matched": true,
+      "latency_ms": 854
+    },
+    {
+      "id": "neu04",
+      "actual": "neutral",
+      "matched": true,
+      "latency_ms": 1044
+    },
+    {
+      "id": "neu05",
+      "actual": "neutral",
+      "matched": true,
+      "latency_ms": 1198
+    },
+    {
+      "id": "neu06",
+      "actual": "neutral",
+      "matched": true,
+      "latency_ms": 1008
+    },
+    {
+      "id": "neu07",
+      "actual": "neutral",
+      "matched": true,
+      "latency_ms": 986
+    },
+    {
+      "id": "neu08",
+      "actual": "neutral",
+      "matched": true,
+      "latency_ms": 984
+    },
+    {
+      "id": "hold_pos01",
+      "actual": "positive",
+      "matched": true,
+      "latency_ms": 1049
+    },
+    {
+      "id": "hold_pos02",
+      "actual": "positive",
+      "matched": true,
+      "latency_ms": 1176
+    },
+    {
+      "id": "hold_pos03",
+      "actual": "positive",
+      "matched": true,
+      "latency_ms": 1977
+    },
+    {
+      "id": "hold_pos04",
+      "actual": "positive",
+      "matched": true,
+      "latency_ms": 1315
+    },
+    {
+      "id": "hold_neg01",
+      "actual": "negative",
+      "matched": true,
+      "latency_ms": 882
+    },
+    {
+      "id": "hold_neg02",
+      "actual": "negative",
+      "matched": true,
+      "latency_ms": 1108
+    },
+    {
+      "id": "hold_neg03",
+      "actual": "negative",
+      "matched": true,
+      "latency_ms": 1000
+    },
+    {
+      "id": "hold_neg04",
+      "actual": "negative",
+      "matched": true,
+      "latency_ms": 1210
+    },
+    {
+      "id": "hold_neu01",
+      "actual": "neutral",
+      "matched": true,
+      "latency_ms": 1264
+    },
+    {
+      "id": "hold_neu02",
+      "actual": "neutral",
+      "matched": true,
+      "latency_ms": 1406
+    },
+    {
+      "id": "hold_neu03",
+      "actual": "neutral",
+      "matched": true,
+      "latency_ms": 1205
+    },
+    {
+      "id": "hold_neu04",
+      "actual": "neutral",
+      "matched": true,
+      "latency_ms": 1180
+    },
+    {
+      "id": "negation_pos01",
+      "actual": "positive",
+      "matched": true,
+      "latency_ms": 1035
+    },
+    {
+      "id": "negation_pos02",
+      "actual": "positive",
+      "matched": true,
+      "latency_ms": 1209
+    },
+    {
+      "id": "negation_neg01",
+      "actual": "negative",
+      "matched": true,
+      "latency_ms": 1044
+    },
+    {
+      "id": "negation_neg02",
+      "actual": "negative",
+      "matched": true,
+      "latency_ms": 1195
+    },
+    {
+      "id": "negation_neu01",
+      "actual": "neutral",
+      "matched": true,
+      "latency_ms": 1119
+    },
+    {
+      "id": "negation_neu02",
+      "actual": "neutral",
+      "matched": true,
+      "latency_ms": 1043
+    }
+  ]
+}
