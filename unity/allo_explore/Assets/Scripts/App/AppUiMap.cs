@@ -11,6 +11,9 @@ namespace Allo.App
         bool _campDetail, _speechDrawer, _zoneDrawer;
         RectTransform _villageLayer, _villageContent, _villageFriend;
         ScrollRect _villageScroll;
+        RawImage _villageBackdrop;
+        Texture2D _villageFallback;
+        float _villageAspect;
         Vector2 _villageViewportSize;
         bool _villageSized;
         string _villageFriendId;
@@ -54,30 +57,51 @@ namespace Allo.App
             _villageContent = Rect("Village content", _villageLayer);
             _villageContent.anchorMin = _villageContent.anchorMax = _villageContent.pivot = new Vector2(.5f, .5f);
             var landscape = Rect("Natural village landscape", _villageContent); Stretch(landscape);
-            var image = landscape.gameObject.AddComponent<RawImage>(); image.texture = Resources.Load<Texture2D>("VillageArt/background"); image.raycastTarget = false;
-            image.color = image.texture != null ? Color.white : Hex("7D8C67");
+            _villageFallback = Resources.Load<Texture2D>("VillageArt/background");
+            _villageBackdrop = landscape.gameObject.AddComponent<RawImage>(); _villageBackdrop.raycastTarget = false;
             _villageScroll = _villageLayer.gameObject.AddComponent<ScrollRect>();
             _villageScroll.viewport = _villageLayer; _villageScroll.content = _villageContent;
             _villageScroll.horizontal = _villageScroll.vertical = _villageScroll.inertia = true;
             _villageScroll.movementType = ScrollRect.MovementType.Clamped; _villageScroll.decelerationRate = .10f; _villageScroll.scrollSensitivity = 32;
-            CreateFacilityNode("workshop", new Vector2(.20f, .46f));
-            CreateFacilityNode("kitchen", new Vector2(.505f, .43f));
-            CreateFacilityNode("training", new Vector2(.81f, .47f));
+            CreateFacilityNode("workshop", AppWorld.FacilityAnchor("workshop"));
+            CreateFacilityNode("kitchen", AppWorld.FacilityAnchor("kitchen"));
+            CreateFacilityNode("training", AppWorld.FacilityAnchor("training"));
         }
 
         void UpdateVillageGeometry()
         {
             if (_villageLayer == null || _villageContent == null || !_villageLayer.gameObject.activeSelf) return;
+            var bindingChanged = RefreshVillagePreview();
+            var texture = _villageBackdrop.texture;
+            var aspect = texture != null ? (float)texture.width / texture.height : 16f / 9f;
             var size = _villageLayer.rect.size;
-            if (size.x <= 0 || size.y <= 0 || (_villageSized && Vector2.Distance(size, _villageViewportSize) < .1f)) return;
+            if (size.x <= 0 || size.y <= 0 || (_villageSized && !bindingChanged && Mathf.Approximately(aspect, _villageAspect) && Vector2.Distance(size, _villageViewportSize) < .1f)) return;
             Canvas.ForceUpdateCanvases(); size = _villageLayer.rect.size;
             var pan = _villageSized ? _villageScroll.normalizedPosition : new Vector2(.5f, .5f);
-            var texture = Resources.Load<Texture2D>("VillageArt/background");
-            var aspect = texture != null ? (float)texture.width / texture.height : 16f / 9f;
             var width = Mathf.Max(size.x * 1.25f, (size.y + 300) * aspect);
             _villageContent.sizeDelta = new Vector2(width, width / aspect);
-            _villageViewportSize = size; _villageSized = true;
+            _villageViewportSize = size; _villageAspect = aspect; _villageSized = true;
             Canvas.ForceUpdateCanvases(); _villageScroll.normalizedPosition = pan;
+        }
+
+        bool RefreshVillagePreview()
+        {
+            var preview = AppWorld.CampPreview;
+            var live = preview != null && preview.IsCreated();
+            Texture texture = live ? preview : _villageFallback;
+            var changed = _villageBackdrop.texture != texture;
+            if (changed)
+            {
+                _villageBackdrop.texture = texture;
+                _villageBackdrop.color = texture != null ? Color.white : Hex("7D8C67");
+            }
+            foreach (var entry in _facilityNodes)
+            {
+                entry.Value.anchorMin = entry.Value.anchorMax = AppWorld.FacilityAnchor(entry.Key);
+                var illustration = entry.Value.Find("Building illustration").gameObject;
+                if (illustration.activeSelf == live) illustration.SetActive(!live);
+            }
+            return changed;
         }
 
         void CreateFacilityNode(string id, Vector2 position)
