@@ -1,3 +1,7 @@
+# Current vehicle wordmark
+
+The vehicle screen now uses the user-supplied woodland logo. See [woodland/README.md](woodland/README.md). The A-only launcher icon below remains unchanged.
+
 # ALLO original logo
 
 Source: user supplied `KakaoTalk_Photo_2026-11-12-15-12-34.gif` on 2026-11-12, preserved as `allo-original.gif` (640×336, 88 frames).

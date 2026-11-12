@@ -22,7 +22,7 @@ fun ScreenFrame(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Surface(modifier.fillMaxSize(), color = AlloColors.Night) {
+    Surface(modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
             val compact = maxWidth < 600.dp
             val short = maxHeight < 400.dp
@@ -30,21 +30,21 @@ fun ScreenFrame(
             Column(Modifier.fillMaxSize().padding(padding)) {
                 if (compact) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        AlloWordmark(Modifier.width(if (short) 64.dp else 84.dp).height(if (short) 38.dp else 50.dp))
+                        AlloWordmark(Modifier.width(if (short) 84.dp else 110.dp).height(if (short) 38.dp else 50.dp))
                         Text(title, style = if (short) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    Text(status, style = MaterialTheme.typography.bodyMedium, color = AlloColors.MistDim,
+                    Text(status, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = if (short) 4.dp else 12.dp), maxLines = if (short) 1 else 2, overflow = TextOverflow.Ellipsis)
                 } else {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                        AlloWordmark(Modifier.width(if (short) 72.dp else 100.dp).height(if (short) 42.dp else 60.dp))
+                        AlloWordmark(Modifier.width(if (short) 94.dp else 132.dp).height(if (short) 42.dp else 60.dp))
                         Text(title, style = if (short) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(status, style = MaterialTheme.typography.bodyMedium, color = AlloColors.MistDim,
+                        Text(status, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.widthIn(max = 340.dp), maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                 }
-                HorizontalDivider(color = AlloColors.Track)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Spacer(Modifier.height(if (short) 8.dp else 16.dp))
                 content()
             }

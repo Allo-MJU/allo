@@ -43,7 +43,7 @@ fun DrivingScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     SummaryText(displayedSummary, centered = !layout.horizontal)
                     if (layout.showFootnote) Text("자세한 내용은 주차 후 확인해 주세요.", style = MaterialTheme.typography.bodyMedium,
-                        color = AlloColors.MistDim, textAlign = if (layout.horizontal) TextAlign.Start else TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = if (layout.horizontal) TextAlign.Start else TextAlign.Center,
                         maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
