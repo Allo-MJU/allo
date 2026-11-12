@@ -102,7 +102,7 @@ namespace Allo.App
             if (_villageArt.TryGetValue(kind, out var cached)) return cached;
             var texture = Resources.Load<Texture2D>("VillageArt/" + kind);
             if (texture == null) return null;
-            return _villageArt[kind] = Sprite.Create(texture, new UnityEngine.Rect(0, 0, texture.width, texture.height), new Vector2(.5f, .5f), 100);
+            return _villageArt[kind] = Sprite.Create(texture, new UnityEngine.Rect(0, 0, texture.width, texture.height), new Vector2(.5f, .5f), 100, 0, SpriteMeshType.FullRect);
         }
 
         Sprite NavigationIcon(string name)

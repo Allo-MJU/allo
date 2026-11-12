@@ -43,6 +43,9 @@ namespace Allo.Bridge
             if (Input.GetKeyUp(KeyCode.Escape)) HandleBack();
         }
 
+        [UnityEngine.Scripting.Preserve]
+        public void OnNativeBack(string unused) => HandleBack();
+
         public static void HandleBack()
         {
             switch (Allo.App.AppSession.BackActionFor(Allo.App.AppSession.State))
@@ -63,6 +66,7 @@ namespace Allo.Bridge
             }
         }
 
+        [UnityEngine.Scripting.Preserve]
         public void OnFlutterMessage(string json)
         {
             if (!MessageParser.TryParse(json, out var type, out var payload))

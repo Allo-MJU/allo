@@ -19,7 +19,7 @@ public class AppUiScrollTests
     {
         _previous = AppSession.State;
         typeof(AppSession).GetProperty(nameof(AppSession.State)).SetValue(null, null);
-        AppSession.Receive(State(1, "cabin"));
+        AppSession.Receive(State(1, "dex"));
         _root = new GameObject("Scroll test application");
         _ui = _root.AddComponent<AppUi>();
         if (Get<RectTransform>("_safe") == null) Call("Awake");
@@ -44,7 +44,7 @@ public class AppUiScrollTests
         SetOffsets(panels, .22f, .63f);
         var leftOffset = panels[0].content.anchoredPosition.y;
         var rightOffset = panels[1].content.anchoredPosition.y;
-        AppSession.Receive(State(2, "cabin"));
+        AppSession.Receive(State(2, "dex"));
         Call("OnState", AppSession.State);
         Render();
         AssertOffsets(.22f, .63f, leftOffset, rightOffset);
@@ -76,7 +76,7 @@ public class AppUiScrollTests
         Call("OnState", AppSession.State);
         Render();
         SetOffsets(Panels(), .44f, .81f);
-        AppSession.Receive(State(3, "cabin"));
+        AppSession.Receive(State(3, "dex"));
         Call("OnState", AppSession.State);
         Render();
         var panels = Panels();
