@@ -4,7 +4,7 @@ import kotlinx.serialization.json.*
 
 object GameSnapshotReader {
     private val json = Json { ignoreUnknownKeys = true }
-    private val blocks = setOf("affinity", "companion", "transferResult", "baseSummary", "travelRequest", "fishing")
+    private val blocks = setOf("affinity", "companion", "transferResult", "baseSummary", "travelRequest", "fishing", "collectionSummary")
     private fun JsonObject.number(k: String): Long = (get(k) as? JsonPrimitive)?.takeUnless { it.isString }?.longOrNull?.takeIf { it >= 0 } ?: error(k)
     private fun JsonObject.word(k: String): String = (get(k) as? JsonPrimitive)?.takeIf { it.isString }?.content?.takeIf { it.isNotBlank() } ?: error(k)
     private fun JsonObject.optional(k: String): String? = if (get(k) == null || get(k) == JsonNull) null else word(k)
@@ -51,7 +51,36 @@ object GameSnapshotReader {
             val structures = if (it["structureIds"] == null) emptyList() else (it["structureIds"] as JsonArray).map { item ->
                 (item as JsonPrimitive).also { p -> require(p.isString && p.content.isNotBlank()) }.content
             }
-            BaseSummary(it.optional("builderSpeciesId"), it.optional("cookSpeciesId"), it.optional("trainerSpeciesId"), structures, it.optional("lastMealId"), it.optional("activeTaskKind"))
+            fun numbers(key: String): Map<String, Long> = when (val value = it[key]) {
+                null, JsonNull -> emptyMap()
+                else -> (value as JsonObject).keys.associateWith { name -> value.number(name) }
+            }
+            val levels = numbers("facilityLevels").mapValues { (name, level) ->
+                require(name in setOf("workshop", "kitchen", "training") && level <= 3)
+                level.toInt()
+            }
+            val tasks = when (val value = it["activeTaskKinds"]) {
+                null, JsonNull -> emptyList()
+                else -> (value as JsonArray).map { item ->
+                    (item as JsonPrimitive).also { p -> require(p.isString && p.content in setOf("building", "cooking", "training")) }.content
+                }.also { list -> require(list.distinct().size == list.size) }
+            }
+            BaseSummary(it.optional("builderSpeciesId"), it.optional("cookSpeciesId"), it.optional("trainerSpeciesId"), structures,
+                it.optional("lastMealId"), it.optional("activeTaskKind"), levels, tasks, numbers("foodInventory"), numbers("recipeBook"))
+        }
+        val collection = block("collectionSummary") {
+            require(it.int("version") == 1)
+            // RTDB drops empty arrays. An explicit count distinguishes empty from missing data.
+            val rawIds = it["speciesIds"]
+            val ids = if (rawIds == null || rawIds == JsonNull) {
+                require(it.number("speciesCount") == 0L)
+                emptyList()
+            } else (rawIds as JsonArray).map { item ->
+                (item as JsonPrimitive).also { p -> require(p.isString && Regex("[a-z][a-z0-9_]{0,63}").matches(p.content)) }.content
+            }
+            if (it["speciesCount"] != null) require(it.number("speciesCount") == ids.size.toLong())
+            require(ids.size <= 1000 && ids.distinct().size == ids.size)
+            CollectionSummary(1, it.number("wood"), it.number("stone"), it.number("ingredient"), ids)
         }
         val travel = block("travelRequest") { TravelRequest(it.word("wishId"), it.word("targetRegion").also { v -> require(v in setOf("coast", "mountain", "city")) }) }
         val fishing = block("fishing") {
@@ -69,7 +98,7 @@ object GameSnapshotReader {
             }
         }
         base.copy(contractVersion = version, gameRevision = revision, affinity = affinity, companion = companion,
-            transferResult = transfer, baseSummary = home, travelRequest = travel, fishing = fishing, invalidBlocks = invalid)
+            transferResult = transfer, baseSummary = home, travelRequest = travel, fishing = fishing, collectionSummary = collection, invalidBlocks = invalid)
     }.getOrNull()
 }
 

@@ -53,6 +53,17 @@ class FishingController {
   bool get initialized => _profile != null && _session != null;
   String? get selectedSpeciesId => _entry?['speciesId'] as String?;
   int get totalRecords => (_entry?['totalRecords'] as int?) ?? 0;
+
+  /// Read committed per-acquisition state; same-species records remain distinct.
+  bool isSelected(DexEntry entry) =>
+      _profile?['selected'] == jsonEncode(entry.toJson());
+  String? get companionLocation => _profile?['location'] as String?;
+  int recordsFor(DexEntry entry) {
+    final records = _profile?['entries'] as Map?;
+    final record = records?[jsonEncode(entry.toJson())] as Map?;
+    return (record?['totalRecords'] as int?) ?? 0;
+  }
+
   Map<String, dynamic>? get _entry {
     final p = _profile;
     if (p == null || p['selected'] == null) return null;

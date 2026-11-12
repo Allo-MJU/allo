@@ -8,6 +8,8 @@
 
 | 문서 | 내용 | 주로 보는 사람 |
 | --- | --- | --- |
+| [base-camp.md](./base-camp.md) | 역할별 거점·재료·오프라인 작업·음식 보너스·훈련의 확정 규칙과 C 연결 | A·B·C·D |
+| [affinity-hatching.md](./affinity-hatching.md) | 사용자 확정 호감도 부화 규칙과 C API·사진 퀘스트·데모 서버 연결 | A·B·C |
 | [color-and-app-references.md](./color-and-app-references.md) | 알로 색상값과 참고 앱 | 전원 |
 | [proposal.md](./proposal.md) | 기획서. 문제 정의, 서비스 상세, 차량특화성, 기술 활용성, 사업성, 경쟁 분석 | 전원 |
 | [dev-plan.md](./dev-plan.md) | 개발 계획. 일정, 역할, 마일스톤 게이트, 리스크 | 전원 |
@@ -17,6 +19,13 @@
 | [verification.md](./verification.md) | SDK 검증 8개 결과 기록 | A |
 | [architecture.md](./architecture.md) | 기술 스택 결정과 근거, 선례에서 확인된 제약 | 전원 |
 | [demo-scenario.md](./demo-scenario.md) | 시연 9단계와 Virtual Console 명령 | A·B·D |
+
+## 도감·거점·Pleos 통합
+
+- [모바일 도감](vehicle/dex-experience.md) · [거점 규칙](base-camp.md)
+- [질문 버튼 이야기](vehicle/companion-dialogue.md) · [주행 자동 낚시](vehicle/driving-auto-fishing.md)
+- [차량 UI 재설계](vehicle/car-ui-redesign.md) · [로컬 Firebase 실행](vehicle/local-firebase.md)
+- [통합 검증](vehicle/integrated-camp-verification.md) · [화면 캡처](vehicle/screenshots/integration/README.md)
 
 ## 읽는 순서
 

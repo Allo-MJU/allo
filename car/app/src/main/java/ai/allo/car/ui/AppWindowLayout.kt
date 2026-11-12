@@ -11,13 +11,27 @@ internal data class DrivingWindowLayout(
             val width = widthDp.coerceAtLeast(0f)
             val height = heightDp.coerceAtLeast(0f)
             val scale = fontScale.coerceAtLeast(1f)
-            val horizontal = height < 340f * scale && width >= 360f
-            val footnote = height >= (if (horizontal) 200f else 340f) * scale
-            // Reserve the actual title + two status lines before assigning space to artwork.
-            val textHeight = 118f * scale + if (footnote) 64f * scale else 0f
-            val artLimit = if (horizontal) minOf(width * .32f, height) else minOf(width, (height - textHeight).coerceAtLeast(0f))
-            val preferred = if (width < 560f) 160f else 220f
-            return DrivingWindowLayout(horizontal, minOf(preferred, artLimit), footnote)
+            val horizontal = (width >= 960f * scale && width >= height * 1.1f) ||
+                (height < 340f * scale && width >= 360f)
+            val footnote = height >= (if (horizontal) 240f else 440f) * scale
+            // Include card padding and pane gap, then give the remaining space to the character.
+            val textHeight = 124f * scale + if (footnote) 72f * scale else 0f
+            val artLimit = if (horizontal) minOf(width * .55f - 32f, height * .78f)
+                else minOf(width - 48f, (height - textHeight - 72f) * .82f)
+            return DrivingWindowLayout(horizontal, artLimit.coerceIn(0f, 720f), footnote)
+        }
+    }
+}
+
+/** Review screens reflow within the current window, never the whole display. */
+internal data class ReviewWindowLayout(val stacked: Boolean, val artSizeDp: Float) {
+    companion object {
+        fun forContent(widthDp: Float, heightDp: Float): ReviewWindowLayout {
+            val width = widthDp.coerceAtLeast(0f)
+            val height = heightDp.coerceAtLeast(0f)
+            val stacked = width < 760f
+            val limit = if (stacked) minOf(width - 40f, height * .32f) else minOf(width * .36f - 32f, height - 32f)
+            return ReviewWindowLayout(stacked, limit.coerceIn(0f, 340f))
         }
     }
 }

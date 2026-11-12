@@ -44,9 +44,22 @@ class FirebaseIdentity(
             else Request.Builder().url("$refreshUrl?key=$apiKey")
                 .post(FormBody.Builder().add("grant_type", "refresh_token").add("refresh_token", refresh).build()).build()
             val body = try { client.newCall(req).execute().use { response ->
-                if (!response.isSuccessful) throw IOException("Firebase authentication failed (${response.code})")
+                if (!response.isSuccessful) {
+                    if (ai.allo.car.BuildConfig.DEBUG) {
+                        val errorCode = runCatching { Json.parseToJsonElement(response.body?.string().orEmpty())
+                            .jsonObject["error"]?.jsonObject?.get("message")?.jsonPrimitive?.content }
+                            .getOrNull()?.takeIf { it.matches(Regex("[A-Z_]{1,80}")) } ?: "UNKNOWN"
+                        android.util.Log.w("FirebaseIdentity", "Authentication HTTP ${response.code}; code=$errorCode; refreshing=${refresh != null}")
+                    }
+                    throw IOException("Firebase authentication failed (${response.code})")
+                }
                 Json.parseToJsonElement(response.body?.string().orEmpty()).jsonObject
-            } } catch (_: Exception) { throw IOException("Firebase authentication unavailable; existing identity retained") }
+            } } catch (error: Exception) {
+                // Class names only: exception messages can include credential-bearing URLs.
+                if (ai.allo.car.BuildConfig.DEBUG) android.util.Log.w("FirebaseIdentity",
+                    "Authentication transport failed: ${error.javaClass.simpleName}; cause=${error.cause?.javaClass?.simpleName}")
+                throw IOException("Firebase authentication unavailable; existing identity retained")
+            }
             val nextId = body[if (refresh == null) "idToken" else "id_token"]?.jsonPrimitive?.content
             val nextRefresh = body[if (refresh == null) "refreshToken" else "refresh_token"]?.jsonPrimitive?.content
             val seconds = body[if (refresh == null) "expiresIn" else "expires_in"]?.jsonPrimitive?.longOrNull

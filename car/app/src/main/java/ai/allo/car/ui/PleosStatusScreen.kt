@@ -2,6 +2,7 @@ package ai.allo.car.ui
 
 import ai.allo.car.model.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -20,7 +21,6 @@ fun PleosStatusScreen(
     onHome: (() -> Unit)? = null,
 ) {
     val summary = PetSummary.from(game, connected, rememberSpeciesCatalog())
-    val name = summary.title
     val title = when (route) {
         PleosRoute.Starting -> "오늘도 함께 떠나요"
         PleosRoute.Disconnected -> "연결이 잠시 끊겼어요"
@@ -29,7 +29,7 @@ fun PleosStatusScreen(
         PleosRoute.TransferPending -> "친구를 부르고 있어요"
         PleosRoute.TransferComplete -> "친구가 폰으로 갔어요"
         PleosRoute.TransferRejected -> "지금은 폰으로 부를 수 없어요"
-        PleosRoute.Fishing -> "${name}와 낚시하고 있어요"
+        PleosRoute.Fishing -> "친구와 낚시하고 있어요"
         PleosRoute.Saving -> "관찰 기록을 저장하고 있어요"
         PleosRoute.Reward -> "새 관찰 기록이 생겼어요"
         PleosRoute.Paused -> "쉬었다가 이어갈 수 있어요"
@@ -83,7 +83,22 @@ fun PleosStatusScreen(
         PleosRoute.SelectionPending -> "선택 확인 중"
         else -> null
     }
-    ScreenFrame(route.label, if (route == PleosRoute.Disconnected) "폰 연결 끊김" else route.label) {
+    val needsAttention = route in setOf(PleosRoute.Disconnected, PleosRoute.SaveFailed,
+        PleosRoute.SelectionFailed, PleosRoute.TransferRejected)
+    val complete = route in setOf(PleosRoute.TransferComplete, PleosRoute.Reward)
+    val stateLabel = when {
+        needsAttention -> "확인이 필요해요"
+        complete -> "완료했어요"
+        route == PleosRoute.Ended -> "연결 종료"
+        route == PleosRoute.Paused -> "잠시 쉬는 중"
+        route == PleosRoute.Empty -> "친구 선택 대기"
+        else -> "진행 상태"
+    }
+    ScreenFrame(route.label, when (route) {
+        PleosRoute.Starting -> "차량 확인 중"
+        PleosRoute.Disconnected -> "폰 연결 끊김"
+        else -> "주차 중"
+    }) {
         ScreenColumns(art = { artSize ->
             when {
                 route == PleosRoute.Starting -> AlloWordmark(Modifier.width(artSize))
@@ -92,18 +107,24 @@ fun PleosStatusScreen(
                     pose = PetPose.Move, parked = false, connected = connected, runningMotion = true)
                 route == PleosRoute.TransferComplete -> Text("✓", style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.secondary)
                 route == PleosRoute.Empty -> Text("함께할 친구", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                summary.showArt -> PetArt(summary, artSize, pose = if (route == PleosRoute.Paused) PetPose.Sleep else PetPose.Fishing,
-                    parked = true, connected = connected && motionAllowed && route in setOf(PleosRoute.Fishing, PleosRoute.Paused))
+                summary.showArt -> PetArt(summary, artSize, pose = PetPoses.forRoute(route, connected),
+                    parked = true, connected = connected && motionAllowed && route == PleosRoute.Paused)
                 else -> AlloWordmark(Modifier.width(minOf(180.dp, artSize)))
             }
         }, details = {
-            Text(title, style = MaterialTheme.typography.headlineMedium)
+            Surface(shape = RoundedCornerShape(12.dp),
+                color = if (needsAttention) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = if (needsAttention) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer) {
+                Text(stateLabel, Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    style = MaterialTheme.typography.labelLarge)
+            }
+            Text(title, style = MaterialTheme.typography.headlineLarge)
             Text(body, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (fishing != null && route in setOf(PleosRoute.Fishing, PleosRoute.Paused)) {
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("${fishing.elapsedSeconds} / ${fishing.targetSeconds}초", style = MaterialTheme.typography.titleLarge)
-                        LinearProgressIndicator(progress = { fishing.progress }, modifier = Modifier.fillMaxWidth())
+                        ThickProgress(fishing.progress, Modifier.fillMaxWidth(), height = 16.dp)
                         Text("폰에서 확인된 진행", style = MaterialTheme.typography.bodyMedium)
                         fishing.totalRecords?.let { Text("저장된 관찰 기록 ${it}건", style = MaterialTheme.typography.bodyMedium) }
                     }
@@ -115,12 +136,17 @@ fun PleosStatusScreen(
                     fishing.totalRecords?.let { Text("누적 ${it}건 · 저장 완료") }
                 } }
             }
-            note?.let { Card(Modifier.fillMaxWidth()) { Text(it, Modifier.padding(20.dp), style = MaterialTheme.typography.bodyLarge) } }
-            requestMessage?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
-            onRetryRequest?.let { ScreenAction("낚시 요청 다시 확인", it, secondary = true) }
             action?.let { label -> ScreenAction(label, { onPrimary?.invoke() }, enabled = onPrimary != null) }
+            onRetryRequest?.let { ScreenAction("낚시 요청 다시 확인", it, secondary = true) }
             if (onSecondary != null) ScreenAction("폰으로 부르기", onSecondary, secondary = true)
             onHome?.let { ScreenAction("주차 홈으로", it, secondary = true) }
+            requestMessage?.let { Text(it, style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            note?.let { Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                Text(it, Modifier.padding(20.dp), style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } }
         }, modifier = Modifier.weight(1f))
     }
 }

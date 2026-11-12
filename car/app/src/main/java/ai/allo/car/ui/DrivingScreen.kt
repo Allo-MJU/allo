@@ -3,7 +3,11 @@ package ai.allo.car.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.runtime.*
+import androidx.compose.animation.core.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -13,50 +17,69 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ai.allo.car.model.GameState
-import ai.allo.car.model.DrivingMotionState
+import ai.allo.car.model.PleosRoute
 
-/** Driving has no actions. Existing run frames animate while connected, resumed and system motion is enabled. */
+/** Automatic fishing visualizes phone-owned material collection; rendering never grants rewards. */
 @Composable
 fun DrivingScreen(
     game: GameState,
     connected: Boolean = true,
     modifier: Modifier = Modifier,
-    runningMotion: Boolean = true,
+    fishingMotion: Boolean = true,
+    drivingSignalFresh: Boolean = false,
     statusMessage: String? = null,
-    drivingMotion: DrivingMotionState? = null,
+    fishingElapsedMs: Long? = null,
 ) {
     val summary = PetSummary.from(game, connected, rememberSpeciesCatalog())
-    ScreenFrame("주행 · 제한", statusMessage ?: if (connected) "폰 상태 연결됨" else "폰 상태 확인 중", modifier) {
+    val fishingActive = connected && drivingSignalFresh && summary.showArt && !summary.showEgg
+    val animate = ambientMotionAllowed(PetPose.Fishing, false, fishingActive, false, fishingMotion)
+    val sceneElapsed = fishingElapsedMs ?: if (animate) {
+        val transition = rememberInfiniteTransition(label = "fishing scene")
+        val elapsed by transition.animateFloat(0f, PetSpriteSheets.fish.durationMs.toFloat(),
+            infiniteRepeatable(tween(PetSpriteSheets.fish.durationMs, easing = LinearEasing), RepeatMode.Restart),
+            label = "shared fishing frame")
+        elapsed.toLong()
+    } else 0L
+    val sceneFrame = PetSpriteSheets.fish.frameAt(sceneElapsed, animate)
+    ScreenFrame(if (fishingActive) "주행 · 자동 낚시" else "주행 · 상태 확인", statusMessage ?: if (connected) "폰 상태 연결됨" else "연결 확인 필요", modifier) {
         BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             val layout = DrivingWindowLayout.forContent(maxWidth.value, maxHeight.value, LocalDensity.current.fontScale)
             val artSize = layout.artSizeDp.dp
-            val displayedSummary = if (statusMessage != null) summary.copy(status = statusMessage) else summary
-            val art: @Composable () -> Unit = {
-                if (summary.showArt && artSize > 0.dp) {
-                    if (drivingMotion != null) DrivingPetArt(summary, artSize, drivingMotion, connected, runningMotion)
-                    else PetArt(summary, artSize, pose = PetPose.Move,
-                        connected = connected, runningMotion = runningMotion)
+            val displayedSummary = summary.copy(status = statusMessage ?:
+                if (fishingActive) "주행 재료 수집 · 자동 낚시" else summary.status)
+            val art: @Composable (Modifier) -> Unit = { sceneModifier ->
+                BoxWithConstraints(sceneModifier.clip(RoundedCornerShape(32.dp))) {
+                    val fittedArtSize = minOf(artSize, maxHeight * .86f, (maxWidth - 24.dp).coerceAtLeast(0.dp))
+                    FishingBackdrop(Modifier.fillMaxSize(), fittedArtSize, summary.species?.id, summary.showArt && !summary.showEgg, sceneFrame)
+                    if (summary.showArt && artSize > 0.dp) {
+                        // Keep the entire sprite sheet visible, including the fishing rod and catch.
+                        Box(Modifier.fillMaxSize().padding(bottom = maxHeight * .10f), contentAlignment = Alignment.BottomCenter) {
+                            PetArt(summary, fittedArtSize,
+                                pose = PetPoses.forRoute(PleosRoute.Driving, connected, drivingSignalFresh),
+                                connected = connected && drivingSignalFresh, drivingFishing = fishingMotion, elapsedMs = sceneElapsed)
+                        }
+                    }
                 }
             }
-            val details: @Composable () -> Unit = {
-                Column(horizontalAlignment = if (layout.horizontal) Alignment.Start else Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SummaryText(displayedSummary, centered = !layout.horizontal)
-                    if (layout.showFootnote) Text("자세한 내용은 주차 후 확인해 주세요.", style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = if (layout.horizontal) TextAlign.Start else TextAlign.Center,
-                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+            val details: @Composable (Modifier) -> Unit = { detailsModifier ->
+                Surface(detailsModifier, shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                    Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        SummaryText(displayedSummary, centered = false)
+                        if (layout.showFootnote) Text("도감과 거점은 주차 후 확인해 주세요.", style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
             if (layout.horizontal) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                    art()
-                    Box(Modifier.weight(1f)) { details() }
+                    art(Modifier.weight(.58f).fillMaxHeight())
+                    details(Modifier.weight(.42f))
                 }
             } else {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    art()
-                    details()
+                Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    art(Modifier.fillMaxWidth().weight(1f))
+                    details(Modifier.fillMaxWidth())
                 }
             }
         }
@@ -66,10 +89,10 @@ fun DrivingScreen(
 @Composable
 internal fun SummaryText(summary: PetSummary, centered: Boolean) {
     Column(horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start) {
-        Text(summary.title, fontSize = 30.sp, lineHeight = 38.sp, fontWeight = FontWeight.SemiBold,
+        Text(summary.title, fontSize = 32.sp, lineHeight = 40.sp, fontWeight = FontWeight.SemiBold,
             maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(8.dp))
-        Text(summary.status, fontSize = 22.sp, lineHeight = 30.sp,
+        Text(summary.status, fontSize = 24.sp, lineHeight = 32.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = if (centered) TextAlign.Center else TextAlign.Start,
             maxLines = 2, overflow = TextOverflow.Ellipsis)

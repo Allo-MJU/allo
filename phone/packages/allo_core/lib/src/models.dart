@@ -37,7 +37,9 @@ class Turn {
     if (type is! String ||
         !types.contains(type) ||
         inM is! num ||
-        !inM.isFinite) return null;
+        !inM.isFinite) {
+      return null;
+    }
     return Turn(type, inM.round().clamp(0, 1 << 30));
   }
 
@@ -235,7 +237,9 @@ class GameState {
           'gameRevision',
           'companion',
           'transferResult',
-          'fishing'
+          'fishing',
+          'collectionSummary',
+          'baseSummary'
         ])
           if (vehicleFeatures.containsKey(key)) key: vehicleFeatures[key],
       };

@@ -9,6 +9,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../feed/vehicle_feed.dart';
+import '../base_camp/base_camp_controller.dart';
+import '../base_camp/camp_vehicle_snapshot.dart';
 import '../fishing/fishing_controller.dart';
 import '../fishing/fishing_store.dart';
 import '../feed/fake_feed.dart';
@@ -25,6 +27,7 @@ class GameController extends ChangeNotifier {
       PairingStore? pairingStore,
       int Function()? monotonicMs,
       FishingStore? fishingStore,
+      this.baseCamp,
       this.eggApi,
       this.demoSpeciesId,
       Random? affinityRandom})
@@ -33,11 +36,73 @@ class GameController extends ChangeNotifier {
         _affinityRandom = affinityRandom ?? Random.secure(),
         _monotonicMs = monotonicMs {
     _stopwatch.start();
+    baseCamp?.addListener(_onCampChanged);
     fishing = FishingController(
       store: fishingStore,
       clockMs: () => _monotonicMs?.call() ?? _stopwatch.elapsedMilliseconds,
       onChanged: _onFishingChanged,
     );
+  }
+
+  final BaseCampController? baseCamp;
+  String? _campDriveSessionId;
+  int? _campDriveConnection;
+  String? _lastCampDisplay;
+
+  void _onCampChanged() {
+    if (_disposed) return;
+    final camp = baseCamp;
+    if (camp == null || !camp.ready) return;
+    // A successful retry can arrive after pairing completed without a camp.
+    // Restore observation before the display-signature early return.
+    if (paired &&
+        !busy &&
+        _sessionId?.isNotEmpty == true &&
+        !sessionEnded &&
+        !endingSession &&
+        fishing.initialized) {
+      if (_activateCampForTrip(camp)) {
+        _ensureCompanionVehicleSubscription();
+      }
+    }
+    final signature = jsonEncode(campVehicleSnapshot(camp.state));
+    if (signature == _lastCampDisplay) return;
+    _lastCampDisplay = signature;
+    if (paired && !sessionEnded && !endingSession && fishing.initialized) {
+      _publish();
+    }
+    notifyListeners();
+  }
+
+  Future<void> _prepareCampForTrip() async {
+    final camp = baseCamp;
+    if (camp == null) return;
+    final connection = _connection;
+    final session = _sessionId;
+    if (!camp.ready && !await camp.load()) return;
+    if (_disposed ||
+        connection != _connection ||
+        session != _sessionId ||
+        sessionEnded) {
+      return;
+    }
+    _activateCampForTrip(camp);
+  }
+
+  bool _activateCampForTrip(BaseCampController camp) {
+    final id = isFake
+        ? (_campDriveSessionId ?? 'fake-$_now-${identityHashCode(this)}')
+        : _sessionId;
+    if (id == null || id.isEmpty) return false;
+    // Camp mutations notify after every saved sample. Reset only for a new
+    // trip/connection, otherwise those notifications would discard distance.
+    if (_campDriveSessionId == id && _campDriveConnection == _connection) {
+      return false;
+    }
+    _campDriveSessionId = id;
+    _campDriveConnection = _connection;
+    camp.beginDrivingSession(id);
+    return true;
   }
 
   late final FishingController fishing;
@@ -103,6 +168,9 @@ class GameController extends ChangeNotifier {
     }, onError: (Object _) {
       if (_disposed || connection != _connection) return;
       fishing.observePresence(null);
+      if (_campDriveSessionId != null) {
+        baseCamp?.beginDrivingSession(_campDriveSessionId!);
+      }
       error = '차량 신호를 받지 못했어요. 연결을 확인해 주세요.';
       notifyListeners();
     });
@@ -112,6 +180,7 @@ class GameController extends ChangeNotifier {
   final Random _affinityRandom;
   AffinityRound? _affinity;
   AffinityRound? get affinityRound => _affinity;
+
   /// Selected mode remains visible while awaiting the first vehicle sample.
   bool get usesAffinity => _affinityForCurrentEgg;
 
@@ -658,6 +727,7 @@ class GameController extends ChangeNotifier {
 
   void prepareNextFakeTrip() {
     if (!isFake || !sessionSaved || endingSession) return;
+    _campDriveSessionId = null;
     _remoteEnded = false;
     _remoteSaved = false;
     _finalSnapshotRead = false;
@@ -746,7 +816,9 @@ class GameController extends ChangeNotifier {
     await fishing.attach(credentials.sessionId);
     await fishing.setActive(_appActive);
     if (_disposed || connection != _connection) return;
-    if (fishing.selectedSpeciesId != null) {
+    await _prepareCampForTrip();
+    if (_disposed || connection != _connection) return;
+    if (fishing.selectedSpeciesId != null || baseCamp?.ready == true) {
       _ensureCompanionVehicleSubscription();
     }
     _eventsSub = feed.events().listen(
@@ -826,6 +898,39 @@ class GameController extends ChangeNotifier {
     }
   }
 
+  /// Save egg and fishing progress before clearing local pairing.
+  Future<bool> disconnect() async {
+    if (busy || endingSession) return false;
+    if (!await endSession()) return false;
+    busy = true;
+    notifyListeners();
+    try {
+      await fishing.detach();
+      if (fishing.hasPendingWrite) {
+        error = fishing.error;
+        return false;
+      }
+      await _pairingSave.catchError((_) {});
+      await pairingStore.clear();
+      await _eventsSub?.cancel();
+      _eventsSub = null;
+      _connection++;
+      paired = false;
+      _sessionId = null;
+      _invalidateInputs();
+      error = null;
+      notifyListeners();
+      return true;
+    } catch (_) {
+      error = '연결 정보를 지우지 못했어요. 다시 시도해 주세요.';
+      notifyListeners();
+      return false;
+    } finally {
+      busy = false;
+      notifyListeners();
+    }
+  }
+
   /// 알 고르기 → 품기 시작. 이전 주행에서 넘어온 거리는 DexStore 에 있다.
   Future<bool> startIncubating(EggTier tier, {bool useAffinity = false}) async {
     if (!canStart) return false;
@@ -839,6 +944,8 @@ class GameController extends ChangeNotifier {
       final saved = await dex.incubationProgress(tier);
       if (_disposed || sessionEnded || (!isFake && !paired)) return false;
       _activeSessionId = isFake ? null : _sessionId;
+      await _prepareCampForTrip();
+      if (_disposed || sessionEnded || (!isFake && !paired)) return false;
       _sessionDistances = Map.of(saved.sessionDistances);
       _distanceBaseline = _sessionDistances[_activeSessionId] ?? 0;
       _lastDistance = _distanceBaseline;
@@ -865,6 +972,9 @@ class GameController extends ChangeNotifier {
         if (connection == _connection) _onVehicle(v);
       }, onError: (Object _) {
         if (connection != _connection || _disposed) return;
+        if (_campDriveSessionId != null) {
+          baseCamp?.beginDrivingSession(_campDriveSessionId!);
+        }
         error = '차량 신호를 받지 못했어요. 연결을 확인해 주세요.';
         notifyListeners();
       });
@@ -992,6 +1102,13 @@ class GameController extends ChangeNotifier {
     }
     _lastVehicleTs = v.ts;
     vehicle = v;
+    final campSession = _campDriveSessionId;
+    if (!finalSnapshot &&
+        _appActive &&
+        campSession != null &&
+        baseCamp?.ready == true) {
+      unawaited(baseCamp!.recordVehicle(sessionId: campSession, vehicle: v));
+    }
     final t = _timer;
     if (t == null) {
       if (!finalSnapshot) _publishHeartbeat();
@@ -1126,6 +1243,7 @@ class GameController extends ChangeNotifier {
       if (_disposed || version != _collectionVersion) return;
       _collection = RegionCollection.fromEntries(entries);
       _collectedIds = {for (final e in entries) e.speciesId}.toList();
+      if (baseCamp?.ready == true) await baseCamp!.refreshOwnership();
     } catch (_) {
       if (_disposed || version != _collectionVersion) return;
       _collection = const RegionCollection.unknown();
@@ -1145,8 +1263,13 @@ class GameController extends ChangeNotifier {
     _applyCollection();
     game = game.copyWith(
         ts: _now,
-        vehicleFeatures:
-            fishing.initialized ? fishing.snapshotFields : const {});
+        vehicleFeatures: fishing.initialized
+            ? {
+                ...fishing.snapshotFields,
+                if (baseCamp?.ready == true)
+                  ...campVehicleSnapshot(baseCamp!.state),
+              }
+            : const {});
     final snapshot = game;
     final connection = _connection;
     final sessionId = _sessionId;
@@ -1356,6 +1479,10 @@ class GameController extends ChangeNotifier {
   void lookOut() {
     if (game.stage != Stage.hatched || sessionEnded || endingSession) return;
     lookOutCount++;
+    if (baseCamp?.ready == true && _campDriveSessionId != null) {
+      unawaited(baseCamp!.recordLookOut(
+          eventId: '${_campDriveSessionId}_${_eggId}_$lookOutCount'));
+    }
     game = game.copyWith(lookOutCount: lookOutCount);
     unawaited(_send(() => feed.emitEvent('lookOutPrompt')));
     _publish();
@@ -1667,6 +1794,10 @@ class GameController extends ChangeNotifier {
     await fishing.setActive(active);
     _clockAt = activeClockMs;
     if (active) {
+      if (_campDriveSessionId != null) {
+        baseCamp?.beginDrivingSession(_campDriveSessionId!);
+      }
+      if (baseCamp?.ready == true) await baseCamp!.refreshOwnership();
       _startAffinityTimer();
       return true;
     }
@@ -1694,6 +1825,7 @@ class GameController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    baseCamp?.removeListener(_onCampChanged);
     fishing.dispose();
     _invalidateInputs();
     _affinityTimer?.cancel();

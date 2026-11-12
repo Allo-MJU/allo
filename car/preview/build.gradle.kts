@@ -16,7 +16,7 @@ android {
         versionName = "ui-preview"
     }
     sourceSets["main"].apply {
-        java.srcDirs("../app/src/main/java/ai/allo/car/ui", "../app/src/main/java/ai/allo/car/model")
+        java.srcDirs("../app/src/main/java/ai/allo/car/ui", "../app/src/main/java/ai/allo/car/model", "../app/src/main/java/ai/allo/car/dialogue", "../app/src/main/java/ai/allo/car/voice")
         res.srcDir("../app/src/main/res")
         assets.srcDirs("../../data", "../../phone/assets")
     }
@@ -39,5 +39,6 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.material3)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.pleos.tts)
     implementation(libs.zxing.core)
 }

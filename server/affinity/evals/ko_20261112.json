@@ -1,0 +1,216 @@
+{
+  "synthetic": true,
+  "description": "개발용 합성 문장. 정답은 각 호출 전에 고정했으며 프롬프트 보완에도 사용된 표본이다.",
+  "cases": [
+    {
+      "id": "pos01",
+      "text": "빨리 부화해줘",
+      "expected": "positive"
+    },
+    {
+      "id": "pos02",
+      "text": "너는 어떤 모습이야?",
+      "expected": "positive"
+    },
+    {
+      "id": "pos03",
+      "text": "너랑 여행 갈 날이 기대돼",
+      "expected": "positive"
+    },
+    {
+      "id": "pos04",
+      "text": "다음 여행은 너랑 같이 가고 싶어",
+      "expected": "positive"
+    },
+    {
+      "id": "pos05",
+      "text": "얼른 태어나서 같이 놀자",
+      "expected": "positive"
+    },
+    {
+      "id": "pos06",
+      "text": "여행지에서 너랑 재미있는 추억 만들고 싶어",
+      "expected": "positive"
+    },
+    {
+      "id": "pos07",
+      "text": "네가 깨어나면 어디부터 같이 가볼까?",
+      "expected": "positive"
+    },
+    {
+      "id": "pos08",
+      "text": "네가 태어나는 날을 기다리고 있어",
+      "expected": "positive"
+    },
+    {
+      "id": "neg01",
+      "text": "귀찮아 여행 가기 싫어",
+      "expected": "negative"
+    },
+    {
+      "id": "neg02",
+      "text": "너 정말 싫어",
+      "expected": "negative"
+    },
+    {
+      "id": "neg03",
+      "text": "너는 보기 싫은 알이야",
+      "expected": "negative"
+    },
+    {
+      "id": "neg04",
+      "text": "너랑 여행하는 건 싫어",
+      "expected": "negative"
+    },
+    {
+      "id": "neg05",
+      "text": "부화하지 마, 너를 만나고 싶지 않아",
+      "expected": "negative"
+    },
+    {
+      "id": "neg06",
+      "text": "너는 정말 못생겼을 것 같아",
+      "expected": "negative"
+    },
+    {
+      "id": "neg07",
+      "text": "너랑 같이 가는 여행은 최악이야",
+      "expected": "negative"
+    },
+    {
+      "id": "neg08",
+      "text": "너한테 관심 없어, 그냥 그대로 있어",
+      "expected": "negative"
+    },
+    {
+      "id": "neu01",
+      "text": "배고파",
+      "expected": "neutral"
+    },
+    {
+      "id": "neu02",
+      "text": "졸려",
+      "expected": "neutral"
+    },
+    {
+      "id": "neu03",
+      "text": "오늘은 날씨가 맑네",
+      "expected": "neutral"
+    },
+    {
+      "id": "neu04",
+      "text": "여행은 다음 주 토요일이야",
+      "expected": "neutral"
+    },
+    {
+      "id": "neu05",
+      "text": "지금은 집에 있어",
+      "expected": "neutral"
+    },
+    {
+      "id": "neu06",
+      "text": "오늘은 조금 피곤해",
+      "expected": "neutral"
+    },
+    {
+      "id": "neu07",
+      "text": "차가 멈췄네",
+      "expected": "neutral"
+    },
+    {
+      "id": "neu08",
+      "text": "심심해",
+      "expected": "neutral"
+    },
+    {
+      "id": "hold_pos01",
+      "text": "알아듣고 있지? 네 이름은 뭐야?",
+      "expected": "positive"
+    },
+    {
+      "id": "hold_pos02",
+      "text": "알 속에 누가 있는지 궁금해",
+      "expected": "positive"
+    },
+    {
+      "id": "hold_pos03",
+      "text": "너는 어떤 걸 제일 좋아할까?",
+      "expected": "positive"
+    },
+    {
+      "id": "hold_pos04",
+      "text": "네 목소리는 어떤지 듣고 싶어",
+      "expected": "positive"
+    },
+    {
+      "id": "hold_neg01",
+      "text": "이번 여행은 너 없이 갈 거야",
+      "expected": "negative"
+    },
+    {
+      "id": "hold_neg02",
+      "text": "난 너를 만나고 싶지 않아",
+      "expected": "negative"
+    },
+    {
+      "id": "hold_neg03",
+      "text": "여행에 너를 데려가지 않을래",
+      "expected": "negative"
+    },
+    {
+      "id": "hold_neg04",
+      "text": "알 속에서 나오지 않았으면 좋겠어",
+      "expected": "negative"
+    },
+    {
+      "id": "hold_neu01",
+      "text": "목이 조금 말라",
+      "expected": "neutral"
+    },
+    {
+      "id": "hold_neu02",
+      "text": "오늘은 점심을 먹었어",
+      "expected": "neutral"
+    },
+    {
+      "id": "hold_neu03",
+      "text": "여행 가방은 현관 옆에 뒀어",
+      "expected": "neutral"
+    },
+    {
+      "id": "hold_neu04",
+      "text": "버스가 오전 아홉 시에 출발해",
+      "expected": "neutral"
+    },
+    {
+      "id": "negation_pos01",
+      "text": "부화가 취소되지 않았으면 좋겠어",
+      "expected": "positive"
+    },
+    {
+      "id": "negation_pos02",
+      "text": "여행을 안 가는 건 싫어",
+      "expected": "positive"
+    },
+    {
+      "id": "negation_neg01",
+      "text": "네가 알에서 나오지 않기를 바라",
+      "expected": "negative"
+    },
+    {
+      "id": "negation_neg02",
+      "text": "여행을 가지 않았으면 좋겠어",
+      "expected": "negative"
+    },
+    {
+      "id": "negation_neu01",
+      "text": "아직 배가 고프진 않아",
+      "expected": "neutral"
+    },
+    {
+      "id": "negation_neu02",
+      "text": "오늘은 피곤하지 않아",
+      "expected": "neutral"
+    }
+  ]
+}

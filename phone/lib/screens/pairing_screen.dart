@@ -43,6 +43,19 @@ class _PairingScreenState extends State<PairingScreen> {
               Text(c.isFake ? '차 없이 알로를 체험해 보세요' : '차 화면의 QR을 찍어 주세요',
                   style: const TextStyle(fontSize: 20)),
               if (c.isFake) const Text('가상 주행으로 알을 품고 도감에 모아요.'),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: () => context.go('/dex'),
+                icon: const Icon(Icons.auto_stories_outlined),
+                label: Text(c.paired ? '도감에서 함께할 친구 고르기' : '내 친구 도감 보기'),
+              ),
+              if (c.baseCamp != null)
+                OutlinedButton.icon(
+                    onPressed: () => context.go('/base-camp'),
+                    icon: const Icon(Icons.cottage_outlined),
+                    label: const Text('우리 거점')),
+              if (c.paired)
+                const Text('차량과 연결됐어요. 도감의 획득 기록에서 동행할 친구를 골라 주세요.'),
               if (!c.isFake) ...[
                 const SizedBox(height: 12),
                 FilledButton.icon(

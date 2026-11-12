@@ -15,7 +15,7 @@ public static class AndroidHost
         using var bridge = new AndroidJavaClass(BridgeClass);
         bridge.CallStatic("fromUnity", json);
 #else
-        Debug.Log($"[AndroidHost] {json}");
+        Debug.Log("[AndroidHost] Unity intent sent");
 #endif
     }
 }
