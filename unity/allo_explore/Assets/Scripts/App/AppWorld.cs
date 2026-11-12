@@ -6,14 +6,11 @@ using Rig = Allo.CameraRig.CameraRig;
 
 namespace Allo.App
 {
-    /// Preserve the original cabin while the isolated 3D camp renders behind the UGUI map.
+    /// The UGUI village owns non-cabin views; preserve the original cabin until it is requested.
     public sealed class AppWorld : MonoBehaviour
     {
         readonly Dictionary<GameObject, bool> _hidden = new Dictionary<GameObject, bool>();
         readonly Dictionary<Behaviour, bool> _suspended = new Dictionary<Behaviour, bool>();
-        static AppWorld _instance;
-        CampPreviewWorld _preview;
-        bool _paused;
         Camera _camera;
         Vector3 _cameraPosition;
         Quaternion _cameraRotation;
@@ -24,49 +21,18 @@ namespace Allo.App
         CameraClearFlags _clearFlags;
         string _view = "home";
 
-        public static RenderTexture CampPreview => _instance != null ? _instance._preview?.Texture : null;
-
-        public static Vector2 FacilityAnchor(string id)
-        {
-            switch (id)
-            {
-                case "workshop": return new Vector2(.20f, .46f);
-                case "kitchen": return new Vector2(.505f, .43f);
-                case "training": return new Vector2(.81f, .47f);
-                default: throw new System.ArgumentException("Unknown camp facility", nameof(id));
-            }
-        }
-
         public void SetView(string view)
         {
             _view = string.IsNullOrEmpty(view) ? "home" : view;
-            _instance = this;
-            if (_view == "cabin") { _preview?.SetVisible(false); RestoreCabin(); }
-            else
-            {
-                ShowVillageBackdrop();
-                if (_preview == null)
-                {
-                    var props = new List<GameObject>();
-                    foreach (var director in FindObjectsByType<WorldDirector>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-                        if (director.props != null) props.AddRange(director.props);
-                    _preview = new CampPreviewWorld(props);
-                }
-                _preview.SetVisible(!_paused && (_view == "home" || _view == "camp"));
-            }
+            if (_view == "cabin") RestoreCabin();
+            else ShowVillageBackdrop();
         }
 
-        public void Apply(AppState state)
-        {
-            SetView(state?.view);
-            _preview?.Apply(state);
-        }
+        public void Apply(AppState state) => SetView(state?.view);
 
         void LateUpdate()
         {
-            if (_paused) return;
-            if (_view != "cabin" && !_away) SetView(_view);
-            if (_view == "home" || _view == "camp") _preview?.SetVisible(true);
+            if (_view != "cabin" && !_away) ShowVillageBackdrop();
         }
 
         void ShowVillageBackdrop()
@@ -139,17 +105,7 @@ namespace Allo.App
             _away = false;
         }
 
-        void OnApplicationPause(bool paused)
-        {
-            _paused = paused;
-            _preview?.SetVisible(!paused && isActiveAndEnabled && (_view == "home" || _view == "camp"));
-        }
-        void OnDisable() { _preview?.SetVisible(false); RestoreCabin(); }
-        void OnDestroy()
-        {
-            _preview?.Dispose(); _preview = null;
-            RestoreCabin();
-            if (_instance == this) _instance = null;
-        }
+        void OnDisable() => RestoreCabin();
+        void OnDestroy() => RestoreCabin();
     }
 }
