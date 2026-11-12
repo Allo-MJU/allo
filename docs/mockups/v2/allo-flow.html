@@ -50,7 +50,7 @@ button.px[disabled]{--bg:#B9D3C4;--sh:#9BB8A8;--fg:#EAF4EE;pointer-events:none}
 .pan{display:block;padding:0;text-shadow:none;font:500 15px/1.5 var(--f);z-index:20}
 .pan h2{font:400 28px/1.25 var(--fd)}.pan h3{font:400 24px var(--fd)}
 .ttl{position:absolute;left:24px;top:15px;font:400 26px var(--fd)}.cnt{position:absolute;right:24px;top:20px;font:400 19px var(--fd)}
-.scr{position:absolute;inset:0;z-index:10;display:none}.scr.on{display:block}.scr.fade{animation:fin .3s ease-out}@keyframes fin{from{opacity:0}}
+.scr{position:absolute;inset:0;z-index:10;display:none}.scr.on{display:block}.scr.fade{animation:fin .35s cubic-bezier(.22,1,.36,1)}@keyframes fin{from{opacity:0;transform:translateX(28px)}}@media (prefers-reduced-motion:reduce){.scr.fade{animation:none}}
 .sm{width:45px;height:45px;padding:0 0 6px}
 .px.g.camp{--bg:#E3E1EE;--sh:#C9C6DD;--fg:#7C81AE;border-style:dashed!important}
 .big{flex-direction:column;width:72px;height:72px;gap:3px;font-size:17px}
@@ -250,20 +250,10 @@ button.px[disabled]{box-shadow:inset 0 2px 0 #ffffff80,0 4px 0 0 var(--sh),0 4px
 #s-hatch.v #hvig{opacity:1}
 #hz{position:absolute;z-index:20;left:50%;top:96px;width:190px;height:190px;margin-left:-95px;transform-origin:50% 100%;cursor:pointer;outline-offset:6px}
 #hz>*{position:absolute;inset:0;width:100%;height:100%}#hz img{object-fit:contain;display:block}
-.hzh{display:none!important}#hz.b .hzh{display:block!important}#hz.b #hz0,#hz.b #hzc{display:none}#hz.b{pointer-events:none}
+.hzh{display:none!important}#hz.b .hzh{display:block!important}#hz.b #hz0{display:none}#hz.b{pointer-events:none}
 #hz[data-t="0"]{animation:hzwob 2.4s ease-in-out infinite}#hz[data-t="1"]{animation:hzshk .6s ease-in-out infinite}#hz[data-t="2"]{animation:hzshk .32s ease-in-out infinite}
 @keyframes hzwob{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}@keyframes hzshk{0%,100%{transform:rotate(-6deg) translateX(-2px)}50%{transform:rotate(6deg) translateX(2px)}}
 #hz0{transition:filter .3s}#hz[data-t="1"] #hz0{filter:brightness(1.05)}#hz[data-t="2"] #hz0{filter:brightness(1.12) drop-shadow(0 0 10px #FFE08A)}#hz[data-t="3"] #hz0{filter:brightness(1.3) drop-shadow(0 0 20px #FFE08A)}
-#hzc{overflow:visible;pointer-events:none;clip-path:ellipse(31% 46% at 50% 54%)}
-#hzc path{stroke-dasharray:140;stroke-dashoffset:140;transition:stroke-dashoffset .3s ease-out}#hzc .ik{stroke:var(--N);stroke-width:6.5}#hzc .lt{stroke:#FFF6C8;stroke-width:2.6;filter:drop-shadow(0 0 4px #FFE08A)}
-#hk3 path{stroke-dasharray:300;stroke-dashoffset:300}
-#hz:is([data-t="1"],[data-t="2"],[data-t="3"]) #hk1 path,#hz:is([data-t="2"],[data-t="3"]) #hk2 path,#hz[data-t="3"] #hk3 path{stroke-dashoffset:0}
-#hzr{position:absolute;z-index:35;left:50%;top:150px;width:90px;height:90px;margin-left:-45px;border-radius:50%;border:4px solid #fff;pointer-events:none;animation:hzrg 1.4s ease-out infinite}
-@keyframes hzrg{0%{transform:scale(.5);opacity:.95}100%{transform:scale(1.5);opacity:0}}
-#hzt{left:50%;top:300px;transform:translateX(-50%);height:42px;padding:0 18px 6px;font-size:18px;gap:10px;white-space:nowrap}
-.hzd{display:flex;gap:6px}.hzd i{width:14px;height:14px;border-radius:50%;border:3px solid var(--N);background:#fff;transition:background .15s,transform .2s}
-#hz[data-t="1"]~#hzt .hzd i:nth-child(-n+1),#hz[data-t="2"]~#hzt .hzd i:nth-child(-n+2){background:var(--y);transform:scale(1.2)}
-#s-hatch.go :is(#hzt,#hzr){display:none}
 #hzw,#hzconf{position:absolute;inset:0;z-index:30;pointer-events:none}#hzconf{z-index:55;overflow:hidden}
 #hzw>*,#hzconf>*{position:absolute;pointer-events:none;top:0;left:0}
 .hztw{animation:hztw 1.6s ease-in-out infinite}@keyframes hztw{0%,100%{opacity:.15;transform:scale(.5)}50%{opacity:1;transform:scale(1)}}
@@ -317,9 +307,7 @@ button.px[disabled]{box-shadow:inset 0 2px 0 #ffffff80,0 4px 0 0 var(--sh),0 4px
 </section>
 <section class="scr" id="s-hatch">
  <div class="px y" id="hmsg">도착했어요!</div><div id="hrays"></div><div id="hglow"></div><div id="hvig"></div><div id="hfx"></div>
- <div id="hz" data-t="0" tabindex="0" role="button" aria-label="알 톡톡 누르기"><img id="hz0" alt=""><img class="hzh" id="hz1" alt=""><img class="hzh" id="hz2" alt="">
-  <svg id="hzc" viewBox="0 0 190 190" fill="none" stroke-linecap="round" stroke-linejoin="round"><g id="hk1"><path class="ik" d="M95 40L87 54L100 64L90 78"/><path class="lt" d="M95 40L87 54L100 64L90 78"/></g><g id="hk2"><path class="ik" d="M116 70L107 86L124 100M70 104L84 120L72 134"/><path class="lt" d="M116 70L107 86L124 100M70 104L84 120L72 134"/></g><g id="hk3"><path class="ik" id="hk3a"/><path class="lt" id="hk3b"/></g></svg></div>
- <div id="hzr"></div><div class="px" id="hzt"><span id="hzm">알을 톡톡 눌러 주세요</span><span class="hzd"><i></i><i></i><i></i></span></div>
+ <div id="hz" data-t="0" tabindex="0" role="button" aria-label="알 톡톡 누르기"><img id="hz0" alt=""><img class="hzh" id="hz1" alt=""><img class="hzh" id="hz2" alt=""></div>
  <div id="hzw"></div><div id="hzconf"></div>
  <div class="px" id="hnew">새 친구를 만났어요</div>
  <img id="hchi" alt="" style="position:absolute;z-index:22;left:50%;top:70px;width:210px;height:210px;margin-left:-105px;object-fit:contain;display:none">
@@ -534,8 +522,7 @@ var enterHatch=(()=>{
  const Z=$("#hz"),W=$("#hzw"),CF=$("#hzconf"),CH=$("#hchi"),SC=$("#s-hatch"),CX=406,CY=190;
  $("#hz1").style.clipPath=`polygon(0 0,100% 0,${CUT.slice().reverse().map(p=>p[0]+"% "+p[1]+"%").join(",")})`;
  $("#hz2").style.clipPath=`polygon(${CUT.map(p=>p[0]+"% "+p[1]+"%").join(",")},100% 100%,0 100%)`;
- const zz="M"+CUT.map(p=>(p[0]*1.9).toFixed(1)+" "+(p[1]*1.9).toFixed(1)).join(" L");$("#hk3a").setAttribute("d",zz);$("#hk3b").setAttribute("d",zz);
- let hs=0,hzt=[],auto,egg="",T=TI[2],ko="";
+ let hs=0,hzt=[],egg="",T=TI[2],ko="";
  const L=(f,ms)=>hzt.push(setTimeout(()=>{if(st.cur=="hatch")f()},ms));
  const rnd=(a,b)=>a+Math.random()*(b-a),vib=p=>navigator.vibrate&&navigator.vibrate(p);
  const mk=(css,host=W)=>{const e=document.createElement("div");e.style.cssText=css;host.appendChild(e);return e};
@@ -551,14 +538,7 @@ var enterHatch=(()=>{
  const dust=()=>{for(let i=0;i<8;i++){const d=i%2?1:-1,e=mk(`left:${CX+d*rnd(20,60)-14}px;top:${268+rnd(-4,8)}px;width:28px;height:22px;border-radius:50%;background:#FFF6DC`);
   e.animate([{transform:"translate(0,0) scale(.5)",opacity:.9},{transform:`translate(${d*rnd(40,95)}px,${-rnd(8,28)}px) scale(${rnd(1.6,2.4)})`,opacity:0}],{duration:760,easing:"ease-out",fill:"both"}).onfinish=()=>e.remove()}};
  const ambient=()=>{for(let i=0;i<9;i++){const z=rnd(10,20);mk(`left:${CX+rnd(-150,150)}px;top:${rnd(60,260)}px;width:${z}px;height:${z}px;background:${T.cols[i%T.cols.length]};clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%);animation-delay:${rnd(0,1.6)}s`).className="hztw"}};
- const msg=()=>{$("#hzm").textContent=["알을 톡톡 눌러 주세요","좋아요! 한 번 더","마지막 한 번!",""][hs]||""};
- const arm=()=>{clearTimeout(auto);auto=setTimeout(()=>{if(st.cur=="hatch"&&hs<3)tap()},1500)};
- function tap(){if(hs>=3)return;
-  Z.animate([{transform:"scale(1,1)"},{transform:"scale(1.14,.86)",offset:.25},{transform:"scale(.93,1.1)",offset:.55},{transform:"scale(1,1)"}],{duration:380,easing:"ease-out"});vib(15);
-  if(hs<2){hs++;Z.dataset.t=hs;$("#hglow").style.opacity=[0,.3,.6][hs];$("#hglow").style.transform=`scale(${[.5,.8,1][hs]})`;SC.classList.toggle("v",hs>=2);
-   shell(6,CX+rnd(-30,30),170+rnd(-20,30));$("#s-hatch").animate([{transform:"translate(0,0)"},{transform:"translate(2px,-1px)"},{transform:"translate(-2px,1px)"},{transform:"translate(0,0)"}],{duration:160});msg();arm()}
-  else burst()}
- function burst(){hs=3;clearTimeout(auto);Z.dataset.t=3;msg();Z.getAnimations().forEach(a=>a.cancel());
+ function burst(){if(hs>=3)return;hs=3;Z.dataset.t=3;Z.getAnimations().forEach(a=>a.cancel());
   Z.animate([{transform:"translate(0,0) rotate(0)"},{transform:"translate(-3px,0) rotate(-7deg) scale(1.05)"},{transform:"translate(3px,0) rotate(7deg) scale(1.05)"},{transform:"translate(0,0) rotate(0)"}],{duration:80,iterations:5});vib(30);
   L(()=>{SC.classList.add("go");SC.classList.add("v");Z.classList.add("b");$("#hmsg").style.display="none";vib(T.vib);
    $("#hflash").animate([{opacity:0},{opacity:1,offset:.14},{opacity:0}],{duration:750,easing:"ease-out"});
@@ -579,12 +559,15 @@ var enterHatch=(()=>{
    L(()=>{const t=S[5][2],h=$("#hname");h.innerHTML="<span>"+[...ko].map((c,i)=>`<span class="l" style="--i:${i}">${c}</span>`).join("")+"</span>"+`<span class="tier t${t}">${TIER[t]}${T.stars?" "+Array.from({length:T.stars},(_,i)=>`<i style="--i:${i}">★</i>`).join(""):""}</span>`;
     h.style.display="flex";h.style.animation="none";void h.offsetWidth;h.style.animation="rise .5s cubic-bezier(.34,1.56,.64,1) both"},1950);
    L(()=>{$("#hbtn").style.display="flex"},2500)},420)}
- Z.onclick=()=>{if(st.cur=="hatch")tap()};Z.onkeydown=e=>{if(e.key=="Enter"||e.key==" "){e.preventDefault();tap()}};
- return function(){hzt.forEach(clearTimeout);hzt=[];clearTimeout(auto);hs=0;ko=S[5][1];T=TI[{3:2,2:1}[S[5][2]]||0];egg=src(5,"egg");
+ Z.onclick=()=>{if(st.cur=="hatch")burst()};Z.onkeydown=e=>{if(e.key=="Enter"||e.key==" "){e.preventDefault();burst()}};
+ return function(){hzt.forEach(clearTimeout);hzt=[];hs=0;ko=S[5][1];T=TI[{3:2,2:1}[S[5][2]]||0];egg=src(5,"egg");
   [Z,CH,$("#hz1"),$("#hz2"),$("#hflash"),$("#scene"),SC].forEach(e=>e.getAnimations().forEach(a=>a.cancel()));
   W.innerHTML="";CF.innerHTML="";$("#hfx").innerHTML="";["#hz0","#hz1","#hz2"].forEach(i=>$(i).src=egg);
   Z.className="";Z.dataset.t=0;SC.classList.remove("v","go");CH.style.display="none";CH.style.animation="";
-  $("#hrays").classList.remove("on");$("#hglow").style.cssText="";["#hnew","#hname","#hbtn"].forEach(x=>$(x).style.display="none");$("#hmsg").style.display="flex";msg();arm()}})();
+  $("#hrays").classList.remove("on");$("#hglow").style.cssText="";["#hnew","#hname","#hbtn"].forEach(x=>$(x).style.display="none");$("#hmsg").style.display="flex";
+  L(()=>{Z.dataset.t=1;$("#hglow").style.opacity=.3;$("#hglow").style.transform="scale(.8)"},500);
+  L(()=>{Z.dataset.t=2;SC.classList.add("v");$("#hglow").style.opacity=.6;$("#hglow").style.transform="scale(1)"},1200);
+  L(burst,1900)}})();
 $("#hbtn").onclick=()=>{if(!OWN.includes(5))OWN.push(5);st.n=Math.max(st.n,6);go("cmp")};
 function enterCmp(){$("#pg2 .ic img").src=src(5,"idle");$("#cbc").src=src(5,"idle");$("#csay").textContent=SAY[st.line++%SAY.length];run("#pg2","#cleft",10,()=>go("arr"))}
 function enterArr(){$("#arc img").src=src(5,"happy");$("#arr b").textContent="바다안개를 만났어요"}$("#arhome").onclick=()=>go("home");
