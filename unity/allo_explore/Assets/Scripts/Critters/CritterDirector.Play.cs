@@ -282,30 +282,69 @@ namespace Allo.Critters
         }
 
         /// 인형·쿠션: 작은 것이 동행 옆으로 통 날아간다
-        public void Toy(Toys.Kind kind, Vector3 from)
+        /// 옆자리 인형·쿠션을 탭: 동행에게 건넨다. real 이 있으면(3D 모델) 그 물건이 직접 날아갔다가 놀이 뒤 제자리로 돌아오고,
+        /// 없으면(도형) 작은 복사본을 던졌다가 줄여 없앤다
+        public void Toy(Toys.Kind kind, Vector3 from, Transform real = null)
         {
             var c = Actor; // 동행이 없으면(알만 있을 때) 친구가 대신 논다
-            if (c == null || _busy) return;
-            StartCoroutine(GiveToy(kind, from, c));
+            if (c == null || _busy || (real != null && _propBusy.Contains(real))) return;
+            StartCoroutine(GiveToy(kind, from, c, real));
         }
 
-        IEnumerator GiveToy(Toys.Kind kind, Vector3 from, CritterView c)
+        /// 쿠션을 눕혔을 때 두께 배율 (세운 쿠션 두께 13cm → 약 6cm 방석). 동행이 위에서 통통 뛴다
+        const float CushionFlat = 0.5f;
+
+        IEnumerator GiveToy(Toys.Kind kind, Vector3 from, CritterView c, Transform real = null)
         {
             _busy = true;
-            Debug.Log($"[Play] toy {kind}");
+            Debug.Log($"[Play] toy {kind} real={real != null}");
             var surf = c.Brain.Surface;
             var at = _graph.RandomPoint(surf, _play);
             if (Vector3.Distance(at, c.Brain.Position) > 0.35f)
                 at = WalkGraph.Clamp(c.Brain.Position + (at - c.Brain.Position).normalized * 0.25f, _graph.Surfaces[surf]);
             at = Comfy(at, surf);
-            var item = Toys.Make(kind);
+            Transform item;
+            Vector3 homePos = default, homeScale = default;
+            Quaternion homeRot = default;
+            var lay = kind == Toys.Kind.Cushion;
+            if (real != null)
+            {
+                item = real;
+                _propBusy.Add(real);
+                homePos = real.position; homeRot = real.rotation; homeScale = real.localScale;
+                from = real.position;
+            }
+            else item = Toys.Make(kind);
+            // 날아가는 동안 동행 쪽을 보게 돌리고, 쿠션은 등을 대고 눕힌다(앞면이 위). 눕힌 쿠션의 가운데가 at 에 오게 맞춘다
+            var face = Quaternion.LookRotation(Flat(Eye - at).normalized);
+            var endRot = real == null ? item.rotation : lay ? face * Quaternion.Euler(-90, 0, 0) : face;
+            var endScale = real != null && lay ? Vector3.Scale(homeScale, new Vector3(1, 1, CushionFlat)) : item.localScale;
+            var endPos = at;
+            if (real != null && lay)
+            {
+                var keep = (item.rotation, item.localScale, item.position);
+                item.SetPositionAndRotation(at, endRot);
+                item.localScale = endScale;
+                var b = Toys.BoundsOf(item);
+                endPos = at + new Vector3(at.x - b.center.x, at.y - b.min.y, at.z - b.center.z);
+                (item.rotation, item.localScale, item.position) = keep;
+            }
+            var startRot = item.rotation;
+            var startScale = item.localScale;
             for (var t = 0f; t < 0.6f; t += Time.deltaTime)
             {
                 var k = t / 0.6f;
-                item.position = Vector3.Lerp(from, at, k) + Vector3.up * (Mathf.Sin(k * Mathf.PI) * 0.25f);
+                item.position = Vector3.Lerp(from, endPos, k) + Vector3.up * (Mathf.Sin(k * Mathf.PI) * 0.25f);
+                if (real != null)
+                {
+                    item.rotation = Quaternion.Slerp(startRot, endRot, k);
+                    item.localScale = Vector3.Lerp(startScale, endScale, k);
+                }
                 yield return null;
             }
-            item.position = at;
+            item.position = endPos;
+            item.rotation = endRot;
+            item.localScale = endScale;
             switch (kind)
             {
                 case Toys.Kind.Cup:
@@ -319,7 +358,7 @@ namespace Allo.Critters
                     if (c != null) FlutterBridge.Send("drink");
                     break;
                 case Toys.Kind.Plush:
-                    yield return Approach(c, at, surf, 0.07f);
+                    yield return Approach(c, at, surf, real != null ? 0.18f : 0.07f); // 진짜 인형은 동행만큼 커서 몸 반 너비만큼 떨어져 붙는다
                     if (c != null)
                     {
                         FlutterBridge.Send("tap", FlutterBridge.Field("kind", "plush"));
@@ -341,9 +380,10 @@ namespace Allo.Critters
                         {
                             c.Brain.Hop(0.12f + i * 0.05f);
                             c.Cheer(1);
-                            item.localScale = new Vector3(1.1f, 0.6f, 1.1f);
+                            // 눌렸다 펴지기: 도형은 세로(y), 눕힌 모델은 두께(로컬 z)를 누른다
+                            item.localScale = real != null ? Vector3.Scale(endScale, new Vector3(1.1f, 1.1f, 0.6f)) : new Vector3(1.1f, 0.6f, 1.1f);
                             yield return new WaitForSeconds(0.1f);
-                            item.localScale = Vector3.one;
+                            item.localScale = real != null ? endScale : Vector3.one;
                             yield return new WaitForSeconds(0.5f);
                         }
                     }
@@ -351,7 +391,25 @@ namespace Allo.Critters
             }
             if (c != null) c.Brain.Hold = false;
             _busy = false;
-            yield return Shrink(item, kind == Toys.Kind.Plush ? 6 : 1.5f);
+            if (real == null)
+            {
+                yield return Shrink(item, kind == Toys.Kind.Plush ? 6 : 1.5f);
+                yield break;
+            }
+            // 진짜 물건: 조금 두었다가 제자리로 날아가 다시 선다
+            yield return new WaitForSeconds(kind == Toys.Kind.Plush ? 6 : 1.5f);
+            var p0 = item.position; var r0 = item.rotation; var s0 = item.localScale;
+            for (var t = 0f; t < 0.7f; t += Time.deltaTime)
+            {
+                var k = t / 0.7f;
+                item.position = Vector3.Lerp(p0, homePos, k) + Vector3.up * (Mathf.Sin(k * Mathf.PI) * 0.25f);
+                item.rotation = Quaternion.Slerp(r0, homeRot, k);
+                item.localScale = Vector3.Lerp(s0, homeScale, k);
+                yield return null;
+            }
+            item.SetPositionAndRotation(homePos, homeRot);
+            item.localScale = homeScale;
+            _propBusy.Remove(real);
         }
 
         /// 실내등을 끄면 밤처럼 존다
@@ -386,7 +444,9 @@ namespace Allo.Critters
                 var f = v.Footprint;
                 var H = CritterView.Height;
                 _blanket.rotation = Quaternion.Euler(0, v.Yaw, 0);
-                _blanket.localScale = new Vector3(f.x * 1.3f / (1.2f * H), 1.7f, f.y * 0.8f / (0.95f * H));
+                // 높이: 도형 돔은 1.7배면 등까지 왔지만, 담요 모델(키 0.10m)은 2.4배라야 등을 덮는다
+                var high = Toys.PropModel(Toys.Kind.Blanket) != null ? 2.4f : 1.7f;
+                _blanket.localScale = new Vector3(f.x * 1.3f / (1.2f * H), high, f.y * 0.8f / (0.95f * H));
             }
             _blanketOn = v;
             v.Brain.StayAsleep = true;

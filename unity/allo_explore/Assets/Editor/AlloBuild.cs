@@ -362,6 +362,22 @@ public static class AlloBuild
             tex.Apply();
             File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
         }
+        // 알에 담요를 덮은 모습 (가까이서)
+        director.ToggleEggBlanket();
+        foreach (var (name, yaw, pitch) in new[] { ("unity_props_egg_wrap", 0f, -12f) })
+        {
+            // 아이 눈에서 둥지를 똑바로 보며 확대
+            var nest = GameObject.Find("EggNest");
+            cam.transform.position = rig.rearAnchor.position;
+            if (nest != null) cam.transform.LookAt(nest.transform.position + Vector3.up * 0.07f);
+            cam.fieldOfView = 12;
+            cam.Render();
+            RenderTexture.active = rt;
+            var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+            tex.Apply();
+            File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+        }
         cam.targetTexture = null;
         RenderTexture.active = null;
         Debug.Log($"[AlloBuild] captured egg views to {outDir}");

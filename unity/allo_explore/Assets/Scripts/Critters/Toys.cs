@@ -55,6 +55,15 @@ namespace Allo.Critters
         public static Transform Make(Kind k)
         {
             var root = new GameObject("Toy_" + k).transform;
+            // 알 담요(포대기)는 잘 때 담요 모델을 알 크기로 맞춰 덮는다: 알 아래 3/4 을 덮고 꼭대기는 담요 위로 나온다
+            if (k == Kind.EggWrap && PropModel("blanket") is { } quilt)
+            {
+                var m = Object.Instantiate(quilt, root, false).transform;
+                m.name = "Model";
+                var b = BoundsOf(m);
+                m.localScale = new Vector3(EggW * EggWrapWide / b.size.x, EggH * EggWrapHigh / b.size.y, EggW * EggWrapWide / b.size.z);
+                return root;
+            }
             var prefab = PropModel(k);
             if (prefab != null)
             {
@@ -338,6 +347,9 @@ namespace Allo.Critters
             }
             return root;
         }
+
+        /// 알 담요 모델 크기: 알 폭의 배수, 알 키의 비율
+        public const float EggWrapWide = 1.3f, EggWrapHigh = 0.75f;
 
         /// 알 크기 (m). 큰 알은 Unity 에서 1.25배로 키운다
         public const float EggW = 0.1f, EggH = 0.125f;
