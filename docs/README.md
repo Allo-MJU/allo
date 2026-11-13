@@ -19,6 +19,8 @@
 | [verification.md](./verification.md) | SDK 검증 8개 결과 기록 | A |
 | [architecture.md](./architecture.md) | 기술 스택 결정과 근거, 선례에서 확인된 제약 | 전원 |
 | [demo-scenario.md](./demo-scenario.md) | 시연 9단계와 Virtual Console 명령 | A·B·D |
+| [ai-character-dialogue.md](./ai-character-dialogue.md) | 캐릭터 대화·AI 통합 기획. 상황 대사(한국어 뱅크)와 영어 대화, 캐릭터 12종 기준표, 팀 결정 사항 | 전원 |
+| [character-personas.md](./character-personas.md) | 캐릭터 12종 영어 페르소나 v1 확정본. 원문·한국어 뜻·고치는 절차 | 전원 · 영어 대화 담당 |
 
 ## 도감·거점·Pleos 통합
 
