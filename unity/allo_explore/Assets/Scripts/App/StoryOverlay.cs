@@ -20,6 +20,7 @@ namespace Allo.App
         RawImage _guide;
         string _portraitPath;
         Button _resume, _book;
+        StoryVoice _voice;
         Font _font;
         Sprite _round;
         AppState _state;
@@ -58,6 +59,7 @@ namespace Allo.App
         public void Initialize(RectTransform safe, Font font, Sprite round)
         {
             _font = font; _round = round;
+            _voice = gameObject.AddComponent<StoryVoice>();
             _root = Box("Story presentation", safe, Vector2.zero, Vector2.one, new Vector2(14, 20), new Vector2(-126, -78));
             _book = Button(_root, "노트 닫기", ToggleNotebook, new Color(.949f, .933f, .898f, .96f));
             Place(_book.transform, new Vector2(.5f, 0), new Vector2(.5f, 0), new Vector2(-110, 8), new Vector2(110, 64));
@@ -109,6 +111,7 @@ namespace Allo.App
             var visible = _state != null && _state.ready && _state.view == "cabin";
             _root.gameObject.SetActive(visible);
             CapturingInput = visible && (ShowsStory(_state) || _bookOpen);
+            _voice.Present(_state?.story, visible && ShowsStory(_state) && !_blocked);
             if (!visible) return;
             var s = _state.story;
             var playing = ShowsStory(_state) && !_blocked;
@@ -147,7 +150,7 @@ namespace Allo.App
             foreach (var motion in _motions) motion(t);
         }
 
-        void OnDisable() { CapturingInput = false; }
+        void OnDisable() { CapturingInput = false; if (_voice != null) _voice.Present(null, false); }
         void OnDestroy() { if (_root != null) { if(Application.isPlaying) Destroy(_root.gameObject); else DestroyImmediate(_root.gameObject); } CapturingInput = false; }
 
         void Request(string action, string actionId = null, string topicId = null)
@@ -161,6 +164,7 @@ namespace Allo.App
                 _waiting = true; _waitingSince = Time.unscaledTime;
                 foreach (var b in _choiceButtons) b.interactable = false;
             }
+            if (action == "storyChoose" || action == "storyPause" || action == "storyClose") _voice.Stop();
             if (_bookOpen) { _bookOpen = false; LayoutChanged?.Invoke(); }
             var requestId = AppSession.Request(action, new AppAction { instanceId = s.instanceId, nodeId = s.nodeId, storyRevision = s.revision, actionId = actionId, topicId = topicId ?? s.topicId });
             if(action == "storyChoose") _waitingRequest=requestId;
@@ -169,10 +173,11 @@ namespace Allo.App
 
         void UpdateGuide()
         {
+            var narration = _voice.Narrator(_state?.story);
             var companion=FlutterBridge.LastCast?.companion;
             var path=companion?.sprite;
             if(string.IsNullOrEmpty(path)) path="species/road_sprout.png";
-            _guideText.text=companion == null ? "길싹이 · 이야기 안내" : "동행 친구 · 함께 발견하기";
+            _guideText.text=narration != null ? "이야기 목소리 · " + NarratorName(narration) : companion == null ? "길싹이 · 이야기 안내" : "동행 친구 · 함께 발견하기";
             if(path==_portraitPath || !Application.isPlaying) return;
             _portraitPath=path; _guide.color=Color.clear;
             StartCoroutine(SpriteLoader.Load(path, art=>
@@ -181,6 +186,22 @@ namespace Allo.App
                 _guide.texture=art[ArtPose.Idle];_guide.color=Color.white;
                 _guide.GetComponent<AspectRatioFitter>().aspectRatio=art.Aspect;
             }));
+        }
+
+        static string NarratorName(string species)
+        {
+            switch (species)
+            {
+                case "road_sprout": return "길싹이";
+                case "bridge_hopper": return "다리뛰기";
+                case "mountain_sprite": return "산정령";
+                case "puddle_pip": return "웅덩이삐약";
+                case "tide_keeper": return "물결지기";
+                case "tunnel_moth": return "터널나방";
+                case "star_owl": return "별부엉이";
+                case "highway_comet": return "고속혜성";
+                default: return "이야기 친구";
+            }
         }
 
         void BuildChoices(StoryState s)
