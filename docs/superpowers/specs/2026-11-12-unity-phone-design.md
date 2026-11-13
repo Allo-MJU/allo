@@ -67,3 +67,10 @@ Retain authenticated pairing retry and whole-game v2 companion/fishing/gameRevis
 
 
 The #106 integration retains driving auto-fishing as presentation of the existing distance/lookout material rules, plus its provided read-only collectionSummary/baseSummary projection through the whole-game writer. These are upstream contracts; no extra fish currency or animation-triggered credit is added. Concurrent initial camp loads share one future, and disconnect fences camp-watch recovery. Namespaced local Firebase/debug stores coexist with the isolated Unity example profile.
+
+
+## Window story bridge extension (2026-11-13)
+
+Optional `app.story` is locally owned educational state. Absent story retains legacy UI. Fields: `available,active,paused,pending,canPlay,ackAccepted` bool; `instanceId,topicId,title,nodeId,line,visual,variant,cardTitle,cardText,notice,invitation,ackRequestId` string; `revision,cardCount` int; `choices:[{id,label}]`; `savedCards,library:[{id,topicId,title,text}]`.
+
+Actions: `storyStart(topicId?)`, `storyChoose(actionId)`, `storyPause`, `storyResume`, `storySave`, `storyDismiss`, `storyReplay`, `storyClose`, `storyUiBlocked(blocked:bool)`. Session actions carry `instanceId,nodeId,storyRevision` plus existing requestId. Dart validates node identity and owns branching/storage. Ack echoes the handled request ID and acceptance; it does not grant rewards. Story actions use their own pending state, not global game busy. Cards/progress are local and namespaced by the existing dex profile; Firebase schema is unchanged. Active story yields to photo/native inputs, hatch/failure, view/lifecycle changes and care deadline proximity. Unity only renders and sends intents.

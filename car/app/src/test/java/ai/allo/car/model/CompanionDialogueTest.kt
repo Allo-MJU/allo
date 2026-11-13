@@ -70,4 +70,31 @@ class CompanionDialogueTest {
         val filtered = DialogueBank.parse("""{"entries":[{"key":"ask_name|*|hatched","lines":["미검수"],"reviewedBy":null}]}""", null, false)
         assertFalse(CompanionDialogue(filtered).answer("ask_name", v2, true)!!.fromBank)
     }
+    @Test fun `collected guest uses own dialogue without mutating actual car companion`() {
+        val game = v2.copy(collectionSummary = CollectionSummary(wood = 0, stone = 0, ingredient = 0, speciesIds = listOf("road_sprout", "puddle_pip")))
+        assertEquals("road_sprout", dialogue.subject(game, true, "road_sprout")?.speciesId)
+        assertEquals("다른 친구", dialogue.answer("ask_name", game, true, "road_sprout")?.text)
+        assertEquals(car, game.companion)
+        assertEquals("puddle_pip", dialogue.subject(game, true)?.speciesId)
+        assertNotEquals(dialogue.subject(game, true)?.key, dialogue.subject(game, true, "puddle_pip")?.key)
+        assertNotEquals(dialogue.subject(game, true, "road_sprout")?.key, dialogue.subject(game, true, "puddle_pip")?.key)
+    }
+
+    @Test fun `guest is rejected when disconnected unowned or collection no longer valid`() {
+        val game = v2.copy(collectionSummary = CollectionSummary(wood = 0, stone = 0, ingredient = 0, speciesIds = listOf("road_sprout")))
+        assertNull(dialogue.answer("ask_name", game, false, "road_sprout"))
+        assertNull(dialogue.answer("ask_name", game, true, "unowned"))
+        assertNull(dialogue.answer("ask_name", game.copy(collectionSummary = null), true, "road_sprout"))
+        assertNull(dialogue.answer("ask_name", game.copy(invalidBlocks = setOf("collectionSummary")), true, "road_sprout"))
+        assertNull(dialogue.answer("ask_name", game.copy(contractVersion = null), true, "road_sprout"))
+        assertNull(dialogue.answer("ask_name", game.copy(collectionSummary = CollectionSummary(wood = 0, stone = 0, ingredient = 0, speciesIds = emptyList())), true, "road_sprout"))
+    }
+
+    @Test fun `collected guest works without moving phone companion into car`() {
+        val game = v2.copy(companion = car.copy(location = "phone"), collectionSummary = CollectionSummary(wood = 0, stone = 0, ingredient = 0, speciesIds = listOf("road_sprout")))
+        assertNull(dialogue.subject(game, true))
+        assertNotNull(dialogue.subject(game, true, "road_sprout"))
+        assertEquals("phone", game.companion?.location)
+    }
+
 }

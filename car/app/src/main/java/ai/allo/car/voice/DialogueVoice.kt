@@ -26,6 +26,8 @@ class DialogueVoice internal constructor(private val createEngine: () -> Dialogu
     private var engine: DialogueSpeechEngine? = null
     private var started = false
     private var released = false
+    private var awaitingStop = false
+    private var replacement: String? = null
 
     fun start() = synchronized(lock) {
         if (started || released) return@synchronized
@@ -44,10 +46,21 @@ class DialogueVoice internal constructor(private val createEngine: () -> Dialogu
                         current.listen { event -> synchronized(lock) {
                             if (!released) {
                                 when (event) {
-                                    DialogueSpeechEvent.Done, DialogueSpeechEvent.Stopped ->
+                                    DialogueSpeechEvent.Done -> if (!awaitingStop) {
                                         mutableState.value = mutableState.value.copy(speaking = false)
-                                    is DialogueSpeechEvent.Failed -> mutableState.value =
-                                        mutableState.value.copy(speaking = false, error = event.message)
+                                    }
+                                    DialogueSpeechEvent.Stopped -> {
+                                        awaitingStop = false
+                                        val next = replacement
+                                        replacement = null
+                                        mutableState.value = mutableState.value.copy(speaking = false)
+                                        if (next != null) submit(next)
+                                    }
+                                    is DialogueSpeechEvent.Failed -> {
+                                        awaitingStop = false
+                                        replacement = null
+                                        mutableState.value = mutableState.value.copy(speaking = false, error = event.message)
+                                    }
                                 }
                             }
                         } }
@@ -58,29 +71,64 @@ class DialogueVoice internal constructor(private val createEngine: () -> Dialogu
         }.onFailure { fail("음성을 준비하지 못했어요.") }
     }
 
-    /** Returns true only when speech was submitted; another tap stops it. */
+    /** Accept a tap to speak (or wait for a prior stop); another tap cancels playback. */
     fun speak(text: String): Boolean = synchronized(lock) {
         if (released || !state.value.ready || text.isBlank()) return false
         if (state.value.speaking) {
             stop()
             return false
         }
+        if (awaitingStop) {
+            replacement = text
+            mutableState.value = state.value.copy(speaking = true, error = null)
+            return true
+        }
+        submit(text)
+    }
+
+    /** A new character tap replaces speech only after the engine acknowledges stopping it. */
+    fun replace(text: String): Boolean = synchronized(lock) {
+        if (released || !state.value.ready || text.isBlank()) return false
+        if (awaitingStop) {
+            replacement = text // Rapid character taps keep only the newest line.
+            mutableState.value = state.value.copy(speaking = true, error = null)
+            return true
+        }
+        if (!state.value.speaking) return submit(text)
+        replacement = text
+        requestStop()
+    }
+
+    private fun submit(text: String): Boolean {
         mutableState.value = state.value.copy(speaking = true, error = null)
-        runCatching { engine!!.speak(text) }
+        return runCatching { engine!!.speak(text) }
             .onFailure { mutableState.value = state.value.copy(speaking = false, error = "음성을 재생하지 못했어요.") }
             .isSuccess
     }
 
+    private fun requestStop(): Boolean {
+        awaitingStop = true // Set before calling the engine: callbacks may be synchronous.
+        return runCatching { engine?.stop() }
+            .onFailure {
+                awaitingStop = false
+                replacement = null
+                mutableState.value = state.value.copy(speaking = false, error = "음성을 중지하지 못했어요.")
+            }.isSuccess
+    }
+
     fun stop() = synchronized(lock) {
+        replacement = null
         if (released || !state.value.ready) return@synchronized
+        val wasSpeaking = state.value.speaking
         mutableState.value = state.value.copy(speaking = false)
-        runCatching { engine?.stop() }
-            .onFailure { mutableState.value = state.value.copy(error = "음성을 중지하지 못했어요.") }
+        if (!awaitingStop && wasSpeaking) requestStop()
     }
 
     fun release() = synchronized(lock) {
         if (released) return@synchronized
         released = true
+        replacement = null
+        awaitingStop = false
         mutableState.value = DialogueVoiceState()
         runCatching { engine?.stop() }
         runCatching { engine?.release() }

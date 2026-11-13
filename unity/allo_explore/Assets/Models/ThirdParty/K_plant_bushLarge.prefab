@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &4113410807158098408
+--- !u!1 &149626303415256187
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 5335424402461562246}
-  - component: {fileID: 6702586512069884586}
-  - component: {fileID: 6000761046957872043}
+  - component: {fileID: 1722871070200474601}
+  - component: {fileID: 3150030626765917691}
+  - component: {fileID: 770925493997618682}
   m_Layer: 0
   m_Name: plant_bushLarge(Clone)
   m_TagString: Untagged
@@ -18,36 +18,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &5335424402461562246
+--- !u!4 &1722871070200474601
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4113410807158098408}
+  m_GameObject: {fileID: 149626303415256187}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0, y: -0, z: -0}
   m_LocalScale: {x: 4.1163616, y: 4.1163616, z: 4.1163616}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 5654956238738087785}
+  m_Father: {fileID: 3149876272096595373}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &6702586512069884586
+--- !u!33 &3150030626765917691
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4113410807158098408}
+  m_GameObject: {fileID: 149626303415256187}
   m_Mesh: {fileID: 6267693385154862067, guid: 8e5efdf8e90d14d53abc761f98b6beab, type: 3}
---- !u!23 &6000761046957872043
+--- !u!23 &770925493997618682
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4113410807158098408}
+  m_GameObject: {fileID: 149626303415256187}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -86,7 +86,7 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!1 &8274705051694049542
+--- !u!1 &9003892879477825259
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -94,7 +94,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 5654956238738087785}
+  - component: {fileID: 3149876272096595373}
   m_Layer: 0
   m_Name: K_plant_bushLarge
   m_TagString: Untagged
@@ -102,19 +102,19 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &5654956238738087785
+--- !u!4 &3149876272096595373
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8274705051694049542}
+  m_GameObject: {fileID: 9003892879477825259}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 5335424402461562246}
+  - {fileID: 1722871070200474601}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

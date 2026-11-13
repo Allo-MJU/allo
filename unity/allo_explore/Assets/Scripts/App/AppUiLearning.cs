@@ -20,11 +20,11 @@ namespace Allo.App
         }
 
         public static bool CanCompanionTalk(AppState state) => state != null && state.ready && !state.busy &&
-            state.view == "cabin" && !state.sessionEnded && HasSelectedCompanion(state) &&
+            state.view == "cabin" && !StoryOverlay.ShowsStory(state) && !state.sessionEnded && HasSelectedCompanion(state) &&
             state.learning.active && state.learning.available && !state.learning.busy && !state.learning.recording;
 
         public static bool CanCommonCare(AppState state, string actionId) => state != null && state.ready &&
-            !state.busy && !state.sessionEnded && state.view == "cabin" && (state.learning == null || state.learning.active) && Array.IndexOf(CareIds, actionId) >= 0 &&
+            !state.busy && !state.sessionEnded && !StoryOverlay.ShowsStory(state) && state.view == "cabin" && (state.learning == null || state.learning.active) && Array.IndexOf(CareIds, actionId) >= 0 &&
             (!string.IsNullOrEmpty(state.learning?.creatureId) ? HasSelectedCompanion(state) :
                 state.egg != null && state.egg.active && !string.IsNullOrEmpty(state.egg.id));
 

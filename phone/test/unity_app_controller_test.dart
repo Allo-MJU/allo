@@ -254,6 +254,7 @@ void main() {
       'sessionEnded',
       'speechAvailable',
       'photoAvailable',
+      'story',
       'egg',
       'learning',
       'materials',

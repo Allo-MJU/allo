@@ -103,6 +103,118 @@ void main() {
     camp.dispose();
   });
 
+  test('window story owns dialogue and rejects stale learning and care intents',
+      () async {
+    final id = getTarget();
+    await action('selectCompanion', {'creatureId': id});
+    expect(await action('storyNext', {'creatureId': id}), true);
+    expect(learning.snapshot['sceneId'], 'water');
+    expect(await action('storyStart', {'topicId': 'coast_sail'}), true);
+    expect((app.snapshot['story'] as Map)['active'], true);
+    expect(learning.active, false);
+    final count = spoken.length;
+    expect(await action('storyRepeat', {'creatureId': id}), false);
+    expect(
+        await action('companionChat', {'creatureId': id, 'text': '질문'}), false);
+    expect(await action('commonCare', {'creatureId': id, 'actionId': 'pet'}),
+        false);
+    expect(await action('selectCompanion', {'creatureId': ''}), false);
+    expect(spoken.length, count);
+    final story = app.snapshot['story'] as Map;
+    expect(
+        await action('storyPause', {
+          'instanceId': story['instanceId'],
+          'nodeId': story['nodeId'],
+          'storyRevision': story['revision'],
+        }),
+        true);
+    expect(learning.active, true);
+    expect(learning.snapshot['sceneId'], 'water');
+    expect(await action('storyRepeat', {'creatureId': id}), true);
+  });
+
+  test('modal and notebook ownership stop companion output until released',
+      () async {
+    final id = getTarget();
+    await action('selectCompanion', {'creatureId': id});
+    expect(await action('learningUiBlocked', {'blocked': true}), true);
+    expect(learning.active, false);
+    expect(
+        await action('companionChat', {'creatureId': id, 'text': '질문'}), false);
+    expect(await action('learningUiBlocked', {'blocked': false}), true);
+    expect(learning.active, true);
+    await action('storyUiBlocked', {'blocked': true});
+    expect(learning.active, false);
+    expect(await action('storyStart', {'topicId': 'coast_sail'}), false);
+  });
+
+  test(
+      'canonical supplied friend uses the existing ownership registry and art metadata',
+      () async {
+    await game.dex.add(DexEntry(
+        speciesId: 'breeze_wyrm',
+        obtainedAt: DateTime.utc(2026, 11, 14),
+        envTags: const [],
+        regionTag: null,
+        tier: 1,
+        sourceEggId: 'imported-canonical-friend'));
+    expect(await action('refresh'), true);
+    final friend = camp.state.creatures.values
+        .firstWhere((c) => c.speciesId == 'breeze_wyrm');
+    final sent = <Map<String, dynamic>>[];
+    app.attach(
+        (message) => sent.add(jsonDecode(message) as Map<String, dynamic>));
+    await app.handleMessage('{"type":"ready"}');
+    expect(await action('selectCompanion', {'creatureId': friend.id}), true);
+    expect(learning.speciesId, 'breeze_wyrm');
+    expect(learning.snapshot['name'], '산들룡');
+    final cast = sent.lastWhere((m) => m['type'] == 'cast');
+    expect(cast['companion']['id'], 'breeze_wyrm');
+    expect(cast['companion']['attribute'], 'unassigned');
+    expect(cast['companion']['sprite'], 'species/breeze_wyrm.png');
+    expect(
+        (app.snapshot['creatures'] as List)
+            .firstWhere((c) => c['id'] == friend.id)['role'],
+        '');
+    expect(
+        await action(
+            'commonCare', {'creatureId': friend.id, 'actionId': 'ball'}),
+        true);
+    expect(await action('refresh'), true);
+    expect(camp.state.creatures[friend.id]?.speciesId, 'breeze_wyrm');
+  });
+
+  test('opening notebook invalidates an in-flight companion answer', () async {
+    final gate = Completer<Map<String, dynamic>>();
+    late Map<String, dynamic> sent;
+    app.dispose();
+    learning = CompanionLearningController(
+        catalog: catalog(),
+        store: MemoryLearningStore(),
+        request: (r) {
+          sent = r;
+          return gate.future;
+        },
+        speak: (s) async {
+          spoken.add(s);
+        },
+        stop: () async {});
+    app = UnityAppController(game: game, camp: camp, learning: learning);
+    expect(await app.initialize(), true);
+    await action('navigate', {'view': 'cabin'});
+    final id = getTarget();
+    await action('selectCompanion', {'creatureId': id});
+    final pending = action('companionChat', {'creatureId': id, 'text': '질문'});
+    await Future<void>.delayed(Duration.zero);
+    await action('learningUiBlocked', {'blocked': true});
+    final count = spoken.length;
+    gate.complete(reply(sent));
+    expect(await pending, false);
+    expect(spoken.length, count);
+    expect(learning.history, isEmpty);
+    expect((app.snapshot['story'] as Map)['canPlay'], true);
+  });
+
   test('action names cannot be used as navigation destinations', () async {
     for (final value in [
       'selectCompanion',

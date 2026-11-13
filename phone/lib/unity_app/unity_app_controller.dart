@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
+import 'dart:math' as math;
 
 import 'package:allo_core/allo_core.dart';
 import 'package:flutter/foundation.dart';
@@ -18,6 +18,7 @@ import '../game/game_controller.dart';
 import '../pairing/pairing_credentials.dart';
 import 'unity_demo_creatures.dart';
 import '../scene/window_scene.dart';
+import '../story/story_director.dart';
 
 const _nativeInput = MethodChannel('allo/egg-input');
 const _companionVoice = MethodChannel('allo/companion-voice');
@@ -47,7 +48,7 @@ class UnityAppController extends ChangeNotifier {
   final bool demoCreatures;
   CompanionLearningController? _learning;
   CompanionLearningController? get learning => _learning;
-  final _learningRandom = Random.secure();
+  final _learningRandom = math.Random.secure();
   String _careActionId = '';
   int _careSequence = 0;
   bool _nativeCompanionSpeech = false;
@@ -57,6 +58,7 @@ class UnityAppController extends ChangeNotifier {
   final _handled = <String>{};
   final _stabilizer = SceneStabilizer();
   List<Species> _species = [];
+  Map<String, Map<String, dynamic>> _characters = {};
   Map<String, int> _counts = {};
   late Map<String, dynamic> _egg;
   String view = 'home';
@@ -74,6 +76,90 @@ class UnityAppController extends ChangeNotifier {
   void Function(String)? _send;
   bool _unityReady = false;
 
+  StoryDirector? _story;
+  Timer? _storyTimer;
+  WindowScene _shownScene = WindowScene.initial;
+  bool _storyUiBlocked = false,
+      _learningUiBlocked = false,
+      _syncingStory = false;
+  int _storyYieldUntil = 0;
+  String? _storyEggPhase;
+  String _storyAckRequest = '';
+  bool _storyAckAccepted = false;
+  bool get _storyActive =>
+      _story?.snapshot['active'] == true && _story?.snapshot['paused'] != true;
+
+  void _storyChanged() {
+    if (_disposed || _syncingStory) return;
+    _syncLearning();
+    _revision++;
+    notifyListeners();
+    _publish();
+  }
+
+  void _updateStory() {
+    if (_disposed || _syncingStory) return;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    _shownScene =
+        _stabilizer.update(WindowScene.fromVehicle(game.vehicle), now);
+    final phase =
+        '${game.eggId}:${game.game.stage.name}:${game.game.affinityPhase}';
+    if (_storyEggPhase != null &&
+        phase != _storyEggPhase &&
+        (game.game.stage == Stage.hatched || game.game.stage == Stage.failed)) {
+      _storyYieldUntil = now + 5000;
+      _story?.pause();
+    }
+    _storyEggPhase = phase;
+    final round = game.affinityRound;
+    final remaining =
+        round?.deadlineMs == null ? null : round!.deadlineMs! - round.elapsedMs;
+    final distanceTarget = game.game.hatchAtM;
+    final remainingM = distanceTarget == null
+        ? null
+        : distanceTarget * (1 - game.game.progress.clamp(0.0, 1.0));
+    final distanceMargin =
+        math.max(500.0, (game.vehicle?.speedKph ?? 0) / 3.6 * 120);
+    final careReady = _egg['active'] != true ||
+        (remaining != null
+            ? remaining > 120000
+            : game.vehicle != null &&
+                remainingM != null &&
+                remainingM > distanceMargin);
+    final canPlay = _ready &&
+        view == 'cabin' &&
+        _hostLifecycle != AppLifecycleState.detached &&
+        (_hostLifecycle == AppLifecycleState.resumed || _unityReady) &&
+        _unityActive &&
+        !_storyUiBlocked &&
+        !_nativeSpeech &&
+        !_nativePhoto &&
+        !_nativeCompanionSpeech &&
+        !game.speechBusy &&
+        !game.photoBusy &&
+        !game.busy &&
+        _pending == 0 &&
+        !game.endingSession &&
+        !game.sessionEnded &&
+        _egg['photoRequired'] != true &&
+        careReady &&
+        now >= _storyYieldUntil;
+    _syncingStory = true;
+    try {
+      _story?.updateContext(
+          scene: _shownScene,
+          nowMs: now,
+          canOffer: canPlay,
+          canPlay: canPlay,
+          connected: game.vehicle != null &&
+              !_disconnected &&
+              !game.sessionEnded &&
+              (game.paired || game.isFake));
+    } finally {
+      _syncingStory = false;
+    }
+  }
+
   bool _unityActive = true;
   AppLifecycleState _hostLifecycle = AppLifecycleState.resumed;
 
@@ -84,8 +170,11 @@ class UnityAppController extends ChangeNotifier {
       _learning?.invalidate();
     }
     _hostLifecycle = state;
+    if (state != AppLifecycleState.resumed && !(_unityReady && _unityActive)) {
+      _story?.pause();
+    }
     await _syncGameActive();
-    _syncLearning();
+    _changed();
   }
 
   Future<void> _syncGameActive() async {
@@ -108,6 +197,13 @@ class UnityAppController extends ChangeNotifier {
                   await rootBundle.loadString('assets/data/species.json'))
               as Map<String, dynamic>)
           .all;
+      final characters =
+          jsonDecode(await rootBundle.loadString('assets/data/characters.json'))
+              as Map<String, dynamic>;
+      _characters = {
+        for (final c in characters['species'] as List)
+          (c as Map<String, dynamic>)['id'] as String: c
+      };
       if (demoCreatures && game.isFake) {
         await seedUnityDemoCreatures(game.dex, _species);
       }
@@ -131,6 +227,25 @@ class UnityAppController extends ChangeNotifier {
         _learning!.addListener(_learningChanged);
       }
       _ready = loaded;
+      if (_story == null) {
+        _story = StoryDirector(
+          packs: StoryPack.decodeList(await rootBundle
+              .loadString('assets/data/window_stories_ko.json')),
+          store: SharedPreferencesStoryStore(
+              prefix:
+                  '${game.dex.namespace}profile.${game.dex.profile}.story.v1'),
+        );
+        await _story!.initialize();
+        if (_disposed) {
+          _story!.dispose();
+          return false;
+        }
+        _story!.addListener(_storyChanged);
+        _storyTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+          _updateStory();
+          _storyChanged();
+        });
+      }
       _changed();
       return loaded;
     } catch (_) {
@@ -237,6 +352,13 @@ class UnityAppController extends ChangeNotifier {
         'careActionId': _careActionId,
         'careSequence': _careSequence,
       },
+      'story': _story == null
+          ? null
+          : {
+              ..._story!.snapshot,
+              'ackRequestId': _storyAckRequest,
+              'ackAccepted': _storyAckAccepted
+            },
       'egg': {
         ..._egg,
         'speechBusy': game.speechBusy || _nativeSpeech,
@@ -263,13 +385,10 @@ class UnityAppController extends ChangeNotifier {
           {
             'id': creature.id,
             'speciesId': creature.speciesId,
-            'name': _species
-                    .where((s) => s.id == creature.speciesId)
-                    .firstOrNull
-                    ?.nameKo ??
-                creature.speciesId,
+            'name': _characterName(creature.speciesId),
             'role': CampCatalog.roleFor(creature.speciesId)?.name ?? '',
-            'sprite': _species
+            'sprite': _characters[creature.speciesId]?['sprite'] ??
+                _species
                     .where((s) => s.id == creature.speciesId)
                     .firstOrNull
                     ?.sprite ??
@@ -414,11 +533,21 @@ class UnityAppController extends ChangeNotifier {
 
   bool get _learningActive =>
       view == 'cabin' &&
+      !_storyActive &&
+      !_storyUiBlocked &&
+      !_learningUiBlocked &&
+      !_nativeSpeech &&
+      !_nativePhoto &&
       !_disconnected &&
       !game.sessionEnded &&
       !game.endingSession &&
       _hostLifecycle != AppLifecycleState.detached &&
       (_hostLifecycle == AppLifecycleState.resumed || _unityActive);
+
+  String _characterName(String id) =>
+      _characters[id]?['nameKo'] as String? ??
+      _species.where((s) => s.id == id).firstOrNull?.nameKo ??
+      id;
 
   void _syncLearning() {
     _learning?.setContext(
@@ -429,14 +558,13 @@ class UnityAppController extends ChangeNotifier {
             LearningCreature(
                 id: c.id,
                 speciesId: c.speciesId,
-                name: _species
-                        .where((s) => s.id == c.speciesId)
-                        .firstOrNull
-                        ?.nameKo ??
-                    c.speciesId)
+                name: _characterName(c.speciesId))
         ],
         active: _learningActive ||
             (_nativeCompanionSpeech &&
+                !_storyActive &&
+                !_storyUiBlocked &&
+                !_learningUiBlocked &&
                 view == 'cabin' &&
                 !_disconnected &&
                 !game.sessionEnded &&
@@ -452,6 +580,7 @@ class UnityAppController extends ChangeNotifier {
       _countedHatch = hatch;
       unawaited(_readCounts().then((_) => _changed()));
     }
+    _updateStory();
     _revision++;
     notifyListeners();
     _publish();
@@ -461,12 +590,21 @@ class UnityAppController extends ChangeNotifier {
     if (!_unityReady || _disposed) return;
     final selected =
         _species.where((s) => s.id == _learning?.speciesId).firstOrNull;
-    _send?.call(castMessage(
-        companion: selected ?? game.hatched, friends: game.collectedSpecies));
+    final cast = jsonDecode(castMessage(
+        companion: selected ?? game.hatched,
+        friends: game.collectedSpecies)) as Map<String, dynamic>;
+    final character = _characters[_learning?.speciesId];
+    if (character != null) {
+      cast['companion'] = {
+        'id': character['id'],
+        'sprite': character['sprite'],
+        'attribute': character['attribute']
+      };
+      (cast['friends'] as List).removeWhere((f) => f['id'] == character['id']);
+    }
+    _send?.call(jsonEncode(cast));
     _send?.call(jsonEncode(snapshot));
-    _send?.call(sceneMessage(_stabilizer.update(
-        WindowScene.fromVehicle(game.vehicle),
-        DateTime.now().millisecondsSinceEpoch)));
+    _send?.call(sceneMessage(_shownScene));
     _send?.call(routeMessage(game.vehicle?.turns ?? const [],
         headingDeg: game.vehicle?.headingDeg));
     _send?.call(jsonEncode({
@@ -521,7 +659,17 @@ class UnityAppController extends ChangeNotifier {
     'selectCarCompanion',
     'retryFishingSave',
     'settings',
-    ..._learningActions
+    ..._learningActions,
+    'storyStart',
+    'storyChoose',
+    'storyPause',
+    'storyResume',
+    'storySave',
+    'storyDismiss',
+    'storyReplay',
+    'storyClose',
+    'storyUiBlocked',
+    'learningUiBlocked'
   };
   static bool _string(Object? value, [int max = 256]) =>
       value is String && value.trim().isNotEmpty && value.length <= max;
@@ -542,11 +690,18 @@ class UnityAppController extends ChangeNotifier {
         !_actions.contains(m['action'])) {
       return false;
     }
+    if (_storyActive &&
+        (_eggActions.contains(m['action']) ||
+            _learningActions.contains(m['action']) ||
+            m['action'] == 'startEgg')) {
+      return false;
+    }
     if (_eggActions.contains(m['action']) &&
         (!_string(m['eggId'], 200) || !_currentEgg(m))) {
       return false;
     }
     return switch (m['action']) {
+      'storyUiBlocked' || 'learningUiBlocked' => m['blocked'] is bool,
       'navigate' => _views.contains(m['view']),
       'startEgg' => {'small', 'mid', 'large'}.contains(m['tier']),
       'pair' => _string(m['sessionId'], 36) &&
@@ -602,7 +757,12 @@ class UnityAppController extends ChangeNotifier {
       return true;
     }
     if (m['type'] != 'appAction') {
-      if (view != 'cabin' || game.sessionEnded || _disconnected) return false;
+      if (view != 'cabin' ||
+          game.sessionEnded ||
+          _disconnected ||
+          _storyActive) {
+        return false;
+      }
       switch (m['type']) {
         case 'lookTogether':
         case 'spotted':
@@ -634,11 +794,36 @@ class UnityAppController extends ChangeNotifier {
     if (!_valid(m) || _handled.contains(m['requestId'])) return false;
     _handled.add(m['requestId'] as String);
     if (_handled.length > 256) _handled.remove(_handled.first);
+    if (m['action'] == 'learningUiBlocked') {
+      _learningUiBlocked = m['blocked'] as bool;
+      _changed();
+      return true;
+    }
+    if (m['action'] == 'storyUiBlocked') {
+      _storyUiBlocked = m['blocked'] as bool;
+      _changed();
+      return true;
+    }
+    if ((m['action'] as String).startsWith('story') &&
+        !_learningActions.contains(m['action'])) {
+      _updateStory();
+      final handled = await _story?.handle(m['action'] as String, m) ?? false;
+      if (!_disposed) {
+        _storyAckRequest = m['requestId'] as String;
+        _storyAckAccepted = handled;
+        _syncLearning();
+        _storyChanged();
+      }
+      return handled;
+    }
     if (m['action'] == 'navigate') {
       if (view != m['view']) {
         _companionInputGeneration++;
         _learning?.invalidate();
       }
+      _story?.pause();
+      _storyUiBlocked = false;
+      _learningUiBlocked = false;
       view = m['view'] as String;
       _changed();
       return true;
@@ -700,7 +885,7 @@ class UnityAppController extends ChangeNotifier {
 
   Future<bool> _dispatchLearning(Map<String, dynamic> m) async {
     final controller = _learning;
-    if (controller == null || _disposed) return false;
+    if (controller == null || _disposed || _storyActive) return false;
     if (m['action'] != 'selectCompanion' && m['action'] != 'learningMute') {
       if (m['creatureId'] != controller.creatureId || view != 'cabin') {
         return false;
@@ -1113,6 +1298,9 @@ class UnityAppController extends ChangeNotifier {
     _companionInputGeneration++;
     _learning?.removeListener(_learningChanged);
     _learning?.dispose();
+    _storyTimer?.cancel();
+    _story?.removeListener(_storyChanged);
+    _story?.dispose();
     game.removeListener(_changed);
     camp.removeListener(_changed);
     _send = null;

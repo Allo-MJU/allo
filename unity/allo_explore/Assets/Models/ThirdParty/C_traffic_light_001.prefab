@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &6444646716091818093
+--- !u!1 &571630998017409967
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,10 +8,10 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 8890912955696291088}
-  - component: {fileID: 259856487923757839}
-  - component: {fileID: 4231172340984538121}
-  - component: {fileID: 6126729548273458036}
+  - component: {fileID: 8005266733993264326}
+  - component: {fileID: 4201549326251391300}
+  - component: {fileID: 6167601479441828638}
+  - component: {fileID: 1150834221389113794}
   m_Layer: 0
   m_Name: traffic_light_001(Clone)
   m_TagString: Untagged
@@ -19,36 +19,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &8890912955696291088
+--- !u!4 &8005266733993264326
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6444646716091818093}
+  m_GameObject: {fileID: 571630998017409967}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 1.898325, y: -0, z: -0.00130184}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 9133382011763483268}
+  m_Father: {fileID: 291331174817252798}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &259856487923757839
+--- !u!33 &4201549326251391300
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6444646716091818093}
+  m_GameObject: {fileID: 571630998017409967}
   m_Mesh: {fileID: -6870766555889398555, guid: 1478b4aabb527604db1d2914e3d05279, type: 3}
---- !u!23 &4231172340984538121
+--- !u!23 &6167601479441828638
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6444646716091818093}
+  m_GameObject: {fileID: 571630998017409967}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -88,13 +88,13 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!64 &6126729548273458036
+--- !u!64 &1150834221389113794
 MeshCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6444646716091818093}
+  m_GameObject: {fileID: 571630998017409967}
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -110,7 +110,7 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: -6870766555889398555, guid: 1478b4aabb527604db1d2914e3d05279, type: 3}
---- !u!1 &8968243586191070311
+--- !u!1 &743065150096083199
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -118,7 +118,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 9133382011763483268}
+  - component: {fileID: 291331174817252798}
   m_Layer: 0
   m_Name: C_traffic_light_001
   m_TagString: Untagged
@@ -126,19 +126,19 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &9133382011763483268
+--- !u!4 &291331174817252798
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8968243586191070311}
+  m_GameObject: {fileID: 743065150096083199}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 8890912955696291088}
+  - {fileID: 8005266733993264326}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

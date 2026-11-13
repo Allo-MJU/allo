@@ -148,6 +148,26 @@ public class AppUiLearningTests
         Assert.IsFalse((bool)typeof(AppUi).GetField("_choosingCompanion", Private).GetValue(_ui));
     }
 
+    [Test]
+    public void ActiveWindowStoryHidesCompanionPanelAndCareControls()
+    {
+        var state = State(); SelectFriend(state);
+        state.story = new StoryState { active = true, canPlay = true };
+        Apply(state); Call("BuildCabin");
+        Assert.IsFalse(AppUi.CanCompanionTalk(state));
+        Assert.IsFalse(AppUi.CanCommonCare(state, "pet"));
+        Assert.IsNull(ButtonNamed("다음 이야기"));
+        Assert.IsNull(ButtonNamed("간식"));
+        Assert.IsFalse(CabinEgg.CanInteract(state, "cabin", "new-egg"));
+    }
+
+    [Test]
+    public void OnlyOneCommonCareDockIsBuiltForAnEgg()
+    {
+        Call("BuildCabin");
+        Assert.AreEqual(1, _root.GetComponentsInChildren<Transform>().Count(t => t.name == "Common care dock"));
+    }
+
     static AppState State() => new AppState
     {
         revision = 1, view = "cabin", ready = true, speechAvailable = true,

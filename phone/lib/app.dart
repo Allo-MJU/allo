@@ -20,10 +20,12 @@ import 'screens/companion_screen.dart';
 import 'screens/dex_screen.dart';
 import 'screens/base_camp_screen.dart';
 import 'screens/hatching_screen.dart';
+import 'screens/home_screen.dart';
 import 'screens/incubating_screen.dart';
 import 'screens/pairing_screen.dart';
 import 'screens/session_end_screen.dart';
 import 'storage/dex_store.dart';
+import 'ui_mode.dart';
 
 const unityAppEnabled = bool.fromEnvironment('UNITY_APP', defaultValue: true);
 const unityDemoCreaturesEnabled = bool.fromEnvironment('UNITY_DEMO_CREATURES');
@@ -38,7 +40,8 @@ class AlloApp extends StatefulWidget {
       this.frameBuilder,
       this.useUnityApp,
       this.demoCreatures = unityDemoCreaturesEnabled,
-      this.unityView});
+      this.unityView,
+      this.demoSpeciesId});
 
   /// App owns and closes this API; debug entrypoints can supply their adapter.
   final EggDemoApi? eggApi;
@@ -49,6 +52,9 @@ class AlloApp extends StatefulWidget {
   final bool? useUnityApp;
   final bool demoCreatures;
   final UnityViewBuilder? unityView;
+
+  /// 체험 주행에서 깨어날 종을 고정 (시연용). [GameController.demoSpeciesId]
+  final String? demoSpeciesId;
 
   @override
   State<AlloApp> createState() => _AlloAppState();
@@ -94,21 +100,33 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
           fishingStore: _useDemoCreatures
               ? FishingStore(profile: 'unity-demo-examples')
               : null,
-          baseCamp: camp);
+          baseCamp: camp,
+          demoSpeciesId: widget.demoSpeciesId);
+  late final _redirectSignal = _RedirectSignal(controller);
   late final UnityAppController unityApp = UnityAppController(
       game: controller, camp: camp, demoCreatures: _useDemoCreatures);
 
   late final _router = GoRouter(
     initialLocation: _useUnity ? '/unity' : '/pairing',
-    refreshListenable: controller,
+    refreshListenable: _redirectSignal,
     redirect: (_, state) {
       final path = state.uri.path;
       if (path == '/unity') return null;
       if (!controller.sessionEnded) {
         if (path == '/session-end') return '/pairing';
+        // 광장 흐름: 주행 중 Flutter 차 안 화면(알 품기·동행) 대신 광장. 차 안은 Unity 탐험에서만
+        final plaza = plazaFlow(usesAffinity: controller.usesAffinity);
         if (const {'/hatching', '/companion'}.contains(path) &&
             controller.game.stage != Stage.hatched) {
-          return '/incubating';
+          return plaza ? '/home' : '/incubating';
+        }
+        if (plaza && const {'/incubating', '/companion'}.contains(path)) {
+          return '/home';
+        }
+        if (!plaza && path == '/home') {
+          return controller.game.stage == Stage.hatched
+              ? '/companion'
+              : '/incubating';
         }
         return null;
       }
@@ -131,6 +149,9 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
       GoRoute(
           path: '/pairing',
           builder: (_, __) => PairingScreen(controller: controller)),
+      GoRoute(
+          path: '/home',
+          builder: (_, __) => HomeScreen(controller: controller)),
       GoRoute(
           path: '/incubating',
           builder: (_, __) => IncubatingScreen(controller: controller)),
@@ -185,6 +206,7 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
     unityExploreOpen.removeListener(_syncActive);
     WidgetsBinding.instance.removeObserver(this);
     _router.dispose();
+    _redirectSignal.dispose();
     if (_useUnity) unityApp.dispose();
     controller.dispose();
     if (_providedController == null ||
@@ -208,5 +230,39 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
           child ??
           const SizedBox(),
     );
+  }
+}
+
+/// 라우터가 경로를 다시 계산하게 하는 신호. [GameController] 는 차 신호마다(1초) 알리는데,
+/// 그때마다 라우터가 redirect 를 다시 돌리면 화면을 닫는 도중(pop 애니메이션)에 닫던 화면을
+/// 현재 주소로 다시 만든다 — 차 안에서 나오자마자 Unity 가 다시 열리고, 도감에서 돌아오면 광장이 사라지던 원인.
+/// redirect 가 보는 값(세션 종료·저장, 알 단계, 마음 품기)이 바뀔 때만 알린다.
+class _RedirectSignal extends ChangeNotifier {
+  _RedirectSignal(this.controller) {
+    _last = _key;
+    controller.addListener(_check);
+  }
+
+  final GameController controller;
+  late (bool, bool, Stage, bool) _last;
+
+  (bool, bool, Stage, bool) get _key => (
+        controller.sessionEnded,
+        controller.sessionSaved,
+        controller.game.stage,
+        controller.usesAffinity,
+      );
+
+  void _check() {
+    final k = _key;
+    if (k == _last) return;
+    _last = k;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    controller.removeListener(_check);
+    super.dispose();
   }
 }

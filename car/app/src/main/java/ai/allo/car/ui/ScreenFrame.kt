@@ -91,14 +91,5 @@ fun ScreenColumns(
 
 @Composable
 fun ScreenAction(label: String, onClick: () -> Unit, enabled: Boolean = true, secondary: Boolean = false) {
-    val modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp)
-    if (secondary) {
-        OutlinedButton(onClick, modifier = modifier, enabled = enabled) {
-            Text(label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(vertical = 8.dp))
-        }
-    } else {
-        Button(onClick, modifier = modifier, enabled = enabled) {
-            Text(label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(vertical = 8.dp))
-        }
-    }
+    ToyButton(label, onClick, Modifier.fillMaxWidth(), primary = !secondary, enabled = enabled)
 }

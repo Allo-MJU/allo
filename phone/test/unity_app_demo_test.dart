@@ -21,6 +21,8 @@ void main() {
   Future<Map<String, dynamic>> launch(WidgetTester tester, VehicleFeed feed,
       {required bool enabled}) async {
     rootBundle.evict('assets/data/species.json');
+    rootBundle.evict('assets/data/characters.json');
+    rootBundle.evict('assets/data/window_stories_ko.json');
     rootBundle.evict('assets/data/companion_learning.json');
     final ready = Completer<Map<String, dynamic>>();
     await tester.pumpWidget(AlloApp(

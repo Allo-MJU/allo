@@ -18,7 +18,7 @@ public static class CharacterImport
     /// 종마다 손볼 값. yaw: 모델 앞이 +Z 가 되도록 돌릴 각도(도). height: 프리팹 키(m) — 실제 크기는 쓰는 곳에서 다시 맞춘다
     public static readonly Dictionary<string, (float yaw, float height)> Tuning = new()
     {
-        ["road_sprout"] = (0, 0.3f),
+        ["road_sprout"] = (0, 0.28f), // Tripo FBX → tools/blender/character.py 로 정리 (앞 -Y → +Z, 발바닥 원점)
         ["puddle_pip"] = (0, 0.3f),
         ["lamp_moth"] = (0, 0.3f),
         ["storm_lantern"] = (0, 0.3f),
@@ -114,7 +114,7 @@ public static class CharacterImport
     }
 
     /// 서비스가 구운 색 텍스처를 그대로 쓰고, 명암은 부드럽게(그림에 이미 음영이 있다), 외곽선은 얇게
-    static Material Toon(Material src, string path)
+    internal static Material Toon(Material src, string path)
     {
         var tex = src.HasProperty("_MainTex") ? src.mainTexture : src.HasProperty("_BaseMap") ? src.GetTexture("_BaseMap") : null;
         var col = src.HasProperty("_BaseColor") ? src.GetColor("_BaseColor") : src.HasProperty("_Color") ? src.color : Color.white;
@@ -128,6 +128,8 @@ public static class CharacterImport
         dst.SetFloat("_RimStrength", 0.25f);
         dst.SetFloat("_OutlineWidth", 0.004f);
         dst.SetFloat("_OutlineDist", 0.05f);
+        // 서비스 모델은 부품마다 열린 껍질(잎·눈·몸통 아랫면)이라 뒷면을 버리면 구멍으로 보인다
+        dst.SetFloat("_Cull", (float)UnityEngine.Rendering.CullMode.Off);
         var old = AssetDatabase.LoadAssetAtPath<Material>(path);
         if (old != null) { EditorUtility.CopySerialized(dst, old); return old; }
         AssetDatabase.CreateAsset(dst, path);

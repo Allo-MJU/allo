@@ -108,6 +108,9 @@ public static class AlloBuild
         var frontAnchor = new GameObject("FrontEye").transform;
         var between = (seatL.center + seatR.center) / 2 + (rear.center - (seatL.center + seatR.center) / 2) * 0.35f;
         frontAnchor.position = new Vector3(between.x, eyeY + 0.05f, between.z);
+        // 옆자리 인형·쿠션: 3D 모델(Resources/Props)이 있으면 도형 대신 세우고 아이 쪽을 보게
+        SwapCabinProp(cabin.transform, "Plush", "plush", rearAnchor.position);
+        SwapCabinProp(cabin.transform, "Cushion", "cushion", rearAnchor.position);
 
         var camGo = new GameObject("Main Camera") { tag = "MainCamera" };
         var cam = camGo.AddComponent<Camera>();
@@ -308,6 +311,7 @@ public static class AlloBuild
         {
             ("unity_front", 0, -12, 0), ("unity_left", -90, -10, 0), ("unity_back", 180, 5, 0),
             ("unity_right", 90, -20, 0), ("unity_front_rail", 0, -15, 1), ("unity_down", 60, -30, 0), ("unity_floor", 0, -48, 0),
+            ("unity_props_seat_left", -80, -38, 0), ("unity_props_seat_right", 80, -38, 0), // 옆자리 쿠션·인형
         };
         foreach (var (name, yaw, pitch, rail) in shots)
         {
@@ -358,9 +362,73 @@ public static class AlloBuild
             tex.Apply();
             File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
         }
+        // 알에 담요를 덮은 모습 (가까이서)
+        director.ToggleEggBlanket();
+        foreach (var (name, yaw, pitch) in new[] { ("unity_props_egg_wrap", 0f, -12f) })
+        {
+            // 아이 눈에서 둥지를 똑바로 보며 확대
+            var nest = GameObject.Find("EggNest");
+            cam.transform.position = rig.rearAnchor.position;
+            if (nest != null) cam.transform.LookAt(nest.transform.position + Vector3.up * 0.07f);
+            cam.fieldOfView = 12;
+            cam.Render();
+            RenderTexture.active = rt;
+            var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+            tex.Apply();
+            File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+        }
         cam.targetTexture = null;
         RenderTexture.active = null;
         Debug.Log($"[AlloBuild] captured egg views to {outDir}");
+    }
+
+    /// 옆자리의 동행: 서 있는 모습(발 묻힘)·말풍선·담요 덮은 모습을 찍는다 (빌드 없이 확인). docs/work-results/explore/unity_seat_*.png
+    ///   Unity -batchmode -quit -projectPath unity/allo_explore -executeMethod AlloBuild.CaptureBlanket
+    public static void CaptureBlanket()
+    {
+        EditorSceneManager.OpenScene(ScenePath);
+        var cam = Camera.main;
+        var rig = cam.GetComponent<Allo.CameraRig.CameraRig>();
+        var dir = rig.lookTarget.position - rig.rearAnchor.position;
+        var baseYaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+        var outDir = Path.GetFullPath(Path.Combine(Application.dataPath, "../../../docs/work-results/explore"));
+        Directory.CreateDirectory(outDir);
+        var director = Object.FindFirstObjectByType<Allo.Critters.CritterDirector>();
+        var graph = director.BuildGraph();
+        var v = director.EditorSpawn(graph, "road_sprout", "species/road_sprout.png", "Walk_RearSeat_R");
+        var bank = Path.GetFullPath(Path.Combine(Application.dataPath, "../../../phone/assets/data/cabin_dialogue.json"));
+        if (File.Exists(bank)) Allo.Critters.Dialogue.Parse(File.ReadAllText(bank));
+        var rt = new RenderTexture(1600, 720, 24);
+        cam.targetTexture = rt;
+        void Shot(string name, float yaw, float pitch)
+        {
+            cam.transform.position = rig.rearAnchor.position;
+            cam.transform.rotation = Quaternion.Euler(-pitch, baseYaw + yaw, 0);
+            for (var i = 0; i < 4; i++) v.Pose(cam, 0.1f);
+            director.EditorBubbleTick();
+            cam.Render();
+            RenderTexture.active = rt;
+            var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+            tex.Apply();
+            File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+        }
+        // 1) 옆자리에 서서 첫마디 (말풍선)
+        director.Speak("hatch", "*", 30f, v);
+        Shot("unity_seat_idle_bubble", 75, -32);
+        // 발밑 그림자 없이 (발밑 흰 자국이 그림자 판인지 가려내는 용도)
+        var shadow = v.transform.Find("Shadow");
+        if (shadow != null) { shadow.gameObject.SetActive(false); Shot("unity_seat_noshadow", 75, -32); shadow.gameObject.SetActive(true); }
+        // 2) 잠든 모습에 담요를 덮어 준다
+        v.Brain.Nap(60);
+        v.Pose(cam, 0.1f);
+        director.ToggleBlanket(v);
+        Shot("unity_seat_blanket", 75, -32);
+        Shot("unity_seat_blanket_front", 45, -28);
+        cam.targetTexture = null;
+        RenderTexture.active = null;
+        Debug.Log($"[AlloBuild] captured seat views to {outDir}");
     }
 
     /// 장면마다 창밖을 만들어 앞·옆을 찍는다 (빌드 없이 확인)
@@ -1056,6 +1124,32 @@ public static class AlloBuild
         w.right = Blade("WiperR", 1);
         w.Pose(0);
         return w;
+    }
+
+    /// 차 내부 모델의 물체(name)를 소품 3D 모델(P_{id})로 바꾼다: 원래 도형은 숨기고, 그 바닥 가운데에 모델을 세워 eye 쪽을 보게.
+    /// 모델은 원래 물체의 자식(흔들림 Wobble 이 같이 흔든다)이고 이름이 name 으로 시작해 탭(TapInput)도 그대로 된다
+    static void SwapCabinProp(Transform cabin, string name, string id, Vector3 eye)
+    {
+        var prefab = Allo.Critters.Toys.PropModel(id);
+        var t = Find(cabin, name);
+        if (prefab == null || t == null) return;
+        var old = Allo.Critters.Toys.BoundsOf(t);
+        foreach (var r in t.GetComponentsInChildren<Renderer>()) r.enabled = false;
+        foreach (var c in t.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
+        var m = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+        m.name = name + "Model";
+        var foot = new Vector3(old.center.x, old.min.y, old.center.z);
+        var look = eye - foot;
+        look.y = 0;
+        // 탭 상자는 돌리기 전(모델 좌표 = 월드 축)에 재서 모델에 붙인다
+        m.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+        var b = Allo.Critters.Toys.BoundsOf(m.transform);
+        var col = m.AddComponent<BoxCollider>();
+        col.center = b.center;
+        col.size = b.size;
+        m.transform.SetPositionAndRotation(foot, Quaternion.LookRotation(look.normalized));
+        m.transform.SetParent(t, true);
+        Debug.Log($"[AlloBuild] {name} → P_{id} at {foot} size {b.size}");
     }
 
     static Transform Find(Transform root, string name)

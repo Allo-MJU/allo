@@ -70,6 +70,7 @@ namespace Allo.App
         public static bool CanInteract(AppState state, string view, string startedEggId) =>
             state != null && state.ready && !state.busy && !state.sessionEnded &&
             string.IsNullOrEmpty(state.learning?.creatureId) &&
+            !(state.story != null && state.story.active && !state.story.paused) &&
             ShowEgg(view, state.egg) && state.egg.id == startedEggId && !state.egg.photoBusy && !state.egg.speechBusy;
 
         public static bool ShouldPlayCare(AppState previous, AppState next) => previous?.learning != null && next?.learning != null &&
@@ -326,6 +327,7 @@ namespace Allo.App
             }
             if (_reveal.gameObject.activeSelf && _camera != null)
                 _reveal.rotation = Quaternion.LookRotation(_reveal.position - _camera.transform.position);
+            if (AppSession.StoryActive || StoryOverlay.CapturingInput) { CancelGesture(); return; }
             if (Input.touchCount > 1) { CancelGesture(); return; }
             if (Input.touchCount == 1)
             {

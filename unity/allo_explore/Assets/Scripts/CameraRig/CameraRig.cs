@@ -47,6 +47,13 @@ namespace Allo.CameraRig
 
         void Update()
         {
+            if (Allo.App.AppSession.StoryActive || Allo.App.StoryOverlay.CapturingInput)
+            {
+                _velocity = Vector2.zero;
+                _lastPinch = null;
+                _uiTouch = false;
+                return;
+            }
             var degPerPixel = 180f / Mathf.Max(1, Screen.width);
             var dragging = false;
             if (Input.touchCount == 1 && Input.GetTouch(0).phase == TouchPhase.Began)
@@ -83,6 +90,7 @@ namespace Allo.CameraRig
                 _velocity = Vector2.Lerp(_velocity, Vector2.zero, Time.deltaTime / 0.3f);
             }
             GlanceTick(dragging);
+            RideTick(dragging);
             if (_gyro && SystemInfo.supportsGyroscope)
             {
                 var g = Input.gyro.rotationRateUnbiased * Mathf.Rad2Deg * Time.deltaTime;
@@ -106,6 +114,36 @@ namespace Allo.CameraRig
             _instance._glanceT = 0;
             _instance._glanceFrom = _instance._state;
             _instance._velocity = Vector2.zero;
+        }
+
+        float? _rideTo, _rideRestore;
+        float _rideFrom, _rideT, _rideSeconds = 1f;
+
+        /// 레일을 rail(0 뒷좌석 ~ 1 앞좌석)까지 seconds 동안 부드럽게 민다 (알이 깨어날 때 둥지 가까이). 아이가 손대면 멈춘다
+        public static void Ride(float rail, float seconds)
+        {
+            if (_instance == null) return;
+            var i = _instance;
+            i._rideRestore ??= i._state.rail;
+            i._rideFrom = i._state.rail; i._rideTo = Mathf.Clamp01(rail); i._rideT = 0; i._rideSeconds = Mathf.Max(0.1f, seconds);
+        }
+
+        /// Ride 전 자리로 되돌아간다
+        public static void RideBack(float seconds)
+        {
+            if (_instance == null || _instance._rideRestore == null) return;
+            var back = _instance._rideRestore.Value;
+            Ride(back, seconds);
+            _instance._rideRestore = null;
+        }
+
+        void RideTick(bool dragging)
+        {
+            if (_rideTo == null) return;
+            if (dragging) { _rideTo = null; _rideRestore = null; return; }
+            _rideT += Time.deltaTime / _rideSeconds;
+            _state.rail = Mathf.Lerp(_rideFrom, _rideTo.Value, Mathf.SmoothStep(0, 1, _rideT));
+            if (_rideT >= 1) _rideTo = null;
         }
 
         void GlanceTick(bool dragging)
