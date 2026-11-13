@@ -67,7 +67,14 @@ public static class PropImport
             r.receiveShadows = false;
             var mats = r.sharedMaterials;
             for (var i = 0; i < mats.Length; i++)
-                if (mats[i] != null) mats[i] = CharacterImport.Toon(mats[i], $"{MatRoot}/{id}_{k++}.mat");
+                if (mats[i] != null)
+                {
+                    // 소품은 캐릭터보다 작고 굴곡(눈썹·주름)이 많아 외곽선이 얼굴에 흉터처럼 그려진다: 얇게, 테두리광도 약하게
+                    var m = mats[i] = CharacterImport.Toon(mats[i], $"{MatRoot}/{id}_{k++}.mat");
+                    m.SetFloat("_OutlineWidth", 0.0015f);
+                    m.SetFloat("_RimStrength", 0.12f);
+                    EditorUtility.SetDirty(m);
+                }
             r.sharedMaterials = mats;
         }
         var b = rs[0].bounds;

@@ -16,6 +16,7 @@
 선택:
   --yaw 도        Z 축으로 돌린다 (모델 앞이 -Y 가 아닐 때)
   --max-tris N    전체 삼각형이 N 보다 많으면 부품마다 같은 비율로 데시메이트
+  --desat F       색 텍스처 채도를 F(0~1)만큼 낮춘다
   --size X,Y,Z    실제 크기(m)로 맞춘다: 가로, 앞뒤, 키. 0 은 나머지 축과 같은 비율 (예: 0,0,0.125 = 키 0.125m, 비율 유지)
   --tex N         텍스처 한 변 최대 픽셀 (기본 1024)
   --gap M         이 거리(m, 원본 크기 기준)보다 먼 틈은 메우지 않는다 (기본 0.015)
@@ -153,7 +154,7 @@ def is_normal_map(img):
     return b > 0.75 and abs(r - 0.5) < 0.12 and abs(g - 0.5) < 0.12
 
 
-def fix_materials(out_dir, tex_size, fallback):
+def fix_materials(out_dir, tex_size, fallback, desat=0.0):
     """색 텍스처만 Base Color 에 꽂고 노멀맵 노드는 지운다. 색 텍스처 수를 돌려준다"""
     colored = 0
     saved = {}
@@ -184,6 +185,14 @@ def fix_materials(out_dir, tex_size, fallback):
         if img.name not in saved:
             if max(img.size) > tex_size:
                 img.scale(tex_size, tex_size)
+            if desat > 0:
+                # 채도 낮추기: 밝기(회색)와 섞는다. Tripo 텍스처는 Unity 에서 형광처럼 쨍해 보인다
+                px = np.empty(img.size[0] * img.size[1] * img.channels, dtype=np.float32)
+                img.pixels.foreach_get(px)
+                px = px.reshape(-1, img.channels)
+                lum = (px[:, :3] @ np.array([0.299, 0.587, 0.114], dtype=np.float32))[:, None]
+                px[:, :3] = px[:, :3] * (1 - desat) + lum * desat
+                img.pixels.foreach_set(px.ravel())
             path = os.path.join(out_dir, bpy.path.clean_name(img.name) + ".png")
             img.filepath_raw = path
             img.file_format = "PNG"
@@ -257,7 +266,7 @@ def main():
         out = os.path.abspath(os.path.expanduser(out))
         os.makedirs(os.path.dirname(out), exist_ok=True)
         colored = fix_materials(os.path.dirname(out), arg(argv, "--tex", 1024, int),
-                                arg(argv, "--fallback-color", "#8FA850"))
+                                arg(argv, "--fallback-color", "#8FA850"), arg(argv, "--desat", 0.0, float))
         if colored == 0:
             print("[character] 경고: 색 텍스처가 없어요 (노멀맵만 있음). 단색으로 내보냅니다. "
                   "서비스에서 Base Color 텍스처를 포함해 다시 내보내세요")

@@ -14,25 +14,26 @@ OUT="${2:-$HOME/Downloads/allo_3d_props}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BLENDER="${BLENDER:-blender}"
 
-# ID | 실제 크기 X,Y,Z m (가로, 앞뒤, 키 / 0 = 비율 유지) | 삼각형 | 텍스처 px | 돌리기(도, 앞이 -Y 가 되게)
+# ID | 실제 크기 X,Y,Z m (가로, 앞뒤, 키 / 0 = 비율 유지) | 삼각형 | 텍스처 px | 돌리기(도, 앞이 -Y 가 되게) | 채도 낮추기(0~1)
+# 얼굴이 있는 것(인형·쿠션·도토리)은 덜 줄인다: 3,000 개로 줄이면 눈 둘레 텍스처가 끌려가 눈이 검게 번진다
 # 크기는 Unity 의 기존 도형(Toys.Make·Cabin.glb)에 맞춘다. 둥지는 Unity 가 1.3 배로 키운다
 PROPS="
-egg      0,0,0.125        3000 1024 0
-nest     0.17,0.17,0.06   3000 1024 0
-plush    0,0,0.30         3000 1024 0
-cushion  0.30,0,0         3000 1024 0
-blanket  0.34,0.27,0.10   3000 1024 0
-ball     0,0,0.08         1500 512  0
-apple    0,0,0.075        1500 512  0
-shell    0.075,0,0        1500 512  0
-acorn    0,0,0.08         1500 512  0
-fishbun  0.11,0,0         1500 512  0
+egg      0,0,0.125        3000 1024 0   0
+nest     0.17,0.17,0.06   3000 1024 0   0
+plush    0,0,0.30         8000 1024 0   0.15
+cushion  0.30,0,0         8000 1024 0   0.45
+blanket  0.34,0.27,0.10   3000 1024 0   0
+ball     0,0,0.08         1500 512  0   0
+apple    0,0,0.075        1500 512  0   0
+shell    0.075,0,0        1500 512  0   0
+acorn    0,0,0.08         4000 512  0   0
+fishbun  0.11,0,0         3000 512  0   0
 "
 
 WORK="$(mktemp -d -t allo_props)"
 trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$OUT"
-echo "$PROPS" | while read -r id size tris tex yaw; do
+echo "$PROPS" | while read -r id size tris tex yaw desat; do
   [ -n "$id" ] || continue
   [ -z "${ONLY:-}" ] || case " $ONLY " in *" $id "*) ;; *) continue ;; esac
   zip="$SRC/$id.zip"
@@ -43,7 +44,7 @@ echo "$PROPS" | while read -r id size tris tex yaw; do
   [ -n "$fbx" ] || { echo "건너뜀: $id (zip 에 FBX 없음)"; continue; }
   rm -rf "${OUT:?}/$id"
   "$BLENDER" -b -P "$ROOT/tools/blender/character.py" -- --in "$fbx" --out "$OUT/$id/$id.fbx" \
-    --size "$size" --max-tris "$tris" --tex "$tex" --yaw "$yaw" 2>&1 | grep -E "\[character\]|Error|Traceback" | sed "s/^/$id: /"
+    --size "$size" --max-tris "$tris" --tex "$tex" --yaw "$yaw" --desat "${desat:-0}" 2>&1 | grep -E "\[character\]|Error|Traceback" | sed "s/^/$id: /"
   if [ "$id" = egg ]; then
     rm -rf "$OUT/egg_top" "$OUT/egg_bottom"
     "$BLENDER" -b -P "$ROOT/tools/blender/egg.py" -- --in "$OUT/egg/egg.fbx" --out "$OUT" 2>&1 \
