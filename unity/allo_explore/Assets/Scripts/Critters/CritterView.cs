@@ -23,6 +23,10 @@ namespace Allo.Critters
         CritterArt _art;
         ArtPose _shown = (ArtPose)(-1);
         CharacterModel _model; // 있으면 3D, 없으면 2D 그림
+        Transform _hit;        // 3D 탭 상자 (몸 방향·높이를 따라간다)
+
+        /// 3D 탭 상자를 몸보다 이만큼 크게 (손가락 여유)
+        public const float HitMargin = 1.15f;
         float _yaw;            // 3D 모델이 보는 방향 (도)
         WalkGraph _graph;      // 서 있는 면의 크기를 보려고 (창턱처럼 좁은 면)
         float _ledge;          // 창턱에서 차 안쪽으로 당긴 거리 (m, 부드럽게 바뀐다)
@@ -39,6 +43,12 @@ namespace Allo.Critters
         public const float LeanRatio = 0.8f;
 
         public bool Is3D => _model != null;
+
+        /// 3D 모델이 보는 방향 (도, y 축). 2D 그림이면 의미 없음
+        public float Yaw => _yaw;
+
+        /// 발밑 가로(x)·앞뒤(y) 크기 (m). 3D 는 모델 크기, 2D 는 키만 한 정사각형
+        public Vector2 Footprint => _model != null ? _model.footprint * _model.Scale : new Vector2(Height, Height);
 
         public string Id { get; private set; }
         public CritterBrain Brain => _brain;
@@ -76,13 +86,21 @@ namespace Allo.Critters
             _shadow.GetComponent<Renderer>().sharedMaterial = shadowMat;
             _last = brain.Position;
             // 탭으로 고를 수 있게 몸 크기만 한 상자
-            var col = _col = gameObject.AddComponent<BoxCollider>();
-            col.center = Vector3.up * Height * 0.5f;
-            col.size = Vector3.one * Height * 1.3f;
             if (_model != null)
             {
+                // 3D: 몸과 같이 돌고 뜨는 상자. 몸(가로×앞뒤)에 손가락 여유만 조금 (예전엔 긴 변 기준 정사각형이라 옆으로 두 배 넓었다)
+                _hit = new GameObject("Hit").transform;
+                _hit.SetParent(transform, false);
+                var col = _col = _hit.gameObject.AddComponent<BoxCollider>();
                 var f = _model.footprint * _model.Scale;
-                col.size = new Vector3(Mathf.Max(f.x, f.y), Height, Mathf.Max(f.x, f.y)) * 1.2f;
+                col.size = new Vector3(f.x * HitMargin, Height, f.y * HitMargin);
+                col.center = Vector3.up * Height * 0.5f;
+            }
+            else
+            {
+                var col = _col = gameObject.AddComponent<BoxCollider>();
+                col.center = Vector3.up * Height * 0.5f;
+                col.size = Vector3.one * Height * 1.3f;
             }
             _yaw = Random.Range(0f, 360f);
         }
@@ -318,6 +336,11 @@ namespace Allo.Critters
             _body.position = p + Vector3.up * (lift + Height * sy / 2);
             _body.rotation = Quaternion.Euler(0, _yaw, 0) * Quaternion.Euler(pitch, 0, bank);
             _body.localScale = new Vector3(sx, sy, sx);
+            if (_hit != null)
+            {
+                _hit.localPosition = Vector3.up * lift;
+                _hit.localRotation = Quaternion.Euler(0, _yaw, 0);
+            }
             var f = _model.footprint * _model.Scale;
             var shrink = 1 - Mathf.Clamp01(lift / 0.4f) * 0.5f;
             _shadow.position = p + Vector3.up * 0.003f;
