@@ -21,6 +21,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+from learning import BODY_LIMIT as LEARNING_BODY_LIMIT, LearningError, LearningService, OpenAILearning
+from provider import ProviderError, request_json
+
 JSON_LIMIT = 16 * 1024
 PHOTO_HTTP_LIMIT = 7 * 1024 * 1024
 IMAGE_LIMIT = 5 * 1024 * 1024
@@ -46,10 +49,6 @@ class ApiError(Exception):
         super().__init__(code)
 
 
-class ProviderError(Exception):
-    """Sanitized upstream failure; never includes the utterance or provider response."""
-
-
 class OpenAIReviewer:
     def __init__(self, api_key, model='gpt-4.1-mini', transport=None):
         self.api_key = api_key
@@ -64,29 +63,8 @@ class OpenAIReviewer:
                 'type': 'json_schema', 'name': 'egg_sentiment', 'strict': True,
                 'schema': {'type': 'object', 'properties': {'sentiment': {'type': 'string', 'enum': list(SENTIMENTS)}},
                            'required': ['sentiment'], 'additionalProperties': False}}}}
-        request = urllib.request.Request(
-            'https://api.openai.com/v1/responses', data=json.dumps(payload).encode(),
-            headers={'Authorization': 'Bearer ' + self.api_key, 'Content-Type': 'application/json'}, method='POST')
         try:
-            with self.transport(request, timeout=20) as response:
-                raw = response.read(65537)
-            if len(raw) > 65536:
-                raise ValueError()
-            result = json.loads(raw)
-            if not isinstance(result, dict) or result.get('status') != 'completed':
-                raise ValueError()
-            texts = []
-            for item in result.get('output', []):
-                if not isinstance(item, dict):
-                    raise ValueError()
-                for content in item.get('content', []):
-                    if content.get('type') == 'refusal':
-                        raise ValueError()
-                    if content.get('type') == 'output_text':
-                        texts.append(content.get('text'))
-            if len(texts) != 1:
-                raise ValueError()
-            verdict = json.loads(texts[0])
+            verdict = request_json(self.api_key, payload, self.transport)
             if not isinstance(verdict, dict) or set(verdict) != {'sentiment'} or verdict['sentiment'] not in SENTIMENTS:
                 raise ValueError()
             return verdict['sentiment']
@@ -312,6 +290,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.command == 'GET' and self.path == '/health':
             return self.reply(200, {'status': 'ok'})
         self.authenticate()
+        if self.command == 'POST' and self.path == '/v1/companion/chat':
+            value = self.read_json(LEARNING_BODY_LIMIT)
+            return self.reply(200, self.server.learning(value))
         if self.command == 'GET' and self.path == '/v1/egg/photos':
             return self.reply(200, {'photos': self.server.store.list()})
         by_egg_prefix = '/v1/egg/photos/by-egg/'
@@ -347,7 +328,7 @@ class Handler(BaseHTTPRequestHandler):
     def handle_request(self):
         try:
             self.dispatch()
-        except ApiError as error:
+        except (ApiError, LearningError) as error:
             self.reply(error.status, {'error': error.code})
         except (BrokenPipeError, ConnectionResetError):
             pass
@@ -363,7 +344,7 @@ class Handler(BaseHTTPRequestHandler):
     do_HEAD = handle_request
 
 
-def create_server(token, data_directory, evaluate=None, host='127.0.0.1', port=0):
+def create_server(token, data_directory, evaluate=None, host='127.0.0.1', port=0, learning=None):
     if not isinstance(token, str) or len(token) < 32 or any(ord(c) < 33 or ord(c) > 126 for c in token):
         raise ValueError('ALLO_DEMO_TOKEN must contain at least 32 printable non-space ASCII characters')
     room = hashlib.sha256(token.encode()).hexdigest()
@@ -372,6 +353,7 @@ def create_server(token, data_directory, evaluate=None, host='127.0.0.1', port=0
     server.authorization = ('Bearer ' + token).encode()
     server.store = store
     server.evaluate = evaluate
+    server.learning = learning if learning is not None else LearningService()
     return server
 
 
@@ -379,9 +361,11 @@ def main():
     token = os.environ.get('ALLO_DEMO_TOKEN', '')
     key = os.environ.get('OPENAI_API_KEY')
     reviewer = OpenAIReviewer(key, os.environ.get('ALLO_EVALUATION_MODEL', 'gpt-4.1-mini')) if key else None
+    learning = LearningService(OpenAILearning(key, os.environ.get('ALLO_LEARNING_MODEL', 'gpt-4.1-mini')) if key else None)
     try:
         server = create_server(token, os.environ.get('ALLO_DEMO_DATA_DIR', str(Path(__file__).parent / '.data')),
-                               reviewer, os.environ.get('ALLO_DEMO_HOST', '127.0.0.1'), int(os.environ.get('ALLO_DEMO_PORT', '8787')))
+                               reviewer, os.environ.get('ALLO_DEMO_HOST', '127.0.0.1'), int(os.environ.get('ALLO_DEMO_PORT', '8787')),
+                               learning=learning)
     except (ValueError, OSError):
         raise SystemExit('Unable to start: check demo token, bind settings, and private data directory') from None
     print('Affinity demo API ready; request logging disabled', flush=True)

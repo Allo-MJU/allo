@@ -13,9 +13,16 @@ namespace Allo.App
 
         void BuildCabin()
         {
+            BuildCompanionSelector();
+            if (HasSelectedCompanion(_state))
+            {
+                BuildCommonCareDock();
+                BuildCompanionLearning();
+                return;
+            }
             var egg = _state.egg;
             var openedEggId = egg?.id;
-            if (egg == null || !egg.active) { BuildCabinStart(egg); return; }
+            if (egg == null || !egg.active) { if (!_choosingCompanion) BuildCabinStart(egg); return; }
             var hud = Surface("Cabin affinity HUD", _content, new Color(.949f, .933f, .898f, .90f));
             Stretch(hud, 12, -112, 414, -10, new Vector2(0, 1), new Vector2(0, 1));
             var score = Label(hud, "친밀도  " + Mathf.FloorToInt(egg.score) + " / 100", 23, TextAnchor.MiddleLeft); Stretch(score.rectTransform, 14, -38, -14, -6, new Vector2(0, 1), Vector2.one);
@@ -31,11 +38,11 @@ namespace Allo.App
             var dock = Surface("Cabin action dock", _content, new Color(.949f, .933f, .898f, .96f));
             Stretch(dock, -430, 10, 430, 84, new Vector2(.5f, 0), new Vector2(.5f, 0));
             var actions = Rect("Cabin actions", dock); Stretch(actions, 9, 9, -9, -9); Row(actions, 8);
-            Button(actions, CooldownLabel("쓰다듬기", egg.petCooldown), () => Send("petEgg"), egg.photoRequired ? Cream : Yellow, 54, CanAct && !egg.photoRequired && egg.petCooldown <= 0, 21);
+            BuildCommonCareDock();
             Button(actions, egg.speechBusy ? "듣고 있어요" : CooldownLabel("말 걸기", egg.speechCooldown), () => Send("speech"), Cream, 54, CanAct && _state.speechAvailable && !egg.photoRequired && !egg.speechBusy && egg.speechCooldown <= 0, 21);
             Button(actions, egg.photoBusy ? "사진 보내는 중" : "함께 사진 찍기", () => Send("photo"), egg.photoRequired ? Yellow : Cream, 54, CanAct && egg.photoRequired && _state.photoAvailable && !egg.photoBusy, 21);
-            Button(actions, "글로 말하기", () => { _speechDrawer = !_speechDrawer; _zoneDrawer = false; _dirty = true; }, Cream, 54, CanAct, 21);
-            Button(actions, "자리와 돌보기", () => { _zoneDrawer = !_zoneDrawer; _speechDrawer = false; _dirty = true; }, Cream, 54, CanAct, 21);
+            Button(actions, "글로 말하기", () => { _speechDrawer = !_speechDrawer; _zoneDrawer = _choosingCompanion = false; _dirty = true; }, Cream, 54, CanAct, 21);
+            Button(actions, "자리와 돌보기", () => { _zoneDrawer = !_zoneDrawer; _speechDrawer = _choosingCompanion = false; _dirty = true; }, Cream, 54, CanAct, 21);
             if (_zoneDrawer)
             {
                 var zones = DockSheet(260);
@@ -62,7 +69,7 @@ namespace Allo.App
             }
             if (egg.photoRequired && !_speechDrawer && !_zoneDrawer)
             {
-                var photo = Surface("Photo quest hint", _content, Cream, false); Stretch(photo, -290, 100, 290, 142, new Vector2(.5f, 0), new Vector2(.5f, 0));
+                var photo = Surface("Photo quest hint", _content, Cream, false); Stretch(photo, -290, 162, 290, 204, new Vector2(.5f, 0), new Vector2(.5f, 0));
                 var label = Label(photo, _state.photoAvailable ? "함께 찍은 사진을 보내면 친밀도가 65가 돼요" : "지금은 사진을 연결할 수 없어요. 잠시 후 다시 시도해 주세요.", 20, TextAnchor.MiddleCenter); Stretch(label.rectTransform, 8, 0, -8, 0);
                 var recover = Button(_content, "보류한 사진 확인", () => Send("recoverPhoto"), Cream, 44, CanAct && !egg.photoBusy, 18);
                 Stretch((RectTransform)recover.transform, -224, 10, -14, 54, new Vector2(1, 0), new Vector2(1, 0));

@@ -29,6 +29,11 @@ namespace Allo.App
         int _finger, _targetZone = -1;
         Vector2 _down, _last;
         float _travel, _bounce, _ending;
+        Transform _careToy;
+        CritterDirector _careDirector;
+        float _careTime;
+        string _careAction;
+        Color _eggColor;
 
         public static bool ShowEgg(string view, EggState egg) =>
             view == "cabin" && egg != null && egg.active && !string.IsNullOrEmpty(egg.id);
@@ -64,7 +69,14 @@ namespace Allo.App
 
         public static bool CanInteract(AppState state, string view, string startedEggId) =>
             state != null && state.ready && !state.busy && !state.sessionEnded &&
+            string.IsNullOrEmpty(state.learning?.creatureId) &&
             ShowEgg(view, state.egg) && state.egg.id == startedEggId && !state.egg.photoBusy && !state.egg.speechBusy;
+
+        public static bool ShouldPlayCare(AppState previous, AppState next) => previous?.learning != null && next?.learning != null &&
+            previous.view == "cabin" && next.view == "cabin" && previous.isDemo == next.isDemo &&
+            previous.learning.creatureId == next.learning.creatureId && previous.learning.speciesId == next.learning.speciesId &&
+            (!string.IsNullOrEmpty(next.learning.creatureId) || previous.egg?.id == next.egg?.id) &&
+            next.learning.careSequence > previous.learning.careSequence && AppUi.CanCommonCare(next, next.learning.careActionId);
 
         public static AppAction EggIntent(AppState state, string view, string startedEggId, string action, int zone)
         {
@@ -87,12 +99,15 @@ namespace Allo.App
         public void SetView(string view)
         {
             _view = view;
-            if (view != "cabin") CancelGesture();
+            if (view != "cabin") { CancelGesture(); CancelCare(); }
             RefreshVisibility();
         }
 
         public void Apply(AppState state)
         {
+            var playCare = ShouldPlayCare(_state, state);
+            if (_state?.learning?.creatureId != state?.learning?.creatureId || _state?.learning?.speciesId != state?.learning?.speciesId ||
+                _state?.isDemo != state?.isDemo || (_state?.egg?.id != state?.egg?.id && string.IsNullOrEmpty(state?.learning?.creatureId))) CancelCare();
             var previous = _state != null ? _state.egg : null;
             _state = state;
             var egg = state != null ? state.egg : null;
@@ -109,13 +124,63 @@ namespace Allo.App
             {
                 var zone = Mathf.Clamp(egg.zone, 0, 3);
                 if (_available[zone]) _egg.position = _zones[zone].position + Vector3.up * (EggHeight * 0.5f + 0.005f);
-                _eggRenderer.sharedMaterial.color = egg.photoRequired ? new Color(1f, 0.84f, 0.34f) :
+                _eggColor = egg.photoRequired ? new Color(1f, 0.84f, 0.34f) :
                     Color.Lerp(new Color(1f, 0.92f, 0.73f), new Color(0.64f, 0.9f, 0.76f), Mathf.Clamp01(egg.score / 100f));
+                _eggRenderer.sharedMaterial.color = _careTime > 0 ? Color.Lerp(_eggColor, Color.white, .35f) : _eggColor;
                 _reveal.position = _egg.position;
                 _shells.position = _egg.position;
 
             }
             RefreshVisibility();
+            if (playCare) PlayCare(state.learning.careActionId);
+        }
+
+        void PlayCare(string actionId)
+        {
+            if (AppUi.HasSelectedCompanion(_state))
+            {
+                if (_careDirector == null) _careDirector = FindFirstObjectByType<CritterDirector>();
+                if (_careDirector != null) _careDirector.PlayCommonCare(_state.learning.speciesId, actionId, _state.reducedMotion);
+                return;
+            }
+            if (_egg == null || !_egg.gameObject.activeSelf) return;
+            CancelCare();
+            _careTime = 3f; _careAction = actionId; _bounce = _state.reducedMotion ? 0 : 0.7f;
+            _eggRenderer.sharedMaterial.color = Color.Lerp(_eggColor, Color.white, .35f);
+            if (!_state.reducedMotion) Fx.Burst(_egg.position + Vector3.up * EggHeight * 0.6f, Fx.Spark, _revealRenderer.sharedMaterial, 5, 0.025f, 0.04f);
+            if (actionId == "pet") return;
+            var kind = CareToyKind(actionId);
+            _careToy = Toys.Make(kind);
+            _careToy.SetParent(_visuals, false);
+            _careToy.localScale = Vector3.one * (actionId == "blanket" ? 0.65f : 1f);
+            PlaceCareToy();
+        }
+
+        public static Toys.Kind CareToyKind(string actionId) => actionId switch
+        {
+            "water" => Toys.Kind.Cup, "ball" => Toys.Kind.Ball, "plush" => Toys.Kind.Plush,
+            "cushion" => Toys.Kind.Cushion, "blanket" => Toys.Kind.Blanket, _ => Toys.Kind.Apple
+        };
+
+        void PlaceCareToy()
+        {
+            if (_careToy == null || _egg == null) return;
+            var foot = _egg.position - Vector3.up * EggHeight * 0.5f;
+            _careToy.position = _careAction == "blanket" ? foot + Vector3.up * EggHeight * 0.45f :
+                _careAction == "cushion" ? foot - Vector3.up * 0.025f : foot + Vector3.right * 0.15f;
+            if (_careAction == "ball" && !_state.reducedMotion)
+                _careToy.position += Vector3.forward * (Mathf.Sin((3f - _careTime) * 3f) * 0.07f);
+        }
+
+        void CancelCare()
+        {
+            _careTime = 0;
+            if (_egg != null) _egg.localRotation = Quaternion.identity;
+            if (_eggRenderer != null) _eggRenderer.sharedMaterial.color = _eggColor;
+            if (_careToy != null)
+                if (Application.isPlaying) Destroy(_careToy.gameObject); else DestroyImmediate(_careToy.gameObject);
+            _careToy = null;
+            if (_careDirector != null) _careDirector.CancelCommonCare();
         }
 
         void EnsureModel()
@@ -205,7 +270,7 @@ namespace Allo.App
             if (_visuals == null) return;
             var egg = _state != null ? _state.egg : null;
             var active = ShowEgg(_view, egg);
-            var reveal = ShowReveal(_view, egg);
+            var reveal = ShowReveal(_view, egg) && !AppUi.HasSelectedCompanion(_state);
             _visuals.gameObject.SetActive(_view == "cabin" && (active || reveal || _ending > 0));
             _egg.gameObject.SetActive(active && _available[Mathf.Clamp(egg.zone, 0, 3)]);
             _reveal.gameObject.SetActive(reveal);
@@ -231,6 +296,17 @@ namespace Allo.App
             _camera = Camera.main;
             if (_view != "cabin" || _visuals == null || _state?.egg == null) return;
             _bounce = Mathf.Max(0, _bounce - Time.unscaledDeltaTime);
+            if (_careTime > 0)
+            {
+                _careTime = Mathf.Max(0, _careTime - Time.unscaledDeltaTime);
+                if (_careTime <= 0) CancelCare();
+                else
+                {
+                    if (_egg.gameObject.activeSelf && !_state.reducedMotion)
+                        _egg.localRotation = Quaternion.Euler(0, 0, Mathf.Sin((3f - _careTime) * 10) * 5f * Mathf.Min(1, _careTime));
+                    PlaceCareToy();
+                }
+            }
             if (_ending > 0)
             {
                 _ending = Mathf.Max(0, _ending - Time.unscaledDeltaTime);
@@ -337,10 +413,11 @@ namespace Allo.App
             Rig.Locked = _previousLock;
         }
 
-        void OnDisable() => CancelGesture();
+        void OnDisable() { CancelGesture(); CancelCare(); }
         void OnDestroy()
         {
             CancelGesture();
+            CancelCare();
             foreach (var material in _materials)
                 if (Application.isPlaying) Destroy(material); else DestroyImmediate(material);
             if (_eggMesh != null)

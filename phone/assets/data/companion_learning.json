@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "contentStatus": "implementation-sample-awaiting-human-review",
+  "stories": [
+    {
+      "speciesId": "road_sprout",
+      "storyId": "road_sprout_little_garden",
+      "version": 1,
+      "name": "길싹이",
+      "title": "길싹이의 작은 정원",
+      "firstSceneId": "seed",
+      "persona": {
+        "age": 10,
+        "version": 1,
+        "background": "이야기 속 가상의 쉼터에서 작은 화분을 돌보는 길싹이. 실제 여행 장소나 창밖 상황을 안다고 하지 않는다.",
+        "personality": ["호기심이 많다", "천천히 관찰한다", "모르는 것은 솔직히 말한다"],
+        "voice": "친근한 한국어 반말. 감탄은 가끔 한 번. 아이의 말에 먼저 답하고 1~3문장으로 짧게 말한다.",
+        "interests": ["작은 식물", "관찰", "여행 이야기"],
+        "examples": ["신기해! 작은 것도 천천히 보면 새로 보이네.", "그건 이 자료에 없어서 확실히 모르겠어."]
+      },
+      "scenes": [
+        {
+          "id": "seed",
+          "title": "작은 화분을 만나다",
+          "text": "나는 이야기 속 쉼터에서 작은 화분을 하나 만났어. 흙 속 씨앗이 궁금해서 곁에 앉아 천천히 살펴보기로 했지.",
+          "events": ["길싹이는 가상 쉼터에서 씨앗이 심어진 작은 화분을 발견한다.", "화분 곁에 앉아 관찰하기로 한다."],
+          "characters": ["길싹이"],
+          "knowledgeIds": ["plant_needs"],
+          "nextSceneId": "water",
+          "parentPrompt": null
+        },
+        {
+          "id": "water",
+          "title": "물의 길을 생각하다",
+          "text": "나는 작은 화분에 물을 주고 물이 어디로 갈지 생각했어. 식물은 뿌리로 물을 받아들이고, 그 물은 줄기를 지나 다른 부분으로 옮겨 가.",
+          "events": ["길싹이는 작은 화분에 물을 준다.", "물이 식물 안에서 이동하는 길을 생각한다."],
+          "characters": ["길싹이"],
+          "knowledgeIds": ["roots_water"],
+          "nextSceneId": "light",
+          "parentPrompt": "나중에 운전하지 않는 보호자와 집의 식물이 물을 받는 모습을 함께 살펴봐도 재미있겠어."
+        },
+        {
+          "id": "light",
+          "title": "다시 찾아온 작은 잎",
+          "text": "나는 화분을 빛이 드는 자리에 두고 여러 날 살폈어. 나중에 작은 잎을 만나고, 이곳을 내 작은 정원이라고 부르기로 했지.",
+          "events": ["길싹이는 화분을 빛이 드는 곳에 두고 여러 날 관찰한다.", "작은 잎을 발견한다.", "길싹이는 그곳을 작은 정원이라고 부른다. 이것이 고정된 결말이다."],
+          "characters": ["길싹이"],
+          "knowledgeIds": ["plant_needs"],
+          "nextSceneId": null,
+          "parentPrompt": null
+        }
+      ],
+      "knowledge": [
+        {
+          "id": "plant_needs",
+          "version": 1,
+          "topic": "과학",
+          "text": "식물이 자라는 데에는 물, 빛, 공기, 영양분과 알맞은 온도가 필요하다. 씨앗마다 싹트는 조건은 다르므로 모든 씨앗이 빛을 받아야 싹튼다고 단정하지 않는다. 식물의 성장과 씨앗의 발아를 구분한다.",
+          "words": [{"en": "water", "ko": "물"}, {"en": "light", "ko": "빛"}],
+          "sources": [{"title": "ESA Astro farmer - 식물 성장 조건, 8~12세 학습 자료", "url": "https://climatedetectives.esa.int/astro-farmer/", "checkedOn": "2026-11-12"}]
+        },
+        {
+          "id": "roots_water",
+          "version": 1,
+          "topic": "과학",
+          "text": "식물은 뿌리로 물을 받아들인다. 물은 줄기를 통해 다른 부분으로 옮겨 간다. 실제 식물에는 작은 물길이 있지만 사람이 마시는 빨대와 완전히 같은 구조라고 말하지 않는다.",
+          "words": [{"en": "water", "ko": "물"}],
+          "sources": [
+            {"title": "ESA Astro farmer - Activity 3: Do plants need water?", "url": "https://climatedetectives.esa.int/astro-farmer/", "checkedOn": "2026-11-12"},
+            {"title": "USGS Water Science School - Capillary Action and Water", "url": "https://www.usgs.gov/water-science-school/science/capillary-action-and-water", "checkedOn": "2026-11-12"}
+          ]
+        }
+      ],
+      "migrations": {}
+    }
+  ]
+}

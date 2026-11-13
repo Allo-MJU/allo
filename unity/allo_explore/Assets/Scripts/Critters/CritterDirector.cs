@@ -298,6 +298,7 @@ namespace Allo.Critters
 
         void OnDisable()
         {
+            CancelCommonCare();
             FlutterBridge.CastChanged -= OnCast;
             FlutterBridge.SceneChanged -= OnScene;
             FlutterBridge.Jolted -= OnJolt;

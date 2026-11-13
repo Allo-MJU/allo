@@ -46,6 +46,7 @@ namespace Allo.App
         void OnDisable() { AppSession.Changed -= OnState; }
         void OnState(AppState state)
         {
+            OnLearningTargetChanged(state);
             _state = state; _dirty = true;
             if (_villageLayer != null) _villageLayer.gameObject.SetActive(state != null && state.ready && (state.view == "home" || state.view == "camp"));
         }
@@ -249,7 +250,7 @@ namespace Allo.App
                 default: return error;
             }
         }
-        static string ViewTitle(string view) => view == "cabin" ? "차 안에서 알 키우기" : view == "camp" ? "함께 만드는 캠프" : view == "dex" ? "우리 친구 도감" : view == "inventory" ? "보급품 가방" : "연결과 설정";
+        static string ViewTitle(string view) => view == "cabin" ? "차 안에서 함께하기" : view == "camp" ? "함께 만드는 캠프" : view == "dex" ? "우리 친구 도감" : view == "inventory" ? "보급품 가방" : "연결과 설정";
         static string DefaultStatus(string view) => view == "home" ? "광장의 친구들과 함께, 다음 여행을 준비해요." : view == "cabin" ? "알을 쓰다듬고 말을 걸며 가까워져요." : view == "camp" ? "건설 · 요리 · 훈련은 각 담당 친구와 함께 진행해요." : view == "inventory" ? "여행에서 모은 재료와 완성한 요리를 확인해요." : view == "dex" ? "함께한 친구를 골라 요리와 배운 행동을 확인해요." : "차량에 표시된 세션 ID와 페어링 코드를 입력해 주세요.";
     }
 }

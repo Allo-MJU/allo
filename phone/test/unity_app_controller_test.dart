@@ -255,6 +255,7 @@ void main() {
       'speechAvailable',
       'photoAvailable',
       'egg',
+      'learning',
       'materials',
       'facilities',
       'creatures',

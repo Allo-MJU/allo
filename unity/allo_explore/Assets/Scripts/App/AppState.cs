@@ -15,6 +15,7 @@ namespace Allo.App
         public int fishingRecords;
         public string fishingError;
         public EggState egg;
+        public LearningState learning;
         public MaterialState[] materials = Array.Empty<MaterialState>();
         public FacilityState[] facilities = Array.Empty<FacilityState>();
         public CreatureState[] creatures = Array.Empty<CreatureState>();
@@ -33,6 +34,14 @@ namespace Allo.App
         public int zone, preferredZone, speechCooldown, petCooldown, moveCooldown;
     }
     [Serializable] public sealed class MaterialState { public string id, label; public int count; }
+    [Serializable] public sealed class LearningState
+    {
+        public string creatureId, speciesId, name, storyId, sceneId, title, text, target, status, error, source, careActionId;
+        public bool active, busy, recording, available, canNext, muted, speechAvailable;
+        public long careSequence;
+        public LearningCreatureState[] creatures = Array.Empty<LearningCreatureState>();
+    }
+    [Serializable] public sealed class LearningCreatureState { public string creatureId, speciesId, name; }
     [Serializable] public sealed class FacilityState { public string id, label; public int level, woodCost, stoneCost; public bool unlocked, canUpgrade; }
     [Serializable] public sealed class AssignmentState { public string role, creatureId; }
     [Serializable] public sealed class CreatureState
