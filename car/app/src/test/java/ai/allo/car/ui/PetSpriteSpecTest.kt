@@ -22,7 +22,7 @@ class PetSpriteSpecTest {
             assertNull(PetSpriteSheets.forDisplay(id, PetPose.Idle, true, true))
         }
         assertEquals(18, paths.size)
-        listOf(null, "tide_keeper", "../road_sprout", "Road_Sprout", "unknown").forEach { id ->
+        listOf(null, "../road_sprout", "Road_Sprout", "unknown").forEach { id ->
             PetPose.entries.forEach { pose -> assertNull(PetSpriteSheets.forDisplay(id, pose, pose != PetPose.Move, true)) }
         }
     }
@@ -39,10 +39,36 @@ class PetSpriteSpecTest {
         assertNull(PetSpriteSheets.forDisplay("unknown", PetPose.Fishing, false, false, drivingFishing = true))
     }
 
+    @Test fun `six previously missing species have distinct atlases and correct action rows`() {
+        val ids = listOf("bridge_hopper", "mountain_sprite", "river_glider", "tide_keeper", "tunnel_moth", "star_owl")
+        ids.forEach { id ->
+            listOf(PetPose.Move to 0, PetPose.Fishing to 8, PetPose.Sleep to 16).forEach { (pose, first) ->
+                val spec = assertNotNull(PetSpriteSheets.forDisplay(id, pose, pose != PetPose.Move, true))
+                assertEquals("poses/$id/actions.png", spec.path)
+                assertEquals(4, spec.columns)
+                assertEquals(6, spec.rows)
+                assertEquals(32, spec.alphaCutoff)
+                assertEquals((first..first + 7).toSet(), spec.timeline.toSet())
+                assertEquals(first, spec.frameAt(1200, false))
+                assertEquals(first, spec.frameAt(spec.durationMs.toLong(), true))
+                assertEquals(first % 4 to first / 4, spec.cell(first))
+            }
+            assertNull(PetSpriteSheets.forDisplay(id, PetPose.Sleep, false, true))
+            assertNull(PetSpriteSheets.forDisplay(id, PetPose.Fishing, false, true))
+            assertNull(PetSpriteSheets.forDisplay(id, PetPose.Move, true, true))
+            assertNull(PetSpriteSheets.forDisplay(id, PetPose.Move, false, false))
+            val idle = assertNotNull(PetSpriteSheets.stillForDisplay(id, PetPose.Idle, true))
+            assertEquals(listOf(0), idle.timeline)
+            assertEquals(listOf(16), PetSpriteSheets.stillForDisplay(id, PetPose.Sleep, true)?.timeline)
+            assertEquals(listOf(0), PetSpriteSheets.stillForDisplay(id, PetPose.Sleep, false)?.timeline)
+        }
+        assertNull(PetSpriteSheets.stillForDisplay("../star_owl", PetPose.Idle, true))
+    }
+
     @Test fun `sleeping frames require parking and freeze when motion is disabled`() {
         assertEquals(PetSpriteSheets.sleep, PetSpriteSheets.forDisplay("road_sprout", PetPose.Sleep, true, false))
         assertNull(PetSpriteSheets.forDisplay("road_sprout", PetPose.Sleep, false, true))
-        assertNull(PetSpriteSheets.forDisplay("tide_keeper", PetPose.Sleep, true, false))
+        assertNotNull(PetSpriteSheets.forDisplay("tide_keeper", PetPose.Sleep, true, false))
         val spec = PetSpriteSheets.sleep
         assertEquals(0, spec.frameAt(899, true))
         assertEquals(1, spec.frameAt(900, true))
@@ -57,7 +83,7 @@ class PetSpriteSpecTest {
         assertEquals(PetSpriteSheets.run, PetSpriteSheets.forDisplay("road_sprout", PetPose.Move, false, true))
         assertNull(PetSpriteSheets.forDisplay("road_sprout", PetPose.Fishing, false, true))
         assertEquals(PetSpriteSheets.fish, PetSpriteSheets.forDisplay("road_sprout", PetPose.Fishing, true, false))
-        assertNull(PetSpriteSheets.forDisplay("tide_keeper", PetPose.Fishing, true, false))
+        assertNotNull(PetSpriteSheets.forDisplay("tide_keeper", PetPose.Fishing, true, false))
     }
     @Test fun `run advances exact cells loops and freezes on motion disable`() {
         val spec = PetSpriteSheets.run

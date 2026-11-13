@@ -18,7 +18,7 @@ class PetPosesTest {
         assertEquals(PetPose.Idle, PetPoses.forRoute(PleosRoute.Saving, true))
     }
 
-    @Test fun `only matching design species resolve to pose assets`() {
+    @Test fun `original standalone poses resolve without treating atlases as single images`() {
         assertEquals("poses/road_sprout/move.png", PetPoses.assetPath("road_sprout", PetPose.Move))
         assertEquals("poses/sea_mist/sleep.png", PetPoses.assetPath("sea_mist", PetPose.Sleep))
         assertEquals("poses/lamp_moth/idle.png", PetPoses.assetPath("lamp_moth", PetPose.Fishing))

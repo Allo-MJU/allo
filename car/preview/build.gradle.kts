@@ -8,6 +8,8 @@ plugins {
 android {
     namespace = "ai.allo.car"
     compileSdk = 35
+    // Supplied artwork only: never package earlier generated action sheets.
+    androidResources.ignoreAssetsPattern = "!.svn:!.git:!.ds_store:!*.scc:.*:<dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~:*-sheet.png:actions.png:generation-provenance.md"
     defaultConfig {
         applicationId = "ai.allo.preview"
         minSdk = 28

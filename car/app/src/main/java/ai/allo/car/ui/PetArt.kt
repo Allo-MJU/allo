@@ -35,7 +35,7 @@ import androidx.compose.ui.unit.Dp
 fun rememberSpeciesCatalog(): SpeciesCatalog {
     val assets = LocalContext.current.assets
     return remember(assets) {
-        runCatching { assets.open("species.json").bufferedReader().use { SpeciesCatalog.parse(it.readText()) } }
+        runCatching { assets.open("characters.json").bufferedReader().use { SpeciesCatalog.parse(it.readText()) } }
             .getOrDefault(SpeciesCatalog.EMPTY)
     }
 }

@@ -8,6 +8,7 @@ data class PetSpriteSpec(
     val columns: Int = 4,
     val rows: Int = 2,
     val repeat: Boolean = true,
+    val alphaCutoff: Int = 0,
 ) {
     val durationMs: Int get() = frameMs * timeline.size
     fun frameAt(elapsedMs: Long, enabled: Boolean): Int {
@@ -50,8 +51,25 @@ object PetSpriteSheets {
         }
     }
 
+    // New artwork packs three eight-frame actions in one 4-column, 6-row atlas.
+    private val atlasesBySpecies = listOf(
+        "bridge_hopper", "mountain_sprite", "river_glider", "tide_keeper", "tunnel_moth", "star_owl",
+    ).associateWith { id ->
+        mapOf(PetPose.Move to run, PetPose.Fishing to fish, PetPose.Sleep to sleep).mapValues { (pose, sheet) ->
+            val offset = when (pose) { PetPose.Fishing -> 8; PetPose.Sleep -> 16; else -> 0 }
+            sheet.copy(path = "poses/$id/actions.png", rows = 6, alphaCutoff = 32, timeline = sheet.timeline.map { it + offset })
+        }
+    }
+
+    /** Select the appropriate atlas cell for idle or motion-disabled displays. */
+    fun stillForDisplay(speciesId: String?, pose: PetPose, parked: Boolean): PetSpriteSpec? {
+        val action = if (parked && pose in setOf(PetPose.Sleep, PetPose.Fishing)) pose else PetPose.Move
+        val spec = atlasesBySpecies[speciesId]?.get(action) ?: return null
+        return spec.copy(timeline = listOf(spec.timeline.first()))
+    }
+
     fun forDisplay(speciesId: String?, pose: PetPose, parked: Boolean, runningMotion: Boolean, drivingFishing: Boolean = false): PetSpriteSpec? {
-        val sheets = sheetsBySpecies[speciesId] ?: return null
+        val sheets = sheetsBySpecies[speciesId] ?: atlasesBySpecies[speciesId] ?: return null
         val allowed = when (pose) {
             PetPose.Move, PetPose.Fall -> !parked && runningMotion
             PetPose.Fishing -> parked || drivingFishing

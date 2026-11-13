@@ -19,10 +19,7 @@ object PetPoses {
         else -> PetPose.Idle
     }
 
-    // The other six design characters do not match the current game catalog yet.
-    private val supplied = setOf("road_sprout", "puddle_pip", "lamp_moth", "storm_lantern", "highway_comet", "sea_mist")
-    fun assetPath(speciesId: String?, pose: PetPose): String? =
-        speciesId?.takeIf { it in supplied }?.let { "poses/$it/${pose.asset}.png" }
+    fun assetPath(speciesId: String?, pose: PetPose): String? = SuppliedCharacters.path(speciesId, pose)
 
     fun animates(pose: PetPose, parked: Boolean, connected: Boolean, resumed: Boolean, motionEnabled: Boolean, runningMotion: Boolean = false, drivingFishing: Boolean = false): Boolean =
         connected && resumed && motionEnabled && (

@@ -23,6 +23,8 @@ android {
     sourceSets["main"].assets.srcDir("../../phone/assets")
     namespace = "ai.allo.car"
     compileSdk = 35
+    // Supplied artwork only: never package earlier generated action sheets.
+    androidResources.ignoreAssetsPattern = "!.svn:!.git:!.ds_store:!*.scc:.*:<dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~:*-sheet.png:actions.png:generation-provenance.md"
     // AAOS car-lib: CarPropertyManager(속도·기어), CarUxRestrictionsManager
     useLibrary("android.car")
 
