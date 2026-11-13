@@ -57,6 +57,7 @@ namespace Allo
 
         void Update()
         {
+            if (Allo.App.AppSession.StoryActive || Allo.App.StoryOverlay.CapturingInput) { Cancel(); return; }
             FogGlass.Raining = world != null && world.Scene != null && world.Scene.rain > 0 && world.Scene.kind != "tunnel";
 #if UNITY_EDITOR
             if (Input.GetMouseButtonDown(0)) Begin(Input.mousePosition, -1);

@@ -15,6 +15,7 @@ namespace Allo.App
         public int fishingRecords;
         public string fishingError;
         public EggState egg;
+        public StoryState story;
         public MaterialState[] materials = Array.Empty<MaterialState>();
         public FacilityState[] facilities = Array.Empty<FacilityState>();
         public CreatureState[] creatures = Array.Empty<CreatureState>();
@@ -25,6 +26,18 @@ namespace Allo.App
         public DexState[] dex = Array.Empty<DexState>();
     }
 
+    [Serializable] public sealed class StoryChoice { public string id, label; }
+    [Serializable] public sealed class StoryCard { public string id, title, text, topicId; }
+    [Serializable] public sealed class StoryState
+    {
+        public bool available, active, paused, pending, canPlay, ackAccepted;
+        public string ackRequestId;
+        public string instanceId, topicId, title, nodeId, line, visual, variant, cardTitle, cardText, notice, invitation;
+        public int revision, cardCount;
+        public StoryChoice[] choices = Array.Empty<StoryChoice>();
+        public StoryCard[] savedCards = Array.Empty<StoryCard>();
+        public StoryCard[] library = Array.Empty<StoryCard>();
+    }
     [Serializable] public sealed class EggState
     {
         public string id, phase, feedback, remainingLabel, speciesId, name, sprite;
@@ -52,6 +65,9 @@ namespace Allo.App
         public int v = 1;
         public string type = "appAction";
         public string requestId, action, view, eggId, tier, role, creatureId, targetId, facility, recipeId, actionId, text, sessionId, pairCode;
+        public string instanceId, nodeId, topicId;
+        public int storyRevision;
+        public bool blocked;
         public int zone;
         public bool gyro, reducedMotion;
     }

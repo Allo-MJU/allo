@@ -15,7 +15,8 @@ namespace Allo.App
         {
             var egg = _state.egg;
             var openedEggId = egg?.id;
-            if (egg == null || !egg.active) { BuildCabinStart(egg); return; }
+            var storyShowing = StoryOverlay.ShowsStory(_state) || (_storyOverlay != null && _storyOverlay.ShowingNotebook);
+            if (egg == null || !egg.active) { if (!storyShowing) BuildCabinStart(egg); return; }
             var hud = Surface("Cabin affinity HUD", _content, new Color(.949f, .933f, .898f, .90f));
             Stretch(hud, 12, -112, 414, -10, new Vector2(0, 1), new Vector2(0, 1));
             var score = Label(hud, "친밀도  " + Mathf.FloorToInt(egg.score) + " / 100", 23, TextAnchor.MiddleLeft); Stretch(score.rectTransform, 14, -38, -14, -6, new Vector2(0, 1), Vector2.one);
@@ -28,14 +29,19 @@ namespace Allo.App
                 var bubble = Surface("Egg feedback", _content, Cream, false); Stretch(bubble, 12, -157, 414, -120, new Vector2(0, 1), new Vector2(0, 1));
                 var text = Label(bubble, feedback, 19, TextAnchor.MiddleCenter); Stretch(text.rectTransform, 8, 0, -8, 0);
             }
+            if (storyShowing) return;
             var dock = Surface("Cabin action dock", _content, new Color(.949f, .933f, .898f, .96f));
-            Stretch(dock, -430, 10, 430, 84, new Vector2(.5f, 0), new Vector2(.5f, 0));
+            var storyButtons = _state.story != null && (_state.story.available || _state.story.paused)
+                ? (_state.story.paused ? 1 : 2) : 0;
+            var dockHalfWidth = 510 + storyButtons * 80;
+            Stretch(dock, -dockHalfWidth, 10, dockHalfWidth, 84, new Vector2(.5f, 0), new Vector2(.5f, 0));
             var actions = Rect("Cabin actions", dock); Stretch(actions, 9, 9, -9, -9); Row(actions, 8);
             Button(actions, CooldownLabel("쓰다듬기", egg.petCooldown), () => Send("petEgg"), egg.photoRequired ? Cream : Yellow, 54, CanAct && !egg.photoRequired && egg.petCooldown <= 0, 21);
             Button(actions, egg.speechBusy ? "듣고 있어요" : CooldownLabel("말 걸기", egg.speechCooldown), () => Send("speech"), Cream, 54, CanAct && _state.speechAvailable && !egg.photoRequired && !egg.speechBusy && egg.speechCooldown <= 0, 21);
             Button(actions, egg.photoBusy ? "사진 보내는 중" : "함께 사진 찍기", () => Send("photo"), egg.photoRequired ? Yellow : Cream, 54, CanAct && egg.photoRequired && _state.photoAvailable && !egg.photoBusy, 21);
             Button(actions, "글로 말하기", () => { _speechDrawer = !_speechDrawer; _zoneDrawer = false; _dirty = true; }, Cream, 54, CanAct, 21);
             Button(actions, "자리와 돌보기", () => { _zoneDrawer = !_zoneDrawer; _speechDrawer = false; _dirty = true; }, Cream, 54, CanAct, 21);
+            BuildTravelButtons(actions);
             if (_zoneDrawer)
             {
                 var zones = DockSheet(260);
@@ -80,10 +86,25 @@ namespace Allo.App
             for (var i = 0; i < tiers.Length; i++) { var tier = tiers[i]; Button(row, names[i], () => { _tier = tier; _dirty = true; }, _tier == tier ? Mint : Cream, 50, CanAct, 21); }
             var actions = NewRow(panel, 54);
             Button(actions, "이 알과 시작하기", () => Send("startEgg", new AppAction { tier = _tier }), Yellow, 54, CanAct && _state.canStart, 22);
+            BuildTravelButtons(actions);
             if (egg != null && egg.phase == "hatched") Button(actions, "새 친구 보러 가기", () => Navigate("dex"), Cream, 54, CanAct, 21);
             if (!_state.canStart) Note(panel, egg != null && egg.phase == "hatched" ? "새 친구와 함께하면서 다음 알을 기다려 주세요." : _state.sessionEnded ? "여행이 끝났어요. 설정에서 다음 연결을 준비해 주세요." : "지금은 알을 시작할 수 없어요. 설정에서 차량 연결 상태를 확인해 주세요.");
             else Note(panel, "알을 쓰다듬고 말을 걸어 주세요. 친밀도가 100이 되면 새 친구가 깨어나요.");
             if (egg != null && !string.IsNullOrEmpty(EggFeedbackLabel(egg.feedback))) Note(panel, EggFeedbackLabel(egg.feedback));
+        }
+
+        void BuildTravelButtons(Transform parent)
+        {
+            if (_storyOverlay == null || _state.story == null) return;
+            Button(parent, "여행 노트", () => _storyOverlay.ToggleNotebook(), Cream, 54,
+                CanAct && _state.story.canPlay && !_zoneDrawer && !_speechDrawer, 21);
+            var story = _state.story;
+            if (!story.available && !story.paused) return;
+            var enabled = CanAct && story.canPlay && !story.pending && !_zoneDrawer && !_speechDrawer && string.IsNullOrEmpty(_state.error);
+            Button(parent, story.paused ? "이야기 이어 하기" : "이야기 시작", () => _storyOverlay.StartAvailableStory(),
+                Yellow, 54, enabled, 21);
+            if (!story.paused)
+                Button(parent, "나중에", () => _storyOverlay.DismissInvitation(), Cream, 54, enabled, 21);
         }
 
         void BuildCamp()

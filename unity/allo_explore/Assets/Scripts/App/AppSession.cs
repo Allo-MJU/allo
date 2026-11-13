@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Allo.App
 {
-    public enum AppBackAction { CloseExplore, NavigateHome, BackgroundApp }
+    public enum AppBackAction { CloseExplore, NavigateHome, BackgroundApp, PauseStory }
 
     /// Authoritative snapshots come from Dart. The Unity side emits intents only.
     public sealed class AppSession : MonoBehaviour
@@ -14,10 +14,12 @@ namespace Allo.App
         CabinEgg _egg;
         public static AppState State { get; private set; }
         public static event Action<AppState> Changed;
+        public static bool StoryActive => State?.view == "cabin" && State.story != null && State.story.active && !State.story.paused;
         public static string CurrentView => State?.view ?? "home";
 
         public static AppBackAction BackActionFor(AppState state) => state == null
             ? AppBackAction.CloseExplore
+            : state.view == "cabin" && state.story != null && state.story.active && !state.story.paused ? AppBackAction.PauseStory
             : state.view == "home" ? AppBackAction.BackgroundApp : AppBackAction.NavigateHome;
 
         public static bool Accepts(AppState current, AppState next) =>
@@ -66,12 +68,23 @@ namespace Allo.App
             request.type = "appAction";
             request.requestId = "unity-" + Guid.NewGuid().ToString("N");
             request.action = action;
+            if (action.StartsWith("story", StringComparison.Ordinal) && State?.story != null)
+            {
+                request.instanceId ??= State.story.instanceId;
+                request.nodeId ??= State.story.nodeId;
+                request.topicId ??= State.story.topicId;
+                request.storyRevision = State.story.revision;
+            }
             if (string.IsNullOrEmpty(request.eggId)) request.eggId = State?.egg?.id;
             return request;
         }
 
-        public static void Request(string action, AppAction body = null) =>
-            AndroidHost.Send(JsonUtility.ToJson(CreateAction(action, body)));
+        public static string Request(string action, AppAction body = null)
+        {
+            var request = CreateAction(action, body);
+            AndroidHost.Send(JsonUtility.ToJson(request));
+            return request.requestId;
+        }
 
         void OnDestroy()
         {
