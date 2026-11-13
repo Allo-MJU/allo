@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'child_chat/chat_screen.dart';
 import 'package:allo_core/allo_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -112,11 +114,12 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
     redirect: (_, state) {
       final path = state.uri.path;
       if (path == '/unity') return null;
+      if (path == '/chat' && !kDebugMode) return '/companion';
       if (!controller.sessionEnded) {
         if (path == '/session-end') return '/pairing';
         // 광장 흐름: 주행 중 Flutter 차 안 화면(알 품기·동행) 대신 광장. 차 안은 Unity 탐험에서만
         final plaza = plazaFlow(usesAffinity: controller.usesAffinity);
-        if (const {'/hatching', '/companion'}.contains(path) &&
+        if (const {'/hatching', '/companion', '/chat'}.contains(path) &&
             controller.game.stage != Stage.hatched) {
           return plaza ? '/home' : '/incubating';
         }
@@ -143,6 +146,13 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
           builder: (_, __) => UnityAppScreen(
               controller: unityApp,
               unityView: widget.unityView ?? androidUnityView)),
+      GoRoute(
+          path: '/chat',
+          builder: (_, __) => ChildChatScreen(
+                key: ValueKey(controller.hatched?.id),
+                speciesId: controller.hatched?.id ?? 'road_sprout',
+                name: controller.hatched?.nameEn ?? 'Road Sprout',
+              )),
       GoRoute(
           path: '/session-end',
           builder: (_, __) => SessionEndScreen(controller: controller)),
