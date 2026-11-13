@@ -18,7 +18,7 @@ android {
     sourceSets["main"].apply {
         java.srcDirs("../app/src/main/java/ai/allo/car/ui", "../app/src/main/java/ai/allo/car/model", "../app/src/main/java/ai/allo/car/dialogue", "../app/src/main/java/ai/allo/car/voice")
         res.srcDir("../app/src/main/res")
-        assets.srcDirs("../../data", "../../phone/assets")
+        assets.srcDirs("../../data", "../../phone/assets", "../app/src/main/assets")
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17

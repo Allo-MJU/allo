@@ -3,6 +3,30 @@ package ai.allo.car.ui
 import kotlin.test.*
 
 class PetSpriteSpecTest {
+    @Test fun `new supplied characters use their own fishing art on the shared scene clock`() {
+        val ids = listOf("breeze_wyrm", "cloud_strider", "dewcap", "dune_roller", "ember_crab", "pebble_orbit")
+        ids.forEach { id ->
+            val spec = assertNotNull(PetSpriteSheets.forDisplay(id, PetPose.Fishing, false, false, drivingFishing = true), id)
+            assertEquals("fishing/$id/fish.png", spec.path)
+            assertEquals(4, spec.columns)
+            assertEquals(2, spec.rows)
+            assertEquals(32, spec.alphaCutoff)
+            assertEquals(.08f, spec.contentInsetFraction)
+            assertEquals(PetSpriteSheets.fish.durationMs, spec.durationMs)
+            assertEquals(PetSpriteSheets.fish.timeline, spec.timeline)
+            (0L..spec.durationMs.toLong() step 100L).forEach { elapsed ->
+                assertEquals(PetSpriteSheets.fish.frameAt(elapsed, true), spec.frameAt(elapsed, true))
+                assertEquals(0, spec.frameAt(elapsed, false))
+            }
+            assertEquals(spec, PetSpriteSheets.forDisplay(id, PetPose.Fishing, true, false))
+            assertNull(PetSpriteSheets.forDisplay(id, PetPose.Fishing, false, true))
+            PetPose.entries.filter { it != PetPose.Fishing }.forEach { pose ->
+                assertNull(PetSpriteSheets.forDisplay(id, pose, false, true, drivingFishing = true))
+                assertNull(PetSpriteSheets.forDisplay(id, pose, true, true, drivingFishing = true))
+            }
+        }
+    }
+
     @Test fun `all designed species use their own sheets with identical playback gates`() {
         val ids = listOf("road_sprout", "puddle_pip", "lamp_moth", "storm_lantern", "highway_comet", "sea_mist")
         val paths = mutableSetOf<String>()

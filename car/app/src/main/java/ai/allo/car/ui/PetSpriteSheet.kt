@@ -13,6 +13,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -55,17 +57,30 @@ internal fun PetSpriteSheet(
         value.toLong()
     } else 0L
     val frame = spec.frameAt(elapsed, enabled)
+    // Generated atlases can contain near-transparent background haze. Apply the
+    // cutoff while drawing, preserving the source files and fully opaque detail.
+    val alphaFilter = remember(spec.alphaCutoff) {
+        if (spec.alphaCutoff == 0) null else {
+            val scale = 255f / (255 - spec.alphaCutoff)
+            ColorFilter.colorMatrix(ColorMatrix(floatArrayOf(
+                1f, 0f, 0f, 0f, 0f,
+                0f, 1f, 0f, 0f, 0f,
+                0f, 0f, 1f, 0f, 0f,
+                0f, 0f, 0f, scale, -spec.alphaCutoff * scale,
+            )))
+        }
+    }
     Canvas(modifier.size(size).semantics { contentDescription = description }) {
         // Average dimensions keep the destination stable when source cells differ by one pixel.
         val width = bitmap.width.toFloat() / spec.columns
         val height = bitmap.height.toFloat() / spec.rows
         val cell = spec.sourceRect(frame, bitmap.width, bitmap.height)
-        val scale = minOf(this.size.width / width, this.size.height / height)
+        val scale = minOf(this.size.width / width, this.size.height / height) * (1f - 2f * spec.contentInsetFraction)
         val targetWidth = (width * scale).roundToInt()
         val targetHeight = (height * scale).roundToInt()
         drawImage(bitmap,
             srcOffset = IntOffset(cell.left, cell.top), srcSize = IntSize(cell.width, cell.height),
             dstOffset = IntOffset(((this.size.width - targetWidth) / 2).roundToInt(), ((this.size.height - targetHeight) / 2).roundToInt()),
-            dstSize = IntSize(targetWidth, targetHeight), filterQuality = FilterQuality.High)
+            dstSize = IntSize(targetWidth, targetHeight), filterQuality = FilterQuality.High, colorFilter = alphaFilter)
     }
 }

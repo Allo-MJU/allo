@@ -67,9 +67,8 @@ fun PairingScreen(meta: SessionMeta, dbUrl: String, sessionId: String = "",
                     }
                 }
                 if (onRenewCode != null) {
-                    OutlinedButton(onClick = onRenewCode, enabled = !renewing, modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp)) {
-                        Text(if (renewing) "새 코드 확인 중" else if (renewalMessage != null) "새 코드 다시 확인" else "새 연결 코드")
-                    }
+                    ToyButton(if (renewing) "새 코드 확인 중" else if (renewalMessage != null) "새 코드 다시 확인" else "새 연결 코드",
+                        onRenewCode, Modifier.fillMaxWidth(), enabled = !renewing)
                     Text(renewalMessage ?: "코드는 10분 동안 유효해요. 만료되면 새 코드를 받아 주세요.",
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
