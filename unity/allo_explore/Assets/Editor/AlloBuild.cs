@@ -114,6 +114,7 @@ public static class AlloBuild
 
         var camGo = new GameObject("Main Camera") { tag = "MainCamera" };
         var cam = camGo.AddComponent<Camera>();
+        camGo.AddComponent<AudioListener>();
         cam.fieldOfView = 72;
         cam.nearClipPlane = 0.02f;
         cam.farClipPlane = 800;
