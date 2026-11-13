@@ -114,7 +114,7 @@ public static class CharacterImport
     }
 
     /// 서비스가 구운 색 텍스처를 그대로 쓰고, 명암은 부드럽게(그림에 이미 음영이 있다), 외곽선은 얇게
-    static Material Toon(Material src, string path)
+    internal static Material Toon(Material src, string path)
     {
         var tex = src.HasProperty("_MainTex") ? src.mainTexture : src.HasProperty("_BaseMap") ? src.GetTexture("_BaseMap") : null;
         var col = src.HasProperty("_BaseColor") ? src.GetColor("_BaseColor") : src.HasProperty("_Color") ? src.color : Color.white;

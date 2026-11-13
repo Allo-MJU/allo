@@ -216,8 +216,9 @@ namespace Allo
                     critters?.SetLightsOff(!cabinLight.enabled);
                 }
                 else if (n.StartsWith("Bottle")) critters?.Water(hit.point);
-                else if (n.StartsWith("Plush")) critters?.Toy(Toys.Kind.Plush, hit.point);
-                else if (n.StartsWith("Cushion")) critters?.Toy(Toys.Kind.Cushion, hit.point);
+                // 3D 모델(PlushModel·CushionModel)이면 그 물건을 직접 건넨다. 도형이면 작은 복사본을 던진다
+                else if (n.StartsWith("Plush")) critters?.Toy(Toys.Kind.Plush, hit.point, n.EndsWith("Model") ? hit.collider.transform : null);
+                else if (n.StartsWith("Cushion")) critters?.Toy(Toys.Kind.Cushion, hit.point, n.EndsWith("Model") ? hit.collider.transform : null);
                 return;
             }
             if (hit.collider.name.StartsWith("Glass_")) world?.TapGlass(hit.point);
