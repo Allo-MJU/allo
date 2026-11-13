@@ -33,3 +33,7 @@ Runtime logs/results are /tmp/allo_phase2_full.log, /tmp/allo_phase2_core.log, /
 ## Remaining checks
 
 Real vehicle/network integration and physical-device camera/microphone remain unverified in this work. Manual emulator system Back/pan automation was inconclusive; the PlayMode test verifies actual raycast/drag dispatch and both axes. Species without approved sprites use a clearly labeled placeholder. Runtime credentials and generated Unity libraries/APKs are excluded from the PR.
+
+## Companion learning latest refresh — 2026-11-14
+
+Local integration now includes dev `c15c12e` through #120, preserving 3D character/props and optional window experiments beside fixed personal stories. Canonical12 personal drafts contain36 scenes; new11 plots/personas await human review. Flutter459/core93/Unity176/server38 tests passed. Fresh Unity export/debug APK build and data-preserving API36 emulator install/cold launch succeeded. See [verification](../../verification/2026-11-14-companion-learning-latest.md) and [local API setup](../../companion-learning-local-setup.md). Actual provider dialogue awaits an API key entered only in the local launcher; no remote deployment was performed.

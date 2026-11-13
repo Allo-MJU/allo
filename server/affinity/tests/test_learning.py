@@ -155,6 +155,83 @@ class LearningHttpTests(unittest.TestCase):
 
 
 class LearningContentTests(unittest.TestCase):
+    def test_every_canonical_character_has_one_complete_fixed_story(self):
+        # Supplied display catalog at origin/dev c15c12e; old species rules differ.
+        canonical = {'breeze_wyrm', 'cloud_strider', 'dewcap', 'dune_roller',
+                     'ember_crab', 'pebble_orbit', 'highway_comet', 'lamp_moth',
+                     'puddle_pip', 'road_sprout', 'sea_mist', 'storm_lantern'}
+        registry = ROOT / 'data/characters.json'
+        if registry.exists():
+            self.assertEqual({s['id'] for s in json.loads(registry.read_text())['species']}, canonical)
+        catalog = json.loads((ROOT / 'data/companion_learning/story.json').read_text())
+        stories = catalog['stories']
+        self.assertEqual({s['speciesId'] for s in stories}, canonical)
+        self.assertEqual(len(stories), len(canonical))
+        self.assertEqual(len({s['storyId'] for s in stories}), len(stories))
+        for story in stories:
+            with self.subTest(species=story['speciesId']):
+                self.assertEqual(story['version'], 1)
+                self.assertEqual(len(story['scenes']), 3)
+                scenes = {scene['id']: scene for scene in story['scenes']}
+                self.assertEqual(len(scenes), 3)
+                visited, current = [], story['firstSceneId']
+                while current is not None:
+                    self.assertIn(current, scenes)
+                    self.assertNotIn(current, visited, 'story must end without a cycle')
+                    visited.append(current)
+                    current = scenes[current]['nextSceneId']
+                self.assertEqual(visited, [s['id'] for s in story['scenes']])
+                for scene in scenes.values():
+                    for field in ('title', 'text', 'events', 'characters', 'knowledgeIds'):
+                        self.assertTrue(scene[field], field)
+                self.assertLessEqual(sum(bool(s['parentPrompt']) for s in scenes.values()), 1)
+
+    def test_all_character_personas_knowledge_and_sources_are_nonempty(self):
+        catalog = json.loads((ROOT / 'data/companion_learning/story.json').read_text())
+        topics = set()
+        for story in catalog['stories']:
+            with self.subTest(species=story['speciesId']):
+                persona = story['persona']
+                self.assertEqual(persona['age'], 10)
+                for field in ('version', 'background', 'personality', 'voice', 'interests', 'examples'):
+                    self.assertTrue(persona[field], field)
+                knowledge = {item['id']: item for item in story['knowledge']}
+                self.assertEqual(len(knowledge), len(story['knowledge']))
+                used = {kid for scene in story['scenes'] for kid in scene['knowledgeIds']}
+                self.assertEqual(used, set(knowledge), 'no dangling or unused knowledge')
+                for item in knowledge.values():
+                    topics.add(item['topic'])
+                    self.assertTrue(item['text'].strip())
+                    self.assertGreaterEqual(item['version'], 1)
+                    self.assertTrue(item['sources'])
+                    for source in item['sources']:
+                        self.assertTrue(source['title'].strip())
+                        self.assertTrue(source['url'].startswith('https://'))
+                        self.assertRegex(source['checkedOn'], r'^\d{4}-\d{2}-\d{2}$')
+                    for word in item['words']:
+                        self.assertTrue(word['en'].strip())
+                        self.assertTrue(word['ko'].strip())
+                if story['speciesId'] != 'road_sprout':
+                    self.assertEqual(story['contentStatus'], 'draft-awaiting-human-review')
+                    self.assertIsNone(story['reviewedBy'])
+        self.assertTrue({'과학', '역사', '지리', '수학', '생활 상식'} <= topics)
+
+    def test_all_scenes_resolve_to_only_their_persona_and_allowed_knowledge(self):
+        captured = []
+        service = learning.LearningService(lambda messages: captured.append(messages) or
+                                           {'text': '이 장면을 함께 살펴보자.', 'offerParentPrompt': False})
+        for story in service.catalog['stories']:
+            for scene in story['scenes']:
+                with self.subTest(species=story['speciesId'], scene=scene['id']):
+                    reply = service(body(speciesId=story['speciesId'], storyId=story['storyId'],
+                                         version=story['version'], sceneId=scene['id']))
+                    self.assertEqual(reply['speciesId'], story['speciesId'])
+                    authored = json.loads(captured[-1][0]['content'].split('서버 작성 자료:\n', 1)[1])
+                    self.assertEqual(authored['persona'], story['persona'])
+                    self.assertEqual(authored['currentScene']['id'], scene['id'])
+                    self.assertEqual({k['id'] for k in authored['knowledge']}, set(scene['knowledgeIds']))
+                    self.assertNotIn('nextSceneId', authored['currentScene'])
+
     def test_app_bundle_matches_authored_server_content_and_fixed_sequence(self):
         source = ROOT / 'data/companion_learning/story.json'
         bundled = ROOT / 'phone/assets/data/companion_learning.json'
