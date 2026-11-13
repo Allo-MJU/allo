@@ -21,6 +21,19 @@ class PlazaDialogueTest {
         }
     }
 
+    @Test fun `runtime plaza lines match the documented character lines`() {
+        val game = SpeciesCatalog.parse(File("../../data/species.json").readText()).entries
+        val display = SpeciesCatalog.parse(File("../../data/characters.json").readText()).entries
+        val byName = (game + display).values.associate { it.name to it.id }
+        val documented = File("../../docs/vehicle/plaza-dialogue.md").readLines().mapNotNull { row ->
+            val cells = row.split('|').map { it.trim() }
+            val id = cells.getOrNull(1)?.let { byName[it] } ?: return@mapNotNull null
+            if (cells.size != 5) return@mapNotNull null
+            id to listOf(cells[2], cells[3])
+        }.toMap()
+        assertEquals(PlazaDialogue.lines, documented)
+    }
+
     @Test fun `each species alternates independently even when another friend is tapped`() {
         val dialogue = PlazaDialogue()
         repeat(4) { round ->

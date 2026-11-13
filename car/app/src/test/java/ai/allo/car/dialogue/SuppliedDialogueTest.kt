@@ -5,6 +5,7 @@ import ai.allo.car.model.GameState
 import ai.allo.car.ui.SpeciesCatalog
 import java.io.File
 import kotlin.test.*
+import kotlinx.serialization.json.*
 
 class SuppliedDialogueTest {
     private val original = File("../../data/species.json").readText()
@@ -29,6 +30,30 @@ class SuppliedDialogueTest {
                 assertTrue(first.text.length in 1..50)
                 assertFalse(first.text.contains('{'))
                 if (question.id == "ask_name") assertTrue(first.text.contains(species.name))
+            }
+        }
+    }
+
+    @Test fun `all twelve supplied friends have explicit vehicle answers matching the style contract`() {
+        val entries = Json.parseToJsonElement(extra).jsonObject.getValue("entries").jsonArray.map { it.jsonObject }
+        val ids = SpeciesCatalog.parse(display).entries.keys
+        val questions = setOf("ask_name", "ask_origin", "ask_like", "ask_mood")
+        assertEquals(ids.flatMap { id -> questions.map { "$it|$id|hatched" } }.toSet(),
+            entries.map { it.getValue("key").jsonPrimitive.content }.toSet())
+        entries.forEach { entry ->
+            val key = entry.getValue("key").jsonPrimitive.content
+            val lines = entry.getValue("lines").jsonArray.map { it.jsonPrimitive.content }
+            assertEquals(2, lines.distinct().size, key)
+            assertEquals(JsonNull, entry["reviewedBy"], "Editing copy does not approve it for release")
+            lines.forEach { line ->
+                assertTrue(line.length in 1..50, "$key: $line")
+                assertFalse('?' in line || '？' in line, "$key: $line")
+                assertTrue(Regex("[.!?]+").findAll(line).count() <= 3, "$key: $line")
+                if (key.startsWith("ask_mood|")) {
+                    listOf("비가 와", "비 오는", "빗소리가", "밤이라", "지금 밤", "오늘 처음").forEach {
+                        assertFalse(it in line, "$key: unsupported current-context claim: $line")
+                    }
+                }
             }
         }
     }

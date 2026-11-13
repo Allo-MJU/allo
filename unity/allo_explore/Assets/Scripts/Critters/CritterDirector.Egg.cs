@@ -292,54 +292,115 @@ namespace Allo.Critters
 
         // ---------------- 깨어나기 ----------------
 
+        /// 알이 깨어나는 연출 (약 7초, 움직임 줄이기면 약 4초):
+        /// 1) 카메라가 둥지 쪽을 보며 가까이 간다 → 2) 세 번 들썩(작게·중간·크게 콩) → 3) 금이 하나씩 쫙쫙 →
+        /// 4) 빛이 새어 나오며 부푼다 → 5) 번쩍! 윗껍데기가 날아가고 조각이 튀며 → 6) 동행이 폴짝 튀어나와 인사 → 7) 카메라 제자리
         IEnumerator Hatch(string bornText, string eggId)
         {
             _hatching = true;
             Debug.Log("[Egg] hatch start");
             if (_eggBlanket != null) { Destroy(_eggBlanket.gameObject); _eggBlanket = null; }
             var egg = _egg;
-            var calm = ReducedMotion ? 0.3f : 1f;
+            var reduced = ReducedMotion;
+            var calm = reduced ? 0.3f : 1f;
+            var pace = reduced ? 0.55f : 1f; // 움직임 줄이기면 짧게
             var s = EggScale;
             var baseRot = Quaternion.LookRotation(Flat(Eye - egg.position).normalized);
-            Say("앗, 알이 움직여요!", 2f);
-            Allo.CameraRig.CameraRig.Glance(egg.position + Vector3.up * 0.08f); // 다른 곳을 보고 있었으면 둥지 쪽으로 고개를 돌린다
-            // 친구들이 둥지 쪽을 보며 놀란다
-            foreach (var v in _views.Values) { v.Brain.Peek(3); v.Cheer(3); }
+            var top0 = egg.position + Vector3.up * (Toys.EggH * s * 0.75f);
+            Say("앗, 알이 움직여요!", 2.5f);
+            Allo.CameraRig.CameraRig.Glance(egg.position + Vector3.up * 0.06f); // 다른 곳을 보고 있었으면 둥지 쪽으로
+            if (!reduced) Allo.CameraRig.CameraRig.Ride(0.45f, 1.8f);              // 둥지 가까이
+            foreach (var v in _views.Values) { v.Brain.Peek(4); v.Cheer(4); }
 
-            // 1) 점점 세게 흔들린다
-            for (var t = 0f; t < 1.4f && egg != null; t += Time.deltaTime)
+            // 알 속 빛: 둥지 위 번짐 그림 + 작은 점광
+            var glow = Fx.Sprite(Fx.Glow, critterMaterial, 0.04f);
+            glow.name = "EggGlow";
+            glow.transform.SetParent(transform, true);
+            var glowSize = 0f;
+            var lightGo = new GameObject("EggLight");
+            lightGo.transform.SetParent(transform, true);
+            var light = lightGo.AddComponent<Light>();
+            light.type = LightType.Point; light.color = new Color(1f, 0.85f, 0.5f); light.range = 0.7f; light.intensity = 0; light.shadows = LightShadows.None;
+            void Tick(float glowWant, float lightWant, float lerp)
             {
-                var k = t / 1.4f;
-                egg.rotation = baseRot * Quaternion.Euler(0, 0, Mathf.Sin(t * (18 + k * 30)) * (6 + k * 18) * calm);
-                if (k > 0.5f) egg.position = _nestAt + Vector3.up * (0.012f + Mathf.Abs(Mathf.Sin(t * 30)) * 0.01f * k * calm);
-                yield return null;
+                if (egg == null) return;
+                glowSize = Mathf.Lerp(glowSize, glowWant, lerp);
+                glow.transform.position = egg.position + Vector3.up * (Toys.EggH * s * 0.5f);
+                glow.transform.rotation = Cam.transform.rotation;
+                glow.transform.localScale = new Vector3(glowSize, glowSize, 1);
+                light.transform.position = egg.position + Vector3.up * (Toys.EggH * s * 0.5f);
+                light.intensity = Mathf.Lerp(light.intensity, lightWant, lerp);
             }
-            // 2) 금이 쫙
-            while (egg != null && _eggCracks < 5) Toys.AddCrack(egg, _eggCracks++);
-            if (egg != null) Fx.Burst(egg.position + Vector3.up * 0.08f, Fx.Spark, critterMaterial, 6, 0.05f, 0.06f);
-            for (var t = 0f; t < 0.5f && egg != null; t += Time.deltaTime)
+            bool Alive() => egg != null && egg == _egg;
+
+            // 1) 세 번 들썩: 작게 → 잠깐 조용 → 중간 → 조용 → 크게 콩콩. 멈출 때마다 금이 하나 더
+            var amps = new[] { 7f, 13f, 22f };
+            var durs = new[] { 0.55f, 0.6f, 0.9f };
+            var rests = new[] { 0.5f, 0.4f, 0.3f };
+            for (var i = 0; i < 3 && Alive(); i++)
             {
-                egg.rotation = baseRot * Quaternion.Euler(0, 0, Mathf.Sin(t * 60) * 4 * calm);
-                yield return null;
+                for (var t = 0f; t < durs[i] * pace && Alive(); t += Time.deltaTime)
+                {
+                    var k = t / (durs[i] * pace);
+                    var env = Mathf.Sin(k * Mathf.PI); // 커졌다 작아지는 세기
+                    egg.rotation = baseRot * Quaternion.Euler(0, 0, Mathf.Sin(t * (22 + i * 10)) * amps[i] * env * calm);
+                    var sq = Mathf.Abs(Mathf.Sin(t * (22 + i * 10))) * 0.05f * (i + 1) / 3 * env * calm;
+                    egg.localScale = new Vector3(s * (1 + sq), s * (1 - sq * 1.4f), s * (1 + sq));
+                    var hop = i == 2 ? Mathf.Abs(Mathf.Sin(t * 14)) * 0.022f * env * calm : 0;
+                    egg.position = _nestAt + Vector3.up * (0.012f + hop);
+                    Tick(0.03f + i * 0.015f, 0.15f + i * 0.2f, Time.deltaTime * 3);
+                    yield return null;
+                }
+                if (!Alive()) break;
+                egg.rotation = baseRot; egg.localScale = Vector3.one * s; egg.position = _nestAt + Vector3.up * 0.012f;
+                Fx.Burst(egg.position + Vector3.up * 0.09f, Fx.Spark, critterMaterial, 2 + i, 0.045f, 0.05f);
+                if (_eggCracks < 3 + i) Toys.AddCrack(egg, _eggCracks++);
+                for (var t = 0f; t < rests[i] * pace && Alive(); t += Time.deltaTime)
+                {
+                    egg.localScale = new Vector3(s, s * (1 + Mathf.Sin(t * 9) * 0.01f), s); // 숨 고르기
+                    Tick(0.03f + i * 0.015f, 0.15f + i * 0.2f, Time.deltaTime * 3);
+                    yield return null;
+                }
             }
-            // 3) 빛이 새어 나오며 부풀었다가
-            for (var t = 0f; t < 0.45f && egg != null; t += Time.deltaTime)
+
+            // 2) 금이 쫙쫙: 남은 금을 하나씩, 금마다 톡 튀는 느낌(살짝 커졌다 제자리)과 가루
+            while (Alive() && _eggCracks < 5)
             {
-                var k = t / 0.45f;
-                egg.localScale = new Vector3(s * (1 + k * 0.12f), s * (1 - k * 0.06f), s * (1 + k * 0.12f));
-                if (Mathf.Repeat(t, 0.12f) < Time.deltaTime) Fx.Burst(egg.position + Vector3.up * 0.1f, Fx.Spark, critterMaterial, 2, 0.06f, 0.05f);
+                Toys.AddCrack(egg, _eggCracks++);
+                Fx.Burst(egg.position + Vector3.up * 0.08f, Fx.Spark, critterMaterial, 2, 0.035f, 0.04f);
+                for (var t = 0f; t < 0.22f * pace && Alive(); t += Time.deltaTime)
+                {
+                    var k = 1 - t / (0.22f * pace);
+                    egg.localScale = Vector3.one * s * (1 + 0.07f * k * calm);
+                    egg.rotation = baseRot * Quaternion.Euler(0, 0, Mathf.Sin(t * 70) * 3 * k * calm);
+                    Tick(0.09f, 0.9f, Time.deltaTime * 4);
+                    yield return null;
+                }
+            }
+
+            // 3) 빛이 새어 나오며 부푼다 (점점 빨리 떨린다)
+            for (var t = 0f; t < 0.8f * pace && Alive(); t += Time.deltaTime)
+            {
+                var k = t / (0.8f * pace);
+                egg.localScale = new Vector3(s * (1 + k * 0.16f), s * (1 - k * 0.07f), s * (1 + k * 0.16f));
+                egg.rotation = baseRot * Quaternion.Euler(0, 0, Mathf.Sin(t * (40 + k * 60)) * (2 + k * 5) * calm);
+                if (Mathf.Repeat(t, 0.1f) < Time.deltaTime) Fx.Burst(egg.position + Vector3.up * 0.1f, Fx.Spark, critterMaterial, 2, 0.05f, 0.06f);
+                Tick(0.12f + k * 0.2f, 1.2f + k * 2.5f, Time.deltaTime * 5);
                 yield return null;
             }
             // 알 교체/화면 종료로 중단된 연출은 완료로 알리지 않는다.
-            if (egg == null || egg != _egg)
+            if (!Alive())
             {
+                Destroy(glow); Destroy(lightGo);
                 _hatching = false;
                 yield break;
             }
-            // 4) 퐁! 윗껍데기가 날아가고 둥지에서 나온다
-            var at = egg != null ? egg.position : _nestAt;
-            if (egg != null) Destroy(egg.gameObject);
+
+            // 4) 번쩍! 윗껍데기가 날아가고 조각이 튀며 아래 껍데기만 남는다
+            var at = egg.position;
+            Destroy(egg.gameObject);
             _egg = null;
+            if (!reduced) HudOrNull?.Flash(0.45f);
             var bottom = Toys.Make(Toys.Kind.EggBottom);
             bottom.position = at + Vector3.up * 0.02f; // 둥지 짚 위로 깨진 테두리가 보이게
             bottom.localScale = Vector3.one * s;
@@ -348,20 +409,95 @@ namespace Allo.Critters
             var top = Toys.Make(Toys.Kind.EggTop);
             top.localScale = Vector3.one * s;
             top.SetParent(transform, true);
-            StartCoroutine(FlyCap(top, at + Vector3.up * (Toys.EggH * s * 0.75f)));
-            Fx.Burst(at + Vector3.up * 0.1f, Fx.Spark, critterMaterial, 14, 0.07f, 0.12f);
-            Fx.Burst(at + Vector3.up * 0.12f, Fx.Heart, critterMaterial, 6, 0.07f, 0.1f);
+            StartCoroutine(FlyCap(top, top0));
+            if (!reduced) StartCoroutine(ScatterBits(at + Vector3.up * (Toys.EggH * s * 0.5f), s, 8));
+            Fx.Burst(at + Vector3.up * 0.1f, Fx.Spark, critterMaterial, 18, 0.08f, 0.16f);
+            StartCoroutine(GlowOut(glow, lightGo, light, glowSize));
+
+            // 5) 둥지에서 폴짝: 작게 웅크렸다가 튀어나오며 커진다
             _hatching = false;
             _bornAt = Time.time;
             SpawnFromEgg();
-            HudOrNull?.ShowHold(string.IsNullOrEmpty(bornText) ? "알에서 친구가 태어났어요!" : bornText, 3.5f);
-            foreach (var v in _views.Values) { v.Brain.Hop(0.1f); v.Cheer(3); }
+            var born = Companion;
+            if (born != null) { born.Born(1.1f * pace); born.Brain.Hold = true; } // 인사하는 동안 둥지에 머문다
+            yield return new WaitForSeconds(0.35f * pace);
+            HudOrNull?.ShowHold(string.IsNullOrEmpty(bornText) ? "알에서 친구가 태어났어요!" : bornText, 4f);
+            Fx.Burst(at + Vector3.up * 0.16f, Fx.Heart, critterMaterial, 7, 0.07f, 0.1f);
+            foreach (var v in _views.Values) if (v != born) { v.Brain.Hop(0.1f); v.Cheer(3); }
             Debug.Log("[Egg] hatched");
             if (FlutterBridge.LastEgg != null &&
                 FlutterBridge.LastEgg.state == "hatched" &&
                 FlutterBridge.LastEgg.eggId == eggId)
                 FlutterBridge.Send("hatchShown", FlutterBridge.Field("eggId", eggId ?? ""));
-            yield return Shrink(bottom, 9f);
+
+            // 6) 인사: 첫마디(말풍선), 두 번 더 폴짝, 반짝. 그 뒤 카메라는 제자리로, 동행은 아이 곁으로
+            yield return new WaitForSeconds(0.9f * pace);
+            if (born != null) { born.Brain.Hop(0.12f); born.Cheer(3); Fx.Burst(born.Top, Fx.Spark, critterMaterial, 4, 0.05f); }
+            yield return new WaitForSeconds(0.6f * pace);
+            if (born != null) Speak("hatch", "*", 4.5f, born);
+            yield return new WaitForSeconds(1.2f * pace);
+            if (born != null) born.Brain.Hop(0.1f);
+            yield return new WaitForSeconds(2.2f * pace);
+            if (born != null) born.Brain.Hold = false;
+            if (!reduced) Allo.CameraRig.CameraRig.RideBack(2f);
+            yield return Shrink(bottom, 6f);
+        }
+
+        /// 껍데기 조각 n 개가 사방으로 튀어 둥지 높이에 떨어져 한 번 튕기고 멈춘다. 잠시 뒤 사라진다
+        IEnumerator ScatterBits(Vector3 from, float scale, int n)
+        {
+            var bits = new System.Collections.Generic.List<(Transform t, Vector3 v, Vector3 spin)>();
+            for (var i = 0; i < n; i++)
+            {
+                var b = Toys.Make(Toys.Kind.EggBit);
+                b.localScale = Vector3.one * scale * Random.Range(0.7f, 1.2f);
+                b.position = from;
+                b.rotation = Random.rotation;
+                b.SetParent(transform, true);
+                var a = (i + Random.value * 0.6f) * Mathf.PI * 2 / n;
+                var v = new Vector3(Mathf.Cos(a), 0, Mathf.Sin(a)) * Random.Range(0.25f, 0.55f) + Vector3.up * Random.Range(0.6f, 1.1f);
+                bits.Add((b, v, Random.onUnitSphere * Random.Range(300f, 720f)));
+            }
+            var floor = _nestAt.y + 0.012f;
+            var bounced = new bool[n];
+            for (var t = 0f; t < 1.6f; t += Time.deltaTime)
+            {
+                for (var i = 0; i < n; i++)
+                {
+                    var (b, v, spin) = bits[i];
+                    if (b == null) continue;
+                    v += Vector3.down * 4.5f * Time.deltaTime;
+                    var p = b.position + v * Time.deltaTime;
+                    if (p.y < floor)
+                    {
+                        p.y = floor;
+                        if (!bounced[i]) { v = new Vector3(v.x * 0.5f, -v.y * 0.35f, v.z * 0.5f); bounced[i] = true; }
+                        else v = Vector3.zero;
+                    }
+                    b.position = p;
+                    if (v.sqrMagnitude > 1e-4f) b.rotation = Quaternion.Euler(spin * Time.deltaTime) * b.rotation;
+                    bits[i] = (b, v, spin);
+                }
+                yield return null;
+            }
+            yield return new WaitForSeconds(4f);
+            foreach (var (b, _, _) in bits) if (b != null) StartCoroutine(Shrink(b, Random.Range(0f, 0.6f)));
+        }
+
+        /// 깨진 뒤 빛이 확 퍼졌다가 사라진다
+        IEnumerator GlowOut(GameObject glow, GameObject lightGo, Light light, float size)
+        {
+            for (var t = 0f; t < 0.5f && glow != null; t += Time.deltaTime)
+            {
+                var k = t / 0.5f;
+                var sz = Mathf.Lerp(size, 0.6f, Mathf.Sin(k * Mathf.PI * 0.5f)) * (1 - k * k);
+                glow.transform.localScale = new Vector3(sz, sz, 1);
+                glow.transform.rotation = Cam.transform.rotation;
+                if (light != null) light.intensity = Mathf.Lerp(3.5f, 0, k);
+                yield return null;
+            }
+            if (glow != null) Destroy(glow);
+            if (lightGo != null) Destroy(lightGo);
         }
 
         IEnumerator FlyCap(Transform cap, Vector3 from)
@@ -424,6 +560,7 @@ namespace Allo.Critters
                 c.Brain.Place(_nestAt, _nestSurf);
                 c.Brain.Nap(6);
                 Fx.Burst(c.Top, Fx.Heart, critterMaterial, 3, 0.06f);
+                Speak("nest", "*", 2.6f, c);
                 if (c.Id == CompanionId) FlutterBridge.Send("tap", FlutterBridge.Field("kind", "nest"));
                 c.Brain.Hold = false;
             }

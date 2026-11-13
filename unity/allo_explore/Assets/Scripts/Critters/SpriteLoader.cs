@@ -150,15 +150,31 @@ namespace Allo.Critters
             var q = new Queue<int>();
             for (var i = 0; i < w * band; i++)
                 if (px[i].a < 26) { seen[i] = true; q.Enqueue(i); }
-            bool Floor(Color32 c)
+            // 맨 아래 9% 줄은 발 밑에 깔린 연한 바닥 자국(길싹이: 분홍빛 그림자 테두리, 아래 8~21줄)을 색조 가리지 않고 지운다.
+            // 더 올리면 배 아래 크림색까지 지워진다 (길싹이 배 아랫단은 약 11%)
+            var strip = Mathf.CeilToInt(h * 0.09f);
+            bool Floor(Color32 c, int y)
             {
                 if (c.a == 0) return true;
                 var mx = Mathf.Max(c.r, Mathf.Max(c.g, c.b));
                 var mn = Mathf.Min(c.r, Mathf.Min(c.g, c.b));
-                // 바닥판은 따뜻한 회색(빨강 ≥ 파랑). 푸른빛 몸(바다안개 등)은 건드리지 않는다
-                return mx >= 70 && mx - mn <= 34 && c.r + 6 >= c.b;
+                if (y < strip) return mx >= 150 && mx - mn <= 60;
+                // 바닥판은 '밝은' 따뜻한 회색(빨강 ≥ 파랑). 푸른빛 몸(바다안개 등)과 어두운 올리브색 발(길싹이)은 건드리지 않는다.
+                // 밝기 150 미만을 바닥으로 치면 길싹이 발(40~120)이 지워져 발이 빈 채로 보였다 (2026-11-12)
+                return mx >= 150 && mx - mn <= 34 && c.r + 6 >= c.b;
             }
             var removed = 0;
+            // 2차: 아래 10% 안의 '아주 밝고 채도 낮은' 픽셀(발 사이에 끼인 그림자 판의 흰 테두리)은 투명 영역과 이어져 있지 않아도 지운다.
+            // 발바닥 분홍(채도 43)과 배 크림색(10% 위)은 남는다
+            var zone = Mathf.CeilToInt(h * 0.10f);
+            for (var i = 0; i < w * zone; i++)
+            {
+                var c = px[i];
+                if (c.a == 0) continue;
+                var mx = Mathf.Max(c.r, Mathf.Max(c.g, c.b));
+                var mn = Mathf.Min(c.r, Mathf.Min(c.g, c.b));
+                if (mx >= 195 && mx - mn <= 40) { px[i] = new Color32(0, 0, 0, 0); removed++; }
+            }
             while (q.Count > 0)
             {
                 var i = q.Dequeue();
@@ -168,7 +184,7 @@ namespace Allo.Critters
                 {
                     if (nx < 0 || nx >= w || ny < 0 || ny >= band) return;
                     var j = ny * w + nx;
-                    if (seen[j] || !Floor(px[j])) return;
+                    if (seen[j] || !Floor(px[j], ny)) return;
                     seen[j] = true;
                     q.Enqueue(j);
                 }

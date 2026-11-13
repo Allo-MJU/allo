@@ -41,7 +41,9 @@ namespace Allo.Critters
                     if (!r.name.StartsWith("Walk_")) continue;
                     var b = r.bounds;
                     if (childEye != null && TooCloseToChild(r.name, b, childEye.position)) continue;
-                    if (childEye != null && frontEye != null && ComfortShare(b, childEye.position, Forward) < 0.25f)
+                    // 아이 곁(옆자리·팔걸이)은 정면에서 안 보여도 둔다. 고개를 돌리면 바로 옆에 있는 게 이 게임의 재미라서
+                    var home = IsHomeSurface(r.name);
+                    if (!home && childEye != null && frontEye != null && ComfortShare(b, childEye.position, Forward) < 0.25f)
                     {
                         Debug.Log($"[Critters] {r.name} 은 아이가 정면을 볼 때 거의 안 보이거나 너무 가까워 빼요");
                         continue;
@@ -52,7 +54,13 @@ namespace Allo.Critters
                         continue;
                     }
                     // 잘 보이고(편한 자리) 가려지지도 않는 부분만 남긴다 (창턱 앞쪽 끝은 앞좌석에, 계기판 일부는 머리받침에 가린다)
-                    var keep = frontEye != null ? VisiblePart(b, childEye.position, Forward, colliders) : (Rect?)new Rect(b.min.x, b.min.z, b.size.x, b.size.z);
+                    var keep = frontEye != null && !home ? VisiblePart(b, childEye.position, Forward, colliders) : (Rect?)new Rect(b.min.x, b.min.z, b.size.x, b.size.z);
+                    // 앞좌석 쪽은 아이에게서 HomeDepth 까지만 (창턱을 따라 앞문까지 가거나 앞좌석 밑으로 들어가지 않게). 둥지 콘솔·대시보드는 그대로
+                    if (keep != null && childEye != null && !IsFarSurface(r.name))
+                        keep = ClipDepth(keep.Value, childEye.position.z + HomeDepth);
+                    // 옆자리는 아이 코앞(0.42m 안)은 빼고 조금 떨어진 쪽만: 너무 가까우면 화면을 덮고 버튼을 가린다
+                    if (keep != null && home && childEye != null)
+                        keep = ClipNear(keep.Value, childEye.position.x, HomeGap);
                     if (keep == null)
                     {
                         Debug.Log($"[Critters] {r.name} 은 잘 보이는 부분이 없어 빼요");
@@ -60,7 +68,7 @@ namespace Allo.Critters
                     }
                     var k = keep.Value;
                     areas.Add(new Vector4(b.min.x, b.min.z, b.size.x, b.size.z));
-                    maskList.Add(frontEye != null ? Mask(b, childEye.position, Forward, colliders) : new string('1', MaskN * MaskN));
+                    maskList.Add(frontEye != null && !home ? Mask(b, childEye.position, Forward, colliders) : new string('1', MaskN * MaskN));
                     names.Add(r.name);
                     centers.Add(new Vector3(k.center.x, b.max.y, k.center.y));
                     sizes.Add(new Vector2(k.width, k.height));
@@ -82,12 +90,65 @@ namespace Allo.Critters
             var list = new List<WalkSurface>();
             for (var i = 0; i < surfaceNames.Length; i++) list.Add(new WalkSurface(surfaceNames[i], surfaceCenters[i], surfaceSizes[i]));
             var g = new WalkGraph(list);
+            g.Weight = i => RoamWeight(list[i].name);
             if (childEye != null && frontEye != null)
             {
                 var eye = childEye.position; var fwd = Forward;
-                g.Comfortable = p => Comfortable(p, eye, fwd) && Unblocked(p);
+                g.Comfortable = p => (Comfortable(p, eye, fwd) || OnHomeSurface(p)) && Unblocked(p);
             }
             return g;
+        }
+
+        /// 아이 곁에서 노는 면: 뒷좌석 옆자리와 팔걸이. 정면에서 안 보여도 걷는 면에 넣고, 어느 자리든 편한 자리로 친다
+        public static bool IsHomeSurface(string name) => name.StartsWith("Walk_RearSeat") || name.StartsWith("Walk_Armrest");
+
+        /// 아이에게서 먼 면: 둥지가 있는 센터 콘솔과 대시보드. 스스로는 가지 않고(비중 0), 둥지에서 깨어나면 곧 아이 곁으로 돌아온다
+        public static bool IsFarSurface(string name) => name == "Walk_Console" || name == "Walk_Dashboard";
+
+        /// 아이 눈에서 앞으로(+z) 이만큼(m)까지만 돌아다닌다. 앞좌석 등받이 뒤 발판까지이고 앞문 창턱·앞좌석 밑은 아니다
+        public const float HomeDepth = 0.85f;
+
+        /// 돌아다닐 때 면을 고르는 비중. 옆자리·팔걸이 > 발판 > 창턱, 콘솔·대시보드는 0
+        public static float RoamWeight(string name)
+        {
+            if (IsFarSurface(name)) return 0;
+            if (IsHomeSurface(name)) return 1f;
+            if (name.StartsWith("Walk_Floor")) return 0.6f;
+            if (name.StartsWith("Walk_DoorSill")) return 0.5f;
+            return 1f;
+        }
+
+        /// 아이 눈에서 옆으로(x) 이만큼(m) 안쪽은 옆자리라도 쓰지 않는다
+        public const float HomeGap = 0.42f;
+
+        /// rect(x, z) 에서 |x - eyeX| < gap 인 부분을 자른다. 남는 폭이 너무 좁으면 null
+        public static Rect? ClipNear(Rect r, float eyeX, float gap)
+        {
+            var lo = eyeX - gap; var hi = eyeX + gap;
+            if (r.xMax <= lo || r.xMin >= hi) return r;
+            var leftW = lo - r.xMin; var rightW = r.xMax - hi;
+            if (leftW < 0.1f && rightW < 0.1f) return null;
+            return leftW >= rightW ? new Rect(r.xMin, r.yMin, leftW, r.height) : new Rect(hi, r.yMin, rightW, r.height);
+        }
+
+        /// rect(x, z) 를 z ≤ zMax 로 자른다. 남는 깊이가 너무 얕으면 null
+        public static Rect? ClipDepth(Rect r, float zMax)
+        {
+            if (r.yMax <= zMax) return r;
+            var h = zMax - r.yMin;
+            if (h < 0.1f) return null;
+            return new Rect(r.xMin, r.yMin, r.width, h);
+        }
+
+        bool OnHomeSurface(Vector3 p)
+        {
+            for (var i = 0; i < surfaceNames.Length; i++)
+            {
+                if (!IsHomeSurface(surfaceNames[i])) continue;
+                var c = surfaceCenters[i]; var sz = surfaceSizes[i];
+                if (Mathf.Abs(p.y - c.y) <= 0.05f && Mathf.Abs(p.x - c.x) <= sz.x / 2 + 1e-3f && Mathf.Abs(p.z - c.z) <= sz.y / 2 + 1e-3f) return true;
+            }
+            return false;
         }
 
         Vector3 Forward
@@ -209,6 +270,25 @@ namespace Allo.Critters
             if (v.Id == CompanionId) FlutterBridge.Send("tap", FlutterBridge.Field("id", v.Id));
         }
 
+#if UNITY_EDITOR
+        /// 에디터 캡처용: 그래프를 쓰고 캐릭터 하나를 면 위에 세운다 (AlloBuild.CaptureBlanket)
+        public CritterView EditorSpawn(WalkGraph g, string id, string sprite, string surfaceName, string attribute = "normal")
+        {
+            _graph = g;
+            CompanionId = id;
+            var surf = Mathf.Max(0, g.IndexOf(surfaceName));
+            var go = new GameObject($"Critter_{id}");
+            go.transform.SetParent(transform, false);
+            var view = go.AddComponent<CritterView>();
+            view.Init(id, new CritterBrain(g, surf, 1), CritterArt.Placeholder(attribute, 1), critterMaterial, shadowMaterial, CharacterModel.Find(id), g);
+            var art = SpriteLoader.LoadNow(sprite);
+            if (art != null) view.SetArt(art);
+            view.Brain.Place(g.Surfaces[surf].center, surf);
+            _views[id] = view;
+            return view;
+        }
+#endif
+
         void Awake()
         {
             _graph = BuildGraph();
@@ -306,6 +386,7 @@ namespace Allo.Critters
 
         void Start()
         {
+            StartCoroutine(Dialogue.Load());
             if (FlutterBridge.LastScene != null) OnScene(FlutterBridge.LastScene);
             if (FlutterBridge.LastCast != null) OnCast(FlutterBridge.LastCast);
 #if UNITY_EDITOR
@@ -327,6 +408,7 @@ namespace Allo.Critters
             foreach (var v in _views.Values) v.Brain.Tick(Time.deltaTime, m);
             PlayTick(Time.deltaTime);
             EggTick(Time.deltaTime);
+            TalkTick(Time.deltaTime);
         }
 
         void OnScene(SceneState s)
@@ -339,11 +421,13 @@ namespace Allo.Critters
             tunnel = s.kind == "tunnel",
             moving = s.moving,
         };
+            OnSceneTalk();
         }
 
         void OnJolt(string kind)
         {
             foreach (var v in _views.Values) v.Brain.Jolt();
+            Speak("jolt", "*", 2.6f);
         }
 
         void OnCast(CastState cast)
@@ -356,7 +440,7 @@ namespace Allo.Critters
                 Destroy(_views[id].gameObject);
                 _views.Remove(id);
             }
-            var start = Mathf.Max(0, FirstOf("Walk_DoorSill_R", "Walk_DoorSill_L", "Walk_Floor")); // 정면에서 잘 보이는 창턱에서 나타난다
+            var start = Mathf.Max(0, FirstOf("Walk_RearSeat_R", "Walk_RearSeat_L", "Walk_DoorSill_R", "Walk_DoorSill_L", "Walk_Floor")); // 아이 옆자리에서 나타난다
             foreach (var m in CastDiff.Members(cast))
             {
                 if (!add.Contains(m.id)) continue;
@@ -366,7 +450,7 @@ namespace Allo.Critters
                 var view = go.AddComponent<CritterView>();
                 var seed = _seed++;
                 view.Init(m.id, new CritterBrain(_graph, start, seed * 7919), CritterArt.Placeholder(m.attribute, seed),
-                    critterMaterial, shadowMaterial, CharacterModel.Find(m.id));
+                    critterMaterial, shadowMaterial, CharacterModel.Find(m.id), _graph);
                 _views[m.id] = view;
                 if (BornNow(m.id)) StartAtNest(view);
                 if (!string.IsNullOrEmpty(m.sprite)) StartCoroutine(SpriteLoader.Load(m.sprite, art => { if (view != null) view.SetArt(art); }));

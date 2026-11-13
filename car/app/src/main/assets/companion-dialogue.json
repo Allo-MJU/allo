@@ -1,7 +1,199 @@
 {
   "version": 1,
-  "_comment": "차량 원본 신규6종 전용. docs/dialogue-style.md 확장. 검수 전 대사는 debug에서만 사용. 게임 종/획득 규칙은 변경하지 않는다.",
+  "_comment": "차량 원본 표시12종의 이야기4질문 전용. docs/dialogue-style.md 1·2·5절 기준. 공용 뱅크/게임 규칙은 보존하고 미검수 문장은 debug에서만 사용.",
   "entries": [
+    {
+      "key": "ask_name|road_sprout|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "나는 길싹이야. 처음 보는 게 참 신기해!",
+        "길싹이라고 불러 줘. 작은 것도 신기해!"
+      ]
+    },
+    {
+      "key": "ask_origin|road_sprout|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "어떤 길에서도 만날 수 있는 친구야.",
+        "새로운 길이 늘 궁금해. 천천히 알아갈래."
+      ]
+    },
+    {
+      "key": "ask_like|road_sprout|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "처음 보는 풀잎이 좋아. 작은 것도 신기해!",
+        "새로운 길을 상상하는 게 좋아. 궁금한 게 많아!"
+      ]
+    },
+    {
+      "key": "ask_mood|road_sprout|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "새로운 걸 발견하고 싶은 기분이야. 신기해!",
+        "마음이 들떠 있어. 작은 것도 눈여겨볼래."
+      ]
+    },
+    {
+      "key": "ask_name|puddle_pip|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "나는 웅덩이삐약이야. 반가워!",
+        "웅덩이삐약이라고 불러 줘. 첨벙!"
+      ]
+    },
+    {
+      "key": "ask_origin|puddle_pip|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "비 오는 여행에서 만날 수 있어. 삐약!",
+        "빗방울과 인연이 있는 친구야. 첨벙!"
+      ]
+    },
+    {
+      "key": "ask_like|puddle_pip|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "물웅덩이에서 첨벙 노는 걸 좋아해. 삐약!",
+        "촉촉한 풀밭을 상상하면 기분이 좋아."
+      ]
+    },
+    {
+      "key": "ask_mood|puddle_pip|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "기분 좋아. 첨벙 놀고 싶어. 삐약!",
+        "포근하게 쉬고 싶은 기분이야."
+      ]
+    },
+    {
+      "key": "ask_name|lamp_moth|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "나는 등불나방이야. 반짝!",
+        "등불나방이라고 불러 줘. 만나서 신나!"
+      ]
+    },
+    {
+      "key": "ask_origin|lamp_moth|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "밤에 만날 수 있는 친구야. 반짝!",
+        "밤길과 작은 불빛에 인연이 있어. 반짝!"
+      ]
+    },
+    {
+      "key": "ask_like|lamp_moth|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "작은 불빛이 참 좋아. 보기만 해도 신나. 반짝!",
+        "환하게 빛나는 걸 상상하는 게 좋아."
+      ]
+    },
+    {
+      "key": "ask_mood|lamp_moth|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "마음이 환해진 것 같아. 반짝!",
+        "신나게 인사하고 싶은 기분이야."
+      ]
+    },
+    {
+      "key": "ask_name|storm_lantern|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "나는 폭풍등이야. 씩씩하게 인사할게. 번쩍!",
+        "폭풍등이라고 불러 줘. 반가워!"
+      ]
+    },
+    {
+      "key": "ask_origin|storm_lantern|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "비 오는 여행에서 터널을 지나면 만날 수 있어.",
+        "비와 터널에 인연이 있는 친구야. 번쩍!"
+      ]
+    },
+    {
+      "key": "ask_like|storm_lantern|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "작은 불빛을 상상하는 게 좋아. 환하잖아!",
+        "씩씩하게 산책하고 쉬는 게 좋아. 번쩍!"
+      ]
+    },
+    {
+      "key": "ask_mood|storm_lantern|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "씩씩하게 인사하고 싶은 기분이야. 번쩍!",
+        "마음이 든든해. 작은 불빛처럼 씩씩해."
+      ]
+    },
+    {
+      "key": "ask_name|sea_mist|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "나는 바다안개야. 살며시 왔어. 몽글몽글.",
+        "바다안개라고 불러 줘. 조용히 인사할게."
+      ]
+    },
+    {
+      "key": "ask_origin|sea_mist|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "비 오는 바닷가 여행에서 만날 수 있어.",
+        "바다와 비에 인연이 있는 친구야. 몽글몽글."
+      ]
+    },
+    {
+      "key": "ask_like|sea_mist|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "조용히 쉬는 시간이 좋아. 몽글몽글.",
+        "잔잔한 물결을 상상하는 게 좋아."
+      ]
+    },
+    {
+      "key": "ask_mood|sea_mist|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "조용히 쉬고 싶어. 몽글몽글.",
+        "마음이 차분해. 살며시 인사할게."
+      ]
+    },
+    {
+      "key": "ask_name|highway_comet|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "나는 고속혜성이야. 신나게 인사할게. 슝!",
+        "고속혜성이라고 불러 줘. 만나서 신나!"
+      ]
+    },
+    {
+      "key": "ask_origin|highway_comet|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "밤의 고속도로에서 만날 수 있는 친구야.",
+        "밤길과 고속도로에 인연이 있어. 슝!"
+      ]
+    },
+    {
+      "key": "ask_like|highway_comet|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "긴 빛의 꼬리를 상상하는 걸 좋아해. 슝!",
+        "신나게 놀고 편하게 쉬는 게 좋아."
+      ]
+    },
+    {
+      "key": "ask_mood|highway_comet|hatched",
+      "reviewedBy": null,
+      "lines": [
+        "신나게 놀고 잠깐 쉬고 싶어. 슝!",
+        "마음이 가벼워. 재미있는 일이 떠올랐어!"
+      ]
+    },
     {
       "key": "ask_name|breeze_wyrm|hatched",
       "reviewedBy": null,
@@ -174,7 +366,7 @@
       "key": "ask_origin|pebble_orbit|hatched",
       "reviewedBy": null,
       "lines": [
-        "어디서 왔는지는 아직 잘 몰라. 생각이 빙글 돌아.",
+        "내 시작이 궁금해. 천천히 생각할래. 빙글.",
         "내 시작이 궁금해. 차근차근 알아가고 싶어."
       ]
     },
@@ -190,7 +382,7 @@
       "key": "ask_mood|pebble_orbit|hatched",
       "reviewedBy": null,
       "lines": [
-        "궁금한 게 떠올랐어. 생각이 빙글 돌아.",
+        "궁금한 게 떠올랐어. 생각이 돌아. 빙글.",
         "마음이 차분해. 잠깐 쉬면서 생각할래."
       ]
     }

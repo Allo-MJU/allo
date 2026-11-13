@@ -29,6 +29,7 @@ class GameController extends ChangeNotifier {
       FishingStore? fishingStore,
       this.baseCamp,
       this.eggApi,
+      this.demoSpeciesId,
       Random? affinityRandom})
       : engine = engine ?? const RarityEngine(),
         pairingStore = pairingStore ?? PairingStore(),
@@ -182,6 +183,10 @@ class GameController extends ChangeNotifier {
 
   /// Selected mode remains visible while awaiting the first vehicle sample.
   bool get usesAffinity => _affinityForCurrentEgg;
+
+  /// 시연용: 체험 주행(가짜 신호)에서 부화하는 종을 이 id 로 고정한다 (`--dart-define=DEMO_SPECIES=road_sprout`).
+  /// 실제 차량 연결(Firebase)에서는 무시하고 allo_core 판정대로 뽑는다
+  final String? demoSpeciesId;
   EggFeedback get eggFeedback => _eggFeedback;
   EggFeedback _eggFeedback = EggFeedback.none;
   bool get speechBusy => _speechBusy;
@@ -1317,7 +1322,9 @@ class GameController extends ChangeNotifier {
             _steerOffset + (v.harshSteer - _steerBaseline).clamp(0, 1 << 30),
         careCount: careCount,
         capabilities: v.capabilities);
-    final s = _table!.pick(r, seenTags);
+    final demo =
+        isFake && demoSpeciesId != null ? _table!.byId(demoSpeciesId!) : null;
+    final s = demo ?? _table!.pick(r, seenTags);
     hatched = s;
     game = game.copyWith(
         stage: Stage.hatched,

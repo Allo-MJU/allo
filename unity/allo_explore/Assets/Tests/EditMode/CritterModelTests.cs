@@ -74,6 +74,28 @@ public class CritterModelTests
     }
 
     [Test]
+    public void TapBoxHugsBodyAndTurnsWithIt()
+    {
+        var brain = Brain();
+        var v = View(brain, FakePrefab());
+        brain.GoTo(brain.Position + Vector3.right * 1.2f);
+        var mood = new Mood { moving = true };
+        for (var i = 0; i < 20; i++)
+        {
+            brain.Tick(0.05f, mood);
+            v.Pose(null, 0.05f);
+        }
+        Physics.SyncTransforms(); // 에디트 모드엔 물리 단계가 없어 상자 bounds 가 돌린 뒤에도 그대로라서
+        var col = v.GetComponentInChildren<BoxCollider>();
+        var f = new Vector2(0.2f, 0.3f) * (CritterView.Height / 0.3f); // 프리팹 키 0.3 → Height
+        var b = col.bounds;
+        // 오른쪽(+x)으로 걷는 중: 앞뒤 긴 변이 x 를 따라 눕고, 가로는 몸 폭 + 여유만
+        Assert.AreEqual(f.y * CritterView.HitMargin, b.size.x, 0.02f);
+        Assert.AreEqual(f.x * CritterView.HitMargin, b.size.z, 0.02f);
+        Assert.AreEqual(1, v.GetComponentsInChildren<Collider>().Length);
+    }
+
+    [Test]
     public void NoModelKeepsPicture()
     {
         var v = View(Brain(), null);

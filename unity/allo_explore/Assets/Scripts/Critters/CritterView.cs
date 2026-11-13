@@ -23,15 +23,39 @@ namespace Allo.Critters
         CritterArt _art;
         ArtPose _shown = (ArtPose)(-1);
         CharacterModel _model; // 있으면 3D, 없으면 2D 그림
+        Transform _hit;        // 3D 탭 상자 (몸 방향·높이를 따라간다)
+
+        /// 3D 탭 상자를 몸보다 이만큼 크게 (손가락 여유)
+        public const float HitMargin = 1.15f;
         float _yaw;            // 3D 모델이 보는 방향 (도)
+        WalkGraph _graph;      // 서 있는 면의 크기를 보려고 (창턱처럼 좁은 면)
+        float _ledge;          // 창턱에서 차 안쪽으로 당긴 거리 (m, 부드럽게 바뀐다)
+
+        /// 창턱(좁은 면)에 앉은 2D 그림의 바깥쪽 가장자리를 창턱 안쪽 가장자리에서 이만큼(m) 바깥에 둔다.
+        /// 그림 가운데를 창턱 위에 두면 절반이 문·유리 속으로 들어가 발과 잎이 잘려 보인다
+        public const float LedgeOverhang = 0.01f;
+
+        /// 2D 그림을 면에 이만큼(m) 묻는다. 그림 맨 아래의 바닥 자국을 면이 가려 주고 발이 쿠션에 살짝 눌린 것처럼 보인다.
+        /// 발 사이로 보이는 밝은 배 밑은 셰이더가 바닥 그늘(_GroundShade)로 어둡게 한다
+        public const float Sink = 0.016f;
+
+        /// 카메라가 내려다보는 각도의 이만큼을 그림 기울기로 쓴다 (1 = 완전히 카메라를 향함, 0 = 똑바로 섬)
+        public const float LeanRatio = 0.8f;
 
         public bool Is3D => _model != null;
+
+        /// 3D 모델이 보는 방향 (도, y 축). 2D 그림이면 의미 없음
+        public float Yaw => _yaw;
+
+        /// 발밑 가로(x)·앞뒤(y) 크기 (m). 3D 는 모델 크기, 2D 는 키만 한 정사각형
+        public Vector2 Footprint => _model != null ? _model.footprint * _model.Scale : new Vector2(Height, Height);
 
         public string Id { get; private set; }
         public CritterBrain Brain => _brain;
 
-        public void Init(string id, CritterBrain brain, CritterArt art, Material baseMat, Material shadowMat, GameObject model = null)
+        public void Init(string id, CritterBrain brain, CritterArt art, Material baseMat, Material shadowMat, GameObject model = null, WalkGraph graph = null)
         {
+            _graph = graph;
             Id = id;
             _brain = brain;
             if (model != null)
@@ -62,13 +86,21 @@ namespace Allo.Critters
             _shadow.GetComponent<Renderer>().sharedMaterial = shadowMat;
             _last = brain.Position;
             // 탭으로 고를 수 있게 몸 크기만 한 상자
-            var col = _col = gameObject.AddComponent<BoxCollider>();
-            col.center = Vector3.up * Height * 0.5f;
-            col.size = Vector3.one * Height * 1.3f;
             if (_model != null)
             {
+                // 3D: 몸과 같이 돌고 뜨는 상자. 몸(가로×앞뒤)에 손가락 여유만 조금 (예전엔 긴 변 기준 정사각형이라 옆으로 두 배 넓었다)
+                _hit = new GameObject("Hit").transform;
+                _hit.SetParent(transform, false);
+                var col = _col = _hit.gameObject.AddComponent<BoxCollider>();
                 var f = _model.footprint * _model.Scale;
-                col.size = new Vector3(Mathf.Max(f.x, f.y), Height, Mathf.Max(f.x, f.y)) * 1.2f;
+                col.size = new Vector3(f.x * HitMargin, Height, f.y * HitMargin);
+                col.center = Vector3.up * Height * 0.5f;
+            }
+            else
+            {
+                var col = _col = gameObject.AddComponent<BoxCollider>();
+                col.center = Vector3.up * Height * 0.5f;
+                col.size = Vector3.one * Height * 1.3f;
             }
             _yaw = Random.Range(0f, 360f);
         }
@@ -92,6 +124,26 @@ namespace Allo.Critters
 
         /// 잠깐 기뻐하는 얼굴 (탭·먹이)
         public void Cheer(float seconds = 1.4f) => _cheer = Mathf.Max(_cheer, seconds);
+
+        float _born, _bornTotal;
+
+        /// 알에서 막 나왔다: seconds 동안 작게 웅크렸다가 폴짝 튀어나오며 커진다 (조금 넘쳤다가 제 크기로)
+        public void Born(float seconds)
+        {
+            _born = _bornTotal = Mathf.Max(0.2f, seconds);
+        }
+
+        /// 태어나는 동안의 크기 배율과 솟는 높이. 끝나면 (1, 0)
+        (float scale, float lift) BornPose()
+        {
+            if (_born <= 0) return (1, 0);
+            var k = 1 - _born / _bornTotal;
+            float sc;
+            if (k < 0.55f) { var e = k / 0.55f; sc = Mathf.Lerp(0.08f, 1.22f, e * e * (3 - 2 * e)); }
+            else { var e = (k - 0.55f) / 0.45f; sc = Mathf.Lerp(1.22f, 1f, e) + Mathf.Sin(e * Mathf.PI * 2) * 0.06f * (1 - e); }
+            var lift = Mathf.Sin(Mathf.Clamp01(k / 0.7f) * Mathf.PI) * 0.14f;
+            return (sc, lift);
+        }
 
         public ArtPose Shown => _shown;
 
@@ -124,6 +176,8 @@ namespace Allo.Critters
             if (_brain == null) return;
             _t += dt;
             _cheer -= dt;
+            if (_born > 0) _born -= dt;
+            var (bornScale, bornLift) = BornPose();
             Show(PoseFor(_brain.State));
             var p = _brain.Position;
             var lift = 0f;
@@ -160,6 +214,8 @@ namespace Allo.Critters
                     break;
             }
             var move = p - _last;
+            lift += bornLift;
+            sx *= bornScale; sy *= bornScale;
             if (_model != null)
             {
                 Pose3D(cam, dt, p, move, lift, sx, sy, roll);
@@ -172,22 +228,54 @@ namespace Allo.Critters
             }
             _last = p;
             transform.position = p;
-            _body.position = p + Vector3.up * (lift + Height * sy / 2);
+            var sink = Sink * Mathf.Clamp01(1 - lift / 0.05f);
+            var feet = p + Vector3.up * lift; // 그림의 아래 가장자리가 놓이는 점
+            // 창턱처럼 몸보다 좁은 면에 앉으면 그림을 차 안쪽(x=0 쪽)으로 당겨 문·유리 앞에 둔다
+            var aspectNow = _art?.Aspect ?? 1;
+            var ledgeWant = 0f;
+            if (_graph != null && _brain.Surface < _graph.Surfaces.Count)
+            {
+                var s = _graph.Surfaces[_brain.Surface];
+                if (s.size.x < WalkGraph.NarrowSurface && Mathf.Abs(s.center.x) > 0.2f)
+                {
+                    var half = Height * aspectNow * Mathf.Abs(sx) * 0.5f;
+                    var inner = Mathf.Abs(s.center.x) - s.size.x / 2; // 창턱 안쪽 가장자리 (|x|)
+                    ledgeWant = Mathf.Max(0, Mathf.Abs(p.x) - (inner + LedgeOverhang - half));
+                }
+            }
+            _ledge = Mathf.MoveTowards(_ledge, ledgeWant, dt * 0.8f);
+            if (_ledge > 0) feet -= new Vector3(Mathf.Sign(p.x) * _ledge, 0, 0);
             // 납작한 그림이 뒤쪽 의자·머리받침에 파묻히지 않게 카메라 쪽으로 몸 반 너비만큼 당긴다.
             // 아이 바로 옆 자리처럼 이미 가까우면 더 크게 보이기만 하므로 눈에서 NearLimit 안으로는 당기지 않는다
+            // 당기는 건 카메라가 뒤(차 뒤쪽, -z)에 있을 때만: 아이 옆자리처럼 카메라가 옆에 있으면 당기다 팔걸이·문에 파묻힌다
             if (cam != null)
             {
-                var toCam = cam.transform.position - _body.position;
+                var toCam = cam.transform.position - (feet + Vector3.up * (Height * sy / 2));
                 toCam.y = 0;
-                var pull = Mathf.Clamp(toCam.magnitude - NearLimit, 0, Height * 0.5f);
-                if (toCam.sqrMagnitude > 1e-6f) _body.position += toCam.normalized * pull;
+                if (toCam.sqrMagnitude > 1e-6f)
+                {
+                    var dir = toCam.normalized;
+                    var fromBehind = Mathf.Clamp01(-dir.z);
+                    var pull = Mathf.Clamp(toCam.magnitude - NearLimit, 0, Height * 0.5f) * fromBehind;
+                    feet += dir * pull;
+                }
             }
+            // 카메라를 보되, 위에서 내려다볼 때는 발을 축으로 뒤로 눕혀 세로가 눌려 보이지 않게 (기울기의 LeanRatio 만큼).
+            // 똑바로 세워 두면 아이 눈(시트보다 45cm 위)에서 30~45도로 내려다봐 그림이 찌부러져 보인다
+            var rot = Quaternion.Euler(0, 0, roll);
             if (cam != null)
             {
-                var fwd = _body.position - cam.transform.position;
-                fwd.y = 0;
-                if (fwd.sqrMagnitude > 1e-6f) _body.rotation = Quaternion.LookRotation(fwd) * Quaternion.Euler(0, 0, roll);
+                var toBody = feet + Vector3.up * (Height * sy / 2) - cam.transform.position;
+                var flat = new Vector3(toBody.x, 0, toBody.z);
+                if (flat.sqrMagnitude > 1e-6f)
+                {
+                    var pitch = Mathf.Atan2(-toBody.y, flat.magnitude) * Mathf.Rad2Deg; // 카메라가 위에 있으면 +
+                    var lean = Mathf.Clamp(pitch, -15f, 65f) * LeanRatio;
+                    rot = Quaternion.LookRotation(flat) * Quaternion.Euler(lean, 0, roll);
+                }
             }
+            _body.rotation = rot;
+            _body.position = feet + rot * Vector3.up * (Height * sy / 2 - sink);
             // 그림이 왼쪽을 보면 오른쪽으로 갈 때 뒤집는다 (Allo/Sprite 는 뒷면도 그린다)
             var aspect = _art?.Aspect ?? 1;
             var flip = _art != null && _art.FacesLeft ? -_facing : _facing;
@@ -248,6 +336,11 @@ namespace Allo.Critters
             _body.position = p + Vector3.up * (lift + Height * sy / 2);
             _body.rotation = Quaternion.Euler(0, _yaw, 0) * Quaternion.Euler(pitch, 0, bank);
             _body.localScale = new Vector3(sx, sy, sx);
+            if (_hit != null)
+            {
+                _hit.localPosition = Vector3.up * lift;
+                _hit.localRotation = Quaternion.Euler(0, _yaw, 0);
+            }
             var f = _model.footprint * _model.Scale;
             var shrink = 1 - Mathf.Clamp01(lift / 0.4f) * 0.5f;
             _shadow.position = p + Vector3.up * 0.003f;
