@@ -4,7 +4,8 @@ import ai.allo.car.R
 import ai.allo.car.dialogue.PlazaDialogue
 import ai.allo.car.model.GameState
 import ai.allo.car.model.PlazaPopulation
-import ai.allo.car.voice.DialogueVoice
+import ai.allo.car.voice.plazaRecordedVoice
+import ai.allo.car.voice.PlazaRecordings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -58,7 +59,7 @@ internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride
     var line by remember(residents, page, connected) { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val voice = remember(context, lifecycleOwner) { DialogueVoice(context) }
+    val voice = remember(context, lifecycleOwner) { plazaRecordedVoice(context) }
     val speech by voice.state.collectAsState()
     val latestResidents by rememberUpdatedState(visible)
     val latestConnected by rememberUpdatedState(connected)
@@ -138,7 +139,7 @@ internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride
                                 if (latestConnected && id in latestResidents) {
                                     selected = id
                                     line = dialogue.next(id)
-                                    line?.let { voice.replace(it) }
+                                    line?.let { voice.replace(PlazaRecordings.request(id, it)) }
                                 }
                             }, enabled = connected, color = Color.Transparent, shape = RoundedCornerShape(24.dp),
                                 modifier = Modifier.size(petSize).semantics { contentDescription = "${species.name}에게 말 걸기" }) {
@@ -169,7 +170,7 @@ internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride
                             Column(Modifier.offset(bubbleX, (y - bubbleHeight + 12.dp).coerceAtLeast(8.dp))
                                 .width(bubbleWidth).zIndex(20f)
                                 .onSizeChanged { bubbleHeight = with(density) { it.height.toDp() } }) {
-                                Surface(onClick = { line?.let { voice.speak(it) } },
+                                Surface(onClick = { line?.let { voice.speak(PlazaRecordings.request(selected.orEmpty(), it)) } },
                                     enabled = connected && line != null && speech.ready,
                                     color = paper, contentColor = ink, border = BorderStroke(2.dp, ink),
                                     shape = RoundedCornerShape(42.dp), shadowElevation = 3.dp,
