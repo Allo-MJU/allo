@@ -47,6 +47,13 @@ namespace Allo.CameraRig
 
         void Update()
         {
+            if (Allo.App.AppSession.StoryActive || Allo.App.StoryOverlay.CapturingInput)
+            {
+                _velocity = Vector2.zero;
+                _lastPinch = null;
+                _uiTouch = false;
+                return;
+            }
             var degPerPixel = 180f / Mathf.Max(1, Screen.width);
             var dragging = false;
             if (Input.touchCount == 1 && Input.GetTouch(0).phase == TouchPhase.Began)

@@ -10,6 +10,9 @@ namespace Allo.App
     public sealed partial class AppUi : MonoBehaviour
     {
         RectTransform _safe, _content;
+        StoryOverlay _storyOverlay;
+        bool _lastStoryUiBlocked;
+        public bool StoryUiBlocked => View == "cabin" && (_speechDrawer || _zoneDrawer || _confirmAction != null);
         Text _title, _connection, _status;
         Image _statusSurface;
         Font _font;
@@ -35,6 +38,9 @@ namespace Allo.App
             if (_font == null) _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             _round = RoundedSprite();
             BuildChrome();
+            _storyOverlay = gameObject.AddComponent<StoryOverlay>();
+            _storyOverlay.Initialize(_safe, _font, _round);
+            _storyOverlay.LayoutChanged += () => _dirty = true;
         }
 
         void OnEnable()
@@ -53,6 +59,13 @@ namespace Allo.App
         void LateUpdate()
         {
             ApplySafeArea();
+            if (_storyOverlay != null) _storyOverlay.Apply(_state, StoryUiBlocked);
+            var storyBlocked = StoryUiBlocked;
+            if (storyBlocked != _lastStoryUiBlocked)
+            {
+                _lastStoryUiBlocked = storyBlocked;
+                AppSession.Request("storyUiBlocked", new AppAction { blocked = storyBlocked });
+            }
             UpdateVillageGeometry();
             foreach (var check in _liveChecks) check();
             if (!_dirty || _safe == null) return;
