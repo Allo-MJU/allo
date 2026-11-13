@@ -129,8 +129,17 @@
 
 ## 검증
 
-- Unity EditMode155개 통과: 정확한 대사 일치/불일치 차단,102매핑의 AudioClip 로드,차량 revision 변경 시 반복 방지,새 단계·세션·중단 후 재개 확인.
+- Unity EditMode157개 통과: 정확한 대사 일치/불일치 차단,102매핑의 AudioClip 로드,차량 revision 변경 시 반복 방지,새 단계·세션·중단 후 재개 확인.
 - 102개 매핑의 현행 JSON 원문 일치와78개 WAV 원본 바이트 일치 확인.
 - Unity Android export 성공. Android APK 빌드 결과는 아래에 기록한다.
-- 연결된 Android 기기가 없어 이번 변경의 실제 출력 녹음·청취 및 기기 중단/재개 검증은 미실시.
+- 후속 수정에서 Android 에뮬레이터 출력 캡처를 확인했다. 모든 대사의 청취 품질 및 실기 중단/재개 검증은 미실시.
 - Android arm64 debug APK 빌드 성공 (FEED=fake / UNITY_APP=true / UNITY_DEMO_CREATURES=true).
+
+## 무음 및 화자 표시 후속 수정 (2026-11-14)
+
+- 원인: Explore 씬과 씬 생성기에 AudioListener가 없어 AudioClip을 로드해도 출력되지 않았다. Main Camera에 활성 리스너 1개를 추가하고 생성기에도 반영했다.
+- 회귀 검증: 수정 전 리스너 검사 실패(0개), 수정 후 Unity EditMode 157개 통과. Unity Android export 및 arm64 debug APK 빌드 성공.
+- Android 에뮬레이터에서 별부엉이 `night_stars/choose`, `react_a` 진행 출력 캡처 확인. `react_a` 원본과 20ms RMS 포락선 상관계수 0.958, 시작 지연 0.66초. PCM 출력 확인이며 발음·음색의 전수 청취 검수는 아니다.
+- 화면 화자는 동행 캐릭터 대신 이야기 카탈로그의 음성 화자를 사용한다. 길싹이·웅덩이삐약·고속혜성은 본인 초상과 연결한다.
+- 물결지기·산정령·다리뛰기·터널나방·별부엉이는 현재 초상 리소스가 없어 이름만 표시한다. 다른 종의 이미지를 대신 사용하지 않는다. 에뮬레이터에서 별부엉이 이름 표시 확인.
+- 결말 2개의 대사 불일치 및 나머지 공통 안내 제외 범위는 그대로 유지한다. Pleos 광장 전수 출력·실기 청취는 미검증이다.

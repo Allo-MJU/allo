@@ -174,18 +174,28 @@ namespace Allo.App
         void UpdateGuide()
         {
             var narration = _voice.Narrator(_state?.story);
-            var companion=FlutterBridge.LastCast?.companion;
-            var path=companion?.sprite;
-            if(string.IsNullOrEmpty(path)) path="species/road_sprout.png";
-            _guideText.text=narration != null ? "이야기 목소리 · " + NarratorName(narration) : companion == null ? "길싹이 · 이야기 안내" : "동행 친구 · 함께 발견하기";
+            var path = NarratorPortrait(narration);
+            _guideText.text = narration != null ? NarratorName(narration) + " · 이야기 안내" : "이야기 안내";
             if(path==_portraitPath || !Application.isPlaying) return;
-            _portraitPath=path; _guide.color=Color.clear;
+            _portraitPath=path; _guide.color=Color.clear; _guide.texture=null;
+            if (string.IsNullOrEmpty(path)) return;
             StartCoroutine(SpriteLoader.Load(path, art=>
             {
                 if(_guide==null || _portraitPath!=path) return;
                 _guide.texture=art[ArtPose.Idle];_guide.color=Color.white;
                 _guide.GetComponent<AspectRatioFitter>().aspectRatio=art.Aspect;
             }));
+        }
+
+        public static string NarratorPortrait(string species)
+        {
+            // Only use this narrator's own bundled artwork; never substitute a companion.
+            switch (species)
+            {
+                case "road_sprout": case "puddle_pip": case "highway_comet":
+                    return "species/" + species + ".png";
+                default: return null;
+            }
         }
 
         static string NarratorName(string species)
