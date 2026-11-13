@@ -658,3 +658,26 @@ scripts/import_characters.sh
 
 미리보기: `blender_road_sprout_three.png` (정리 후). 에뮬레이터 캡처(`emu_3d_*`)는 색 텍스처 전 단색 모델로 찍은 것이다 (같은 프리팹 경로, 색만 다름).
 테스트: Unity EditMode 127개 통과.
+
+## 탐험 화면 — 소품 3D 모델(Tripo) 10종 (2026-11-13, A)
+
+Unity 6000.0.85f2, Blender 5.2.3, 휴대폰 에뮬레이터(Medium Phone API 37, `-gpu host`), release,
+`UNITY_APP=false FEED=fake SCENARIO=scene_tour EXPLORE_UNITY=true FAKE_TIME_SCALE=2 DEMO_SPECIES=road_sprout`.
+
+**결론: 알·둥지·담요·옆자리 인형·쿠션·공·간식 4종이 도형 대신 3D 모델로 나온다.** 부화(윗껍데기가 날아감)·공·간식까지 기기에서 확인.
+
+| 항목 | 결과 |
+| --- | --- |
+| 받은 모델 | Tripo HD, 부분별 생성 끔, 글 프롬프트. 10개 모두 색 텍스처 있음, 한 덩어리, 뼈대 없음. **모델마다 삼각형 약 190만~200만 개** → 소품마다 1,500~3,000 개로 줄임(알 3,000개에서도 텍스처·지그재그 금 유지). 공은 1차가 혹이 붙어 나와 다시 받음 |
+| 정리 `scripts/prepare_props.sh` | zip(`~/Downloads/{ID}.zip`) → `character.py`(`--size` 실제 m, `--max-tris`, `--tex`, `--yaw`). 크기는 기존 도형 기준: 알 키 0.125m, 둥지 0.17×0.06m(Unity 1.3배), 인형 키 0.30m, 쿠션 폭 0.30m(세움), 담요 0.34×0.27×0.10m, 공 0.08m, 사과 0.075m, 조개 폭 0.075m, 도토리 0.08m, 붕어빵 0.11m |
+| 알 자르기 `tools/blender/egg.py` | 키의 70% 에서 9갈래 지그재그(±4%)로 Boolean: 윗껍데기 높이 3.9cm(원점 = 금 높이), 아래 껍데기 8.9cm. 잘린 면은 크림색 속껍질 (`unity_props_egg_*.png`) |
+| 가져오기 `scripts/import_props.sh` → `PropImport` | `Resources/Props/P_{ID}.prefab`, 크기 FBX 그대로(m) — Unity 로그 크기가 Blender 값과 같음. 재질은 캐릭터와 같은 Toon(양면) |
+| `Toys.Make` | 프리팹이 있으면 도형 대신 모델. 동행에게 건네는 작은 인형(0.13m)·쿠션(0.16m)만 따로 줄임, 담요는 도형 돔처럼 뒤로 3.4cm 물림. 없는 소품(컵·하늘 손님 등)은 도형 그대로 |
+| 차 안 인형·쿠션 | 장면 빌드(`AlloBuild.SwapCabinProp`)가 `Cabin.glb` 의 도형을 숨기고 모델을 세워 아이 쪽을 보게. 이름이 `Plush…`/`Cushion…` 이라 탭·흔들림 그대로. 쿠션은 눕힌 상자 → 왼쪽 자리 문 쪽·등받이 구석에 세움(인형과 마주 봄), `Walk_RearSeat_L` 을 쿠션 앞까지로 줄임 (`cabin.py`, `unity_props_seat_*.png`) |
+| 에뮬레이터 | 둥지 위 알(`emu_props_egg.png`) → 2분 24초 뒤 부화, 윗껍데기 날아가고 길싹이 등장(`emu_props_hatch.png`) → 공 던지기·받기(`emu_props_ball.png`) → 사과 들기·던지기·먹기(`emu_props_apple.png`) |
+| 성능 | fps 26~45. 녹화가 끝나는 순간 15초 멈춤이 한 번 있었는데, 끝난 시각이 화면 녹화의 가상 디스플레이 해제 시각과 같아(14:49:10.54 / 10.68) 녹화 종료 처리로 본다(추정). 녹화 뒤에는 25~40fps |
+
+알아 둘 것: Tripo 텍스처는 채도가 높다(인형 주황, 쿠션 민트). Blender 미리보기는 색을 약하게 보여 줘서 Unity 에서 더 진해 보인다.
+놀이 물건 6종(흔들 인형·장난감 차·오르골·그림책·휴지 상자·비눗방울 병)은 움직이는 부품이 있어 다음 작업.
+
+테스트: Unity EditMode 132개 통과 (+4 `PropModelTests`).

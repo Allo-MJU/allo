@@ -266,8 +266,9 @@ def mirror_and_lights():
 
 def props():
     """뒷좌석 위 장난감들. 캐릭터가 밀거나 올라갈 수 있다."""
-    kit.rounded_box("Cushion", (0.3, 0.22, 0.09), (0.42, 0.24, 0.49), P.CUSHION,
-                    bevel=0.04, rotation=(0, 0, 12))
+    # 쿠션은 왼쪽 자리 문 쪽·등받이 구석에 세워 둔다 (인형과 마주 보는 자리, 캐릭터가 걷는 자리와 겹치지 않게)
+    kit.rounded_box("Cushion", (0.28, 0.1, 0.26), (0.52, 0.38, 0.575), P.CUSHION,
+                    bevel=0.04, rotation=(0, 0, 0))
     # 인형은 오른쪽 자리의 문 쪽·등받이 구석에 둔다 (캐릭터가 걷는 자리와 겹치지 않게)
     PX, PY = -0.55, 0.36
     body = kit.sphere("Plush", 0.09, (PX, PY, 0.53), P.PLUSH, scale=(1, 0.9, 1.05))
@@ -337,7 +338,7 @@ def walk_surfaces():
     w = kit.plane
     c = P.WALK
     # 뒷좌석은 팔걸이 양옆 두 칸 (팔걸이 아래로 파고들지 않게)
-    w("Walk_RearSeat_L", (0.48, 0.4), (0.39, 0.22, 0.445), c)
+    w("Walk_RearSeat_L", (0.48, 0.3), (0.39, 0.17, 0.445), c)  # 등받이 구석의 쿠션 앞까지
     # 오른쪽 자리는 구석의 인형 앞쪽만 (인형을 뚫고 지나가지 않게)
     w("Walk_RearSeat_R", (0.36, 0.3), (-0.33, 0.17, 0.445), c)
     w("Walk_Armrest", (0.2, 0.38), (0, 0.24, 0.556), c)

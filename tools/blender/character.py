@@ -16,6 +16,7 @@
 선택:
   --yaw 도        Z 축으로 돌린다 (모델 앞이 -Y 가 아닐 때)
   --max-tris N    전체 삼각형이 N 보다 많으면 부품마다 같은 비율로 데시메이트
+  --size X,Y,Z    실제 크기(m)로 맞춘다: 가로, 앞뒤, 키. 0 은 나머지 축과 같은 비율 (예: 0,0,0.125 = 키 0.125m, 비율 유지)
   --tex N         텍스처 한 변 최대 픽셀 (기본 1024)
   --gap M         이 거리(m, 원본 크기 기준)보다 먼 틈은 메우지 않는다 (기본 0.015)
 """
@@ -71,6 +72,24 @@ def load(path):
     for o in meshes():
         o.data.transform(o.matrix_world)
         o.matrix_world = Matrix.Identity(4)
+
+
+def resize(spec):
+    """--size X,Y,Z (m). 0 인 축은 0 이 아닌 축들의 평균 배율을 쓴다. 발바닥 원점은 그대로"""
+    if not spec:
+        return
+    want = [float(v) for v in spec.split(",")]
+    lo, hi = bounds(meshes())
+    have = hi - lo
+    ks = [w / h for w, h in zip(want, have) if w > 0]
+    if not ks:
+        return
+    k = sum(ks) / len(ks)
+    sc = [w / h if w > 0 else k for w, h in zip(want, have)]
+    m = Matrix.Diagonal((*sc, 1))
+    for o in meshes():
+        o.data.transform(m)
+        o.data.update()
 
 
 def place(yaw):
@@ -145,14 +164,16 @@ def fix_materials(out_dir, tex_size, fallback):
         bsdf = next((n for n in nt.nodes if n.bl_idname == "ShaderNodeBsdfPrincipled"), None)
         if bsdf is None:
             continue
-        color_img = None
+        # Base Color 에 꽂힌 그림을 우선, 없으면 노멀맵이 아닌 첫 그림. 나머지(노멀·metallic·roughness)는 버린다
+        color_img = next((l.from_node for l in nt.links if l.to_socket == bsdf.inputs["Base Color"]
+                          and l.from_node.bl_idname == "ShaderNodeTexImage" and l.from_node.image is not None), None)
         for n in list(nt.nodes):
-            if n.bl_idname != "ShaderNodeTexImage" or n.image is None:
+            if n.bl_idname != "ShaderNodeTexImage" or n.image is None or n == color_img:
                 continue
-            if is_normal_map(n.image):
-                nt.nodes.remove(n)
-            elif color_img is None:
+            if color_img is None and not is_normal_map(n.image):
                 color_img = n
+            else:
+                nt.nodes.remove(n)
         for n in list(nt.nodes):
             if n.bl_idname == "ShaderNodeNormalMap":
                 nt.nodes.remove(n)
@@ -187,6 +208,11 @@ def decimate(max_tris):
         mod.use_collapse_triangulate = True
         bpy.context.view_layer.objects.active = o
         bpy.ops.object.modifier_apply(modifier=mod.name)
+        # 크게 줄이면 면이 각져 보인다: 부드러운 음영 (30도 넘는 모서리는 각을 살린다)
+        for p in o.data.polygons:
+            p.use_smooth = True
+        if hasattr(o.data, "set_sharp_from_angle"):
+            o.data.set_sharp_from_angle(angle=math.radians(30))
     return sum(tris(o) for o in meshes())
 
 
@@ -225,6 +251,7 @@ def main():
     moved, left = close_gaps(arg(argv, "--gap", 0.015, float))
     print(f"[character] 틈 메우기: 버텍스 {moved}개 이동, 메우지 않은 가장 큰 틈 {left * 1000:.1f}mm")
     after = decimate(arg(argv, "--max-tris", 0, int))
+    resize(arg(argv, "--size"))
     out = arg(argv, "--out")
     if out:
         out = os.path.abspath(os.path.expanduser(out))

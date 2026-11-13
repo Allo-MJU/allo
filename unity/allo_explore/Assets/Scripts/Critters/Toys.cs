@@ -34,9 +34,41 @@ namespace Allo.Critters
 
         public static bool IsSnack(Kind k) => k is Kind.Apple or Kind.Shell or Kind.Acorn or Kind.FishBun;
 
+        /// 3D 모델 프리팹 ID (Resources/Props/P_{ID}, scripts/import_props.sh). 프리팹이 있으면 도형 대신 쓴다
+        static readonly System.Collections.Generic.Dictionary<Kind, string> PropIds = new()
+        {
+            [Kind.Apple] = "apple", [Kind.Shell] = "shell", [Kind.Acorn] = "acorn", [Kind.FishBun] = "fishbun",
+            [Kind.Ball] = "ball", [Kind.Plush] = "plush", [Kind.Cushion] = "cushion", [Kind.Blanket] = "blanket",
+            [Kind.Egg] = "egg", [Kind.EggTop] = "egg_top", [Kind.EggBottom] = "egg_bottom", [Kind.Nest] = "nest",
+        };
+
+        /// 프리팹 크기와 다르게 쓰는 것: 동행에게 건네는 작은 인형·쿠션 (프리팹은 차 안 옆자리 크기)
+        static readonly System.Collections.Generic.Dictionary<Kind, float> PropHeight = new()
+        {
+            [Kind.Plush] = 0.13f, [Kind.Cushion] = 0.16f,
+        };
+
+        public static GameObject PropModel(string id) => string.IsNullOrEmpty(id) ? null : Resources.Load<GameObject>("Props/P_" + id);
+
+        public static GameObject PropModel(Kind k) => PropIds.TryGetValue(k, out var id) ? PropModel(id) : null;
+
         public static Transform Make(Kind k)
         {
             var root = new GameObject("Toy_" + k).transform;
+            var prefab = PropModel(k);
+            if (prefab != null)
+            {
+                var m = Object.Instantiate(prefab, root, false).transform;
+                m.name = "Model";
+                if (PropHeight.TryGetValue(k, out var h))
+                {
+                    var b = BoundsOf(m);
+                    m.localScale = Vector3.one * (h / Mathf.Max(0.001f, b.size.y));
+                }
+                // 담요: 도형 돔처럼 뒤(-z)로 조금 물려 얼굴 쪽을 남긴다
+                if (k == Kind.Blanket) m.localPosition = new Vector3(0, 0, -CritterView.Height * 0.12f);
+                return root;
+            }
             switch (k)
             {
                 case Kind.Apple:
@@ -354,6 +386,16 @@ namespace Allo.Critters
             r.sharedMaterial = ToonFor(color);
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             return go.transform;
+        }
+
+        /// t 아래 렌더러를 모두 감싸는 상자 (월드)
+        public static Bounds BoundsOf(Transform t)
+        {
+            var rs = t.GetComponentsInChildren<Renderer>();
+            if (rs.Length == 0) return new Bounds(t.position, Vector3.zero);
+            var b = rs[0].bounds;
+            foreach (var r in rs) b.Encapsulate(r.bounds);
+            return b;
         }
 
         static void Kill(Object o)
