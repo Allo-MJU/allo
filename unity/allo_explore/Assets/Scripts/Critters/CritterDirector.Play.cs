@@ -380,6 +380,14 @@ namespace Allo.Critters
             _blanket.SetParent(v.transform, false);
             _blanket.localPosition = Vector3.zero; // 발 자리에 돔을 씌운다 (그림 아래 절반을 가려 머리만 내놓는다)
             _blanket.rotation = Quaternion.LookRotation(Flat(Cam.transform.position - v.transform.position).normalized); // 접힌 윗단이 카메라 쪽
+            if (v.Is3D)
+            {
+                // 3D 몸은 그림보다 길고 높다: 돔을 몸이 보는 쪽으로 돌려 몸 크기에 맞추고 키 절반까지 올려 머리만 내놓는다
+                var f = v.Footprint;
+                var H = CritterView.Height;
+                _blanket.rotation = Quaternion.Euler(0, v.Yaw, 0);
+                _blanket.localScale = new Vector3(f.x * 1.3f / (1.2f * H), 1.7f, f.y * 0.8f / (0.95f * H));
+            }
             _blanketOn = v;
             v.Brain.StayAsleep = true;
             Fx.Burst(v.Top, Fx.Heart, critterMaterial, 3, 0.05f);

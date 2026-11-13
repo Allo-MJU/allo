@@ -623,3 +623,35 @@ Unity 차 안만. 뒤로 가면 광장 같은 곳으로 가서 화면마다 오�
 추가(2026-11-13): 시트 위에서 그림이 찌부해 보임(팀장) → 아이 눈이 시트보다 45cm 위라 30~45도로 내려다봐 수직 그림의 세로가 눌려 보이던 것.
 그림을 발을 축으로 카메라 쪽으로 눕힘(내려다보는 각도의 80%, `CritterView.LeanRatio`). 묻기·창턱 당김·카메라 쪽 당김은 발 자리 기준으로 다시 계산.
 에디터 캡처 `unity_seat_idle_bubble.png` 에서 몸이 또렷이 서 보임. 근본 해결은 길싹이 3D 모델(Tripo) — 엔진은 `Resources/Characters/C_road_sprout.prefab` 만 있으면 자동으로 3D 사용.
+
+## 탐험 화면 — 길싹이 3D 모델(Tripo) 차 안에 넣기 (2026-11-13, A) — #115
+
+Unity 6000.0.85f2, Blender 5.2.3, 휴대폰 에뮬레이터(Medium Phone API 37, `-gpu host`), release,
+`UNITY_APP=false FEED=fake SCENARIO=scene_tour EXPLORE_UNITY=true FAKE_TIME_SCALE=2 DEMO_SPECIES=road_sprout`.
+
+**결론: 형태·방향·배치·행동은 3D 로 문제없이 돈다. 다만 받은 FBX 에 색이 없어 아직 넣지 않았다** (프리팹을 커밋하면 시연 종이 단색 초록 3D 로 바뀐다).
+Tripo 에서 Base Color 텍스처를 포함해 다시 내보내면 아래 명령 두 줄로 다시 만든다.
+
+```bash
+blender -b -P tools/blender/character.py -- --in <받은 FBX> --out ~/Downloads/allo_3d/road_sprout/road_sprout.fbx
+scripts/import_characters.sh
+```
+
+| 항목 | 결과 |
+| --- | --- |
+| 텍스처 | ❌ `.fbm` 21장은 전부 노멀맵(평균색이 보라·파랑, 2048px). 재질도 `Normal Map` 노드에만 연결. Base Color 텍스처·버텍스 컬러 없음 → **Tripo 에서 색 텍스처를 포함해 다시 내보내야 함** |
+| 원본 형태 | 부품 21, 삼각형 20,531, 0.59×0.98×0.66m, 발바닥 z=0, 얼굴 -Y. 부품마다 열린 껍질(경계 모서리 12~211개) — 머리·다리는 꽂히는 자리에 구멍, 몸통·잎·눈은 한 겹 판 |
+| Blender 정리 `tools/blender/character.py` | ✅ 부품 유지, 발바닥 가운데 원점, 앞 -Y(→ Unity +Z), 틈 메우기(경계 버텍스 1,057개를 이웃 부품 표면 0.5mm 안으로, 이동 전 틈 중앙값 약 1mm·최대 13mm → 15mm 넘는 틈 없음), 노멀맵 제거, 색 텍스처는 1024px 로 줄여 PNG. 색이 없으면 경고 + 단색 |
+| 가져오기 | ✅ `C_road_sprout.prefab` 0.25×0.28×0.42m(가로×키×앞뒤). 키 `Tuning` 0.28m. 열린 껍질이라 캐릭터 재질은 양면(`_Cull` Off) |
+| 방향 | ✅ 서 있을 땐 아이 쪽을 보고, 걸을 땐 가는 쪽(꼬리가 보임), 창턱에선 창 쪽 |
+| 부화 (`CritterView.Born` 3D 경로) | ✅ 에뮬레이터: 둥지에서 작게 나와 커짐 + 첫마디 (`emu_3d_hatch.png`) |
+| 공 받기 | ✅ 에뮬레이터: 바닥에 던짐 → 받아 옴 + "잡았다! 잎으로 탁!" (`emu_3d_ball.png`, `emu_3d_walk.png`) |
+| 창턱·옆자리 | ✅ 오른쪽 창턱에 앉아 창밖 봄 (`emu_3d_ledge.png`), 옆자리 에디터 캡처 (`unity_3d_seat_idle.png`) |
+| 잠·담요 | ✅ (고침) 담요 돔이 2D 그림 크기(0.34×0.27m, 높이 약 9cm)라 3D 몸(앞뒤 0.42m, 키 0.28m) 속에 묻혀 거의 안 보였다 → 3D 면 돔을 몸이 보는 쪽으로 돌리고 몸 크기에 맞춰 늘려(높이 1.7배) 머리만 나오게 (`unity_3d_seat_blanket*.png`). 잠은 앞으로 14도 숙임 + 숨쉬기 |
+| 2D 전용 보정(묻기·눕히기·카메라 쪽 당기기·창턱 당김) | ✅ `Pose3D` 가 그 앞에서 돌아가 3D 에서는 안 탄다 (코드) |
+| 성능 | 에뮬레이터 fps: 알만 있을 때 24~51, 3D 길싹이가 나온 뒤 27~52 — 차이 없음(참고용). 삼각형 1만 개로 줄여도(`--max-tris 10000`, 9,974개) 미리보기에서 차이가 거의 안 보인다 → 실기기(#77)에서 모자라면 적용 |
+
+함께 고친 것: 에디터 캡처용 `CritterDirector.EditorSpawn` 이 3D 모델 대신 `null` 을 넘겨 `CaptureBlanket` 이 늘 2D 로 찍혔다 → `CharacterModel.Find(id)`.
+
+미리보기: `blender_road_sprout_three.png` (단색, 정리 후).
+테스트: Unity EditMode 127개 통과.

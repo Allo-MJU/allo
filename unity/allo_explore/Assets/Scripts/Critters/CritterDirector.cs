@@ -280,7 +280,7 @@ namespace Allo.Critters
             var go = new GameObject($"Critter_{id}");
             go.transform.SetParent(transform, false);
             var view = go.AddComponent<CritterView>();
-            view.Init(id, new CritterBrain(g, surf, 1), CritterArt.Placeholder(attribute, 1), critterMaterial, shadowMaterial, null, g);
+            view.Init(id, new CritterBrain(g, surf, 1), CritterArt.Placeholder(attribute, 1), critterMaterial, shadowMaterial, CharacterModel.Find(id), g);
             var art = SpriteLoader.LoadNow(sprite);
             if (art != null) view.SetArt(art);
             view.Brain.Place(g.Surfaces[surf].center, surf);

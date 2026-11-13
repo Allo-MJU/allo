@@ -40,6 +40,12 @@ namespace Allo.Critters
 
         public bool Is3D => _model != null;
 
+        /// 3D 모델이 보는 방향 (도, y 축). 2D 그림이면 의미 없음
+        public float Yaw => _yaw;
+
+        /// 발밑 가로(x)·앞뒤(y) 크기 (m). 3D 는 모델 크기, 2D 는 키만 한 정사각형
+        public Vector2 Footprint => _model != null ? _model.footprint * _model.Scale : new Vector2(Height, Height);
+
         public string Id { get; private set; }
         public CritterBrain Brain => _brain;
 
