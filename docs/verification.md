@@ -629,17 +629,20 @@ Unity 차 안만. 뒤로 가면 광장 같은 곳으로 가서 화면마다 오�
 Unity 6000.0.85f2, Blender 5.2.3, 휴대폰 에뮬레이터(Medium Phone API 37, `-gpu host`), release,
 `UNITY_APP=false FEED=fake SCENARIO=scene_tour EXPLORE_UNITY=true FAKE_TIME_SCALE=2 DEMO_SPECIES=road_sprout`.
 
-**결론: 형태·방향·배치·행동은 3D 로 문제없이 돈다. 다만 받은 FBX 에 색이 없어 아직 넣지 않았다** (프리팹을 커밋하면 시연 종이 단색 초록 3D 로 바뀐다).
-Tripo 에서 Base Color 텍스처를 포함해 다시 내보내면 아래 명령 두 줄로 다시 만든다.
+**결론: 길싹이는 이제 차 안·창밖에서 3D 로 나온다** (`Resources/Characters/C_road_sprout.prefab`). 형태·방향·배치·행동 모두 문제없음.
+처음 받은 FBX(`road_sprout.zip`)는 색이 없었다: 부분별 생성으로 만든 새 에셋에 텍스처 단계를 돌리지 않은 채 내보낸 것(추정).
+Tripo 「3D 모델 텍스처 생성기」로 그 에셋에 색을 입혀(참고 그림 정면·옆·뒤, 조명 제거 끔) FBX·Blender·스켈레톤 끔·UV 패킹 끔으로 다시 받았다
+(`~/Downloads/road_sprout_color.zip`, 부품 21개 그대로, `*_base_color.jpg` 21장). FBX 안 텍스처 경로는 Tripo 서버 절대 경로지만 Blender 가 `.fbm` 폴더에서 이름으로 찾는다.
+다른 종도 같은 순서: 받은 FBX 를 아래 두 줄로.
 
 ```bash
-blender -b -P tools/blender/character.py -- --in <받은 FBX> --out ~/Downloads/allo_3d/road_sprout/road_sprout.fbx
+blender -b -P tools/blender/character.py -- --in <받은 FBX> --out ~/Downloads/allo_3d/<종 ID>/<종 ID>.fbx
 scripts/import_characters.sh
 ```
 
 | 항목 | 결과 |
 | --- | --- |
-| 텍스처 | ❌ `.fbm` 21장은 전부 노멀맵(평균색이 보라·파랑, 2048px). 재질도 `Normal Map` 노드에만 연결. Base Color 텍스처·버텍스 컬러 없음 → **Tripo 에서 색 텍스처를 포함해 다시 내보내야 함** |
+| 텍스처 | 1차 ❌ `.fbm` 21장이 전부 노멀맵(평균색이 보라·파랑), Base Color·버텍스 컬러 없음 → 2차 ✅ 색 텍스처 21장(512~2048px) → 스크립트가 1024px PNG 로 줄임(9MB). 원화와 같은 색 (`blender_road_sprout_three.png`) |
 | 원본 형태 | 부품 21, 삼각형 20,531, 0.59×0.98×0.66m, 발바닥 z=0, 얼굴 -Y. 부품마다 열린 껍질(경계 모서리 12~211개) — 머리·다리는 꽂히는 자리에 구멍, 몸통·잎·눈은 한 겹 판 |
 | Blender 정리 `tools/blender/character.py` | ✅ 부품 유지, 발바닥 가운데 원점, 앞 -Y(→ Unity +Z), 틈 메우기(경계 버텍스 1,057개를 이웃 부품 표면 0.5mm 안으로, 이동 전 틈 중앙값 약 1mm·최대 13mm → 15mm 넘는 틈 없음), 노멀맵 제거, 색 텍스처는 1024px 로 줄여 PNG. 색이 없으면 경고 + 단색 |
 | 가져오기 | ✅ `C_road_sprout.prefab` 0.25×0.28×0.42m(가로×키×앞뒤). 키 `Tuning` 0.28m. 열린 껍질이라 캐릭터 재질은 양면(`_Cull` Off) |
@@ -653,5 +656,5 @@ scripts/import_characters.sh
 
 함께 고친 것: 에디터 캡처용 `CritterDirector.EditorSpawn` 이 3D 모델 대신 `null` 을 넘겨 `CaptureBlanket` 이 늘 2D 로 찍혔다 → `CharacterModel.Find(id)`.
 
-미리보기: `blender_road_sprout_three.png` (단색, 정리 후).
+미리보기: `blender_road_sprout_three.png` (정리 후). 에뮬레이터 캡처(`emu_3d_*`)는 색 텍스처 전 단색 모델로 찍은 것이다 (같은 프리팹 경로, 색만 다름).
 테스트: Unity EditMode 127개 통과.
