@@ -48,7 +48,7 @@ public class AppUiBookTests
         Assert.Greater(right.position.x, left.position.x);
         Assert.IsTrue(Named("Dex grid").IsChildOf(right));
         Assert.IsTrue(HasText(left, "길싹이"));
-        Assert.IsTrue(ButtonNamed("이 친구와 차량에서 함께하기").transform.IsChildOf(left));
+        Assert.IsTrue(ButtonNamed("차 안으로 데리고 오기").transform.IsChildOf(left));
     }
 
     [Test]
@@ -60,7 +60,7 @@ public class AppUiBookTests
         Assert.AreEqual("secret", Get<string>("_selectedDex"));
         Assert.IsTrue(HasText(Named("Left book page"), "비 오는 길에서 만나 보세요."));
         Assert.IsFalse(_root.GetComponentsInChildren<Text>().Any(t => t.text.Contains("숨은친구")));
-        Assert.IsNull(ButtonNamed("이 친구와 차량에서 함께하기"));
+        Assert.IsNull(ButtonNamed("차 안으로 데리고 오기"));
     }
 
     [Test]
@@ -123,7 +123,7 @@ public class AppUiBookTests
     {
         Update(s => s.busy = true);
         Build("BuildDex");
-        Assert.IsFalse(ButtonNamed("이 친구와 차량에서 함께하기").interactable);
+        Assert.IsFalse(ButtonNamed("차 안으로 데리고 오기").interactable);
         BuildInventory(); SelectFoods();
         Assert.IsFalse(ButtonNamed("요리 1개 주기").interactable);
         Assert.IsFalse(ButtonNamed("주방에서 요리하기").interactable);

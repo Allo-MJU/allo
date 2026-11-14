@@ -22,7 +22,7 @@ public class AppUiConfirmationTests
         typeof(AppSession).GetProperty(nameof(AppSession.State)).SetValue(null, null);
         AppSession.Receive(new AppState
         {
-            revision = 1, view = "camp", ready = true,
+            revision = 1, view = "camp", ready = true, connected = true,
             facilities = new[] { new FacilityState { id = "workshop", label = "작업장", level = 1 }, new FacilityState { id = "kitchen", label = "주방", level = 1 } },
             jobs = new[] { new JobState { role = "builder", label = "건설", targetId = "workshop" }, new JobState { role = "cook", label = "요리" } },
             egg = new EggState { id = "old-egg", active = true, phase = "incubating" }
@@ -74,6 +74,19 @@ public class AppUiConfirmationTests
         var envelope = AppSession.CreateAction(captured.action, captured);
         Assert.AreEqual("discardEgg", envelope.action);
         Assert.AreEqual("old-egg", envelope.eggId);
+    }
+
+    [Test]
+    public void EggExpiryOutsideCabinPreservesReviewedVillageConfirmation()
+    {
+        Set("_campDetail", true); Call("BuildCamp");
+        ButtonNamed("이 작업 취소하기").onClick.Invoke();
+        var confirmation = Get<Action>("_confirmAction");
+        var next = new AppState { revision = 2, view = "camp", ready = true, connected = true,
+            egg = new EggState { id = "old-egg", active = false, phase = "failed" } };
+        AppSession.Receive(next); Call("OnState", AppSession.State);
+        Assert.AreSame(confirmation, Get<Action>("_confirmAction"));
+        Assert.AreEqual("builder", ConfirmationIntent().role);
     }
 
     [Test]

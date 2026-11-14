@@ -47,7 +47,7 @@ namespace Allo.CameraRig
 
         void Update()
         {
-            if (Allo.App.AppSession.StoryActive || Allo.App.StoryOverlay.CapturingInput)
+            if (Allo.App.CabinInteraction.IsCapturing || Allo.App.AppSession.StoryActive || Allo.App.StoryOverlay.CapturingInput)
             {
                 _velocity = Vector2.zero;
                 _lastPinch = null;

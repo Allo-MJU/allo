@@ -122,7 +122,7 @@ public static class BookUiCapture
             var ui = root.AddComponent<AppUi>();
             if (Get<RectTransform>(ui, "_safe") == null) Call(ui, "Awake");
             Call(ui, "OnState", state);
-            root.GetComponent<StoryOverlay>().Apply(state, false);
+            root.GetComponent<StoryOverlay>()?.Apply(state, false);
             if (kind == "foods") { Set(ui, "_supplyTab", "foods"); Set(ui, "_selectedSupply", "travel_soup"); }
             if (kind == "food-zero") { Set(ui, "_supplyTab", "foods"); Set(ui, "_selectedSupply", "picnic_feast"); }
             if (kind == "materials-large-count") Set(ui, "_selectedSupply", "stone");

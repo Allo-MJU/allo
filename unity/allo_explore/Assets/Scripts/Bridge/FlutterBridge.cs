@@ -50,6 +50,8 @@ namespace Allo.Bridge
 
         public static void HandleBack()
         {
+            var appUi = UnityEngine.Object.FindFirstObjectByType<Allo.App.AppUi>();
+            if (appUi != null && appUi.CloseVillageCharacterDetail()) return;
             switch (Allo.App.AppSession.BackActionFor(Allo.App.AppSession.State))
             {
                 case Allo.App.AppBackAction.PauseStory:

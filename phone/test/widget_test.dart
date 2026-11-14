@@ -1,4 +1,7 @@
+import 'package:allo_core/allo_core.dart';
 import 'package:allo_phone/app.dart';
+import 'package:allo_phone/game/game_controller.dart';
+import 'package:allo_phone/storage/dex_store.dart';
 import 'package:allo_phone/explore/explore_screen.dart';
 import 'package:allo_phone/feed/fake_feed.dart';
 import 'package:flutter/material.dart';
@@ -24,9 +27,14 @@ void main() {
     tester.view.physicalSize = const Size(2400, 1080);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
-    await tester.pumpWidget(AlloApp(
-        feed: FakeVehicleFeed(
-            scenario: FakeScenario.rainyHighway, timeScale: 100)));
+    final feed =
+        FakeVehicleFeed(scenario: FakeScenario.rainyHighway, timeScale: 100);
+    final controller = GameController(feed: feed, dex: DexStore());
+    await tester.runAsync(controller.loadSpecies);
+    // This regression covers the preserved distance-only care and hatch screens.
+    expect(await controller.startIncubating(EggTier.small), isTrue);
+    await tester
+        .pumpWidget(AlloApp(feed: feed, createController: () => controller));
     await tester.pumpAndSettle();
     expect(find.text('차 없이 알로를 체험해 보세요'), findsOneWidget);
     expect(find.text('QR 스캔'), findsNothing);

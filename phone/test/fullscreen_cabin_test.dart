@@ -1,4 +1,7 @@
+import 'package:allo_core/allo_core.dart';
 import 'package:allo_phone/app.dart';
+import 'package:allo_phone/game/game_controller.dart';
+import 'package:allo_phone/storage/dex_store.dart';
 import 'package:allo_phone/explore/explore_screen.dart';
 import 'package:allo_phone/feed/fake_feed.dart';
 import 'package:allo_phone/screens/dex_screen.dart';
@@ -18,10 +21,16 @@ Future<void> startTrip(WidgetTester tester,
   tester.view.physicalSize = const Size(2400, 1080);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
-  await tester.pumpWidget(AlloApp(
-      feed: FakeVehicleFeed(
-          scenario: FakeScenario.rainyHighway, timeScale: timeScale),
-      demoSpeciesId: demoSpecies));
+  final feed = FakeVehicleFeed(
+      scenario: FakeScenario.rainyHighway, timeScale: timeScale);
+  final controller =
+      GameController(feed: feed, dex: DexStore(), demoSpeciesId: demoSpecies);
+  // Load real assets outside the fake clock; keep the feed timer on test time.
+  await tester.runAsync(controller.loadSpecies);
+  // Preserve the distance-only plaza UI while new trip grants default to affinity.
+  expect(await controller.startIncubating(EggTier.small), isTrue);
+  await tester
+      .pumpWidget(AlloApp(feed: feed, createController: () => controller));
   await tester.pumpAndSettle();
   await tester
       .runAsync(() => rootBundle.loadString('assets/data/species.json'));
@@ -80,7 +89,8 @@ void main() {
     expect(find.byType(HomeScreen), findsOneWidget, reason: '차 안에서 나오면 광장');
     await tester.tap(find.text('도감'));
     // 도감은 저장소를 비동기로 읽는다. 다 읽을 때까지 로딩 표시가 돌므로 pumpAndSettle 대신 잠깐 기다린다
-    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await tester
+        .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.widgetWithText(AppBar, '도감'), findsOneWidget); // 도감 제목
@@ -127,7 +137,8 @@ void main() {
     addTearDown(() => autoEnterExplore = false);
     await startTrip(tester);
     await tester.pumpAndSettle();
-    expect(find.byType(ExploreScreen), findsOneWidget, reason: '품기 시작과 함께 차 안으로');
+    expect(find.byType(ExploreScreen), findsOneWidget,
+        reason: '품기 시작과 함께 차 안으로');
     // 체험 주행은 100배속이라 기다리면 부화한다. 차 안이 떠 있는 동안은 부화 화면으로 넘기지 않는다
     for (var i = 0; i < 40 && find.text('같이 가자').evaluate().isEmpty; i++) {
       await tester.pump(const Duration(seconds: 1));

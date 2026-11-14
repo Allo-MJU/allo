@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Allo.Critters;
 using UnityEngine;
 using UnityEngine.Events;
@@ -179,6 +180,138 @@ namespace Allo.App
                 if (placeholder != null) placeholder.gameObject.SetActive(false);
             }));
         }
+        static Sprite _cabinItemDisc;
+        static readonly Dictionary<string, Sprite> CabinItemArt = new Dictionary<string, Sprite>();
+
+        static Sprite CabinItemDisc()
+        {
+            if (_cabinItemDisc != null) return _cabinItemDisc;
+            const int size = 192;
+            var pixels = new Color[size * size];
+            for (var y = 0; y < size; y++) for (var x = 0; x < size; x++)
+            {
+                var p = new Vector2((x + .5f - size / 2f) / (size / 2f), (y + .5f - size / 2f) / (size / 2f));
+                var r = p.magnitude;
+                var color = Color.Lerp(Hex("A9BBA7"), Hex("E5EAD9"), Mathf.Clamp01(p.y * .48f + .5f));
+                if (r > .79f) color = Color.Lerp(Hex("9B9F91"), Hex("FFF8E9"), Mathf.Clamp01(p.y * .7f + .5f));
+                if (r > .86f && r < .91f) color = Hex("F8F4E8");
+                if (r > .95f) color = Hex("66766A");
+                color.a = Mathf.Clamp01((.99f - r) * size / 2f);
+                pixels[y * size + x] = color;
+            }
+            return _cabinItemDisc = CabinSprite("ALLO illustrated item rim", size, pixels);
+        }
+
+        static Sprite CabinItemArtwork(string id)
+        {
+            if (CabinItemArt.TryGetValue(id, out var sprite)) return sprite;
+            const int size = 128;
+            var pixels = new Color[size * size];
+            for (var y = 0; y < size; y++) for (var x = 0; x < size; x++)
+            {
+                var p = new Vector2((x + .5f - size / 2f) / (size / 2f), (y + .5f - size / 2f) / (size / 2f));
+                var color = Color.clear;
+                if (id == "snack")
+                {
+                    var scallop = .64f + Mathf.Sin(Mathf.Atan2(p.y, p.x) * 9) * .025f;
+                    ItemShape(p.magnitude - scallop, Hex("DDA65C"), ref color);
+                    ItemShape(p.magnitude - .50f, Hex("EDC27D"), ref color, false);
+                    foreach (var dot in new[] { new Vector2(-.22f, .25f), new Vector2(.21f, .33f), new Vector2(.04f, -.09f), new Vector2(-.29f, -.22f), new Vector2(.29f, -.28f) })
+                        ItemShape(Vector2.Distance(p, dot) - .062f, Hex("765039"), ref color, false);
+                }
+                else if (id == "water")
+                {
+                    ItemShape(ItemBox(p - new Vector2(0, -.08f), new Vector2(.31f, .48f), .11f), Hex("EFF7ED"), ref color);
+                    if (p.y < .12f && p.y > -.49f)
+                        ItemShape(ItemBox(p - new Vector2(0, -.19f), new Vector2(.255f, .28f), .07f), Hex("70BCCB"), ref color, false);
+                    ItemShape(ItemBox(p - new Vector2(0, .46f), new Vector2(.18f, .10f), .025f), Hex("C7DED6"), ref color);
+                    ItemShape(ItemBox(p - new Vector2(0, .60f), new Vector2(.24f, .10f), .035f), Hex("54899D"), ref color);
+                    ItemShape(ItemBox(p - new Vector2(-.13f, -.04f), new Vector2(.027f, .26f), .025f), Hex("F7FCF3"), ref color, false);
+                }
+                else if (id == "ball")
+                {
+                    ItemShape(p.magnitude - .65f, Hex("E8EBDD"), ref color);
+                    if (p.magnitude < .59f)
+                    {
+                        var angle = Mathf.Atan2(p.y, p.x);
+                        if (Mathf.Sin(angle * 3 + .4f) > .15f) ItemShape(p.magnitude - .59f, Hex("69A2A1"), ref color, false);
+                        if (Mathf.Abs(p.x + p.y * .42f) < .055f || Mathf.Abs(p.y - p.x * .48f) < .04f)
+                            ItemShape(p.magnitude - .59f, Hex("F9EFD1"), ref color, false);
+                        ItemShape(Vector2.Distance(p, new Vector2(-.22f, .25f)) - .075f, new Color(1, 1, 1, .7f), ref color, false);
+                    }
+                }
+                else if (id == "plush")
+                {
+                    var fur = Hex("BE9368");
+                    ItemShape(Vector2.Distance(p, new Vector2(-.39f, .45f)) - .20f, fur, ref color);
+                    ItemShape(Vector2.Distance(p, new Vector2(.39f, .45f)) - .20f, fur, ref color);
+                    ItemShape(ItemEllipse(p - new Vector2(0, -.32f), new Vector2(.39f, .38f)), fur, ref color);
+                    ItemShape(Vector2.Distance(p, new Vector2(-.34f, -.51f)) - .18f, Hex("D2AA7D"), ref color);
+                    ItemShape(Vector2.Distance(p, new Vector2(.34f, -.51f)) - .18f, Hex("D2AA7D"), ref color);
+                    ItemShape(ItemEllipse(p - new Vector2(0, .17f), new Vector2(.49f, .40f)), Hex("D2AA7D"), ref color);
+                    ItemShape(ItemEllipse(p - new Vector2(0, .02f), new Vector2(.24f, .17f)), Hex("F5DAB2"), ref color, false);
+                    ItemShape(Vector2.Distance(p, new Vector2(-.18f, .23f)) - .043f, Ink, ref color, false);
+                    ItemShape(Vector2.Distance(p, new Vector2(.18f, .23f)) - .043f, Ink, ref color, false);
+                    ItemShape(ItemEllipse(p - new Vector2(0, .08f), new Vector2(.07f, .045f)), Ink, ref color, false);
+                }
+                pixels[y * size + x] = color;
+            }
+            return CabinItemArt[id] = CabinSprite("ALLO cabin " + id + " illustration", size, pixels);
+        }
+
+        static float ItemBox(Vector2 p, Vector2 half, float radius)
+        {
+            var q = new Vector2(Mathf.Abs(p.x), Mathf.Abs(p.y)) - half + Vector2.one * radius;
+            return new Vector2(Mathf.Max(q.x, 0), Mathf.Max(q.y, 0)).magnitude + Mathf.Min(Mathf.Max(q.x, q.y), 0) - radius;
+        }
+        static float ItemEllipse(Vector2 p, Vector2 radii) =>
+            (new Vector2(p.x / radii.x, p.y / radii.y).magnitude - 1) * Mathf.Min(radii.x, radii.y);
+        static void ItemShape(float distance, Color fill, ref Color pixel, bool outline = true)
+        {
+            var alpha = Mathf.Clamp01(.5f - distance * 64);
+            if (alpha <= 0) return;
+            var shade = outline && distance > -.035f ? Ink : fill;
+            var combined = alpha + pixel.a * (1 - alpha);
+            var rgb = (shade * alpha + pixel * (pixel.a * (1 - alpha))) / Mathf.Max(.001f, combined);
+            rgb.a = combined; pixel = rgb;
+        }
+        static Sprite CabinSprite(string name, int size, Color[] pixels)
+        {
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+                { name = name, filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+            texture.SetPixels(pixels); texture.Apply();
+            return Sprite.Create(texture, new UnityEngine.Rect(0, 0, size, size), new Vector2(.5f, .5f));
+        }
+
+        static Sprite _smoothCabinRound;
+
+        static void SmoothCabinSurface(Image image)
+        {
+            if (_smoothCabinRound == null)
+            {
+                const int size = 256, radius = 32;
+                var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+                {
+                    name = "ALLO cabin smooth rounded surface",
+                    filterMode = FilterMode.Bilinear,
+                    wrapMode = TextureWrapMode.Clamp
+                };
+                var pixels = new Color[size * size];
+                for (var y = 0; y < size; y++) for (var x = 0; x < size; x++)
+                {
+                    var dx = Mathf.Max(0, Mathf.Abs(x + .5f - size / 2f) - (size / 2f - radius));
+                    var dy = Mathf.Max(0, Mathf.Abs(y + .5f - size / 2f) - (size / 2f - radius));
+                    pixels[y * size + x] = new Color(1, 1, 1, Mathf.Clamp01(radius - Mathf.Sqrt(dx * dx + dy * dy) + .5f));
+                }
+                texture.SetPixels(pixels); texture.Apply();
+                _smoothCabinRound = Sprite.Create(texture, new UnityEngine.Rect(0, 0, size, size), new Vector2(.5f, .5f),
+                    100, 0, SpriteMeshType.FullRect, new Vector4(radius, radius, radius, radius));
+            }
+            image.sprite = _smoothCabinRound;
+            image.type = Image.Type.Sliced;
+            image.pixelsPerUnitMultiplier = 1;
+        }
+
         static Sprite RoundedSprite()
         {
             const int n = 32, radius = 8;

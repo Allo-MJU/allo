@@ -4,9 +4,11 @@ import 'package:allo_core/allo_core.dart';
 import 'package:allo_phone/base_camp/base_camp_controller.dart';
 import 'package:allo_phone/game/game_controller.dart';
 import 'package:allo_phone/learning/companion_learning_controller.dart';
+import 'package:allo_phone/learning/learning_catalog.dart';
 import 'package:allo_phone/storage/dex_store.dart';
 import 'package:allo_phone/unity_app/unity_app_controller.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'affinity_controller_test.dart' show DemoApi;
@@ -42,6 +44,7 @@ void main() {
   late RoundFeed feed;
   late List<String> spoken;
   late List<Map<String, dynamic>> requests;
+  late List<String> turns;
   var request = 0, now = 0;
   Future<bool> action(String name,
           [Map<String, dynamic> fields = const {}, String? id]) =>
@@ -52,6 +55,11 @@ void main() {
         'action': name,
         ...fields
       }));
+  Future<bool> summon(String id) =>
+      action('selectCarCompanion', {'creatureId': id});
+  Future<bool> openChat(String id) => action(
+      'companionTapped', {'creatureId': id, 'speciesId': learning.speciesId});
+
   String getTarget() => camp.state.creatures.values
       .firstWhere((c) => c.speciesId == 'road_sprout')
       .id;
@@ -61,6 +69,7 @@ void main() {
     request = 0;
     spoken = [];
     requests = [];
+    turns = [];
     final dex = DexStore();
     for (var i = 0; i < 2; i++) {
       await dex.add(DexEntry(
@@ -83,7 +92,8 @@ void main() {
         catalog: catalog(),
         store: MemoryLearningStore(),
         request: (r) async {
-          requests.add(r);
+          turns.add(r['action'] as String);
+          if (r['action'] == 'chat') requests.add(r);
           return reply(r);
         },
         speak: (s) async {
@@ -103,40 +113,155 @@ void main() {
     camp.dispose();
   });
 
-  test('window story owns dialogue and rejects stale learning and care intents',
+  Future<void> installFullLearning() async {
+    app.dispose();
+    learning = CompanionLearningController(
+        catalog: LearningCatalog.fromJson(jsonDecode(await rootBundle
+                .loadString('assets/data/companion_learning.json'))
+            as Map<String, dynamic>),
+        store: MemoryLearningStore(),
+        request: (body) async => reply(body),
+        speak: (text) async {
+          spoken.add(text);
+        },
+        stop: () async {});
+    app = UnityAppController(game: game, camp: camp, learning: learning);
+    expect(await app.initialize(), true);
+    await action('navigate', {'view': 'cabin'});
+  }
+
+  Future<void> hatchCurrent() async {
+    for (var i = 0; i < 17; i++) {
+      await game.petEgg();
+      if (i < 16) {
+        now += 10000;
+        feed.sample();
+      }
+    }
+    await game.uploadEggPhoto(Uint8List.fromList([1]));
+    for (var i = 0; i < 12; i++) {
+      now += 10000;
+      feed.sample();
+      await game.petEgg();
+    }
+    for (var i = 0; i < 30; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(game.game.stage, Stage.hatched);
+  }
+
+  test(
+      'newly observed hatch silently binds its exact owned instance for character tap',
+      () async {
+    await installFullLearning();
+    final egg = game.eggId;
+    expect(learning.creatureId, '');
+    await hatchCurrent();
+    expect(learning.creatureId, isNotEmpty);
+    final owned = await camp.ownedEntryForCreature(learning.creatureId);
+    expect(owned?.sourceEggId, egg);
+    expect(owned?.speciesId, game.hatched?.id);
+    expect(spoken, isEmpty);
+    expect(
+        await action('companionTapped', {
+          'creatureId': learning.creatureId,
+          'speciesId': learning.speciesId
+        }),
+        learning.snapshot['available'] == true,
+        reason: jsonEncode(learning.snapshot));
+    expect(learning.snapshot['conversationMode'], 'chat');
+    if (learning.snapshot['available'] != true) {
+      expect(learning.snapshot['error'], isNotEmpty);
+      expect(spoken, isEmpty);
+    }
+  });
+  test(
+      'starting a controller with an already hatched friend does not summon it',
+      () async {
+    await installFullLearning();
+    await hatchCurrent();
+    spoken.clear();
+    await installFullLearning();
+    for (var i = 0; i < 10; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
+    expect(game.game.stage, Stage.hatched);
+    expect(learning.creatureId, '');
+    expect(spoken, isEmpty);
+  });
+
+  test(
+      'owned friends stay out of cast until selected and disappear after disconnect',
+      () async {
+    final messages = <Map<String, dynamic>>[];
+    app.attach((m) => messages.add(jsonDecode(m) as Map<String, dynamic>));
+    await app.handleMessage('{"type":"ready"}');
+    Map<String, dynamic> cast() =>
+        messages.lastWhere((m) => m['type'] == 'cast');
+    expect(cast()['companion'], isNull);
+    expect(cast()['friends'], isEmpty);
+    final id = getTarget();
+    expect(await summon(id), true);
+    expect(cast()['companion']['id'], 'road_sprout');
+    expect(cast()['friends'], isEmpty);
+    expect(await action('disconnect'), true);
+    expect(cast()['companion'], isNull);
+    expect(cast()['friends'], isEmpty);
+    expect(learning.creatureId, isEmpty);
+    expect(await summon(id), false);
+  });
+  test(
+      'character tap sends greet directly and close reopen preserves child context',
       () async {
     final id = getTarget();
-    await action('selectCompanion', {'creatureId': id});
-    expect(await action('storyNext', {'creatureId': id}), true);
-    expect(learning.snapshot['sceneId'], 'water');
-    expect(await action('storyStart', {'topicId': 'coast_sail'}), true);
-    expect((app.snapshot['story'] as Map)['active'], true);
-    expect(learning.active, false);
-    final count = spoken.length;
+    await summon(id);
+    expect(await openChat(id), true);
+    expect(turns, ['greet']);
+    expect(learning.conversationMode, 'chat');
+    expect(await action('companionChat', {'creatureId': id, 'text': '씨앗이 뭐야?'}),
+        true);
+    expect(
+        await action('closeCompanionInvitation',
+            {'creatureId': id, 'speciesId': learning.speciesId}),
+        true);
+    expect(await openChat(id), true);
+    expect(turns, ['greet', 'chat', 'greet']);
+    expect(await action('companionChat', {'creatureId': id, 'text': '그럼 물은?'}),
+        true);
+    expect((requests.last['history'] as List).first['text'], '씨앗이 뭐야?');
+    expect(game.affinityRound!.score, 0);
+    expect((app.snapshot['egg'] as Map)['active'], true);
+  });
+
+  test('legacy story routes cannot interrupt direct chat or egg care',
+      () async {
+    final id = getTarget();
+    await summon(id);
+    expect(await openChat(id), true);
+    expect(await action('storyStart', {'topicId': 'coast_sail'}), false);
+    expect(app.snapshot['story'], isNull);
+    expect(learning.active, true);
+    expect(await action('storyNext', {'creatureId': id}), false);
     expect(await action('storyRepeat', {'creatureId': id}), false);
     expect(
-        await action('companionChat', {'creatureId': id, 'text': '질문'}), false);
-    expect(await action('commonCare', {'creatureId': id, 'actionId': 'pet'}),
+        await action(
+            'listenStory', {'creatureId': id, 'speciesId': learning.speciesId}),
         false);
-    expect(await action('selectCompanion', {'creatureId': ''}), false);
-    expect(spoken.length, count);
-    final story = app.snapshot['story'] as Map;
     expect(
-        await action('storyPause', {
-          'instanceId': story['instanceId'],
-          'nodeId': story['nodeId'],
-          'storyRevision': story['revision'],
-        }),
+        await action('talkToCompanion',
+            {'creatureId': id, 'speciesId': learning.speciesId}),
+        false);
+    expect(
+        await action('companionChat', {'creatureId': id, 'text': '질문'}), true);
+    expect(await action('commonCare', {'creatureId': id, 'actionId': 'pet'}),
         true);
-    expect(learning.active, true);
-    expect(learning.snapshot['sceneId'], 'water');
-    expect(await action('storyRepeat', {'creatureId': id}), true);
   });
 
   test('modal and notebook ownership stop companion output until released',
       () async {
     final id = getTarget();
-    await action('selectCompanion', {'creatureId': id});
+    await summon(id);
+    await openChat(id);
     expect(await action('learningUiBlocked', {'blocked': true}), true);
     expect(learning.active, false);
     expect(
@@ -144,7 +269,7 @@ void main() {
     expect(await action('learningUiBlocked', {'blocked': false}), true);
     expect(learning.active, true);
     await action('storyUiBlocked', {'blocked': true});
-    expect(learning.active, false);
+    expect(learning.active, true);
     expect(await action('storyStart', {'topicId': 'coast_sail'}), false);
   });
 
@@ -165,7 +290,7 @@ void main() {
     app.attach(
         (message) => sent.add(jsonDecode(message) as Map<String, dynamic>));
     await app.handleMessage('{"type":"ready"}');
-    expect(await action('selectCompanion', {'creatureId': friend.id}), true);
+    expect(await summon(friend.id), true);
     expect(learning.speciesId, 'breeze_wyrm');
     expect(learning.snapshot['name'], '산들룡');
     final cast = sent.lastWhere((m) => m['type'] == 'cast');
@@ -192,6 +317,7 @@ void main() {
         catalog: catalog(),
         store: MemoryLearningStore(),
         request: (r) {
+          if (r['action'] != 'chat') return Future.value(reply(r));
           sent = r;
           return gate.future;
         },
@@ -203,7 +329,9 @@ void main() {
     expect(await app.initialize(), true);
     await action('navigate', {'view': 'cabin'});
     final id = getTarget();
-    await action('selectCompanion', {'creatureId': id});
+    await summon(id);
+    await openChat(id);
+    await openChat(id);
     final pending = action('companionChat', {'creatureId': id, 'text': '질문'});
     await Future<void>.delayed(Duration.zero);
     await action('learningUiBlocked', {'blocked': true});
@@ -212,7 +340,7 @@ void main() {
     expect(await pending, false);
     expect(spoken.length, count);
     expect(learning.history, isEmpty);
-    expect((app.snapshot['story'] as Map)['canPlay'], true);
+    expect(app.snapshot['story'], isNull);
   });
 
   test('action names cannot be used as navigation destinations', () async {
@@ -271,7 +399,8 @@ void main() {
       'selected owned friend plays and talks beside new egg without affecting it',
       () async {
     final id = getTarget(), egg = game.eggId;
-    expect(await action('selectCompanion', {'creatureId': id}), true);
+    expect(await summon(id), true);
+    await openChat(id);
     for (final care in [
       'snack',
       'water',
@@ -286,12 +415,14 @@ void main() {
     }
     expect(game.affinityRound!.score, 0);
     expect(game.eggId, egg);
+    await openChat(id);
     expect(await action('companionChat', {'creatureId': id, 'text': '씨앗이 뭐야?'}),
         true);
     expect(learning.snapshot['sceneId'], 'seed');
-    expect(await action('storyNext', {'creatureId': id}), true);
-    expect(learning.snapshot['sceneId'], 'water');
-    expect(await action('selectCompanion', {'creatureId': ''}), true);
+    await openChat(id);
+    expect(await action('storyNext', {'creatureId': id}), false);
+    expect(learning.snapshot['sceneId'], 'seed');
+    await learning.select('');
     final count = spoken.length;
     expect(await action('companionChat', {'creatureId': '', 'text': '알아 안녕'}),
         false);
@@ -302,8 +433,8 @@ void main() {
   test('stale action cannot apply to a different selected friend or egg',
       () async {
     final ids = camp.state.creatures.keys.toList();
-    await action('selectCompanion', {'creatureId': ids.first});
-    await action('selectCompanion', {'creatureId': ids.last});
+    await action('selectCarCompanion', {'creatureId': ids.first});
+    await action('selectCarCompanion', {'creatureId': ids.last});
     expect(
         await action(
             'companionChat', {'creatureId': ids.first, 'text': '옛 친구에게'}),
@@ -314,7 +445,7 @@ void main() {
         await action(
             'commonCare', {'creatureId': ids.first, 'actionId': 'pet'}),
         false);
-    await action('selectCompanion', {'creatureId': ''});
+    await learning.select('');
     expect(
         await action('commonCare',
             {'creatureId': '', 'eggId': 'old-egg', 'actionId': 'pet'}),
@@ -376,7 +507,7 @@ void main() {
         catalog: catalog(),
         store: MemoryLearningStore(),
         request: (r) async {
-          requests.add(r);
+          if (r['action'] == 'chat') requests.add(r);
           return reply(r);
         },
         speak: (s) async {},
@@ -389,9 +520,12 @@ void main() {
     await app.initialize();
     await action('navigate', {'view': 'cabin'});
     final id = getTarget();
-    await action('selectCompanion', {'creatureId': id});
+    await summon(id);
+    await openChat(id);
+    await openChat(id);
     expect(await action('companionChat', {'creatureId': id, 'text': '씨앗이 뭐야?'}),
         true);
+    await openChat(id);
     final pending = action('companionSpeech', {'creatureId': id});
     await Future<void>.delayed(Duration.zero);
     await app.setHostLifecycle(AppLifecycleState.paused);
@@ -415,6 +549,7 @@ void main() {
         catalog: catalog(),
         store: MemoryLearningStore(),
         request: (r) {
+          if (r['action'] != 'chat') return Future.value(reply(r));
           sent = r;
           entered.complete();
           return gate.future;
@@ -431,7 +566,9 @@ void main() {
     await app.initialize();
     await action('navigate', {'view': 'cabin'});
     final id = getTarget();
-    await action('selectCompanion', {'creatureId': id});
+    await summon(id);
+    await openChat(id);
+    await openChat(id);
     final pending = action('companionSpeech', {'creatureId': id});
     await entered.future;
     await app.setHostLifecycle(AppLifecycleState.paused);
@@ -451,7 +588,7 @@ void main() {
         catalog: catalog(),
         store: MemoryLearningStore(),
         request: (r) async {
-          requests.add(r);
+          if (r['action'] == 'chat') requests.add(r);
           return reply(r);
         },
         speak: (s) async {},
@@ -464,7 +601,9 @@ void main() {
     await app.initialize();
     await action('navigate', {'view': 'cabin'});
     final id = getTarget();
-    await action('selectCompanion', {'creatureId': id});
+    await summon(id);
+    await openChat(id);
+    await openChat(id);
     final pending = action('companionSpeech', {'creatureId': id});
     await Future<void>.delayed(Duration.zero);
     await action('navigate', {'view': 'home'});
@@ -473,6 +612,37 @@ void main() {
     expect(await pending, false);
     expect(requests, isEmpty);
     expect(learning.snapshot['recording'], false);
+  });
+
+  test('notebook roundtrip cancels a pending native transcript', () async {
+    final gate = Completer<String?>();
+    app.dispose();
+    learning = CompanionLearningController(
+        catalog: catalog(),
+        store: MemoryLearningStore(),
+        request: (r) async {
+          if (r['action'] == 'chat') requests.add(r);
+          return reply(r);
+        },
+        speak: (s) async {},
+        stop: () async {});
+    app = UnityAppController(
+        game: game,
+        camp: camp,
+        learning: learning,
+        speechInput: () => gate.future);
+    await app.initialize();
+    final id = getTarget();
+    await summon(id);
+    await openChat(id);
+    final pending = action('companionSpeech', {'creatureId': id});
+    await Future<void>.delayed(Duration.zero);
+    await action('learningUiBlocked', {'blocked': true});
+    await action('learningUiBlocked', {'blocked': false});
+    gate.complete('이전 음성');
+    expect(await pending, false);
+    expect(requests, isEmpty);
+    expect(learning.snapshot['conversationMode'], 'closed');
   });
 
   test('host or Unity suspension invalidates pending API even after resume',
@@ -484,6 +654,7 @@ void main() {
         catalog: catalog(),
         store: MemoryLearningStore(),
         request: (r) {
+          if (r['action'] != 'chat') return Future.value(reply(r));
           sent = r;
           return gate.future;
         },
@@ -495,7 +666,9 @@ void main() {
     await app.initialize();
     await action('navigate', {'view': 'cabin'});
     final id = getTarget();
-    await action('selectCompanion', {'creatureId': id});
+    await summon(id);
+    await openChat(id);
+    await openChat(id);
     final pending =
         action('companionChat', {'creatureId': id, 'text': '늦은 질문'});
     await Future<void>.delayed(Duration.zero);

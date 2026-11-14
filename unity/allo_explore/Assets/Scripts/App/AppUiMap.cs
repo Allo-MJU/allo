@@ -23,6 +23,7 @@ namespace Allo.App
         void OpenVillageFacility(string id)
         {
             if (!CanAct || _confirmAction != null) return;
+            CloseVillageCharacterDetail();
             if (_facility != id || !_campDetail) _scrollPositions.Remove("camp:view:0");
             _facility = id;
             var facility = Items(_state.facilities).FirstOrDefault(f => f.id == id);
@@ -43,6 +44,7 @@ namespace Allo.App
             if (_confirmAction != null) _villageScroll.StopMovement();
             foreach (var entry in _facilityNodes) UpdateFacilityNode(entry.Value, entry.Key);
             UpdateVillageFriend();
+            if (_confirmAction == null) BuildVillageCharacterDetail();
         }
 
         void EnsureVillageWorld()
@@ -69,6 +71,7 @@ namespace Allo.App
 
         void UpdateVillageGeometry()
         {
+            TickVillageFriends(Time.unscaledDeltaTime);
             if (_villageLayer == null || _villageContent == null || !_villageLayer.gameObject.activeSelf) return;
             var size = _villageLayer.rect.size;
             if (size.x <= 0 || size.y <= 0 || (_villageSized && Vector2.Distance(size, _villageViewportSize) < .1f)) return;
@@ -149,10 +152,14 @@ namespace Allo.App
                     Stretch(badge, -15, 0, 15, 24, Vector2.zero, new Vector2(1, 0));
                     var name = Label(badge, friend.name, 17, TextAnchor.MiddleCenter); name.color = Cream; Stretch(name.rectTransform, 4, 0, -4, 0);
                     var hit = marker.gameObject.AddComponent<Image>(); hit.color = Color.clear;
-                    marker.gameObject.AddComponent<Button>().onClick.AddListener(() => { _selectedDex = friend.speciesId; _selectedCreature = friend.id; Navigate("dex"); });
+                    var creatureId = friend.id;
+                    marker.gameObject.AddComponent<Button>().onClick.AddListener(() => OpenVillageFriend(creatureId));
+                    marker.anchorMin = marker.anchorMax = places.First(place => !_villageFriends.Values.Any(other => other.anchorMin == place));
+                    marker.anchoredPosition = Vector2.zero;
+                    _villageFriendTime[friend.id] = 0;
                     _villageFriends[friend.id] = marker; _villageFriendArt[friend.id] = artKey;
                 }
-                marker.anchorMin = marker.anchorMax = places[i];
+                marker.GetComponent<Button>().interactable = CanAct && _confirmAction == null;
                 marker.Find("Friend name").GetComponentInChildren<Text>().text = friend.name;
             }
         }
@@ -162,6 +169,7 @@ namespace Allo.App
             var marker = _villageFriends[id]; marker.gameObject.SetActive(false);
             if (Application.isPlaying) Destroy(marker.gameObject); else DestroyImmediate(marker.gameObject);
             _villageFriends.Remove(id); _villageFriendArt.Remove(id);
+            _villageFriendTime.Remove(id);
         }
 
         void VillageFriendPortrait(RectTransform parent, string sprite)
