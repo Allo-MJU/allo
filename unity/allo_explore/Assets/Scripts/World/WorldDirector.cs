@@ -190,7 +190,11 @@ namespace Allo.World
         public void Apply(SceneState s, bool reset = false)
         {
             if (!string.IsNullOrEmpty(FilmKind) && s != null)
-                s = new SceneState { kind = FilmKind == "highway" ? "road" : FilmKind, highway = FilmKind == "highway", speedKph = s.speedKph, moving = s.moving };
+            {
+                // 촬영 중에는 늘 달린다 (서 있다가 천천히 출발하지 않게 보이는 속도도 바로 맞춘다)
+                s = new SceneState { kind = FilmKind == "highway" ? "road" : FilmKind, highway = FilmKind == "highway", speedKph = Mathf.Max(s.speedKph, 50), moving = true };
+                _visKph = Mathf.Max(_visKph, s.speedKph);
+            }
             Setup();
             if (reset)
             {
