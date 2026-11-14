@@ -255,6 +255,13 @@ namespace Allo.World
             _backdrop.localRotation = Quaternion.Euler(0, -_carYaw + Time.time * 0.15f, 0); // 차가 돌면 먼 배경도 돌고, 구름은 천천히 흐른다
         }
 
+        /// 촬영 장면(FilmMode): 가속·감속 없이 지금 장면의 속도로 바로 보이게 한다
+        public void SnapSpeed()
+        {
+            Setup();
+            _visKph = _scene != null && _scene.moving ? Mathf.Min(_scene.speedKph, _track.SpeedCapAt(_track.Offset)) : 0;
+        }
+
         /// 밖에서 보이는 우리 차 프리팹 이름 (장면 빌드가 props 에 넣는다)
         public const string OwnCar = "C_OwnCar";
 

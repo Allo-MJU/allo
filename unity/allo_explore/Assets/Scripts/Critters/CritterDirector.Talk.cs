@@ -47,8 +47,12 @@ namespace Allo.Critters
         }
 
         /// 상황(evt)에 맞는 대사를 골라 말풍선에 띄운다. 동행이 없으면 말하지 않는다. 골라진 문장을 돌려준다
+        /// 촬영 장면(FilmMode): 말풍선 없이 가만히 있는 장면을 찍을 때 켠다
+        public static bool Mute;
+
         public string Speak(string evt, string context = null, float seconds = 3.4f, CritterView who = null)
         {
+            if (Mute) return null;
             if (Allo.App.AppSession.DialogueOwned && evt != "hatch") return null;
             who ??= Companion;
             if (who == null || !Dialogue.Ready) return null;

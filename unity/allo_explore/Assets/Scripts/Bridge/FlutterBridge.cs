@@ -74,11 +74,23 @@ namespace Allo.Bridge
         [UnityEngine.Scripting.Preserve]
         public void OnFlutterMessage(string json)
         {
+            if (Hold) return;
             if (!MessageParser.TryParse(json, out var type, out var payload))
             {
                 Debug.LogWarning("[FlutterBridge] 읽지 못한 메시지");
                 return;
             }
+            Dispatch(payload);
+        }
+
+        /// 촬영 장면(FilmMode)이 켠다: Flutter 가 보내는 상태를 받지 않고 Inject 로 넣은 것만 보인다
+        public static bool Hold;
+
+        /// Flutter 메시지와 같은 길로 상태를 넣는다 (촬영 장면 연출용)
+        public static void Inject(object payload) => Dispatch(payload);
+
+        static void Dispatch(object payload)
+        {
             switch (payload)
             {
                 case Allo.App.AppState app:
