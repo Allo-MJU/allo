@@ -620,9 +620,9 @@ public static class AlloBuild
         Allo.CameraRig.CameraRig.CabinBox(cabin, fwd, out var bounds, out var length, out var width);
         var along = Vector3.Dot(bounds.center - ground, fwd);
         var saved = new System.Collections.Generic.Dictionary<Material, float>();
-        foreach (var kind in new[] { "road", "city" })
+        foreach (var kind in new[] { "road", "coast", "mountain", "city", "highway" })
         {
-            world.Apply(new Allo.Bridge.SceneState { kind = kind, moving = true, speedKph = 40 }, reset: true);
+            world.Apply(new Allo.Bridge.SceneState { kind = kind == "highway" ? "road" : kind, highway = kind == "highway", moving = true, speedKph = 40 }, reset: true);
             world.EditorStep(120);
             var shell = world.MakeIntroShell(width, length, along, bounds.min.y - world.roadY);
             foreach (var t in new[] { 0f, 0.3f, 0.45f, 0.55f, 0.65f, 0.72f, 0.8f, 0.86f, 1f })

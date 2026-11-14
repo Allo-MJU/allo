@@ -184,8 +184,13 @@ namespace Allo.World
         static string Key(SceneState s) => s.kind == "tunnel" ? "tunnel" : s.highway ? "highway" : s.kind;
 
         /// 장면을 바로 맞춘다. reset 이면 지난 장면 조각을 모두 지운다 (에디터 캡처용).
+        /// 촬영 모드(FilmMode)가 정한 배경. 있으면 차량 신호 대신 맑은 낮의 이 배경을 쓴다
+        public static string FilmKind;
+
         public void Apply(SceneState s, bool reset = false)
         {
+            if (!string.IsNullOrEmpty(FilmKind) && s != null)
+                s = new SceneState { kind = FilmKind == "highway" ? "road" : FilmKind, highway = FilmKind == "highway", speedKph = s.speedKph, moving = s.moving };
             Setup();
             if (reset)
             {

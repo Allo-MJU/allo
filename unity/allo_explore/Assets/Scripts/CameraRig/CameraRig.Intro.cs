@@ -15,6 +15,9 @@ namespace Allo.CameraRig
         public static bool IntroEnabled = true;
         public static bool IntroActive => _instance != null && _instance._intro;
 
+        /// 촬영 모드(FilmMode): 차 안에 들어올 때마다 다시 보여 준다
+        public static bool IntroEveryTime;
+
         static bool _introPlayed; // 앱을 켠 뒤 한 번만
         bool _introWanted, _intro, _introInside;
         float _introT;
@@ -92,7 +95,7 @@ namespace Allo.CameraRig
         bool BeginIntro()
         {
             _introWanted = false;
-            if (!IntroEnabled || _introPlayed || rearAnchor == null || lookTarget == null) return false;
+            if (!IntroEnabled || _introPlayed && !IntroEveryTime || rearAnchor == null || lookTarget == null) return false;
             _introPlayed = true;
             if (FlutterBridge.LastSettings != null && FlutterBridge.LastSettings.reducedMotion) return false;
             var world = FindFirstObjectByType<WorldDirector>();
