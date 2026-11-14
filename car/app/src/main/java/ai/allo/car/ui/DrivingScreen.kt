@@ -64,13 +64,13 @@ fun DrivingScreen(
             val contentWidth = (windowWidth - left - right).coerceAtLeast(0.dp)
             val contentHeight = (windowHeight - contentTop - bottom).coerceAtLeast(0.dp)
             val layout = DrivingWindowLayout.forContent(contentWidth.value, contentHeight.value, density.fontScale)
-            // Horizontal: the character keeps the left 58% and the card overlays the right.
+            // Horizontal: the character owns the middle of the pond under a small name tag.
             // Stacked: the character stands just above the card at the bottom.
-            val artWidth = if (layout.horizontal) (contentWidth - 24.dp) * .58f else contentWidth
-            val centerX = left + artWidth / 2
+            val centerX = left + contentWidth / 2
             val baselineY = if (layout.horizontal) windowHeight * .90f
                 else windowHeight - bottom - cardHeight - 16.dp - contentHeight * .04f
-            val artSize = minOf(layout.artSizeDp.dp, baselineY - contentTop, artWidth - 24.dp).coerceAtLeast(0.dp)
+            val artTop = if (layout.horizontal) contentTop + cardHeight + 8.dp else contentTop
+            val artSize = minOf(if (layout.horizontal) 720.dp else layout.artSizeDp.dp, baselineY - artTop, contentWidth - 24.dp).coerceAtLeast(0.dp)
             val showCharacter = summary.showArt && artSize > 0.dp
             FishingBackdrop(Modifier.fillMaxSize(), artSize, summary.species?.id, summary.showArt && !summary.showEgg, sceneFrame,
                 centerX = if (windowWidth > 0.dp) centerX / windowWidth else .5f,
@@ -89,8 +89,17 @@ fun DrivingScreen(
                     statusMessage ?: if (connected) "폰 상태 연결됨" else "연결 확인 필요", compact, short,
                     Modifier.onSizeChanged { headerHeight = with(density) { it.height.toDp() } })
                 Box(Modifier.weight(1f).fillMaxWidth().padding(top = gap),
-                    contentAlignment = if (layout.horizontal) Alignment.CenterEnd else Alignment.BottomCenter) {
-                    Surface((if (layout.horizontal) Modifier.fillMaxWidth(.42f) else Modifier.fillMaxWidth())
+                    contentAlignment = if (layout.horizontal) Alignment.TopCenter else Alignment.BottomCenter) {
+                    if (layout.horizontal) Surface(Modifier.onSizeChanged { cardHeight = with(density) { it.height.toDp() } },
+                        shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = .9f)) {
+                        Row(Modifier.padding(horizontal = 28.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            Text(displayedSummary.title, fontSize = 28.sp, lineHeight = 36.sp, fontWeight = FontWeight.SemiBold,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(displayedSummary.status, Modifier.weight(1f, fill = false), fontSize = 22.sp, lineHeight = 30.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    } else Surface(Modifier.fillMaxWidth()
                         .onSizeChanged { cardHeight = with(density) { it.height.toDp() } },
                         shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = .94f)) {
                         Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -19,8 +19,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.luminance
 
 /** Parked review of phone-owned information. Every mutation remains a supplied callback. */
@@ -79,10 +82,14 @@ fun ParkedScreen(
                                 dark = dark, onClick = { tab = name })
                         }
                     }
-                    if (!compact) Text(if (connected) "친구 상태 연결됨" else "마지막으로 받은 상태",
-                        style = if (onPlaza) MaterialTheme.typography.labelMedium.copy(shadow = Shadow(Color.Black.copy(alpha = .55f), Offset(0f, 2f), 6f))
-                            else MaterialTheme.typography.labelMedium,
-                        color = if (onPlaza) Color.White else MaterialTheme.colorScheme.onSurfaceVariant)
+                    // Connected is the quiet default: a small light. Words appear only when it is lost.
+                    if (connected) Box(Modifier.padding(end = 8.dp).size(18.dp).border(3.dp, Color.White.copy(alpha = .9f), CircleShape)
+                        .padding(3.dp).background(Color(0xFF58B46A), CircleShape).semantics { contentDescription = "친구 상태 연결됨" })
+                    else Surface(color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        shape = RoundedCornerShape(20.dp)) {
+                        Text(if (compact) "연결 끊김" else "마지막으로 받은 상태", Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            style = MaterialTheme.typography.labelMedium)
+                    }
                 }
                 if (tab !in listOf("광장", "이야기", "여행")) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {

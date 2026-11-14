@@ -83,7 +83,7 @@ internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride
                 val compact = sceneWidth < 700.dp
                 val naturalLawnHeight = if (compact) (sceneWidth * 1.4f).coerceIn(660.dp, 850.dp)
                     else (sceneWidth * .53f).coerceIn(440.dp, 650.dp)
-                val headroom = 100.dp + topInset
+                val headroom = (if (topInset > 0.dp) 40.dp else 100.dp) + topInset
                 val sceneHeight = sceneHeightOverride?.coerceAtLeast((if (compact) 700.dp else 570.dp) + topInset + bottomInset)
                     ?: (naturalLawnHeight + headroom + bottomInset)
                 val lawnHeight = sceneHeight - headroom - 100.dp - bottomInset
@@ -137,15 +137,13 @@ internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride
                                 }
                             }
                         }
-                        val position = plazaWanderPose(index, seconds, compact)
+                        val position = plazaWanderPose(index, seconds, compact, visible.size)
                         val moving = canMove && !focused && position.moving
-                        val baseSize = if (compact) (sceneWidth * .25f).coerceIn(84.dp, 150.dp)
-                            else (sceneWidth * .145f).coerceIn(120.dp, 196.dp)
-                        val petSize = baseSize * (.85f + position.y * .20f)
+                        val petSize = plazaPetSize(sceneWidth.value, lawnHeight.value, position.y, visible.size, compact).dp
                         val x = (sceneWidth * position.x - petSize / 2).coerceIn(0.dp, sceneWidth - petSize)
                         var bubbleHeight by remember { mutableStateOf(150.dp) }
                         val walkingY = headroom + (lawnHeight * position.y - petSize * .86f).coerceAtLeast(76.dp)
-                        val y = if (focused) walkingY.coerceAtLeast(bubbleHeight + 8.dp) else walkingY
+                        val y = if (focused) walkingY.coerceAtLeast(bubbleHeight + topInset) else walkingY
                         Column(Modifier.offset(x, y).width(petSize).zIndex(position.y), horizontalAlignment = Alignment.CenterHorizontally) {
                             Surface(onClick = {
                                 if (latestConnected && id in latestResidents) {
@@ -179,7 +177,7 @@ internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride
                             val density = LocalDensity.current
                             val paper = if (dark) Color(0xFFE8DFC5) else Color(0xFFFFFBE9)
                             val ink = Color(0xFF304729)
-                            Column(Modifier.offset(bubbleX, (y - bubbleHeight + 12.dp).coerceAtLeast(8.dp))
+                            Column(Modifier.offset(bubbleX, (y - bubbleHeight + 12.dp).coerceAtLeast(topInset.coerceAtLeast(8.dp)))
                                 .width(bubbleWidth).zIndex(20f)
                                 .onSizeChanged { bubbleHeight = with(density) { it.height.toDp() } }) {
                                 Surface(onClick = { line?.let { voice.speak(it) } },

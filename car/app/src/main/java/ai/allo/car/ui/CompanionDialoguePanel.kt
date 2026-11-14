@@ -85,12 +85,11 @@ fun CompanionDialoguePanel(
             }
         }, onDismiss = { pickerOpen = false })
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        ToyButton("대화할 친구 바꾸기 · $displayedName", { pickerOpen = true },
-            modifier = Modifier.fillMaxWidth(), enabled = connected)
         if (subject == null) {
+            ToyButton("대화할 친구 바꾸기", { pickerOpen = true }, enabled = connected)
             ParkedInfoCard("대화 준비 중", if (!connected) "폰 연결을 확인해 주세요." else "대화할 친구 바꾸기에서 수집한 친구를 불러 주세요.")
         } else {
-            NotebookSpread(minHeight = (minHeight - 82.dp).coerceAtLeast(0.dp), scene = {
+            NotebookSpread(minHeight = minHeight, scene = {
             Column(Modifier.fillMaxWidth().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
                 val bubbleColor = if (dark) Color(0xFFE8DFC5) else Color(0xFFFFFBE9)
@@ -146,6 +145,7 @@ fun CompanionDialoguePanel(
                         size = (maxWidth * 0.9f).coerceIn(180.dp, 340.dp),
                         modifier = Modifier, connected = connected, moving = false)
                 }
+                ToyButton("대화할 친구 바꾸기", { pickerOpen = true }, enabled = connected)
             }
             }, page = {
             NotebookPaper("친구와 이야기", "오늘은 어떤 이야기를 나눌까요?") {
