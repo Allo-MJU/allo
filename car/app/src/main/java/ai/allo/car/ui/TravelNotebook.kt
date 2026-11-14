@@ -58,20 +58,33 @@ internal fun TravelNotebook(game: GameState, connected: Boolean, minHeight: andr
     )
 }
 
+/**
+ * The garden behind every parked page, edge to edge under the system bars and navigation.
+ * [paper] lays an almost opaque sheet over it for pages that are plain text rather than a scene.
+ */
+@Composable
+internal fun GardenBackdrop(modifier: Modifier = Modifier, paper: Boolean = false) {
+    val dark = MaterialTheme.colorScheme.surface.luminance() < .35f
+    Box(modifier) {
+        Image(painterResource(R.drawable.plaza_garden), null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+        Box(Modifier.matchParentSize().background(if (paper)
+            Brush.verticalGradient(listOf(if (dark) Color(0xE622302A) else Color(0xE6FAF7EE), if (dark) Color(0xF522302A) else Color(0xF5FAF7EE)))
+            else Brush.horizontalGradient(listOf(
+                if (dark) Color(0xBB142E29) else Color(0x20487044),
+                if (dark) Color(0xF022302A) else Color(0xEEFAF6E9)))))
+    }
+}
+
+/** Scene beside paper. The backdrop is the caller's [GardenBackdrop], so nothing is boxed in here. */
 @Composable
 internal fun NotebookSpread(minHeight: androidx.compose.ui.unit.Dp = 0.dp, scene: @Composable () -> Unit, page: @Composable () -> Unit) {
-    val dark = MaterialTheme.colorScheme.surface.luminance() < .35f
-    BoxWithConstraints(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
         val wide = maxWidth >= 1000.dp && LocalDensity.current.fontScale <= 1.4f
-        Image(painterResource(R.drawable.plaza_garden), null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
-        Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(
-            if (dark) Color(0xBB142E29) else Color(0x20487044),
-            if (dark) Color(0xF022302A) else Color(0xEEFAF6E9)))))
-        if (wide) Row(Modifier.fillMaxWidth().heightIn(min = minHeight).padding(24.dp), verticalAlignment = Alignment.CenterVertically,
+        if (wide) Row(Modifier.fillMaxWidth().heightIn(min = minHeight).padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(24.dp)) {
             Box(Modifier.weight(.43f)) { scene() }
             Box(Modifier.weight(.57f)) { page() }
-        } else Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        } else Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             scene(); page()
         }
     }

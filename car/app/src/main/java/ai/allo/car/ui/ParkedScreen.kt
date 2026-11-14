@@ -19,6 +19,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.luminance
 
 /** Parked review of phone-owned information. Every mutation remains a supplied callback. */
@@ -48,9 +53,27 @@ fun ParkedScreen(
     val dark = MaterialTheme.colorScheme.surface.luminance() < .35f
     val paper = if (dark) MaterialTheme.colorScheme.surface else Color(0xFFFAF7EE)
     Surface(modifier.fillMaxSize(), color = paper) {
-        BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding()) {
+        // The scene owns the whole window; logo, navigation and actions sit on top of it.
+        BoxWithConstraints(Modifier.fillMaxSize()) {
             val compact = maxWidth < 700.dp
-            Column(Modifier.fillMaxSize().padding(if (compact) 12.dp else 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            val windowHeight = maxHeight
+            val edge = if (compact) 12.dp else 20.dp
+            val safe = WindowInsets.safeDrawing.asPaddingValues()
+            val onPlaza = tab == "광장"
+            if (onPlaza) {
+                // Keep the scene usable in short windows; scroll instead of squeezing touch targets.
+                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    PlazaScene(game, connected, sceneHeightOverride = windowHeight, selectedResidents = visibleFriends,
+                        topInset = safe.calculateTopPadding() + edge + 72.dp, bottomInset = safe.calculateBottomPadding()) {
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)) {
+                            listOf("친구들" to "친구들", "모은 재료" to "재료", "거점" to "거점", "폰 연결 · 공유" to "폰 공유").forEach { (label, destination) ->
+                                ToyButton(label, { if (destination == "재료") materialsOpen = true else tab = destination }, Modifier.widthIn(min = 144.dp))
+                            }
+                        }
+                    }
+                }
+            } else GardenBackdrop(Modifier.fillMaxSize(), paper = tab !in listOf("이야기", "여행"))
+            Column((if (onPlaza) Modifier.fillMaxWidth() else Modifier.fillMaxSize()).safeDrawingPadding().padding(edge), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     AlloWordmark(Modifier.width(if (compact) 88.dp else 132.dp).height(64.dp))
                     Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -59,8 +82,14 @@ fun ParkedScreen(
                                 dark = dark, onClick = { tab = name })
                         }
                     }
-                    if (!compact) Text(if (connected) "친구 상태 연결됨" else "마지막으로 받은 상태",
-                        style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    // Connected is the quiet default: a small light. Words appear only when it is lost.
+                    if (connected) Box(Modifier.padding(end = 8.dp).size(18.dp).border(3.dp, Color.White.copy(alpha = .9f), CircleShape)
+                        .padding(3.dp).background(Color(0xFF58B46A), CircleShape).semantics { contentDescription = "친구 상태 연결됨" })
+                    else Surface(color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        shape = RoundedCornerShape(20.dp)) {
+                        Text(if (compact) "연결 끊김" else "마지막으로 받은 상태", Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            style = MaterialTheme.typography.labelMedium)
+                    }
                 }
                 if (tab !in listOf("광장", "이야기", "여행")) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -68,21 +97,7 @@ fun ParkedScreen(
                         Text(tab, style = MaterialTheme.typography.titleLarge)
                     }
                 }
-                if (tab == "광장") {
-                    BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-                        val availableHeight = maxHeight
-                        Column(Modifier.verticalScroll(rememberScrollState())) {
-                        // Keep the scene usable in short windows; scroll instead of squeezing touch targets.
-                        PlazaScene(game, connected, sceneHeightOverride = availableHeight, selectedResidents = visibleFriends) {
-                            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)) {
-                                listOf("친구들" to "친구들", "모은 재료" to "재료", "거점" to "거점").forEach { (label, destination) ->
-                                    ToyButton(label, { if (destination == "재료") materialsOpen = true else tab = destination }, Modifier.widthIn(min = 144.dp))
-                                }
-                            }
-                        }
-                        }
-                    }
-                } else key(tab) {
+                if (!onPlaza) key(tab) {
                     BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                     val pageHeight = maxHeight
                     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -119,14 +134,15 @@ fun ParkedScreen(
                                 transferMessage?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
                             }
                         }
+                        // Room to scroll the last lines clear of the floating button.
+                        Spacer(Modifier.height(72.dp))
                     }
                 }
                 }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Spacer(Modifier.weight(1f))
-                    ToyButton("폰 연결 · 공유", { tab = "폰 공유" })
-                }
             }
+            // Floats over the page so the content runs to the bottom edge instead of stopping above a bar.
+            if (!onPlaza && tab != "폰 공유") ToyButton("폰 연결 · 공유", { tab = "폰 공유" },
+                Modifier.align(Alignment.BottomEnd).safeDrawingPadding().padding(edge))
         }
     }
     if (materialsOpen) AlertDialog(onDismissRequest = { materialsOpen = false },

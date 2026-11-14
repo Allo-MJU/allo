@@ -84,6 +84,21 @@ class PlazaWanderTest {
         }
     }
 
+    @Test fun `up to three friends share one large front row without touching`() {
+        for (width in listOf(700f, 785f, 1440f, 1920f)) for (count in 1..3) for (tick in 0..2400) {
+            val lawn = lawnHeight(width)
+            val rects = (0 until count).map { index ->
+                val pose = plazaWanderPose(index, tick * .1f, false, count)
+                val size = plazaPetSize(width, lawn, pose.y, count, false)
+                assertTrue(size >= plazaPetSize(width, lawn, .85f, 6, false))
+                assertTrue("top clipped", lawn * pose.y - size * .86f >= 0f)
+                (width * pose.x - size / 2f) to (width * pose.x + size / 2f)
+            }
+            assertTrue(rects.first().first >= 0f && rects.last().second <= width)
+            rects.zipWithNext().forEach { (a, b) -> assertTrue("width=$width count=$count", a.second <= b.first) }
+        }
+    }
+
     private data class ResidentRect(val left: Float, val top: Float, val right: Float, val bottom: Float)
 
     // Geometry contract of PlazaScene. Includes the complete touch target and 32dp name label,
@@ -96,9 +111,7 @@ class PlazaWanderTest {
     private fun residentRect(width: Float, index: Int, seconds: Float): ResidentRect {
         val compact = width < 700f
         val position = plazaWanderPose(index, seconds, compact)
-        val baseSize = if (compact) (width * .25f).coerceIn(84f, 150f)
-            else (width * .145f).coerceIn(120f, 196f)
-        val petSize = baseSize * (.85f + position.y * .20f)
+        val petSize = plazaPetSize(width, lawnHeight(width), position.y, 6, compact)
         val left = (width * position.x - petSize / 2f).coerceIn(0f, width - petSize)
         val top = 100f + (lawnHeight(width) * position.y - petSize * .86f).coerceAtLeast(76f)
         return ResidentRect(left, top, left + petSize, top + petSize + 32f)
