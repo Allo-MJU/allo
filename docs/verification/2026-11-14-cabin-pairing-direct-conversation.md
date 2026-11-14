@@ -51,3 +51,12 @@ Unity export 및 debug APK 빌드 성공(최종 APK 빌드79.8초). APK SHA256: 
 - /tmp/allo-cabin-actions-smooth-apk.log
 
 생성 APK/Unity 라이브러리와 로컬 인증 설정은 소스 변경에 포함하지 않는다.
+
+## 후속: 데모 테스트 연결 버튼
+
+데모 모드의 차량 연결 창 위쪽에 `테스트 연결`을 추가했다. 세션 ID·코드 입력 없이 기존 `pair` 액션과 가상 주행 연결을 재사용해 차 안으로 이동한다. 실제 차량 모드에는 버튼이 없으며, 처리 중이거나 준비되지 않은 상태에서는 요청하지 않는다. 다시 눌러도 현재 알과 진행 중인 연결을 새로 만들지 않는다.
+
+- Unity EditMode 전체 249/249, Flutter 전체 501/501, 연결 집중 검증 39/39 통과. Unity 버튼 테스트는 추가 전 누락 실패를 먼저 확인했다.
+- 실제 Unity PlayMode 연결 창 캡처: `docs/work-results/unity-phone/book-ui/test-pairing-1600x720.png`. 독립 코드·화면 검토에서 추가 중요 문제 없음.
+- Android export·debug APK 빌드(88.6초) 후 API36 에뮬레이터에 데이터 유지 설치·시작 완료. 테스트 연결 버튼의 Android 직접 터치 반복 검증은 하지 않았으며, 실제 차량 연결 성공으로 해석하지 않는다.
+- APK SHA-256: `215f1bcd0cfbe45159d68232b6474bcb651442ab7e32a0b0dac861e5e914926a`.

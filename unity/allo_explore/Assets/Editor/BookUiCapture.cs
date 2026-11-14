@@ -76,6 +76,7 @@ public static class BookUiCapture
             CaptureView(reviewSize, "dex", "dex-ended-trip");
             CaptureView(reviewSize, "dex", "dex-long-description");
             CaptureView(reviewSize, "inventory", "materials-large-count");
+            CaptureView(reviewSize, "pairing", "test-pairing");
             CapturePortraits();
             Debug.Log("[BookUiCapture] Saved actual Unity book views and twelve-species portrait contact sheet to " + _output);
         }
@@ -108,6 +109,7 @@ public static class BookUiCapture
         SetState(null);
         var state = Fixture(view);
         if (locked) { state.dex[11].collected = false; state.dex[11].count = 0; state.creatures = state.creatures.Where(c => c.speciesId != state.dex[11].id).ToArray(); }
+        if (kind == "test-pairing") { state.isDemo = true; state.connected = false; }
         if (kind == "dex-empty") state.dex = Array.Empty<DexState>();
         if (kind == "materials-empty") state.materials = Array.Empty<MaterialState>();
         if (kind == "dex-ended-trip") { state.connected = false; state.sessionEnded = true; }
@@ -148,6 +150,7 @@ public static class BookUiCapture
             Canvas.ForceUpdateCanvases();
             foreach (var scroll in root.GetComponentsInChildren<ScrollRect>())
             {
+                if (scroll.verticalScrollbar == null) continue;
                 var overflow = scroll.content.rect.height > scroll.viewport.rect.height + .01f;
                 if (scroll.verticalScrollbar.gameObject.activeSelf != overflow)
                     throw new InvalidOperationException("Scrollbar visibility does not match actual page overflow.");

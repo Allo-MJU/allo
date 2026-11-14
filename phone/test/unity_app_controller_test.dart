@@ -171,6 +171,32 @@ void main() {
     expect(game.game.stage, Stage.incubating);
     expect(app.snapshot['view'], 'cabin');
   });
+  test('test connection credentials enter cabin once without replacing the egg',
+      () async {
+    app.dispose();
+    game.dispose();
+    final fake = CountingFakeFeed();
+    game = GameController(feed: fake, dex: DexStore(), monotonicMs: () => 0);
+    app = UnityAppController(game: game, camp: camp);
+    await app.initialize();
+    expect(app.snapshot['connected'], false);
+    expect(app.snapshot['isDemo'], true);
+    const credentials = {
+      'sessionId': '00000000-0000-4000-8000-000000000001',
+      'pairCode': '000000'
+    };
+    await action('navigate', {'view': 'pairing'});
+    expect(await action('pair', credentials), true);
+    expect(app.view, 'cabin');
+    expect(app.snapshot['connected'], true);
+    final egg = game.eggId;
+    expect(egg, isNotNull);
+    await action('navigate', {'view': 'pairing'});
+    expect(await action('pair', credentials), true);
+    expect(app.view, 'cabin');
+    expect(game.eggId, egg);
+    expect(fake.watches, 1);
+  });
   test('failed demo end save keeps cabin next-trip start disabled', () async {
     app.dispose();
     game.dispose();
