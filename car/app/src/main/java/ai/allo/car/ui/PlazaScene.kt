@@ -44,9 +44,14 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.isActive
 
-/** Parked-only local presentation. Tapping never changes ownership or selected companion. */
+/**
+ * Parked-only local presentation. Tapping never changes ownership or selected companion.
+ * The garden is full-bleed: [topInset] is what the caller overlays on its top edge (system bar and
+ * navigation), [bottomInset] the system bar under the dock. Friends and bubbles stay clear of both.
+ */
 @Composable
 internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride: androidx.compose.ui.unit.Dp? = null, selectedResidents: List<String>? = null,
+    topInset: androidx.compose.ui.unit.Dp = 0.dp, bottomInset: androidx.compose.ui.unit.Dp = 0.dp,
     dock: @Composable () -> Unit = {}) {
     val catalog = rememberSpeciesCatalog()
     val dialogue = remember { PlazaDialogue() }
@@ -71,43 +76,51 @@ internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride
     LaunchedEffect(residents, page, connected) { voice.stop() }
     val canMove = ambientMotionAllowed(PetPose.Move, false, connected, true)
     val dark = MaterialTheme.colorScheme.surface.luminance() < .35f
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        if (visible.isEmpty()) {
-            ParkedInfoCard("광장에서 만날 친구를 기다려요", when {
-                !connected -> "폰 연결을 확인해 주세요."
-                game.collectionSummary == null || "collectionSummary" in game.invalidBlocks -> "폰의 수집 정보를 기다리고 있어요."
-                available.isNotEmpty() -> "아래 친구들에서 광장에 나올 친구를 골라 주세요."
-                else -> "폰에서 수집한 친구들이 이곳에 찾아와요."
-            })
-            dock()
-        } else {
-            BoxWithConstraints(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp))) {
+    val sideInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
+    Column {
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
                 val sceneWidth = maxWidth
                 val compact = sceneWidth < 700.dp
                 val naturalLawnHeight = if (compact) (sceneWidth * 1.4f).coerceIn(660.dp, 850.dp)
                     else (sceneWidth * .53f).coerceIn(440.dp, 650.dp)
-                val headroom = 100.dp
-                val sceneHeight = sceneHeightOverride?.coerceAtLeast(if (compact) 700.dp else 570.dp) ?: (naturalLawnHeight + headroom)
-                val lawnHeight = sceneHeight - headroom - 100.dp
+                val headroom = (if (topInset > 0.dp) 40.dp else 100.dp) + topInset
+                val sceneHeight = sceneHeightOverride?.coerceAtLeast((if (compact) 700.dp else 570.dp) + topInset + bottomInset)
+                    ?: (naturalLawnHeight + headroom + bottomInset)
+                val lawnHeight = sceneHeight - headroom - 100.dp - bottomInset
                 Box(Modifier.fillMaxWidth().height(sceneHeight)) {
                     Image(painterResource(R.drawable.plaza_garden), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                     Canvas(Modifier.fillMaxSize()) {
                         if (dark) drawRect(Color(0xFF0C2440).copy(alpha = .53f))
-                        drawRect(Brush.verticalGradient(listOf(Color(0xFF122A22).copy(alpha = .48f), Color.Transparent), endY = size.height * .28f))
+                        drawRect(Brush.verticalGradient(listOf(Color(0xFF122A22).copy(alpha = .48f), Color.Transparent),
+                            endY = maxOf(size.height * .28f, (topInset + 110.dp).toPx())))
                         if (dark) listOf(.09f to .30f, .89f to .35f, .06f to .80f, .92f to .87f).forEach { (x, y) ->
                             val center = Offset(size.width * x, size.height * y)
                             drawCircle(Brush.radialGradient(listOf(Color(0xFFFFE3A1).copy(alpha = .3f), Color.Transparent), center, 22.dp.toPx()), 22.dp.toPx(), center)
                             drawCircle(Color(0xFFFFE8AE), 2.dp.toPx(), center)
                         }
                     }
-                    Row(Modifier.fillMaxWidth().padding(20.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(if (dark) "달빛 아래, 친구들의 쉼터" else "오늘도, 함께 놀아요", color = Color.White, style = MaterialTheme.typography.titleLarge)
-                            Text("친구를 톡 눌러 인사해 보세요", color = Color.White.copy(alpha = .9f), style = MaterialTheme.typography.bodyMedium)
-                        }
-
+                    val titleShadow = Shadow(Color.Black.copy(alpha = .55f), Offset(0f, 2f), 6f)
+                    Column(Modifier.fillMaxWidth().windowInsetsPadding(sideInsets)
+                        .padding(start = 24.dp, end = 24.dp, top = topInset + 8.dp)) {
+                        Text(if (dark) "달빛 아래, 친구들의 쉼터" else "오늘도, 함께 놀아요", color = Color.White,
+                            style = MaterialTheme.typography.titleLarge.copy(shadow = titleShadow))
+                        Text(when {
+                            !connected && visible.isNotEmpty() -> "마지막으로 받은 친구들이에요. 폰 연결을 확인해 주세요."
+                            visible.isEmpty() -> "친구들이 놀러 올 자리예요"
+                            else -> "친구를 톡 눌러 인사해 보세요"
+                        }, color = Color.White.copy(alpha = .92f), style = MaterialTheme.typography.bodyMedium.copy(shadow = titleShadow))
                     }
-                    Box(Modifier.align(Alignment.BottomCenter).padding(horizontal = 24.dp, vertical = 14.dp).fillMaxWidth()) { dock() }
+                    if (visible.isEmpty()) Box(Modifier.align(Alignment.Center).windowInsetsPadding(sideInsets)
+                        .padding(horizontal = 24.dp).widthIn(max = 560.dp)) {
+                        ParkedInfoCard("광장에서 만날 친구를 기다려요", when {
+                            !connected -> "폰 연결을 확인해 주세요."
+                            game.collectionSummary == null || "collectionSummary" in game.invalidBlocks -> "폰의 수집 정보를 기다리고 있어요."
+                            available.isNotEmpty() -> "아래 친구들에서 광장에 나올 친구를 골라 주세요."
+                            else -> "폰에서 수집한 친구들이 이곳에 찾아와요."
+                        })
+                    }
+                    Box(Modifier.align(Alignment.BottomCenter).windowInsetsPadding(sideInsets)
+                        .padding(start = 24.dp, end = 24.dp, top = 14.dp, bottom = 14.dp + bottomInset).fillMaxWidth()) { dock() }
                     visible.forEachIndexed { index, id -> key(id) {
                         val species = catalog[id]!!
                         // A local clock pauses exactly where the user tapped and resumes without a jump.
@@ -124,15 +137,13 @@ internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride
                                 }
                             }
                         }
-                        val position = plazaWanderPose(index, seconds, compact)
+                        val position = plazaWanderPose(index, seconds, compact, visible.size)
                         val moving = canMove && !focused && position.moving
-                        val baseSize = if (compact) (sceneWidth * .25f).coerceIn(84.dp, 150.dp)
-                            else (sceneWidth * .145f).coerceIn(120.dp, 196.dp)
-                        val petSize = baseSize * (.85f + position.y * .20f)
+                        val petSize = plazaPetSize(sceneWidth.value, lawnHeight.value, position.y, visible.size, compact).dp
                         val x = (sceneWidth * position.x - petSize / 2).coerceIn(0.dp, sceneWidth - petSize)
                         var bubbleHeight by remember { mutableStateOf(150.dp) }
                         val walkingY = headroom + (lawnHeight * position.y - petSize * .86f).coerceAtLeast(76.dp)
-                        val y = if (focused) walkingY.coerceAtLeast(bubbleHeight + 8.dp) else walkingY
+                        val y = if (focused) walkingY.coerceAtLeast(bubbleHeight + topInset) else walkingY
                         Column(Modifier.offset(x, y).width(petSize).zIndex(position.y), horizontalAlignment = Alignment.CenterHorizontally) {
                             Surface(onClick = {
                                 if (latestConnected && id in latestResidents) {
@@ -166,7 +177,7 @@ internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride
                             val density = LocalDensity.current
                             val paper = if (dark) Color(0xFFE8DFC5) else Color(0xFFFFFBE9)
                             val ink = Color(0xFF304729)
-                            Column(Modifier.offset(bubbleX, (y - bubbleHeight + 12.dp).coerceAtLeast(8.dp))
+                            Column(Modifier.offset(bubbleX, (y - bubbleHeight + 12.dp).coerceAtLeast(topInset.coerceAtLeast(8.dp)))
                                 .width(bubbleWidth).zIndex(20f)
                                 .onSizeChanged { bubbleHeight = with(density) { it.height.toDp() } }) {
                                 Surface(onClick = { line?.let { voice.speak(it) } },
@@ -208,8 +219,5 @@ internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride
                     } }
                 }
             }
-            if (!connected) Text("마지막으로 받은 친구들이에요. 폰 연결을 확인해 주세요.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-        }
     }
 }
