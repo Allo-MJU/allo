@@ -599,6 +599,54 @@ public static class AlloBuild
         RenderTexture.active = null;
     }
 
+    /// 진입 연출(CameraRig.Intro) 확인 사진: 길 위의 시점을 몇 장 찍는다. ALLO_CAPTURE_DIR 이 있으면 거기에 쓴다
+    ///   Unity -batchmode -quit -projectPath unity/allo_explore -executeMethod AlloBuild.CaptureIntro
+    public static void CaptureIntro()
+    {
+        EditorSceneManager.OpenScene(ScenePath);
+        var cam = Camera.main;
+        var rig = cam.GetComponent<Allo.CameraRig.CameraRig>();
+        var world = Object.FindFirstObjectByType<Allo.World.WorldDirector>();
+        var dir = rig.lookTarget.position - rig.rearAnchor.position;
+        var baseYaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+        var custom = System.Environment.GetEnvironmentVariable("ALLO_CAPTURE_DIR");
+        var outDir = string.IsNullOrEmpty(custom) ? Path.GetFullPath(Path.Combine(Application.dataPath, "../../../docs/work-results/explore")) : custom;
+        Directory.CreateDirectory(outDir);
+        var rt = new RenderTexture(1600, 720, 24);
+        cam.targetTexture = rt;
+        var cabin = GameObject.Find("Cabin");
+        var fwd = world.forward; fwd.y = 0; fwd.Normalize();
+        var ground = new Vector3(world.carCenter.x, world.roadY, world.carCenter.z);
+        Allo.CameraRig.CameraRig.CabinBox(cabin, fwd, out var bounds, out var length, out var width);
+        var along = Vector3.Dot(bounds.center - ground, fwd);
+        var saved = new System.Collections.Generic.Dictionary<Material, float>();
+        foreach (var kind in new[] { "road", "city" })
+        {
+            world.Apply(new Allo.Bridge.SceneState { kind = kind, moving = true, speedKph = 40 }, reset: true);
+            world.EditorStep(120);
+            var shell = world.MakeIntroShell(width, length, along, bounds.min.y - world.roadY);
+            foreach (var t in new[] { 0f, 0.3f, 0.45f, 0.55f, 0.65f, 0.72f, 0.8f, 0.86f, 1f })
+            {
+                Allo.CameraRig.CameraRig.IntroPose(t, ground, fwd, rig.rearAnchor.position, Quaternion.Euler(0, baseYaw, 0), out var pos, out var rot);
+                var inside = bounds.Contains(pos);
+                shell.gameObject.SetActive(!inside);
+                Allo.CameraRig.CameraRig.CabinTwoSided(cabin, !inside, saved);
+                cam.transform.SetPositionAndRotation(pos, rot);
+                cam.Render();
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                File.WriteAllBytes(Path.Combine(outDir, $"intro_{kind}_{Mathf.RoundToInt(t * 100):000}.png"), tex.EncodeToPNG());
+            }
+            Object.DestroyImmediate(shell.gameObject);
+            Allo.CameraRig.CameraRig.CabinTwoSided(cabin, false, saved);
+        }
+        cam.targetTexture = null;
+        RenderTexture.active = null;
+        Debug.Log($"[AlloBuild] captured intro to {outDir}");
+    }
+
     /// 회전·유턴 확인 사진: 교차로 앞(40m), 도는 중, 돈 뒤 30m 에서 앞·옆을 찍는다
     public static void CaptureTurns()
     {

@@ -11,7 +11,7 @@ namespace Allo.CameraRig
     /// - 손을 떼면 0.3초 동안 관성으로 부드럽게 멈춘다
     /// 에디터에서는 마우스 드래그·스크롤로 같은 동작을 한다.
     [RequireComponent(typeof(Camera))]
-    public sealed class CameraRig : MonoBehaviour
+    public sealed partial class CameraRig : MonoBehaviour
     {
         [Tooltip("뒷좌석 아이 눈 위치")] public Transform rearAnchor;
         [Tooltip("앞좌석 사이 위치")] public Transform frontAnchor;
@@ -23,8 +23,17 @@ namespace Allo.CameraRig
         bool _gyro = true;
         float? _lastPinch;
 
-        void OnEnable() => FlutterBridge.SettingsChanged += OnSettings;
-        void OnDisable() => FlutterBridge.SettingsChanged -= OnSettings;
+        void OnEnable()
+        {
+            FlutterBridge.SettingsChanged += OnSettings;
+            _introWanted = true; // 주행 화면이 처음 보일 때 (CameraRig.Intro)
+        }
+
+        void OnDisable()
+        {
+            FlutterBridge.SettingsChanged -= OnSettings;
+            if (_intro) { EndIntro(); Apply(); }
+        }
 
         void OnSettings(SettingsState s) => _gyro = s.gyro && !s.reducedMotion;
 
@@ -47,6 +56,7 @@ namespace Allo.CameraRig
 
         void Update()
         {
+            if (IntroTick()) return;
             if (Allo.App.AppSession.StoryActive || Allo.App.StoryOverlay.CapturingInput)
             {
                 _velocity = Vector2.zero;

@@ -246,6 +246,25 @@ namespace Allo.World
             _backdrop.localRotation = Quaternion.Euler(0, -_carYaw + Time.time * 0.15f, 0); // 차가 돌면 먼 배경도 돌고, 구름은 천천히 흐른다
         }
 
+        /// 진입 연출(CameraRig.Intro): 실내 모델을 밖에서 볼 때 차로 보이게 바퀴·차대·미등을 단다.
+        /// width·length 는 실내 크기, along 은 차 가운데에서 실내 가운데까지 앞쪽 거리, floor 는 노면에서 실내 바닥까지 높이.
+        /// 실내에 들어오면 부르는 쪽이 지운다
+        public Transform MakeIntroShell(float width, float length, float along, float floor)
+        {
+            Setup();
+            var t = new GameObject("IntroShell").transform;
+            t.SetParent(_root, false);
+            var r = Mathf.Max(0.3f, floor + 0.06f);
+            foreach (var x in new[] { -1f, 1f })
+            {
+                foreach (var z in new[] { -0.3f, 0.3f })
+                    _kit.Wheel(t, new Vector3(x * (width / 2 - 0.08f), r, along + z * length), r, 0.24f);
+                _kit.GlowBox(t, new Vector3(x * width * 0.36f, floor + 0.35f, along - length / 2 - 0.02f), new Vector3(0.3f, 0.16f, 0.05f), Kit.C("#E2463A"));
+            }
+            _kit.Box(t, new Vector3(0, 0.14f, along), new Vector3(width * 0.94f, Mathf.Max(0.05f, floor - 0.12f), length * 0.98f), Kit.C("#3A3531"));
+            return t;
+        }
+
         /// 에디터 캡처용: meters 만큼 달린 것으로 치고 조각을 바로 짓는다 (Update 가 돌지 않는 배치 모드)
         public void EditorStep(float meters)
         {
