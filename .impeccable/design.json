@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-14T00:00:00Z",
+  "title": "Design System: ALLO Book Collection UI",
+  "extensions": {
+    "colorMeta": {
+      "book-ink": {
+        "role": "primary",
+        "displayName": "Book Ink"
+      },
+      "book-muted": {
+        "role": "neutral",
+        "displayName": "Muted Page Brown"
+      },
+      "book-gold": {
+        "role": "primary",
+        "displayName": "Selection Gold"
+      },
+      "book-paper": {
+        "role": "neutral",
+        "displayName": "Warm Book Paper"
+      },
+      "book-outline": {
+        "role": "neutral",
+        "displayName": "Book Edge Brown"
+      },
+      "button-primary": {
+        "role": "primary",
+        "displayName": "Action Gold"
+      },
+      "button-secondary": {
+        "role": "neutral",
+        "displayName": "Button Paper"
+      },
+      "bookmark-dex-active": {
+        "role": "secondary",
+        "displayName": "Dex Bookmark Clay"
+      },
+      "bookmark-idle": {
+        "role": "secondary",
+        "displayName": "Bookmark Moss"
+      },
+      "selected-slot": {
+        "role": "secondary",
+        "displayName": "Selected Slot Paper"
+      }
+    },
+    "typographyMeta": {
+      "page-title": {
+        "displayName": "Page Title",
+        "purpose": "Book page headings."
+      },
+      "slot-label": {
+        "displayName": "Slot Label",
+        "purpose": "Collection slot captions."
+      },
+      "button-label": {
+        "displayName": "Button Label",
+        "purpose": "Book action labels."
+      },
+      "quantity": {
+        "displayName": "Quantity",
+        "purpose": "Item count badges."
+      }
+    }
+  },
+  "components": [
+    {
+      "name": "Book Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary action inside dex or inventory book pages.",
+      "html": "<button class=\"ds-book-primary\">선택하기</button>",
+      "css": ".ds-book-primary { background: #E5BC65; color: #493D2D; height: 52px; padding: 0 16px; border: 1px solid #C4AA7A; font: 21px 'Do Hyeon', sans-serif; } .ds-book-primary:hover, .ds-book-primary:focus-visible { background: #F7E5B9; outline: 2px solid #C69137; outline-offset: 1px; } .ds-book-primary:active { background: #D9BB7D; }"
+    },
+    {
+      "name": "Book Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Standard action inside dex or inventory book pages.",
+      "html": "<button class=\"ds-book-secondary\">자세히 보기</button>",
+      "css": ".ds-book-secondary { background: #EDDBB7; color: #493D2D; height: 52px; padding: 0 16px; border: 1px solid #C4AA7A; font: 21px 'Do Hyeon', sans-serif; } .ds-book-secondary:hover, .ds-book-secondary:focus-visible { background: #F7E5B9; outline: 2px solid #C69137; outline-offset: 1px; } .ds-book-secondary:active { background: #D9BB7D; }"
+    },
+    {
+      "name": "Selected Collection Slot",
+      "kind": "custom",
+      "refersTo": "selected-slot",
+      "description": "Selected character or item slot with visible quantity when applicable.",
+      "html": "<button class=\"ds-book-slot\"><span class=\"ds-book-slot-art\"></span><span class=\"ds-book-slot-caption\">항목 이름</span><span class=\"ds-book-slot-count\">12</span></button>",
+      "css": ".ds-book-slot { position: relative; background: #E8CD8D; color: #493D2D; border: 2px solid #C69137; padding: 7px; min-width: 100px; font: 21px 'Do Hyeon', sans-serif; } .ds-book-slot:hover, .ds-book-slot:focus-visible { background: #F7E5B9; outline: 2px solid #C69137; outline-offset: 1px; } .ds-book-slot-art { display: block; height: 84px; } .ds-book-slot-caption { display: block; } .ds-book-slot-count { position: absolute; top: 3px; right: 5px; font-size: 18px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Field Guide Book",
+    "overview": "The dex and inventory are browsed as one warm, illustrated field guide. Paper, a visible spine and page layers give the collection a physical book frame; the UI remains a compact game interface inside it. This scope covers only the Unity phone dex, inventory and their shared book navigation. It does not prescribe the home, camp, cabin or other routes.",
+    "keyCharacteristics": [
+      "Landscape book with paired pages",
+      "Warm paper, brown ink and restrained gold selection",
+      "Compact Korean game controls"
+    ],
+    "rules": [],
+    "dos": [
+      "Do keep dex and inventory content within the open-book page bounds and preserve the center spine gap.",
+      "Do keep quantity badges legible and selection visible through both fill and outline.",
+      "Do use the explicit ‘그림 준비 중’ fallback when portrait art is unavailable."
+    ],
+    "donts": [
+      "Don't apply this book treatment to other app routes; this system is scoped to dex and inventory.",
+      "Don't replace ALLO collection data or introduce content from the reference game images.",
+      "Don't present missing character art as finished portrait artwork; the current upstream set contains only 6 of 12 character images."
+    ]
+  }
+}

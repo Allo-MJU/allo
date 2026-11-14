@@ -13,3 +13,5 @@ Cabin preserves the existing immersive 3D car with a thin affinity/remaining HUD
 Dart controllers own all costs, affinity, ownership, saves and offline jobs. Latest dev authenticated companion selection, driving auto-fishing presentation and saved collection/base summary publication are retained. Existing distance/lookout camp material rules remain authoritative. Project-bound image assets/prompts are recorded in docs/village-art-provenance.md. Verification is recorded in docs/work-results/unity-phone/README.md.
 
 For the requested collected-character preview, enable only the isolated fake-feed demo examples profile. Use the actual canonical character sprites and real demo ownership, rather than UI-only pretend IDs. Existing production/default data stays separate.
+
+The Unity phone dex and inventory use a separate, scoped book treatment documented in [docs/design/book-ui/DESIGN.md](docs/design/book-ui/DESIGN.md). Its tokens and components are also recorded in `.impeccable/design.json`.

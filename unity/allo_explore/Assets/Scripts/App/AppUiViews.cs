@@ -234,69 +234,64 @@ namespace Allo.App
 
         void BuildDex()
         {
-            var left = Sheet(_content, 0, .64f);
-            var right = Sheet(_content, .64f, 1);
             var entries = Items(_state.dex);
-            Heading(left, "만난 친구 " + entries.Count(d => d.collected) + " / " + entries.Length);
-            Note(left, "친구를 누르면 이야기와 배운 행동을 볼 수 있어요.");
-            if (entries.Length == 0) { Copy(left, "도감 정보를 불러오는 중이에요. 설정에서 다시 확인할 수 있어요."); return; }
-            if (!entries.Any(d => d.id == _selectedDex)) _selectedDex = entries.FirstOrDefault(d => d.collected)?.id ?? entries[0].id;
-            var grid = Rect("Dex grid", left);
-            var layout = grid.gameObject.AddComponent<GridLayoutGroup>();
-            var gridWidth = Mathf.Max(180, _content.rect.width * .64f - 68);
-            var columns = Mathf.Clamp(Mathf.FloorToInt((gridWidth + 12) / 166), 2, 6);
-            layout.cellSize = new Vector2((gridWidth - (columns - 1) * 12) / columns, 176); layout.spacing = new Vector2(12, 16);
-            layout.constraint = GridLayoutGroup.Constraint.FixedColumnCount; layout.constraintCount = columns;
-            var gridSize = grid.gameObject.AddComponent<LayoutElement>(); gridSize.preferredHeight = Mathf.Ceil(entries.Length / (float)columns) * 192;
+            if (!entries.Any(d => d.id == _selectedDex)) _selectedDex = entries.FirstOrDefault(d => d.collected)?.id ?? entries.FirstOrDefault()?.id;
+            var detail = entries.FirstOrDefault(d => d.id == _selectedDex);
+            CollectionBook(detail == null ? "우리 친구 도감" : detail.collected ? detail.name : "아직 만나지 못한 친구",
+                "만난 친구 " + entries.Count(d => d.collected) + " / " + entries.Length, out var left, out var right);
+            if (detail == null)
+            {
+                BookCopy(left, "도감 정보를 불러오는 중이에요. 설정에서 다시 확인할 수 있어요.");
+                BookCopy(right, "여행에서 만난 친구들이 이곳에 모여요.", 22, true); return;
+            }
+            var grid = BookGrid(right, "Dex grid", entries.Length, out var cellSize);
             foreach (var entry in entries)
             {
                 var selected = entry;
-                var tile = Surface(entry.name, grid, _selectedDex == entry.id ? Mint : Color.white);
-                var button = tile.gameObject.AddComponent<Button>(); button.onClick.AddListener(() => { _selectedDex = selected.id; _selectedCreature = null; _dirty = true; });
-                var artRoot = Rect("Portrait", tile); Stretch(artRoot, 10, 48, -10, -8);
-                if (entry.collected) Art(artRoot, entry.sprite, 116);
+                var portrait = BookSlot(grid, entry.name, entry.collected ? entry.name : "???", _selectedDex == entry.id,
+                    () => { _selectedDex = selected.id; _selectedCreature = null; _dirty = true; });
+                if (entry.collected) BookPortrait(portrait, entry.sprite, entry.id, cellSize, true);
                 else
                 {
-                    var text = Label(artRoot, "아직\n만나지 못했어요", 23, TextAnchor.MiddleCenter); Stretch(text.rectTransform);
+                    var mystery = Label(portrait, "?", 48, TextAnchor.MiddleCenter); mystery.color = BookMuted; Stretch(mystery.rectTransform);
                 }
-                var name = Label(tile, entry.collected ? entry.name : "???", 23, TextAnchor.MiddleCenter);
-                Stretch(name.rectTransform, 5, 6, -5, 48, Vector2.zero, new Vector2(1, 0));
             }
-            var detail = entries.First(d => d.id == _selectedDex);
-            Heading(right, detail.collected ? detail.name : "아직 만나지 못한 친구");
             if (!detail.collected)
             {
-                Copy(right, string.IsNullOrEmpty(detail.description) ? "여행하며 알을 키워 보세요. 이 친구를 만나면 이야기와 모습이 도감에 남아요." : detail.description);
-                Button(right, "차 안에서 알 키우기", () => Navigate("cabin"), Yellow, 72, CanAct); return;
+                var mystery = Copy(left, "?", 84); mystery.alignment = TextAnchor.MiddleCenter; mystery.color = BookMuted;
+                BookCopy(left, "아직 이 친구를 만나지 못했어요.", 23);
+                BookCopy(left, string.IsNullOrEmpty(detail.description) ? "여행하며 알을 키워 보세요. 이 친구를 만나면 이야기와 모습이 도감에 남아요." : detail.description);
+                BookButton(left, "차 안에서 알 키우기", () => Navigate("cabin"), true, CanAct); return;
             }
-            Art(right, detail.sprite, 104);
-            Copy(right, AttributeLabel(detail.attribute) + " · " + RoleLabel(detail.role), 24);
-            Copy(right, detail.description);
+            BookPortrait(left, detail.sprite, detail.id, 170);
+            BookCopy(left, BookAttributeLabel(detail.attribute) + " · " + RoleLabel(detail.role), 22, true);
+            BookCopy(left, detail.description);
+            BookCopy(left, "함께한 친구 " + detail.count + "마리", 19, true);
             var owned = Items(_state.creatures).Where(c => c.speciesId == detail.id).ToArray();
-            if (owned.Length == 0) { Note(right, "도감에는 기록되어 있지만 지금 함께하는 개체 정보는 없어요."); return; }
+            if (owned.Length == 0) { BookCopy(left, "도감에는 기록되어 있지만 지금 함께하는 개체 정보는 없어요.", 21, true); return; }
             if (!owned.Any(c => c.id == _selectedCreature)) _selectedCreature = owned[0].id;
             if (owned.Length > 1) foreach (var creature in owned)
             {
                 var selected = creature;
-                Button(right, creature.name + " · " + ShortId(creature.id), () => { _selectedCreature = selected.id; _dirty = true; }, _selectedCreature == creature.id ? Mint : Cream, 62, CanAct, 23);
+                BookButton(left, creature.name + " · " + ShortId(creature.id), () => { _selectedCreature = selected.id; _dirty = true; }, _selectedCreature == creature.id, CanAct);
             }
             var friend = owned.First(c => c.id == _selectedCreature);
             var companionId = friend.id;
-            Button(right, "이 친구와 차량에서 함께하기", () =>
+            BookButton(left, "이 친구와 차량에서 함께하기", () =>
             {
                 if (_state.connected && !_state.sessionEnded) Send("selectCarCompanion", new AppAction { creatureId = companionId });
-            }, Mint, 54, CanAct && _state.connected && !_state.sessionEnded, 21);
-            if (_state.sessionEnded) Note(right, "여행이 끝났어요. 차량과 다시 연결한 뒤 친구를 선택해 주세요.");
-            else if (!_state.connected) Note(right, "차량과 연결한 뒤 함께할 친구를 선택할 수 있어요.");
-            Copy(right, "차량 친구의 관찰 기록 " + _state.fishingRecords + "건", 21);
+            }, true, CanAct && _state.connected && !_state.sessionEnded);
+            if (_state.sessionEnded) BookCopy(left, "여행이 끝났어요. 차량과 다시 연결한 뒤 친구를 선택해 주세요.", 19, true);
+            else if (!_state.connected) BookCopy(left, "차량과 연결한 뒤 함께할 친구를 선택할 수 있어요.", 19, true);
+            BookCopy(left, "차량 친구의 관찰 기록 " + _state.fishingRecords + "건", 21);
             if (!string.IsNullOrEmpty(_state.fishingError))
             {
-                Note(right, _state.fishingError);
-                Button(right, "낚시 저장 다시 확인", () => Send("retryFishingSave"), Cream, 48, CanAct, 20);
+                BookCopy(left, _state.fishingError, 19, true);
+                BookButton(left, "낚시 저장 다시 확인", () => Send("retryFishingSave"), false, CanAct);
             }
-            CreatureActions(right, friend);
-            Space(right); Copy(right, "친구에게 요리 주기", 27);
-            FeedOptions(right, friend.id);
+            CreatureActions(left, friend);
+            Space(left); BookCopy(left, "친구에게 요리 주기", 26);
+            FeedOptions(left, friend.id);
         }
 
         void CreatureActions(Transform parent, CreatureState creature)
@@ -315,27 +310,72 @@ namespace Allo.App
 
         void BuildInventory()
         {
-            var host = Rect("Supply inventory", _content); Stretch(host, 0, 0, 0, 0, new Vector2(.14f, 0), new Vector2(.86f, 1));
-            var panel = Sheet(host);
-            Heading(panel, "여행에서 모은 보급품");
-            var materials = NewRow(panel, 48);
-            foreach (var material in Items(_state.materials)) Button(materials, material.label + "  " + material.count + "개", null, Cream, 48, false, 22);
-            Note(panel, "주행과 창밖 관찰로 모은 재료예요. 저장된 재료와 거점 요약을 차량에도 전달해요.");
-            var creatures = Items(_state.creatures);
-            if (!creatures.Any(c => c.id == _selectedCreature)) _selectedCreature = creatures.FirstOrDefault()?.id;
-            if (creatures.Length > 0)
+            var foodsTab = _supplyTab == "foods";
+            var materials = Items(_state.materials);
+            var foods = Items(_state.foods);
+            if (foodsTab && !foods.Any(f => f.id == _selectedSupply)) _selectedSupply = foods.FirstOrDefault(f => f.count > 0)?.id ?? foods.FirstOrDefault()?.id;
+            if (!foodsTab && !materials.Any(m => m.id == _selectedSupply)) _selectedSupply = materials.FirstOrDefault()?.id;
+            var food = foodsTab ? foods.FirstOrDefault(f => f.id == _selectedSupply) : null;
+            var material = foodsTab ? null : materials.FirstOrDefault(m => m.id == _selectedSupply);
+            CollectionBook(food?.label ?? material?.label ?? "여행 가방", "여행에서 모은 보급품", out var left, out var right);
+            var tabs = NewRow(right, 48);
+            BookButton(tabs, "재료", () => { _supplyTab = "materials"; _selectedSupply = null; _dirty = true; }, !foodsTab);
+            BookButton(tabs, "요리", () => { _supplyTab = "foods"; _selectedSupply = null; _dirty = true; }, foodsTab);
+            var grid = BookGrid(right, "Supply grid", foodsTab ? foods.Length : materials.Length, out var cellSize);
+            if (foodsTab) foreach (var entry in foods)
             {
-                var recipients = NewRow(panel, 48);
-                Copy(recipients, "요리 받을 친구 · " + CreatureName(_selectedCreature), 22);
-                if (creatures.Length > 1) Button(recipients, "다른 친구 고르기", () => { var index = Array.FindIndex(creatures, c => c.id == _selectedCreature); _selectedCreature = creatures[(index + 1) % creatures.Length].id; _dirty = true; }, Cream, 48, CanAct, 20);
-                FeedOptions(panel, _selectedCreature);
+                var selected = entry;
+                var art = BookSlot(grid, "Supply slot " + entry.id, entry.label, entry.id == _selectedSupply,
+                    () => { _selectedSupply = selected.id; _dirty = true; }, entry.count + "개");
+                BookItemArt(art, entry.id, cellSize);
+            }
+            else foreach (var entry in materials)
+            {
+                var selected = entry;
+                var art = BookSlot(grid, "Supply slot " + entry.id, entry.label, entry.id == _selectedSupply,
+                    () => { _selectedSupply = selected.id; _dirty = true; }, entry.count + "개");
+                BookItemArt(art, entry.id, cellSize);
+            }
+            if (food == null && material == null)
+            {
+                BookCopy(left, foodsTab ? "완성한 요리가 없어요. 캠프 주방에서 재료로 요리를 만들어 주세요." : "아직 모은 재료가 없어요. 여행하며 창밖을 관찰해 보세요.");
             }
             else
             {
-                Note(panel, "함께하는 친구가 생기면 요리를 줄 수 있어요.");
-                foreach (var food in Items(_state.foods)) Copy(panel, food.label + " · " + food.count + "개", 22);
+                BookItemArt(left, food?.id ?? material.id, 166);
+                BookCopy(left, "보유 수량  " + (food?.count ?? material.count) + "개", 27);
+                if (!foodsTab)
+                {
+                    BookCopy(left, MaterialUse(material.id));
+                    BookCopy(left, "주행과 창밖 관찰로 모은 재료예요.", 20, true);
+                }
+                else
+                {
+                    BookCopy(left, "친구에게 주면 요리의 힘을 보태요.", 22);
+                    var creatures = Items(_state.creatures);
+                    if (!creatures.Any(c => c.id == _selectedCreature)) _selectedCreature = creatures.FirstOrDefault()?.id;
+                    if (creatures.Length == 0) BookCopy(left, "함께하는 친구가 생기면 요리를 줄 수 있어요.", 21, true);
+                    else
+                    {
+                        BookCopy(left, "요리 받을 친구 · " + CreatureName(_selectedCreature), 22);
+                        if (creatures.Length > 1) BookButton(left, "다른 친구 고르기", () =>
+                        {
+                            var index = Array.FindIndex(creatures, c => c.id == _selectedCreature);
+                            _selectedCreature = creatures[(index + 1) % creatures.Length].id; _dirty = true;
+                        }, false, CanAct);
+                    }
+                    var recipient = _selectedCreature;
+                    var selectedFood = food;
+                    BookButton(left, "요리 1개 주기", () => ConfirmIntent(CreatureName(recipient) + "에게 요리를 줄까요?",
+                        selectedFood.label + " 1개를 사용해 친구에게 힘을 보태요.", "feedFood",
+                        new AppAction { recipeId = selectedFood.id, creatureId = recipient }), true, CanAct && food.count > 0 && !string.IsNullOrEmpty(recipient));
+                    if (food.count <= 0) BookCopy(left, food.unlocked ? "보유한 요리가 없어요. 주방에서 만들 수 있어요." :
+                        "주방 Lv." + food.requiredLevel + "에서 만들 수 있어요.", 19, true);
+                }
             }
-            Button(panel, "주방에서 요리하기", () => OpenVillageFacility("kitchen"), Cream, 48, CanAct, 21);
+            Space(left);
+            BookButton(left, "주방에서 요리하기", () => OpenVillageFacility("kitchen"), false, CanAct);
+            BookCopy(right, foodsTab ? "요리를 골라 왼쪽에서 친구에게 주세요." : "재료를 골라 어디에 쓰는지 살펴보세요.", 19, true);
         }
 
         void FeedOptions(Transform parent, string creatureId)

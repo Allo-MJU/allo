@@ -20,3 +20,7 @@ All app views use Unity. Only the vehicle interior uses the active egg model. Ho
 
 ## Brand Commitments
 Warm ALLO companion identity and Korean copy. The user rejected the first large cream/mint UI; use a fresh natural woodland/wood/earth palette and compact game HUD. Use Ninja Voltage as the baseline 2D composition/UX reference and Palworld only as the wilderness survival theme/material reference, with CookieRun and Slime kingdom-building references. Reuse project assets without importing those games’ IP artwork.
+
+## Dex and Inventory Redesign
+
+The Android Unity phone app uses a landscape open-book collection view for the dex and inventory: selected detail on the left, character portraits or item slots on the right. Existing app rules and data remain authoritative; the book UI adds no game content or rewards.
