@@ -32,6 +32,7 @@ namespace Allo.App
         StoryVoiceCatalog _catalog;
         readonly StoryVoiceCursor _cursor = new StoryVoiceCursor();
         AudioSource _source;
+        StoryStreamVoice _stream;
         bool _paused;
         public StoryVoiceEntry Entry(StoryState state)
         {
@@ -54,7 +55,15 @@ namespace Allo.App
             if (!_cursor.Enter(state, true)) return;
             Stop();
             var entry = Entry(state);
-            if (entry == null || !Application.isPlaying) return;
+            if (!Application.isPlaying) return;
+            var narrator = Narrator(state);
+            if (narrator == null || string.IsNullOrEmpty(state?.line)) return;
+            if (_stream == null) _stream = gameObject.AddComponent<StoryStreamVoice>();
+            _stream.Play(narrator, state.line, () => PlayLocal(entry));
+        }
+        void PlayLocal(StoryVoiceEntry entry)
+        {
+            if (entry == null) return;
             var clip = Resources.Load<AudioClip>(entry.resource);
             if (clip == null) return;
             if (_source == null)
@@ -66,6 +75,7 @@ namespace Allo.App
         }
         public void Stop()
         {
+            _stream?.Stop();
             if (_source == null) return;
             _source.Stop(); _source.clip = null;
         }

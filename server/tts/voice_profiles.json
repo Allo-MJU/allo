@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "model": "qwen-audio-3.1-tts-plus",
+  "_comment": "캐릭터별 기본 목소리·말투. 근거: docs/character-personas.md, docs/dialogue-style.md 2절·신규 6종 표. instruction은 대사와 같은 언어(한국어)로, 40자 이하 한 문장으로 쓴다(길거나 여러 문장이면 모델이 지시문을 소리 내어 읽는다, 2026-11-14 확인). 복제 목소리가 voices.local.json에 등록되면 그 목소리에 instruction만 적용한다(pitch·rate는 기본 목소리 전용). 값을 바꾸면 차량 앱 ALLO_TTS_VOICE_REVISION을 올린다.",
+  "profiles": {
+    "road_sprout": {
+      "voice": "longanlingxin_v3.1",
+      "pitch": 1.15,
+      "rate": 1.05,
+      "instruction": "한국어로, 신기해하며 밝고 또랑또랑하게 말해."
+    },
+    "bridge_hopper": {
+      "voice": "longanlingxin_v3.1",
+      "pitch": 1.2,
+      "rate": 1.15,
+      "instruction": "한국어로, 통통 튀듯 빠르고 경쾌하게 말해."
+    },
+    "highway_comet": {
+      "voice": "longanlingxin_v3.1",
+      "pitch": 1.1,
+      "rate": 1.2,
+      "instruction": "한국어로, 신나고 힘차게 시원시원 말해."
+    },
+    "cloud_strider": {
+      "voice": "longanlingxin_v3.1",
+      "pitch": 0.95,
+      "rate": 0.85,
+      "instruction": "한국어로, 느긋하고 편안하게 말해."
+    },
+    "pebble_orbit": {
+      "voice": "longanlingxin_v3.1",
+      "pitch": 1.0,
+      "rate": 1.05,
+      "instruction": "한국어로, 호기심 가득 장난스럽게 말해."
+    },
+    "puddle_pip": {
+      "voice": "longanhuan_v3.1",
+      "pitch": 1.25,
+      "rate": 1.1,
+      "instruction": "한국어로, 아기 새처럼 귀엽고 장난스럽게 말해."
+    },
+    "lamp_moth": {
+      "voice": "longanhuan_v3.1",
+      "pitch": 1.15,
+      "rate": 1.1,
+      "instruction": "한국어로, 반짝반짝 들뜬 목소리로 말해."
+    },
+    "breeze_wyrm": {
+      "voice": "longanhuan_v3.1",
+      "pitch": 1.05,
+      "rate": 1.0,
+      "instruction": "한국어로, 살랑살랑 가볍고 산뜻하게 말해."
+    },
+    "dewcap": {
+      "voice": "longanhuan_v3.1",
+      "pitch": 1.2,
+      "rate": 0.95,
+      "instruction": "한국어로, 조그맣고 상냥하게 말해."
+    },
+    "tide_keeper": {
+      "voice": "longanfengyue_v3.1",
+      "pitch": 0.95,
+      "rate": 0.9,
+      "instruction": "한국어로, 차분하고 따뜻하게 말해."
+    },
+    "sea_mist": {
+      "voice": "longanfengyue_v3.1",
+      "pitch": 1.05,
+      "rate": 0.85,
+      "instruction": "한국어로, 작고 부드럽게 살며시 말해."
+    },
+    "ember_crab": {
+      "voice": "longanfengyue_v3.1",
+      "pitch": 1.15,
+      "rate": 0.9,
+      "instruction": "한국어로, 수줍게 소곤소곤 말해."
+    },
+    "mountain_sprite": {
+      "voice": "xunanchuan_v3.1",
+      "pitch": 1.05,
+      "rate": 0.9,
+      "instruction": "한국어로, 의젓하고 담담하게 말해."
+    },
+    "storm_lantern": {
+      "voice": "xunanchuan_v3.1",
+      "pitch": 1.15,
+      "rate": 1.1,
+      "instruction": "한국어로, 씩씩하고 힘차게 말해."
+    },
+    "tunnel_moth": {
+      "voice": "xunanchuan_v3.1",
+      "pitch": 1.0,
+      "rate": 0.95,
+      "instruction": "한국어로, 차분하고 든든하게 말해."
+    },
+    "star_owl": {
+      "voice": "xunanchuan_v3.1",
+      "pitch": 0.9,
+      "rate": 0.9,
+      "instruction": "한국어로, 사려 깊고 부드럽게 말해."
+    },
+    "dune_roller": {
+      "voice": "xunanchuan_v3.1",
+      "pitch": 0.95,
+      "rate": 0.85,
+      "instruction": "한국어로, 묵묵하고 차근차근 말해."
+    }
+  }
+}

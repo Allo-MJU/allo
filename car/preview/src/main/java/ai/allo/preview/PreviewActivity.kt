@@ -18,6 +18,8 @@ import androidx.compose.ui.unit.sp
 import ai.allo.car.model.*
 import ai.allo.car.dialogue.DialogueBank
 import ai.allo.car.ui.*
+import ai.allo.car.BuildConfig
+import ai.allo.car.voice.PlazaCloudVoice
 
 /** UI fixtures plus explicit local-demo transport; never a real vehicle/Firebase adapter. */
 class PreviewActivity : ComponentActivity() {
@@ -26,6 +28,10 @@ class PreviewActivity : ComponentActivity() {
     override fun onPause() { demoActive = false; super.onPause() }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Preview has no Firebase sign-in: cloud plaza voice only with a debug loopback gateway + dev token.
+        PlazaCloudVoice.configure(BuildConfig.ALLO_TTS_BASE_URL, BuildConfig.ALLO_TTS_VOICE_REVISION, BuildConfig.DEBUG,
+            PlazaCloudVoice.tokenSupplier(BuildConfig.ALLO_TTS_BASE_URL, BuildConfig.DEBUG,
+                BuildConfig.ALLO_TTS_DEV_TOKEN) { "" })
         if (intent.getBooleanExtra("localDemo", false)) {
             setContent { AlloTheme { LocalFishingDemo(active = demoActive) } }
             return
