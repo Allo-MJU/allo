@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Allo.CameraRig
 {
-    /// 주행 화면에 처음 들어올 때의 연출: 하늘에서 우리 차를 내려다보다가 차 뒤로 내려와 뒷좌석에 앉는다.
+    /// 주행 화면에 처음 들어올 때의 연출: 뒤쪽 하늘에서 우리 차와 앞 풍경을 비스듬히 내려다보다가 차 뒤로 내려와 뒷좌석에 앉는다.
     /// 차는 실내 모델 그대로다: 밖에 있는 동안만 벽·지붕을 양면으로 그리고 바퀴(WorldDirector.MakeIntroShell)를 단다.
     /// 바깥 풍경은 그때의 장면(SceneState) 그대로다. 화면을 누르면 바로 자리에 앉는다.
     public sealed partial class CameraRig
@@ -62,19 +62,19 @@ namespace Allo.CameraRig
         {
             var f = forward; f.y = 0; f.Normalize();
             var up = Vector3.up;
-            // 위에서 수직으로 → 조금 내려와 → 뒤쪽 위에서 따라가며 → 지붕 뒤 → 뒷좌석
+            // 뒤쪽 높은 곳에서 비스듬히(앞 풍경이 보이게) → 차 뒤로 내려와 따라가며 → 지붕 뒤 → 뒷좌석
             var p = new[]
             {
-                ground + up * 30f,
-                ground + up * 17f - f * 1.5f,
+                ground + up * 27f - f * 24f,
+                ground + up * 15f - f * 16f,
                 ground + up * 5f - f * 9.5f,
                 eye + up * 1.7f - f * 2.6f,
                 eye,
             };
             var r = new[]
             {
-                Quaternion.LookRotation(Vector3.down, f),
-                Quaternion.LookRotation(Vector3.down, f),
+                Quaternion.LookRotation(ground + f * 10f - p[0], up),
+                Quaternion.LookRotation(ground + f * 9f - p[1], up),
                 Quaternion.LookRotation(ground + f * 8f + up * 1f - p[2], up),
                 Quaternion.LookRotation(eye + f * 6f - p[3], up),
                 eyeRotation,

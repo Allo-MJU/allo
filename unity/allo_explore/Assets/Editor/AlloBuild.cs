@@ -620,7 +620,7 @@ public static class AlloBuild
         Allo.CameraRig.CameraRig.CabinBox(cabin, fwd, out var bounds, out var length, out var width);
         var along = Vector3.Dot(bounds.center - ground, fwd);
         var saved = new System.Collections.Generic.Dictionary<Material, float>();
-        foreach (var kind in new[] { "road", "coast", "mountain", "city", "highway" })
+        foreach (var kind in new[] { "coast", "city" })
         {
             world.Apply(new Allo.Bridge.SceneState { kind = kind == "highway" ? "road" : kind, highway = kind == "highway", moving = true, speedKph = 40 }, reset: true);
             world.EditorStep(120);
