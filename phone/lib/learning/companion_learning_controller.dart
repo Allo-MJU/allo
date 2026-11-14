@@ -11,65 +11,42 @@ class _Progress {
       {required this.storyId,
       required this.version,
       required this.sceneId,
-      this.introduced = false,
-      this.completed = const [],
-      this.parentGap = 10,
-      this.invited = false});
+      this.completed = const []});
   factory _Progress.fromJson(Map<String, dynamic> value) {
     final progress = _Progress(
         storyId: value['storyId'] as String,
         version: value['version'] as int,
         sceneId: value['sceneId'] as String,
-        introduced: value['introduced'] as bool,
-        completed: List<String>.from(value['completed'] as List),
-        parentGap: value['parentGap'] as int,
-        invited: value['invited'] as bool);
-    if (progress.version < 1 ||
-        progress.parentGap < 0 ||
-        progress.parentGap > 10 ||
-        progress.completed.length > 100) {
+        completed: List<String>.from(value['completed'] as List? ?? const []));
+    if (progress.version < 1 || progress.completed.length > 100) {
       throw const FormatException('Invalid progress');
     }
     return progress;
   }
-  final int version, parentGap;
+  final int version;
   final String storyId, sceneId;
-  final bool introduced, invited;
   final List<String> completed;
   Map<String, dynamic> toJson() => {
         'storyId': storyId,
         'version': version,
         'sceneId': sceneId,
-        'introduced': introduced,
-        'completed': completed,
-        'parentGap': parentGap,
-        'invited': invited
+        'completed': completed
       };
-  _Progress copy(
-          {String? sceneId,
-          bool? introduced,
-          List<String>? completed,
-          int? parentGap,
-          bool? invited}) =>
-      _Progress(
-          storyId: storyId,
-          version: version,
-          sceneId: sceneId ?? this.sceneId,
-          introduced: introduced ?? this.introduced,
-          completed: completed ?? this.completed,
-          parentGap: parentGap ?? this.parentGap,
-          invited: invited ?? this.invited);
+  _Progress copy({String? sceneId, List<String>? completed}) => _Progress(
+      storyId: storyId,
+      version: version,
+      sceneId: sceneId ?? this.sceneId,
+      completed: completed ?? this.completed);
 }
 
-/// This controller owns local scene authority; generated text never supplies it.
+/// Owns presentation lifetime and saved checkpoints; the server owns every turn.
 class CompanionLearningController extends ChangeNotifier {
   CompanionLearningController(
       {required LearningCatalog catalog,
       required LearningStore store,
       required LearningRequest? request,
       required Future<void> Function(String text) speak,
-      required Future<void> Function() stop,
-      this.idleDuration = const Duration(minutes: 3)})
+      required Future<void> Function() stop})
       : _catalog = catalog,
         _store = store,
         _request = request,
@@ -80,67 +57,85 @@ class CompanionLearningController extends ChangeNotifier {
   final LearningRequest? _request;
   final Future<void> Function(String) _speak;
   final Future<void> Function() _stop;
-  final Duration idleDuration;
   Map<String, LearningCreature> _creatures = {};
   final List<Map<String, String>> _history = [];
   final Set<String> _completedRequests = {};
-  String _profile = '', _creatureId = '', _text = '', _source = '', _error = '';
+  String _profile = '',
+      _creatureId = '',
+      _text = '',
+      _source = '',
+      _error = '',
+      _title = '';
+  String _conversationMode = 'closed';
   _Progress? _progress;
   bool _active = false,
       _busy = false,
       _recording = false,
       _muted = false,
       _disposed = false,
-      _invited = false,
-      _needsRestart = false;
-  int _generation = 0, _outputSequence = 0, _contextGeneration = 0;
-  Timer? _idleTimer;
-  // Writes remain ordered even when an old request loses its display generation.
+      _needsRestart = false,
+      _serverCanNext = false;
+  int _generation = 0,
+      _outputSequence = 0,
+      _contextGeneration = 0,
+      _turnSequence = 0;
   Future<void> _writeTail = Future.value();
   String get creatureId => _creatureId;
   String get speciesId => _creatures[_creatureId]?.speciesId ?? '';
+  String get conversationMode => _conversationMode;
   bool get active => _active;
   bool get recording => _recording;
   bool get muted => _muted;
   int get generation => _generation;
   int get contextGeneration => _contextGeneration;
   LearningStory? get _story => _catalog.stories[speciesId];
-  LearningScene? get _scene => _story?.scenes[_progress?.sceneId];
   bool get _canTalk =>
-      !_disposed && _active && !_recording && !_busy && _scene != null;
+      !_disposed &&
+      _active &&
+      !_recording &&
+      !_busy &&
+      _story != null &&
+      _progress != null;
   List<Map<String, String>> get history =>
       [for (final item in _history) Map.unmodifiable(item)];
   Map<String, dynamic> get snapshot => {
         'creatureId': _creatureId,
         'speciesId': speciesId,
+        'invitationOpen': _conversationMode == 'menu',
+        'conversationMode': _conversationMode,
+        'invitationText': _conversationMode == 'menu' ? _text : '',
         'name': _creatures[_creatureId]?.name ?? '',
         'target': _creatureId.isEmpty ? 'egg' : 'companion',
         'storyId': _story?.id ?? '',
-        'sceneId': _scene?.id ?? '',
-        'title': _scene?.title ?? '',
+        'sceneId': _progress?.sceneId ?? '',
+        'title': _title,
         'text': _text,
         'source': _source,
         'error': _error,
         'busy': _busy,
-        'available': _scene != null,
+        'available': _story != null,
         'active': _active,
-        'canNext': _scene?.nextSceneId != null && !_needsRestart,
+        'canNext': _serverCanNext && !_needsRestart,
         'muted': _muted,
         'recording': _recording,
         'creatures': [
           for (final creature in _creatures.values) creature.toJson()
         ],
       };
-
   void _notify() {
     if (!_disposed) notifyListeners();
   }
 
-  void invalidate({bool clearHistory = true}) {
+  void invalidate({bool clearHistory = true, bool closeConversation = true}) {
     _generation++;
     _outputSequence++;
     _busy = false;
-    _idleTimer?.cancel();
+    if (closeConversation) {
+      _conversationMode = 'closed';
+      _text = '';
+      _title = '';
+      _source = '';
+    }
     if (clearHistory) _history.clear();
     unawaited(_stopSafely());
   }
@@ -157,22 +152,20 @@ class CompanionLearningController extends ChangeNotifier {
       required Iterable<LearningCreature> creatures,
       required bool active}) {
     final next = {for (final creature in creatures) creature.id: creature};
-    final profileChanged = profile != _profile;
-    final removed = _creatureId.isNotEmpty &&
-        (!next.containsKey(_creatureId) ||
-            next[_creatureId]?.speciesId != speciesId);
+    final changed = profile != _profile ||
+        _creatureId.isNotEmpty &&
+            (!next.containsKey(_creatureId) ||
+                next[_creatureId]?.speciesId != speciesId);
     _creatures = next;
-    if (profileChanged || removed) {
+    if (changed) {
       _contextGeneration++;
       invalidate();
       _profile = profile;
       _creatureId = '';
       _progress = null;
-      _text = '';
-      _source = '';
       _error = '';
-      _invited = false;
       _needsRestart = false;
+      _serverCanNext = false;
       _completedRequests.clear();
     }
     setActive(active);
@@ -182,22 +175,14 @@ class CompanionLearningController extends ChangeNotifier {
   void setActive(bool value) {
     if (_disposed || _active == value) return;
     _active = value;
-    if (!value) {
-      invalidate();
-    } else {
-      _scheduleInvite();
-    }
+    if (!value) invalidate();
     _notify();
   }
 
   void setRecording(bool value) {
     if (_disposed || _recording == value) return;
     _recording = value;
-    if (value) {
-      invalidate(clearHistory: false);
-    } else {
-      _scheduleInvite();
-    }
+    if (value) invalidate(clearHistory: false, closeConversation: false);
     _notify();
   }
 
@@ -205,12 +190,7 @@ class CompanionLearningController extends ChangeNotifier {
     if (_disposed || _muted == value) return;
     _muted = value;
     _outputSequence++;
-    if (value) {
-      _idleTimer?.cancel();
-      unawaited(_stopSafely());
-    } else {
-      _scheduleInvite();
-    }
+    if (value) unawaited(_stopSafely());
     _notify();
   }
 
@@ -219,8 +199,7 @@ class CompanionLearningController extends ChangeNotifier {
     invalidate();
     _catalog = catalog;
     _progress = null;
-    _text = '';
-    _source = '';
+    _serverCanNext = false;
     _notify();
   }
 
@@ -229,16 +208,14 @@ class CompanionLearningController extends ChangeNotifier {
     _contextGeneration++;
     invalidate();
     final generation = _generation;
-    _creatureId = id;
-    _progress = null;
-    _text = '';
-    _source = '';
     _error = '';
-    _invited = false;
+    _serverCanNext = false;
     _needsRestart = false;
     _completedRequests.clear();
-    final story = _story;
+    final story = _catalog.stories[_creatures[id]?.speciesId];
     if (id.isEmpty || story == null) {
+      _creatureId = id;
+      _progress = null;
       if (id.isNotEmpty) _error = '이 친구의 이야기는 준비 중이에요. 함께 놀 수 있어요.';
       _notify();
       return true;
@@ -258,34 +235,21 @@ class CompanionLearningController extends ChangeNotifier {
           : _Progress.fromJson(saved);
       if (progress.storyId != story.id ||
           progress.version != story.version ||
-          !story.scenes.containsKey(progress.sceneId)) {
-        final sceneId = progress.storyId != story.id
-            ? null
-            : story.scenes.containsKey(progress.sceneId)
-                ? progress.sceneId
-                : story.migrations[progress.sceneId];
-        _needsRestart = sceneId == null;
+          !story.scenes.contains(progress.sceneId)) {
+        _needsRestart = progress.storyId != story.id ||
+            !story.scenes.contains(progress.sceneId);
         progress = _Progress(
             storyId: story.id,
             version: story.version,
-            sceneId: sceneId ?? story.firstSceneId,
-            introduced: !_needsRestart && progress.introduced,
+            sceneId: _needsRestart ? story.firstSceneId : progress.sceneId,
             completed:
-                progress.completed.where(story.scenes.containsKey).toList(),
-            parentGap: progress.parentGap,
-            invited: progress.invited);
-        if (_needsRestart) _error = '이야기가 바뀌어 첫 장면부터 다시 들어야 해요. 다시 듣기를 눌러 주세요.';
+                progress.completed.where(story.scenes.contains).toList());
+        if (_needsRestart) _error = '이야기가 바뀌었어요. 다시 듣기를 눌러 주세요.';
       }
+      _creatureId = id;
       _progress = progress;
-      _invited = progress.invited;
-      _text = _scene!.text;
-      _source = 'authored';
       _busy = false;
       _notify();
-      if (!progress.introduced && !_needsRestart && _active) {
-        return await repeat();
-      }
-      _scheduleInvite();
       return true;
     } catch (_) {
       if (_current(generation)) {
@@ -315,14 +279,10 @@ class CompanionLearningController extends ChangeNotifier {
     }
   }
 
-  void interact() {
-    _invited = false;
-    _scheduleInvite();
-  }
-
+  void interact() {}
   Future<void> _show(String text, String source, int generation) async {
     if (!_current(generation)) return;
-    final outputSequence = ++_outputSequence;
+    final sequence = ++_outputSequence;
     _text = text;
     _source = source;
     _notify();
@@ -330,7 +290,7 @@ class CompanionLearningController extends ChangeNotifier {
       try {
         await _speak(text);
       } catch (_) {
-        if (_current(generation) && outputSequence == _outputSequence) {
+        if (_current(generation) && sequence == _outputSequence) {
           _error = '소리를 재생하지 못했어요. 화면의 글을 읽어 주세요.';
           _notify();
         }
@@ -338,80 +298,80 @@ class CompanionLearningController extends ChangeNotifier {
     }
   }
 
-  Future<bool> repeat() async {
-    if (!_canTalk) return false;
-    final generation = _generation;
-    final text = _scene!.text;
-    _busy = true;
-    _error = '';
-    _idleTimer?.cancel();
-    _notify();
-    final ok = await _save(
-        _progress!.copy(introduced: true, invited: false), generation);
-    if (!_current(generation)) return false;
-    _busy = false;
-    if (ok) {
-      _needsRestart = false;
-      _invited = false;
-      await _show(text, 'authored', generation);
+  String _requestId() =>
+      'turn_${DateTime.now().microsecondsSinceEpoch}_${++_turnSequence}';
+  Future<bool> openInvitation({String? requestId}) async {
+    if (!_active || _disposed || _recording || _creatureId.isEmpty) {
+      return false;
     }
-    _scheduleInvite();
-    _notify();
-    return ok;
+    invalidate(clearHistory: false);
+    _conversationMode = 'menu';
+    if (_story == null) {
+      _error = '이 친구의 이야기는 준비 중이에요. 함께 놀 수 있어요.';
+      _notify();
+      return true;
+    }
+    return _turn('invite', requestId: requestId ?? _requestId());
   }
 
-  Future<bool> next() async {
-    if (!_canTalk || _scene!.nextSceneId == null || _needsRestart) return false;
-    final generation = _generation;
-    final nextScene = _story!.scenes[_scene!.nextSceneId]!;
-    _busy = true;
-    _error = '';
-    _idleTimer?.cancel();
-    _notify();
-    final ok = await _save(
-        _progress!.copy(
-            sceneId: nextScene.id,
-            introduced: true,
-            completed: {..._progress!.completed, _scene!.id}.toList(),
-            invited: false),
-        generation);
-    if (!_current(generation)) return false;
-    _busy = false;
-    if (ok) {
-      _invited = false;
-      await _show(nextScene.text, 'authored', generation);
-    }
-    _scheduleInvite();
-    _notify();
-    return ok;
+  Future<bool> listenStory({String? requestId}) async {
+    if (_conversationMode != 'menu' || !_canTalk) return false;
+    invalidate(clearHistory: false);
+    _conversationMode = 'story';
+    return _turn('listen', requestId: requestId ?? _requestId());
   }
 
-  Future<bool> chat(String text, {required String requestId}) async {
+  bool talkToCompanion() {
+    if (_conversationMode != 'menu' || !_canTalk) return false;
+    invalidate(clearHistory: false);
+    _conversationMode = 'chat';
+    _error = '';
+    _notify();
+    return true;
+  }
+
+  void closeInvitation() {
+    invalidate(clearHistory: false);
+    _notify();
+  }
+
+  Future<bool> repeat({String? requestId}) =>
+      _turn('repeat', requestId: requestId ?? _requestId());
+  Future<bool> next({String? requestId}) async {
+    if (!_serverCanNext || _needsRestart) return false;
+    return _turn('next', requestId: requestId ?? _requestId());
+  }
+
+  Future<bool> chat(String text, {required String requestId}) =>
+      _turn('chat', text: text, requestId: requestId);
+  Future<bool> _turn(String action,
+      {String text = '', required String requestId}) async {
     if (!_canTalk ||
-        _needsRestart ||
-        text.trim().isEmpty ||
-        text.runes.length > 500 ||
+        action != 'repeat' &&
+            action != 'invite' &&
+            action != 'listen' &&
+            _needsRestart ||
+        action == 'chat' && (text.trim().isEmpty || text.runes.length > 500) ||
         !RegExp(r'^[A-Za-z0-9_-]{1,128}$').hasMatch(requestId) ||
         _completedRequests.contains(requestId)) {
       return false;
     }
-    final generation = _generation, scene = _scene!, story = _story!;
-    final allowParent = _progress!.parentGap >= 10;
+    final generation = _generation, story = _story!, progress = _progress!;
     final body = <String, dynamic>{
       'requestId': requestId,
+      'action': action,
       'creatureId': _creatureId,
       'speciesId': speciesId,
       'storyId': story.id,
       'version': story.version,
-      'sceneId': scene.id,
+      'sceneId': progress.sceneId,
       'text': text.trim(),
       'history': history,
-      'allowParentPrompt': allowParent
+      'allowParentPrompt': true
     };
     _busy = true;
-    _outputSequence++;
     _error = '';
-    _idleTimer?.cancel();
+    _outputSequence++;
     _notify();
     await _stopSafely();
     if (!_current(generation)) return false;
@@ -419,74 +379,78 @@ class CompanionLearningController extends ChangeNotifier {
       if (_request == null) throw StateError('unconfigured');
       final response = await _request(body);
       if (!_current(generation)) return false;
-      final answer = response['text'], parent = response['parentPromptUsed'];
-      if ([
-            'requestId',
-            'creatureId',
-            'speciesId',
-            'storyId',
-            'version',
-            'sceneId'
-          ].any((key) => response[key] != body[key]) ||
+      final answer = response['text'],
+          parent = response['parentPromptUsed'],
+          scene = response['sceneId'];
+      final mode = response['mode'],
+          source = response['source'],
+          title = response['title'],
+          canNext = response['canNext'];
+      final expectedMode = action == 'invite'
+          ? 'menu'
+          : action == 'chat'
+              ? 'chat'
+              : 'story';
+      if (['requestId', 'creatureId', 'speciesId', 'storyId', 'version']
+              .any((key) => response[key] != body[key]) ||
+          scene is! String ||
+          !story.scenes.contains(scene) ||
+          action != 'next' && scene != progress.sceneId ||
+          mode != expectedMode ||
+          source is! String ||
+          !{'authored', 'ai'}.contains(source) ||
+          title is! String ||
+          title.runes.length > 200 ||
+          canNext is! bool ||
           answer is! String ||
           answer.trim().isEmpty ||
           answer.runes.length > 600 ||
           parent is! bool ||
-          parent && !allowParent) {
-        throw const FormatException('Invalid learning reply');
+          parent && action != 'chat') {
+        throw const FormatException('Invalid companion turn');
       }
-      if (!await _save(
-          _progress!.copy(
-              parentGap: parent ? 0 : (_progress!.parentGap + 1).clamp(0, 10),
-              invited: false),
-          generation)) {
-        return false;
+      if (action != 'invite') {
+        final saved = await _save(
+            progress.copy(
+              sceneId: scene,
+              completed: action == 'next' && scene != progress.sceneId
+                  ? {...progress.completed, progress.sceneId}.toList()
+                  : progress.completed,
+            ),
+            generation);
+        if (!saved) return false;
       }
       if (!_current(generation)) return false;
       _completedRequests.add(requestId);
       if (_completedRequests.length > 64) {
         _completedRequests.remove(_completedRequests.first);
       }
-      _history.addAll([
-        {'role': 'user', 'text': text.trim()},
-        {'role': 'assistant', 'text': answer}
-      ]);
-      if (_history.length > 12) _history.removeRange(0, _history.length - 12);
+      if (action == 'chat') {
+        _history.addAll([
+          {'role': 'user', 'text': text.trim()},
+          {'role': 'assistant', 'text': answer}
+        ]);
+        if (_history.length > 12) _history.removeRange(0, _history.length - 12);
+      }
       _busy = false;
-      _invited = false;
-      await _show(answer, 'ai', generation);
-      return true;
+      _title = title;
+      _serverCanNext = canNext;
+      _conversationMode = mode as String;
+      if (action == 'repeat' || action == 'listen') _needsRestart = false;
+      await _show(answer, source, generation);
+      return _current(generation);
     } catch (_) {
       if (!_current(generation)) return false;
-      _error = '새 답변에 연결하지 못했어요. 준비된 이야기를 보여 줄게요.';
-      _busy = false;
-      await _show(scene.text, 'fallback', generation);
+      _text = '';
+      _source = '';
+      _error = '이야기에 연결하지 못했어요. 잠시 뒤 다시 눌러 주세요.';
       return false;
     } finally {
       if (_current(generation)) {
         _busy = false;
-        _scheduleInvite();
         _notify();
       }
     }
-  }
-
-  void _scheduleInvite() {
-    _idleTimer?.cancel();
-    if (!_canTalk || _muted || _invited || _needsRestart) return;
-    final generation = _generation;
-    _idleTimer = Timer(idleDuration, () async {
-      if (!_current(generation) || !_canTalk || _muted || _invited) return;
-      _invited = true;
-      _busy = true;
-      final ok = await _save(_progress!.copy(invited: true), generation);
-      if (!_current(generation)) return;
-      _busy = false;
-      if (ok) {
-        await _show('내 이야기를 더 듣고 싶으면 이야기 버튼을 눌러 줘.', 'invitation', generation);
-      }
-      _notify();
-    });
   }
 
   @override

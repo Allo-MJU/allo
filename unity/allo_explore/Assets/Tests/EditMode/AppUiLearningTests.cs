@@ -38,17 +38,13 @@ public class AppUiLearningTests
     }
 
     [Test]
-    public void SelectedOwnedFriendKeepsStoryWhileANewEggExists()
+    public void SummonedFriendIsSilentUntilTappedAndHasNoCabinSelectors()
     {
-        var state = State(); SelectFriend(state); Apply(state);
-        Call("BuildCabin");
-        Assert.IsTrue(HasText("작은 새싹 이야기"));
-        Assert.IsTrue(HasText("새싹이 햇빛을 만났어요."));
-        Assert.IsTrue(ButtonNamed("다음 이야기").interactable);
-        Assert.IsTrue(ButtonNamed("이야기 다시 듣기").interactable);
-        Assert.IsTrue(ButtonNamed("친구에게 말 걸기").interactable);
-        Assert.IsNull(ButtonNamed("함께 사진 찍기"));
-        Assert.IsFalse(CabinEgg.CanInteract(state, "cabin", "new-egg"));
+        var state = State(); SelectFriend(state); Apply(state); Call("BuildCabin");
+        Assert.IsNull(ButtonNamed("다음 이야기"));
+        Assert.IsNull(ButtonNamed("친구 고르기"));
+        Assert.IsNull(ButtonNamed("이 알과 시작하기"));
+        Assert.IsFalse(HasText("새싹이 햇빛을 만났어요."));
     }
 
     [Test]
@@ -100,52 +96,180 @@ public class AppUiLearningTests
     }
 
     [Test]
-    public void SessionEndDisablesCareAndDialogueButLeavesMuteAvailable()
+    public void SessionEndDisablesCareAndHidesDialogue()
     {
         var state = State(); SelectFriend(state); state.sessionEnded = true; Apply(state);
         Call("BuildCabin");
         Assert.IsFalse(ButtonNamed("간식").interactable);
-        Assert.IsFalse(ButtonNamed("다음 이야기").interactable);
-        Assert.IsTrue(ButtonNamed("목소리 끄기").interactable);
+        Assert.IsNull(ButtonNamed("다음 이야기"));
+        Assert.IsNull(ButtonNamed("목소리 끄기"));
     }
 
     [Test]
     public void CompanionMicrophoneUsesNativeAvailabilityIndependentlyFromEggEvaluation()
     {
-        var state = State(); SelectFriend(state); state.speechAvailable = false; Apply(state);
+        var state = State(); SelectFriend(state); state.learning.conversationMode = "chat"; state.speechAvailable = false; Apply(state);
         Call("BuildCabin");
         Assert.IsTrue(ButtonNamed("친구에게 말 걸기").interactable);
     }
 
     [Test]
-    public void ChoosingAnOwnedFriendAfterHatchHidesTheOverlappingEggStartSheet()
+    public void InvitationMenuOffersOnlyTwoChoicesAndTargetsExactOwnedInstance()
     {
-        var state = State(); state.egg.active = false; state.egg.phase = "hatched"; Apply(state);
-        typeof(AppUi).GetField("_choosingCompanion", Private).SetValue(_ui, true);
-        Call("BuildCabin");
-        Assert.IsNotNull(_root.GetComponentsInChildren<Transform>().SingleOrDefault(t => t.name == "Choose care target"));
-        Assert.IsNull(_root.GetComponentsInChildren<Transform>().SingleOrDefault(t => t.name == "Cabin start bottom sheet"));
+        var state = State(); SelectFriend(state); state.learning.conversationMode = "menu";
+        state.learning.invitationOpen = true; state.learning.invitationText = "나한테 궁금한 게 있는 거야?"; Apply(state); Call("BuildCabin");
+        Assert.IsTrue(HasText("나한테 궁금한 게 있는 거야?"));
+        Assert.IsTrue(ButtonNamed("이야기 듣기").interactable);
+        Assert.IsTrue(ButtonNamed("말 걸기").interactable);
+        Assert.IsNull(ButtonNamed("다음 이야기"));
+        var intent = AppUi.CompanionInvitationIntent(state, "road_sprout");
+        Assert.AreEqual("owned-a", intent.creatureId);
+        Assert.AreEqual("road_sprout", intent.speciesId);
+        Assert.IsNull(AppUi.CompanionInvitationIntent(state, "wrong-species"));
+        state.learning.creatureId = "unowned";
+        Assert.IsNull(AppUi.CompanionInvitationIntent(state, "road_sprout"));
+    }
+
+    [TestCase(true, "")]
+    [TestCase(false, "연결하지 못했어요. 다시 시도해 주세요.")]
+    [TestCase(false, "")]
+    public void PendingFailedAndMissingServerInvitationNeverFabricateSuccess(bool busy, string error)
+    {
+        var state = State(); SelectFriend(state); state.learning.conversationMode = "menu";
+        state.learning.invitationOpen = true; state.learning.busy = busy; state.learning.error = error;
+        Apply(state); Call("BuildCabin");
+        Assert.IsFalse(HasText("나한테 궁금한 게 있는 거야?"));
+        Assert.IsFalse(ButtonNamed("이야기 듣기").interactable);
+        Assert.IsFalse(ButtonNamed("말 걸기").interactable);
+        if (busy) Assert.IsTrue(HasText("친구의 답을 기다리고 있어요."));
+        if (!string.IsNullOrEmpty(error)) Assert.IsTrue(HasText(error));
     }
 
     [Test]
-    public void OpeningTheFriendPickerClosesTheEggTextAndZoneDrawers()
+    public void SuccessfulServerInvitationKeepsTextAlternativeWhenVoiceFails()
     {
-        typeof(AppUi).GetField("_speechDrawer", Private).SetValue(_ui, true);
-        typeof(AppUi).GetField("_zoneDrawer", Private).SetValue(_ui, true);
-        Call("BuildCompanionSelector");
-        ButtonNamed("친구 고르기").onClick.Invoke();
-        Assert.IsFalse((bool)typeof(AppUi).GetField("_speechDrawer", Private).GetValue(_ui));
-        Assert.IsFalse((bool)typeof(AppUi).GetField("_zoneDrawer", Private).GetValue(_ui));
+        var state = State(); SelectFriend(state); state.learning.conversationMode = "menu";
+        state.learning.invitationOpen = true; state.learning.invitationText = "서버에서 온 초대";
+        state.learning.error = "목소리를 재생하지 못했어요.";
+        Apply(state); Call("BuildCabin");
+        Assert.IsTrue(HasText("서버에서 온 초대"));
+        Assert.IsTrue(HasText(state.learning.error));
+        Assert.IsTrue(ButtonNamed("이야기 듣기").interactable);
     }
 
-    [TestCase("글로 말하기")]
-    [TestCase("자리와 돌보기")]
-    public void OpeningAnEggDrawerClosesTheFriendPicker(string action)
+    [TestCase("home")]
+    [TestCase("dex")]
+    public void InactiveViewsCannotInviteCompanions(string view)
     {
-        typeof(AppUi).GetField("_choosingCompanion", Private).SetValue(_ui, true);
-        Call("BuildCabin");
-        ButtonNamed(action).onClick.Invoke();
-        Assert.IsFalse((bool)typeof(AppUi).GetField("_choosingCompanion", Private).GetValue(_ui));
+        var state = State(); SelectFriend(state); state.view = view;
+        Assert.IsNull(AppUi.CompanionInvitationIntent(state, "road_sprout"));
+    }
+
+    [Test]
+    public void SessionEndAndInactiveTargetCannotInviteCompanions()
+    {
+        var state = State(); SelectFriend(state); state.sessionEnded = true;
+        Assert.IsNull(AppUi.CompanionInvitationIntent(state, "road_sprout"));
+        state.sessionEnded = false; state.learning.active = false;
+        Assert.IsNull(AppUi.CompanionInvitationIntent(state, "road_sprout"));
+    }
+
+    [Test]
+    public void NativeSpeechFocusLossPreservesInvitationBeforeRecordingSnapshotArrives()
+    {
+        var state = State(); SelectFriend(state); state.learning.conversationMode = "chat";
+        Apply(state); Call("BuildCabin");
+        Call("SendLearning", "companionSpeech", "owned-a", null);
+        Call("OnApplicationFocus", false); Call("OnApplicationPause", true);
+        Assert.IsFalse((bool)typeof(AppUi).GetField("_invitationDismissed", Private).GetValue(_ui));
+        Assert.IsFalse(((RectTransform)typeof(AppUi).GetField("_companionBubble", Private).GetValue(_ui)).gameObject.activeSelf);
+        Call("OnApplicationPause", false); Call("OnApplicationFocus", true);
+        Assert.IsFalse((bool)typeof(AppUi).GetField("_invitationDismissed", Private).GetValue(_ui));
+        state.learning.recording = true; Apply(state);
+        state.learning.recording = false; Apply(state);
+        Call("OnApplicationFocus", false);
+        Assert.IsTrue((bool)typeof(AppUi).GetField("_invitationDismissed", Private).GetValue(_ui), "completed native capture must not exempt later real backgrounding");
+    }
+
+    [Test]
+    public void RecordingSnapshotPreservesNativeModalButOrdinaryBackgroundClosesInvitation()
+    {
+        var state = State(); SelectFriend(state); state.learning.conversationMode = "chat";
+        state.learning.recording = true; Apply(state); Call("BuildCabin");
+        Call("OnApplicationPause", true);
+        Assert.IsFalse((bool)typeof(AppUi).GetField("_invitationDismissed", Private).GetValue(_ui));
+        state.learning.recording = false; Apply(state);
+        Call("OnApplicationPause", true);
+        Assert.IsTrue((bool)typeof(AppUi).GetField("_invitationDismissed", Private).GetValue(_ui));
+    }
+
+    [Test]
+    public void UnavailableOwnedCompanionStillHasAnInvitationWithClearPreparationFeedback()
+    {
+        var state = State(); SelectFriend(state); state.learning.available = false;
+        state.learning.conversationMode = "menu"; state.learning.invitationOpen = true;
+        Apply(state); Call("BuildCabin");
+        Assert.IsNotNull(AppUi.CompanionInvitationIntent(state, "road_sprout"));
+        Assert.IsTrue(HasText("이 친구의 이야기는 준비 중이에요. 함께 놀 수 있어요."));
+        Assert.IsFalse(ButtonNamed("이야기 듣기").interactable);
+        Assert.IsFalse(ButtonNamed("말 걸기").interactable);
+    }
+
+    [Test]
+    public void HeadAnchorRejectsBehindCameraAndOffscreenTargets()
+    {
+        var cameraGo = new GameObject("Anchor camera", typeof(Camera));
+        try
+        {
+            var camera = cameraGo.GetComponent<Camera>();
+            Assert.IsTrue(AppUi.HeadAnchorVisible(camera, new Vector3(0, 0, 2)));
+            Assert.IsFalse(AppUi.HeadAnchorVisible(camera, new Vector3(0, 0, -2)));
+            Assert.IsFalse(AppUi.HeadAnchorVisible(camera, new Vector3(100, 0, 2)));
+        }
+        finally { Object.DestroyImmediate(cameraGo); }
+    }
+
+    [Test]
+    public void StoryModeKeepsNextRepeatWithoutChatFields()
+    {
+        var state = State(); SelectFriend(state); state.learning.conversationMode = "story";
+        Apply(state); Call("BuildCabin");
+        Assert.IsTrue(ButtonNamed("다음 이야기").interactable);
+        Assert.IsTrue(ButtonNamed("이야기 다시 듣기").interactable);
+        Assert.IsNull(_root.GetComponentInChildren<InputField>());
+        Assert.IsTrue(HasText(state.learning.text));
+    }
+
+    [Test]
+    public void ActualCompanionTapEmitsInvitationWithoutPokingAndConsumesInactiveTap()
+    {
+        var state = State(); SelectFriend(state); Apply(state);
+        var actor = new GameObject("Actual companion tap");
+        var other = new GameObject("Unselected companion tap");
+        var calls = 0;
+        Action<string> tapped = species => { Assert.AreEqual("road_sprout", species); calls++; };
+        Allo.Critters.CritterDirector.CompanionTapped += tapped;
+        try
+        {
+            var director = actor.AddComponent<Allo.Critters.CritterDirector>();
+            var view = actor.AddComponent<Allo.Critters.CritterView>();
+            typeof(Allo.Critters.CritterView).GetProperty("Id").SetValue(view, "road_sprout");
+            typeof(Allo.Critters.CritterDirector).GetProperty("CompanionId").SetValue(director, "road_sprout");
+            var views = (System.Collections.Generic.Dictionary<string, Allo.Critters.CritterView>)typeof(Allo.Critters.CritterDirector).GetField("_views", Private).GetValue(director);
+            views["road_sprout"] = view;
+            Assert.IsTrue(director.InviteCompanion(view));
+            Assert.AreEqual(1, calls);
+            Assert.IsNull(view.Brain, "invitation does not invoke the legacy Poke/pose/reward route");
+            Assert.IsFalse(director.InviteCompanion(other.AddComponent<Allo.Critters.CritterView>()));
+            state.learning.active = false;
+            Assert.IsTrue(director.InviteCompanion(view), "inactive selected taps must not fall back to legacy care rewards");
+            Assert.AreEqual(1, calls);
+        }
+        finally
+        {
+            Allo.Critters.CritterDirector.CompanionTapped -= tapped;
+            Object.DestroyImmediate(actor); Object.DestroyImmediate(other);
+        }
     }
 
     [Test]

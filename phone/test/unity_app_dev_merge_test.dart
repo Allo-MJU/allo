@@ -164,7 +164,8 @@ void main() {
     addTearDown(camp.dispose);
     await game.pair(sessionA, pairCode: '123456');
     expect(camp.ready, isFalse);
-    expect(feed.watches, 0);
+    final pairedWatches = feed.watches;
+    expect(pairedWatches, 1); // Pairing now starts the one trip egg subscription.
     store.failSave = false;
     store.block = Completer<void>();
     final retry = camp.load();
@@ -175,6 +176,7 @@ void main() {
     expect(await retry, isTrue);
     expect(camp.ready, isTrue);
     expect(game.paired, isFalse);
-    expect(feed.watches, 0);
+    expect(feed.watches, pairedWatches);
+    expect(feed.signals.hasListener, isFalse);
   });
 }

@@ -159,7 +159,7 @@ void main() {
     await c.endSession();
   });
 
-  test('부화 후 같은 세션의 새 알은 사용한 거리로 즉시 부화하지 않는다', () async {
+  test('부화 후 같은 세션의 추가 거리와 재시작은 새 알을 지급하지 않는다', () async {
     final feed = SnapshotFeed();
     final c = GameController(feed: feed, dex: DexStore());
     addTearDown(c.dispose);
@@ -170,10 +170,11 @@ void main() {
     await c.endSession();
     await c.startIncubating(EggTier.small);
     feed.send(5000);
-    expect(c.game.stage, Stage.incubating);
-    expect(c.game.progress, 0);
+    expect(c.game.stage, Stage.hatched);
+    final id = c.eggId;
     feed.send(6000);
-    expect(c.game.progress, .2);
+    expect(c.eggId, id);
+    expect(c.game.progress, 1);
     await c.endSession();
   });
 }

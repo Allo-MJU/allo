@@ -32,7 +32,7 @@ public class AppUiVehicleCompanionTests
         typeof(AppUi).GetField("_selectedCreature", Private).SetValue(_ui, "owned-second");
         Call("BuildDex");
         Assert.AreEqual("owned-second", Get<string>("_selectedCreature"));
-        var choose = ButtonNamed("이 친구와 차량에서 함께하기");
+        var choose = ButtonNamed("차 안으로 불러오기");
         Assert.NotNull(choose); Assert.IsTrue(choose.interactable);
     }
 
@@ -41,7 +41,7 @@ public class AppUiVehicleCompanionTests
     {
         var state = State(); state.revision = 2; state.connected = false;
         AppSession.Receive(state); Call("OnState", AppSession.State); Call("BuildDex");
-        var choose = ButtonNamed("이 친구와 차량에서 함께하기");
+        var choose = ButtonNamed("차 안으로 불러오기");
         Assert.NotNull(choose); Assert.IsFalse(choose.interactable);
         Assert.IsTrue(HasText("차량과 연결한 뒤 함께할 친구를 선택할 수 있어요."));
         Assert.IsTrue(ButtonNamed("낚시 저장 다시 확인").interactable, "pending local-save recovery remains available offline");
@@ -62,7 +62,7 @@ public class AppUiVehicleCompanionTests
         var state = State(); state.revision = 2; state.dex[0].collected = false;
         AppSession.Receive(state); Call("OnState", AppSession.State); Call("BuildDex");
         Assert.IsTrue(HasText("비 오는 길에서 만나 보세요."));
-        Assert.IsNull(ButtonNamed("이 친구와 차량에서 함께하기"));
+        Assert.IsNull(ButtonNamed("차 안으로 불러오기"));
     }
 
     static AppState State() => new AppState

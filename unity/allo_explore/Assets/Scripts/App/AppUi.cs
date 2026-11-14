@@ -12,7 +12,7 @@ namespace Allo.App
         RectTransform _safe, _content;
         StoryOverlay _storyOverlay;
         bool _lastStoryUiBlocked, _lastLearningUiBlocked;
-        public bool StoryUiBlocked => View == "cabin" && (_speechDrawer || _zoneDrawer || _choosingCompanion || _confirmAction != null);
+        public bool StoryUiBlocked => View == "cabin" && (_speechDrawer || _zoneDrawer || _confirmAction != null);
         Text _title, _connection, _status;
         Image _statusSurface;
         Font _font;
@@ -20,7 +20,7 @@ namespace Allo.App
         AppState _state;
         bool _dirty = true;
         string _renderedView, _selectedCreature, _selectedDex, _campTab = "builder", _selectedTarget;
-        string _sessionId = "", _pairCode = "", _speech = "", _tier = "small";
+        string _sessionId = "", _pairCode = "", _speech = "";
         string _confirmTitle, _confirmDescription;
         Action _confirmAction;
         readonly Dictionary<string, float> _scrollPositions = new Dictionary<string, float>();
@@ -46,13 +46,17 @@ namespace Allo.App
         void OnEnable()
         {
             AppSession.Changed += OnState;
+            Allo.Critters.CritterDirector.CompanionTapped += OnCompanionTapped;
             OnState(AppSession.State);
         }
 
-        void OnDisable() { AppSession.Changed -= OnState; }
+        void OnDisable() { AppSession.Changed -= OnState; Allo.Critters.CritterDirector.CompanionTapped -= OnCompanionTapped; }
+        void OnApplicationPause(bool paused) { OnCompanionForegroundChanged(!paused); }
+        void OnApplicationFocus(bool focused) { OnCompanionForegroundChanged(focused); }
         void OnState(AppState state)
         {
             OnLearningTargetChanged(state);
+            SyncNativeCompanionSpeech(state);
             _state = state; _dirty = true;
             if (_villageLayer != null) _villageLayer.gameObject.SetActive(state != null && state.ready && (state.view == "home" || state.view == "camp"));
         }
@@ -74,6 +78,7 @@ namespace Allo.App
                 AppSession.Request("learningUiBlocked", new AppAction { blocked = learningBlocked });
             }
             UpdateVillageGeometry();
+            PlaceCompanionBubble();
             foreach (var check in _liveChecks) check();
             if (!_dirty || _safe == null) return;
             UpdateChrome();
@@ -83,6 +88,7 @@ namespace Allo.App
             if (input != null && input.isFocused && _renderedView == View) return;
             if (Input.GetMouseButton(0) || Input.touchCount > 0) return;
             Render();
+            PlaceCompanionBubble();
         }
 
         void BuildChrome()

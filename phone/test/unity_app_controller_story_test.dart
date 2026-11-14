@@ -73,9 +73,24 @@ void main() {
 
   test('distance-based care allows stories until its distance safety margin',
       () async {
-    feed.sample(eta: null);
-    await game.startIncubating(EggTier.large, useAffinity: true);
-    feed.sample(eta: null);
+    // Choose distance at the first sample; an established trip cannot reset its mode.
+    app.dispose();
+    game.dispose();
+    camp.dispose();
+    feed = RoundFeed();
+    camp = BaseCampController(store: CampMemory());
+    game = GameController(
+      feed: feed,
+      dex: DexStore(namespace: 'story.distance.'),
+      eggApi: DemoApi(),
+      baseCamp: camp,
+      monotonicMs: () => now,
+    );
+    app = UnityAppController(game: game, camp: camp);
+    expect(await app.initialize(), isTrue);
+    await game.pair(sessionA, pairCode: '123456');
+    feed.sample(eta: null, tags: ['coast']);
+    await action('navigate', {'view': 'cabin'});
     expect(game.affinityRound!.deadlineMs, isNull);
     expect(story()['canPlay'], isTrue);
     await startStory();

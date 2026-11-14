@@ -6,16 +6,7 @@ class LearningCreature {
       {'creatureId': id, 'speciesId': speciesId, 'name': name};
 }
 
-class LearningScene {
-  LearningScene(Map<String, dynamic> json)
-      : id = json['id'] as String,
-        title = json['title'] as String,
-        text = json['text'] as String,
-        nextSceneId = json['nextSceneId'] as String?;
-  final String id, title, text;
-  final String? nextSceneId;
-}
-
+/// Public identifiers only. Dialogue and transitions are owned by the server.
 class LearningStory {
   LearningStory(Map<String, dynamic> json)
       : speciesId = json['speciesId'] as String,
@@ -24,36 +15,29 @@ class LearningStory {
         firstSceneId = json['firstSceneId'] as String,
         scenes = {
           for (final scene in json['scenes'] as List)
-            (scene as Map<String, dynamic>)['id'] as String:
-                LearningScene(scene)
-        },
-        migrations =
-            Map<String, String>.from(json['migrations'] as Map? ?? {}) {
+            (scene as Map<String, dynamic>)['id'] as String
+        } {
     if (version < 1 ||
         scenes.isEmpty ||
         scenes.length != (json['scenes'] as List).length ||
-        !scenes.containsKey(firstSceneId) ||
-        scenes.values.any((s) =>
-            s.text.trim().isEmpty ||
-            s.text.runes.length > 600 ||
-            s.nextSceneId != null && !scenes.containsKey(s.nextSceneId)) ||
-        migrations.values.any((id) => !scenes.containsKey(id))) {
-      throw const FormatException('Invalid authored learning story');
-    }
-    final visited = <String>{};
-    String? cursor = firstSceneId;
-    while (cursor != null) {
-      if (!visited.add(cursor)) throw const FormatException('Cyclic story');
-      cursor = scenes[cursor]!.nextSceneId;
-    }
-    if (visited.length != scenes.length) {
-      throw const FormatException('Unreachable story scene');
+        !scenes.contains(firstSceneId) ||
+        scenes.any((id) => id.isEmpty) ||
+        json.keys.any((key) => !{
+              'speciesId',
+              'storyId',
+              'version',
+              'name',
+              'firstSceneId',
+              'scenes'
+            }.contains(key)) ||
+        (json['scenes'] as List)
+            .any((scene) => (scene as Map).keys.any((key) => key != 'id'))) {
+      throw const FormatException('Invalid public learning manifest');
     }
   }
   final String speciesId, id, firstSceneId;
   final int version;
-  final Map<String, LearningScene> scenes;
-  final Map<String, String> migrations;
+  final Set<String> scenes;
 }
 
 class LearningCatalog {
@@ -65,7 +49,7 @@ class LearningCatalog {
         } {
     if (json['schemaVersion'] != 1 ||
         stories.length != (json['stories'] as List).length) {
-      throw const FormatException('Invalid learning catalog');
+      throw const FormatException('Invalid learning manifest');
     }
   }
   final Map<String, LearningStory> stories;

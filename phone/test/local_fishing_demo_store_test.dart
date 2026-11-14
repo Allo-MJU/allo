@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:allo_core/allo_core.dart';
+import 'package:allo_phone/storage/dex_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:allo_phone/local_fishing/demo_stores.dart';
 
@@ -15,6 +17,10 @@ void main() {
     await dex.seed();
     await dex.seed();
     expect((await dex.all()).length, 6);
+    await dex.saveIncubationProgress(
+        EggTier.small, const IncubationProgress(carriedM: 123));
+    expect(await LocalDemoDexStore().carriedDistance(EggTier.small), 123);
+    expect(await DexStore().carriedDistance(EggTier.small), 0);
     final fishing = LocalDemoFishingStore();
     await fishing.write({'version': 1, 'savedReward': 4});
     expect(

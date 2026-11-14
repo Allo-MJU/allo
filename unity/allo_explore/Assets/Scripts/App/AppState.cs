@@ -49,6 +49,8 @@ namespace Allo.App
     [Serializable] public sealed class MaterialState { public string id, label; public int count; }
     [Serializable] public sealed class LearningState
     {
+        public string conversationMode, invitationText;
+        public bool invitationOpen;
         public string creatureId, speciesId, name, storyId, sceneId, title, text, target, status, error, source, careActionId;
         public bool active, busy, recording, available, canNext, muted, speechAvailable;
         public long careSequence;
@@ -74,7 +76,7 @@ namespace Allo.App
         public int v = 1;
         public string type = "appAction";
         public string requestId, action, view, eggId, tier, role, creatureId, targetId, facility, recipeId, actionId, text, sessionId, pairCode;
-        public string instanceId, nodeId, topicId;
+        public string instanceId, nodeId, topicId, speciesId;
         public int storyRevision;
         public bool blocked;
         public int zone;

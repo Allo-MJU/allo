@@ -14,7 +14,6 @@ namespace Allo.App
         void BuildCabin()
         {
             var storyShowing = StoryOverlay.ShowsStory(_state) || (_storyOverlay != null && _storyOverlay.ShowingNotebook);
-            if (!storyShowing) BuildCompanionSelector();
             if (!storyShowing && HasSelectedCompanion(_state))
             {
                 BuildCommonCareDock();
@@ -26,7 +25,7 @@ namespace Allo.App
             }
             var egg = _state.egg;
             var openedEggId = egg?.id;
-            if (egg == null || !egg.active) { if (!storyShowing && !_choosingCompanion) BuildCabinStart(egg); return; }
+            if (egg == null || !egg.active) { if (!storyShowing) BuildCabinStart(egg); return; }
             var hud = Surface("Cabin affinity HUD", _content, new Color(.949f, .933f, .898f, .90f));
             Stretch(hud, 12, -112, 414, -10, new Vector2(0, 1), new Vector2(0, 1));
             var score = Label(hud, "친밀도  " + Mathf.FloorToInt(egg.score) + " / 100", 23, TextAnchor.MiddleLeft); Stretch(score.rectTransform, 14, -38, -14, -6, new Vector2(0, 1), Vector2.one);
@@ -49,8 +48,8 @@ namespace Allo.App
             BuildCommonCareDock();
             Button(actions, egg.speechBusy ? "듣고 있어요" : CooldownLabel("말 걸기", egg.speechCooldown), () => Send("speech"), Cream, 54, CanAct && _state.speechAvailable && !egg.photoRequired && !egg.speechBusy && egg.speechCooldown <= 0, 21);
             Button(actions, egg.photoBusy ? "사진 보내는 중" : "함께 사진 찍기", () => Send("photo"), egg.photoRequired ? Yellow : Cream, 54, CanAct && egg.photoRequired && _state.photoAvailable && !egg.photoBusy, 21);
-            Button(actions, "글로 말하기", () => { _speechDrawer = !_speechDrawer; _zoneDrawer = _choosingCompanion = false; _dirty = true; }, Cream, 54, CanAct, 21);
-            Button(actions, "자리와 돌보기", () => { _zoneDrawer = !_zoneDrawer; _speechDrawer = _choosingCompanion = false; _dirty = true; }, Cream, 54, CanAct, 21);
+            Button(actions, "글로 말하기", () => { _speechDrawer = !_speechDrawer; _zoneDrawer = false; _dirty = true; }, Cream, 54, CanAct, 21);
+            Button(actions, "자리와 돌보기", () => { _zoneDrawer = !_zoneDrawer; _speechDrawer = false; _dirty = true; }, Cream, 54, CanAct, 21);
             BuildTravelButtons(actions);
             if (_zoneDrawer)
             {
@@ -87,31 +86,22 @@ namespace Allo.App
 
         void BuildCabinStart(EggState egg)
         {
-            var host = Rect("Cabin start bottom sheet", _content);
-            Stretch(host, -360, 10, 360, 302, new Vector2(.5f, 0), new Vector2(.5f, 0));
-            var panel = Sheet(host);
-            Heading(panel, egg != null && egg.phase == "hatched" ? "새 친구가 깨어났어요" : egg != null && (egg.phase == "failed" || egg.phase == "discarded") ? "새로운 만남을 시작할까요?" : "함께할 알을 골라 주세요");
-            var row = NewRow(panel, 50);
-            string[] tiers = { "small", "mid", "large" }; string[] names = { "작은 알", "중간 알", "큰 알" };
-            for (var i = 0; i < tiers.Length; i++) { var tier = tiers[i]; Button(row, names[i], () => { _tier = tier; _dirty = true; }, _tier == tier ? Mint : Cream, 50, CanAct, 21); }
-            var actions = NewRow(panel, 54);
-            Button(actions, "이 알과 시작하기", () => Send("startEgg", new AppAction { tier = _tier }), Yellow, 54, CanAct && _state.canStart, 22);
-            BuildTravelButtons(actions);
-            if (egg != null && egg.phase == "hatched") Button(actions, "새 친구 보러 가기", () => Navigate("dex"), Cream, 54, CanAct, 21);
-            if (!_state.canStart) Note(panel, egg != null && egg.phase == "hatched" ? "새 친구와 함께하면서 다음 알을 기다려 주세요." : _state.sessionEnded ? "여행이 끝났어요. 설정에서 다음 연결을 준비해 주세요." : "지금은 알을 시작할 수 없어요. 설정에서 차량 연결 상태를 확인해 주세요.");
-            else Note(panel, "알을 쓰다듬고 말을 걸어 주세요. 친밀도가 100이 되면 새 친구가 깨어나요.");
-            if (egg != null && !string.IsNullOrEmpty(EggFeedbackLabel(egg.feedback))) Note(panel, EggFeedbackLabel(egg.feedback));
+            var actions = Rect("Cabin travel actions", _content);
+            Stretch(actions, -320, 10, 320, 78, new Vector2(.5f, 0), new Vector2(.5f, 0));
+            Row(actions, 8); BuildTravelButtons(actions);
+            if (egg != null && egg.phase == "hatched")
+                Button(actions, "새 친구 보러 가기", () => Navigate("dex"), Cream, 54, CanAct, 21);
         }
 
         void BuildTravelButtons(Transform parent)
         {
             if (_storyOverlay == null || _state.story == null) return;
-            Button(parent, "여행 노트", () => _storyOverlay.ToggleNotebook(), Cream, 54,
-                CanAct && _state.story.canPlay && !_zoneDrawer && !_speechDrawer && !_choosingCompanion, 21);
+            Button(parent, "여행 노트", () => { CloseCompanionInvitation(); _storyOverlay.ToggleNotebook(); }, Cream, 54,
+                CanAct && _state.story.canPlay && !_zoneDrawer && !_speechDrawer, 21);
             var story = _state.story;
             if (!story.available && !story.paused) return;
-            var enabled = CanAct && story.canPlay && !story.pending && !_zoneDrawer && !_speechDrawer && !_choosingCompanion && string.IsNullOrEmpty(_state.error);
-            Button(parent, story.paused ? "이야기 이어 하기" : "이야기 시작", () => _storyOverlay.StartAvailableStory(),
+            var enabled = CanAct && story.canPlay && !story.pending && !_zoneDrawer && !_speechDrawer && string.IsNullOrEmpty(_state.error);
+            Button(parent, story.paused ? "이야기 이어 하기" : "이야기 시작", () => { CloseCompanionInvitation(); _storyOverlay.StartAvailableStory(); },
                 Yellow, 54, enabled, 21);
             if (!story.paused)
                 Button(parent, "나중에", () => _storyOverlay.DismissInvitation(), Cream, 54, enabled, 21);
@@ -282,7 +272,7 @@ namespace Allo.App
             }
             var friend = owned.First(c => c.id == _selectedCreature);
             var companionId = friend.id;
-            Button(right, "이 친구와 차량에서 함께하기", () =>
+            Button(right, "차 안으로 불러오기", () =>
             {
                 if (_state.connected && !_state.sessionEnded) Send("selectCarCompanion", new AppAction { creatureId = companionId });
             }, Mint, 54, CanAct && _state.connected && !_state.sessionEnded, 21);

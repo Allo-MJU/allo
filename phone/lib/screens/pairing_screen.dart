@@ -1,4 +1,3 @@
-import 'package:allo_core/allo_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -104,40 +103,31 @@ class _PairingScreenState extends State<PairingScreen> {
                     child: Text(c.error!,
                         style: const TextStyle(color: Colors.red))),
               const SizedBox(height: 24),
-              OutlinedButton(
-                onPressed: !c.canStart
-                    ? null
-                    : () async {
-                        final started = await c.startIncubating(EggTier.small);
-                        if (started && context.mounted) {
-                          context.go('/incubating');
-                        }
-                      },
-                child: Text(c.busy
-                    ? '준비 중…'
-                    : c.isFake
-                        ? '체험 시작'
-                        : '알 품기 시작'),
-              ),
+              if (c.isFake || c.paired)
+                OutlinedButton(
+                  onPressed: !c.canStart &&
+                          !(c.isFake && c.sessionEnded && c.sessionSaved)
+                      ? null
+                      : () async {
+                          if (c.isFake && c.sessionEnded && c.sessionSaved) {
+                            c.prepareNextFakeTrip();
+                          }
+                          final ready = await c.ensureTripEgg();
+                          if (ready && context.mounted) {
+                            context.go('/incubating');
+                          }
+                        },
+                  child: Text(c.busy
+                      ? '준비 중…'
+                      : c.isFake
+                          ? c.sessionSaved && c.sessionEnded
+                              ? '다음 체험 여행'
+                              : '체험 시작'
+                          : '차 안으로 가기'),
+                ),
               TextButton(
                   onPressed: () => context.go('/dex'),
                   child: const Text('도감 보기')),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                key: const Key('start-affinity'),
-                onPressed: !c.canStart
-                    ? null
-                    : () async {
-                        final started = await c.startIncubating(EggTier.small,
-                            useAffinity: true);
-                        if (started && context.mounted) {
-                          context.go('/incubating');
-                        }
-                      },
-                icon: const Icon(Icons.favorite_outline),
-                label: const Text('마음으로 알 품기'),
-              ),
-              const Text('쓰다듬기·자리 바꾸기·말 걸기로 마음을 쌓아요. 사진 퀘스트도 기다리고 있어요.'),
             ],
           ),
         ),

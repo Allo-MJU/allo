@@ -228,7 +228,8 @@ void main() {
     store.gate!.complete();
     expect(await closing, isTrue);
     expect((await DexStore().all()).length, 1);
-    expect(store.progressWrites, 1);
+    // Freeze the result before adding to the dex, then mark it committed.
+    expect(store.progressWrites, 2);
   });
 
   test('알 지급 전 과거 종료 이벤트도 종료로 처리하며 같은 세션을 되살리지 않는다', () async {

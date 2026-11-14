@@ -47,7 +47,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  test('완료한 A 뒤 B 연결의 첫 발행은 이전 생물 없는 idle이다', () async {
+  test('완료한 A 뒤 B 연결의 첫 발행은 이전 생물 없는 새 알이다', () async {
     final feed = BoundaryFeed();
     final store = DexStore();
     var now = 0;
@@ -70,7 +70,7 @@ void main() {
     expect(c.paired, isTrue);
     final published = feed.bySession[sessionB]!;
     expect(published, isNotEmpty);
-    expect(published.first.stage, Stage.idle);
+    expect(published.first.stage, Stage.incubating);
     expect(published.every((g) => g.speciesId == null), isTrue);
     expect(published.first.regionCollectionKnown, isTrue);
     expect(c.hatched, isNull);
@@ -199,7 +199,7 @@ void main() {
     addTearDown(next.dispose);
     await next.restorePairing();
     await next.pair(sessionB, pairCode: '123456');
-    expect(await next.startIncubating(EggTier.small), isTrue);
+    expect(await next.ensureTripEgg(), isFalse);
     await settle();
     nextFeed.sample(eta: 5400, distance: 1000);
     expect(next.game.stage, Stage.hatched);
@@ -261,7 +261,7 @@ void main() {
       } else {
         await current.pair(sessions[i], pairCode: '123456');
       }
-      expect(await current.startIncubating(EggTier.small), isTrue);
+      expect(await current.ensureTripEgg(), isFalse);
       await settle();
       currentFeed.sample(eta: 600, distance: 1000);
       expect(current.game.stage, Stage.hatched);
@@ -289,7 +289,8 @@ void main() {
     final publishedBefore = currentFeed.bySession[sessionC]!.length;
     await current.pair(sessionC, pairCode: '123456');
     await settle();
-    expect(currentFeed.bySession[sessionC]![publishedBefore].stage, Stage.idle);
+    expect(currentFeed.bySession[sessionC]![publishedBefore].stage,
+        Stage.incubating);
     expect(await current.startIncubating(EggTier.small), isTrue);
     currentFeed.sample(eta: 600, distance: 1000);
     expect(current.game.stage, Stage.incubating);
@@ -334,7 +335,8 @@ void main() {
     expect(await store.all(), hasLength(1));
     expect(await saved.setAppActive(false), isTrue);
     final completed = await store.incubationProgress(EggTier.small);
-    expect(completed.round!['sessionId'], sessionA);
+    expect(completed.round!['sessionId'], sessionB);
+    expect(completed.round!['eggId'], isNot(previousEgg));
     expect(completed.round!['pendingEntry'], isNull);
     expect(completed.sessionDistances[sessionA], 2000);
     expect(completed.sessionDistances[sessionB], 1000);
@@ -354,7 +356,7 @@ void main() {
     expect(await store.all(), hasLength(1));
   });
 
-  test('legacy 동행도 실제 A 종료 저장 뒤 B 첫 발행은 idle이다', () async {
+  test('legacy 동행도 실제 A 종료 저장 뒤 B 첫 발행은 새 알이다', () async {
     final store = DexStore();
     final feed = BoundaryFeed();
     var now = 0;
@@ -388,7 +390,7 @@ void main() {
     await next.pair(sessionB, pairCode: '123456');
     await settle();
     final published = nextFeed.bySession[sessionB]!.first;
-    expect(published.stage, Stage.idle);
+    expect(published.stage, Stage.incubating);
     expect(published.speciesId, isNull);
     expect(next.hatched, isNull);
     expect(await store.all(), hasLength(1));

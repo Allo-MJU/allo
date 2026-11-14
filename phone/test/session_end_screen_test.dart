@@ -36,12 +36,20 @@ void main() {
       await tester
           .runAsync(() => rootBundle.loadString('assets/data/species.json'));
       final feed = _TripFeed();
-      await tester.pumpWidget(AlloApp(feed: feed));
+      final controller = GameController(feed: feed, dex: DexStore());
+      await tester
+          .pumpWidget(AlloApp(feed: feed, createController: () => controller));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('알 품기 시작'), 120,
+      await _flushStorage(tester, () => controller.paired && !controller.busy);
+      // Keep the distance-only phase matrix; pairing still owns this trip's egg.
+      expect(
+          await tester
+              .runAsync(() => controller.startIncubating(EggTier.small)),
+          isTrue);
+      await tester.scrollUntilVisible(find.text('차 안으로 가기'), 120,
           scrollable: find.byType(Scrollable).first);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('알 품기 시작'));
+      await tester.tap(find.text('차 안으로 가기'));
       await tester.pumpAndSettle();
       for (var i = 0; i < 20 && find.text('알 품기').evaluate().isEmpty; i++) {
         await tester.runAsync(
@@ -78,9 +86,9 @@ void main() {
       await tester.tap(find.text('새 차량 연결'));
       await tester.pumpAndSettle();
       expect(find.text('차 화면의 QR을 찍어 주세요'), findsOneWidget);
-      final start = tester.widget<OutlinedButton>(
-          find.widgetWithText(OutlinedButton, '알 품기 시작'));
-      expect(start.onPressed, isNull);
+      expect(find.text('차 안으로 가기'), findsNothing,
+          reason: 'A saved ended trip must require a new vehicle connection');
+      expect(find.text('QR 스캔'), findsOneWidget);
       await tester.scrollUntilVisible(find.text('도감 보기'), 120,
           scrollable: find.byType(Scrollable).first);
       await tester.pumpAndSettle();

@@ -305,8 +305,7 @@ void main() {
     expect(remote, isNot(contains('photoId')));
     expect(remote, isNot(contains('requestId')));
   });
-  test(
-      '100 hatches immediately and next egg starts 30 active minutes from actual hatch',
+  test('100 hatches immediately and stays hatched after 30 active minutes',
       () async {
     await start(eta: 4800);
     await hatch();
@@ -317,9 +316,9 @@ void main() {
     await advance(1799999, eta: 600);
     expect(c.eggId, id);
     await advance(1, eta: 600);
-    expect(c.eggId, isNot(id));
-    expect(c.affinityRound?.score, 0);
-    expect(c.game.stage, Stage.incubating);
+    expect(c.eggId, id);
+    expect(c.affinityRound?.score, 100);
+    expect(c.game.stage, Stage.hatched);
   });
   test(
       'pending hatch is durable before dex and failed save retries same result once',
@@ -355,8 +354,8 @@ void main() {
     expect(feed.hatchEvents, 0);
     expect(await c.startIncubating(EggTier.small, useAffinity: true), isTrue);
     feed.sample();
-    expect(c.affinityRound?.phase, AffinityPhase.incubating);
-    await c.discardEgg();
+    expect(c.affinityRound?.phase, AffinityPhase.failed);
+    expect(await c.discardEgg(), EggFeedback.none);
     await advance(5000000);
     expect(c.game.stage, Stage.failed);
     expect(feed.hatchEvents, 0);
@@ -454,15 +453,13 @@ void main() {
     expect(c.affinityRound?.score, 0);
     expect(await c.petEgg(), EggFeedback.none);
   });
-  test(
-      'distance terminal start has no carried failure and persisted preference survives restart',
-      () async {
+  test('distance terminal egg stays failed on same trip', () async {
     await start(eta: null);
     await advance(1000, eta: null, distance: 5000);
     expect(c.game.stage, Stage.failed);
     expect(await c.startIncubating(EggTier.small, useAffinity: true), isTrue);
     feed.sample(eta: null, distance: 5000);
-    expect(c.game.stage, Stage.incubating);
+    expect(c.game.stage, Stage.failed);
     expect(c.affinityRound?.score, 0);
   });
   test(
@@ -526,16 +523,14 @@ void main() {
     expect((saved['game'] as Map)['stage'], 'hatched');
     await c.setAppActive(false);
   });
-  test(
-      'restored opt in preference also applies to next egg and explicit failed restart',
-      () async {
+  test('restored affinity hatch remains the only egg for this trip', () async {
     await start();
     await hatch();
     await restart();
     await advance(1800000, eta: 600);
     expect(c.affinityRound, isNotNull);
-    expect(c.affinityRound?.score, 0);
-    await c.discardEgg();
+    expect(c.affinityRound?.score, 100);
+    expect(await c.discardEgg(), EggFeedback.none);
     expect(await c.startIncubating(EggTier.small), isTrue);
     feed.sample();
     expect(c.affinityRound, isNotNull);
@@ -563,11 +558,10 @@ void main() {
     await advance(2400000);
     expect(c.game.stage, Stage.hatched);
     await advance(1800000, eta: 600);
-    expect(c.affinityRound, isNotNull);
-    expect(c.affinityRound?.score, 0);
+    expect(c.affinityRound, isNull);
+    expect(c.game.stage, Stage.hatched);
   });
-  test('30 minute clock alone cannot grant next egg without fresh vehicle ETA',
-      () async {
+  test('neither 30 minutes nor a fresh ETA grants a second egg', () async {
     await start();
     await hatch();
     final id = c.eggId;
@@ -577,7 +571,7 @@ void main() {
     feed.sample(eta: 119);
     expect(c.eggId, id);
     feed.sample(eta: 600);
-    expect(c.eggId, isNot(id));
+    expect(c.eggId, id);
   });
   test('affinity distance mode rejects duplicate vehicle timestamps', () async {
     await start(eta: null);
@@ -606,7 +600,7 @@ void main() {
     expect(await store.all(), hasLength(1));
   });
   test(
-      'delayed ramp hatch preserves exact millisecond actual hatch for companion deadline',
+      'delayed ramp preserves exact hatch millisecond and grants no second egg',
       () async {
     await start();
     await photoGate();
@@ -626,7 +620,7 @@ void main() {
     await advance(1794999, eta: 600);
     expect(c.eggId, id);
     await advance(1, eta: 600);
-    expect(c.eggId, isNot(id));
+    expect(c.eggId, id);
   });
   test(
       'retaken bytes reconcile server success after lost photo response before changing request',

@@ -37,3 +37,7 @@ Real vehicle/network integration and physical-device camera/microphone remain un
 ## Companion learning latest refresh — 2026-11-14
 
 Local integration now includes dev `c15c12e` through #120, preserving 3D character/props and optional window experiments beside fixed personal stories. Canonical12 personal drafts contain36 scenes; new11 plots/personas await human review. Flutter459/core93/Unity176/server38 tests passed. Fresh Unity export/debug APK build and data-preserving API36 emulator install/cold launch succeeded. See [verification](../../verification/2026-11-14-companion-learning-latest.md) and [local API setup](../../companion-learning-local-setup.md). Actual provider dialogue awaits an API key entered only in the local launcher; no remote deployment was performed.
+
+## Trip egg and server-owned character dialogue — 2026-11-14
+
+Pairing now prepares at most one egg for a trip; incomplete eggs carry into the next trip without another grant. Repeating grants and cabin selectors are removed. Owned friends are summoned from Friends; tapping their actual cabin character opens a head-anchored server invitation. Personal story progression and personas execute on the backend; APK contains an ID-only manifest. Flutter479/core93/Unity189/server48 and vehicle fixture2 checks passed. The updated APK was installed without clearing data and its server invitation/story/next flow was observed. See [current verification](../../verification/2026-11-14-trip-egg-companion-invitation.md) and [setup](../../companion-learning-local-setup.md).

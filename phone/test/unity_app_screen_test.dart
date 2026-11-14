@@ -29,11 +29,27 @@ void main() {
     expect(unityExploreOpen.value, isTrue);
     expect(find.byKey(const Key('unity-surface')), findsOneWidget);
     expect(find.byType(IconButton), findsNothing);
-    receive(
-        '{"v":1,"type":"appAction","requestId":"start","action":"startEgg","tier":"small"}');
-    await tester.pumpAndSettle();
+    for (var i = 0;
+        i < 500 &&
+            !messages.any((m) => m['type'] == 'app' && m['ready'] == true);
+        i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+      await tester.pump();
+    }
+    expect(messages.where((m) => m['type'] == 'app').last['ready'], true);
+    expect(messages.where((m) => m['type'] == 'app').last['canStart'], false);
     receive('{"v":1,"type":"appAction","requestId":"end","action":"endTrip"}');
     await tester.pumpAndSettle();
+    for (var i = 0;
+        i < 500 &&
+            !messages
+                .any((m) => m['type'] == 'app' && m['sessionEnded'] == true);
+        i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+      await tester.pump();
+    }
     expect(find.byKey(const Key('unity-surface')), findsOneWidget);
     expect(
         messages.where((m) => m['type'] == 'app').last['sessionEnded'], isTrue);

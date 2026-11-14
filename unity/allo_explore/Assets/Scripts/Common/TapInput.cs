@@ -82,7 +82,7 @@ namespace Allo
             _overUi = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(finger);
             _petting = null; _rub = 0; _glassAtDown = null; _drawn = 0; _lastGlass = null;
             _mode = Mode.Look;
-            if (_overUi) { _mode = Mode.None; return; }
+            if (_overUi) { Lock(Mode.None); return; }
             if (critters != null && critters.Holding) { Lock(Mode.Throw); return; }
             if (!Physics.Raycast(_cam.ScreenPointToRay(p), out var hit, 80f)) return;
             var critter = hit.collider.GetComponentInParent<CritterView>();
@@ -170,7 +170,7 @@ namespace Allo
                     return;
                 }
                 case Mode.Pet:
-                    if (quick && _petting != null && critters != null && !critters.ToggleBlanket(_petting)) critters.Poke(_petting);
+                    if (quick && _petting != null && critters != null && !critters.InviteCompanion(_petting) && !critters.ToggleBlanket(_petting)) critters.Poke(_petting);
                     return;
                 case Mode.Draw:
                     if (_drawn > 0.5f) critters?.DrawDone();

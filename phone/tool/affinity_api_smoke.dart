@@ -88,12 +88,40 @@ Future<void> main(List<String> args) async {
         'version',
         'sceneId',
       ]) {
-        if (answer[key] != request[key])
+        if (answer[key] != request[key]) {
           throw StateError('learning context mismatch');
+        }
       }
       if (answer['text'] != '작은 씨앗을 함께 관찰해 보자.' ||
           answer['parentPromptUsed'] != false) {
         throw StateError('learning response');
+      }
+      Future<Map<String, dynamic>> turn(String action, String sceneId) =>
+          first.companionTurn({
+            ...request,
+            'requestId': 'turn-${story['speciesId']}-$action',
+            'sceneId': sceneId,
+            'action': action,
+            'text': '',
+          });
+      final invited = await turn('invite', story['firstSceneId'] as String);
+      if (invited['mode'] != 'menu' || invited['text'] != '나한테 궁금한 게 있는 거야?') {
+        throw StateError('server invitation');
+      }
+      final listened = await turn('listen', invited['sceneId'] as String);
+      if (listened['mode'] != 'story' ||
+          (listened['text'] as String).isEmpty ||
+          listened['canNext'] != true) {
+        throw StateError('server authored story');
+      }
+      final next = await turn('next', listened['sceneId'] as String);
+      if (next['sceneId'] == listened['sceneId'] || next['mode'] != 'story') {
+        throw StateError('server controls next scene');
+      }
+      final repeated = await turn('repeat', next['sceneId'] as String);
+      if (repeated['sceneId'] != next['sceneId'] ||
+          repeated['text'] != next['text']) {
+        throw StateError('server repeat');
       }
     }
     stdout.writeln(
@@ -104,6 +132,7 @@ Future<void> main(List<String> args) async {
         'rampedScore': 77,
         'hatched': true,
         'companionStoriesChecked': stories.length,
+        'serverOwnedTurnsChecked': stories.length * 4,
         'provider': 'injected synthetic evaluator, no live model',
       }),
     );

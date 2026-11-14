@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'package:allo_core/allo_core.dart';
 import 'package:allo_phone/app.dart';
@@ -24,7 +23,7 @@ void main() {
     rootBundle.evict('assets/data/characters.json');
     rootBundle.evict('assets/data/window_stories_ko.json');
     rootBundle.evict('assets/data/companion_learning.json');
-    final ready = Completer<Map<String, dynamic>>();
+    Map<String, dynamic>? current;
     await tester.pumpWidget(AlloApp(
         feed: feed,
         useUnityApp: true,
@@ -33,22 +32,27 @@ void main() {
           receive = onMessage;
           onCreated((json) {
             final message = jsonDecode(json) as Map<String, dynamic>;
-            if (!ready.isCompleted &&
-                message['type'] == 'app' &&
-                (message['ready'] == true || message['error'] != '')) {
-              ready.complete(message);
+            if (message['type'] == 'app' &&
+                ((message['ready'] == true && message['busy'] == false) ||
+                    message['error'] != '')) {
+              current = message;
             }
           });
           return const SizedBox();
         }));
     await tester.pumpAndSettle();
     receive('{"type":"ready"}');
-    // Wait for the published result while asset/plugin I/O runs on real time.
-    final current = await tester
-        .runAsync(() => ready.future.timeout(const Duration(seconds: 5)));
-    expect(current!['ready'], isTrue, reason: current['error'] as String);
+    // New trip preparation spans asset I/O and fake-zone storage callbacks.
+    for (var i = 0; i < 500 && current == null; i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+      await tester.pump();
+    }
+    expect(current, isNotNull,
+        reason: 'Unity app did not finish automatic trip preparation');
+    expect(current!['ready'], isTrue, reason: current!['error'] as String);
     await tester.pump();
-    return current;
+    return current!;
   }
 
   Future<void> close(WidgetTester tester) async {
@@ -171,7 +175,8 @@ void main() {
         await FishingStore(profile: 'unity-demo-examples').read();
     expect(demoFishing,
         isNotNull); // The actual app paired and attached its demo store.
-    expect(demoFishing!['session'], sessionA);
+    final demoSession = demoFishing!['session'];
+    expect(demoSession, startsWith('demo-'));
     expect(demoFishing['selected'], isNull);
     expect(demoFishing['entries'], isEmpty);
     await prefs.reload();
@@ -186,6 +191,9 @@ void main() {
         tester, FakeVehicleFeed(scenario: FakeScenario.clear),
         enabled: true);
     expect((second['creatures'] as List).map((c) => c['id']).toList(), ids);
+    expect(
+        (await FishingStore(profile: 'unity-demo-examples').read())!['session'],
+        demoSession);
     expect(
         (await DexStore(profile: 'unity-demo-examples').all()), hasLength(5));
     expect((await original.all()).single.sourceEggId, 'earned-original');
