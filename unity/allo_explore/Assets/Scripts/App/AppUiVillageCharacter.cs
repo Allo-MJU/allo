@@ -8,7 +8,17 @@ namespace Allo.App
     public sealed partial class AppUi
     {
         string _villageCreatureId;
-        readonly Dictionary<string, float> _villageFriendTime = new Dictionary<string, float>();
+        sealed class VillageWalk
+        {
+            public uint seed;
+            public Vector2 target;
+            public float pause;
+            public bool moving, facingLeft = true;
+            public VillageCharacterArt art;
+        }
+        readonly Dictionary<string, VillageWalk> _villageWalking = new Dictionary<string, VillageWalk>();
+        VillageCharacterArt _villageDetailArt;
+        float _villagePreviewElapsed;
 
         void SyncVillageCharacter(AppState state)
         {
@@ -27,6 +37,7 @@ namespace Allo.App
         {
             if (!CanAct || _confirmAction != null || (View != "home" && View != "camp") ||
                 !Items(_state.creatures).Any(c => c.id == creatureId)) return;
+            _villagePreviewElapsed = 0;
             _villageCreatureId = creatureId;
             _selectedCreature = creatureId;
             _campDetail = false;
@@ -44,22 +55,74 @@ namespace Allo.App
             return true;
         }
 
+        VillageWalk CreateVillageWalk(string id, VillageCharacterArt art)
+        {
+            uint seed = 2166136261;
+            foreach (var c in id) seed = unchecked((seed ^ c) * 16777619);
+            var walk = new VillageWalk { seed = seed, art = art };
+            walk.pause = .2f + WalkRandom(walk) * .8f;
+            return walk;
+        }
+
+        static float WalkRandom(VillageWalk walk)
+        {
+            walk.seed = unchecked(walk.seed * 1664525 + 1013904223);
+            return (walk.seed >> 8) / 16777216f;
+        }
+
+        void ChooseVillageDestination(RectTransform marker, VillageWalk walk)
+        {
+            var size = _villageContent.rect.size;
+            var minX = Mathf.Max(-140, (.10f - marker.anchorMin.x) * size.x);
+            var maxX = Mathf.Min(140, (.78f - marker.anchorMin.x) * size.x);
+            var minY = Mathf.Max(-55, (.12f - marker.anchorMin.y) * size.y);
+            var maxY = Mathf.Min(55, (.34f - marker.anchorMin.y) * size.y);
+            for (var attempt = 0; attempt < 6; attempt++)
+            {
+                walk.target = new Vector2(Mathf.Lerp(minX, maxX, WalkRandom(walk)), Mathf.Lerp(minY, maxY, WalkRandom(walk)));
+                if (Vector2.Distance(marker.anchoredPosition, walk.target) >= 55) break;
+            }
+            walk.moving = true;
+        }
+
         void TickVillageFriends(float deltaTime)
         {
-            if (!CanAct || _state.reducedMotion || (View != "home" && View != "camp") ||
-                _confirmAction != null || (View == "camp" && _campDetail) || !string.IsNullOrEmpty(_villageCreatureId) ||
+            if (_state == null) return;
+            var dt = Mathf.Max(0, deltaTime);
+            var village = View == "home" || View == "camp";
+            var protectedInput = !CanAct || !village || _state.reducedMotion || _confirmAction != null ||
+                (View == "camp" && _campDetail) || !string.IsNullOrEmpty(_villageCreatureId) ||
                 Input.GetMouseButton(0) || Input.touchCount > 0 ||
-                (_villageScroll != null && _villageScroll.velocity.sqrMagnitude > 4)) return;
+                (_villageScroll != null && _villageScroll.velocity.sqrMagnitude > 4);
+            if (_villageDetailArt != null && village && _confirmAction == null)
+            {
+                _villageDetailArt.SetMotion(CanAct, true, _state.reducedMotion);
+                if (CanAct && !_state.reducedMotion) _villagePreviewElapsed += dt;
+            }
             foreach (var entry in _villageFriends)
             {
-                var time = _villageFriendTime[entry.Key] + Mathf.Max(0, deltaTime);
-                _villageFriendTime[entry.Key] = time;
-                uint seed = 2166136261;
-                foreach (var c in entry.Key) seed = unchecked((seed ^ c) * 16777619);
-                var phase = seed % 628 * .01f;
-                entry.Value.anchoredPosition = new Vector2(
-                    26 * (Mathf.Sin(phase + time * .35f) - Mathf.Sin(phase)),
-                    10 * (Mathf.Sin(phase * .7f + time * .27f) - Mathf.Sin(phase * .7f)));
+                if (!_villageWalking.TryGetValue(entry.Key, out var walk)) continue;
+                if (protectedInput)
+                {
+                    walk.art?.SetMotion(false, walk.facingLeft, _state.reducedMotion); continue;
+                }
+                var step = Mathf.Min(dt, .1f);
+                if (!walk.moving)
+                {
+                    walk.pause -= step;
+                    if (walk.pause <= 0) ChooseVillageDestination(entry.Value, walk);
+                }
+                if (walk.moving)
+                {
+                    var direction = walk.target - entry.Value.anchoredPosition;
+                    if (Mathf.Abs(direction.x) > .1f) walk.facingLeft = direction.x < 0;
+                    entry.Value.anchoredPosition = Vector2.MoveTowards(entry.Value.anchoredPosition, walk.target, 42 * step);
+                    if (Vector2.Distance(entry.Value.anchoredPosition, walk.target) < .1f)
+                    {
+                        walk.moving = false; walk.pause = 1.2f + WalkRandom(walk) * 2;
+                    }
+                }
+                walk.art?.SetMotion(walk.moving, walk.facingLeft, false);
             }
         }
 
@@ -68,25 +131,52 @@ namespace Allo.App
             if (string.IsNullOrEmpty(_villageCreatureId)) return;
             var creature = Items(_state.creatures).FirstOrDefault(c => c.id == _villageCreatureId);
             if (creature == null) { CloseVillageCharacterDetail(); return; }
-            var detail = Rect("Village character detail", _content);
-            Stretch(detail);
-            var shade = detail.gameObject.AddComponent<Image>(); shade.color = new Color(.07f, .12f, .10f, .35f);
-            var preview = Rect("Enlarged character", detail);
-            Stretch(preview, 24, 42, -24, -32, Vector2.zero, new Vector2(.55f, 1));
-            VillageFriendPortrait(preview, creature.sprite);
-            var panel = Sheet(detail, .56f, 1);
+            var detail = Rect("Village character detail", _content); Stretch(detail);
+            detail.gameObject.AddComponent<Image>().color = new Color(.04f, .09f, .06f, .22f);
+            var inspector = Rect("Character inspector", detail);
+            Stretch(inspector, 0, 0, 0, 0, new Vector2(.58f, 0), Vector2.one);
+            var panel = Sheet(inspector);
             var scroll = panel.GetComponentInParent<ScrollRect>();
             var sharedKey = _scrolls.First(entry => entry.Value == scroll).Key;
             _scrolls.Remove(sharedKey);
             _scrolls[View + ":character:" + creature.id] = scroll;
-            Button(panel, "상세 닫기", () => CloseVillageCharacterDetail(), Cream, 48, true, 20);
-            Heading(panel, creature.name);
-            Copy(panel, RoleLabel(creature.role), 23);
+
+            var indicator = Rect("Character scroll indicator", scroll.transform);
+            Stretch(indicator, -7, 8, -2, -8, new Vector2(1, 0), Vector2.one);
+            var track = indicator.gameObject.AddComponent<Image>(); track.color = new Color(.25f, .37f, .26f, .10f); track.raycastTarget = false;
+            var thumb = Surface("Character scroll thumb", indicator, Hex("8A9B80"), false); Stretch(thumb);
+            thumb.GetComponent<Image>().raycastTarget = false;
+            var bar = indicator.gameObject.AddComponent<Scrollbar>(); bar.direction = Scrollbar.Direction.BottomToTop;
+            bar.handleRect = thumb; bar.targetGraphic = thumb.GetComponent<Image>();
+            bar.interactable = false; bar.transition = Selectable.Transition.None;
+            scroll.verticalScrollbar = bar; scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+            scroll.viewport.offsetMax += new Vector2(-8, 0);
+
+            var header = NewRow(panel, 48);
+            header.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = false;
+            var title = Copy(header, creature.name, 31); title.GetComponent<LayoutElement>().flexibleWidth = 1;
+            var close = Button(header, "상세 닫기", () => CloseVillageCharacterDetail(), Cream, 44, true, 19);
+            var closeSize = close.GetComponent<LayoutElement>(); closeSize.flexibleWidth = 0; closeSize.minWidth = closeSize.preferredWidth = 110;
+            var role = Copy(panel, RoleLabel(creature.role), 22); role.color = Hex("53765B");
+
+            var stage = Surface("Character animation stage", panel, Hex("E2E9DC"), false);
+            var stageSize = stage.gameObject.AddComponent<LayoutElement>(); stageSize.minHeight = stageSize.preferredHeight = 202;
+            var shadow = Rect("Character ground shadow", stage);
+            shadow.anchorMin = shadow.anchorMax = new Vector2(.5f, 0); shadow.anchoredPosition = new Vector2(0, 20); shadow.sizeDelta = new Vector2(140, 15);
+            var shadowImage = shadow.gameObject.AddComponent<Image>(); shadowImage.sprite = ActionCircleSprite(); shadowImage.color = new Color(.15f, .24f, .16f, .16f); shadowImage.raycastTarget = false;
+            var preview = Rect("Enlarged character", stage); Stretch(preview, 8, 0, -8, 0);
+            _villageDetailArt = VillageFriendPortrait(preview, creature.speciesId, creature.sprite);
+            _villageDetailArt.SetMotion(CanAct, true, _state.reducedMotion);
+            _villageDetailArt.Advance(_villagePreviewElapsed);
+
+            var job = Items(_state.jobs).FirstOrDefault(j => j.workerId == creature.id || j.targetId == creature.id);
+            var assigned = Items(_state.assignments).FirstOrDefault(a => a.creatureId == creature.id);
+            Copy(panel, job != null ? job.label + " 작업 중" : assigned != null ? RoleLabel(assigned.role) + " 담당 · 대기 중" : "자유 시간을 보내고 있어요", 22);
             var species = Items(_state.dex).FirstOrDefault(d => d.id == creature.speciesId);
             if (!string.IsNullOrEmpty(species?.description)) Note(panel, species.description);
+            Space(panel, 4);
             CreatureActions(panel, creature);
-            Space(panel);
-            Copy(panel, "친구에게 요리 주기", 27);
+            Space(panel); Copy(panel, "친구에게 요리 주기", 26);
             FeedOptions(panel, creature.id);
         }
     }

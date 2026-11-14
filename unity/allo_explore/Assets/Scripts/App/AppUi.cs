@@ -84,6 +84,7 @@ namespace Allo.App
                 AppSession.Request("learningUiBlocked", new AppAction { blocked = learningBlocked });
             }
             UpdateVillageGeometry();
+            TickVillageFriends(Time.unscaledDeltaTime);
             PlaceCompanionBubble();
             foreach (var check in _liveChecks) check();
             if (!_dirty || _safe == null) return;

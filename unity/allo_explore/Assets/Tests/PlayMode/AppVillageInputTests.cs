@@ -131,7 +131,7 @@ public class AppVillageInputTests
         Assert.AreEqual("owned-second", Get<string>("_villageCreatureId"));
         Assert.AreEqual("owned-second", Get<string>("_selectedCreature"));
         Assert.AreEqual("camp", AppSession.State.view, "opening an instance detail must keep the camp view");
-        Assert.NotNull(detail.Find("Enlarged character/Canonical friend artwork").GetComponent<RawImage>().texture);
+        Assert.NotNull(detail.GetComponentInChildren<VillageCharacterArt>().GetComponent<RawImage>().texture);
         CaptureCanvas("village-character-detail.png");
     }
 

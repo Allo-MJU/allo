@@ -44,7 +44,11 @@ public class AppVillageCharacterTests
         Assert.AreEqual("second", Get<string>("_villageCreatureId"));
         Assert.IsTrue(detail.GetComponentsInChildren<Text>().Any(t => t.text == "두 번째 친구"));
         Assert.IsTrue(detail.GetComponentsInChildren<Text>().Any(t => t.text == "두 번째 친구의 배운 행동"));
-        Assert.NotNull(detail.Find("Enlarged character"));
+        var preview = detail.GetComponentsInChildren<RectTransform>().Single(t => t.name == "Enlarged character");
+        var inspector = detail.Find("Character inspector");
+        Assert.NotNull(inspector);
+        Assert.IsTrue(preview.IsChildOf(inspector), "animated preview belongs inside the right inspector");
+        Assert.That(((RectTransform)inspector).anchorMin.x, Is.GreaterThanOrEqualTo(.55f));
         Assert.IsTrue(Get<RectTransform>("_villageLayer").gameObject.activeSelf);
         Assert.AreEqual("camp", AppSession.CurrentView);
     }
@@ -146,7 +150,7 @@ public class AppVillageCharacterTests
     }
 
     [Test]
-    public void WanderingMovesWithinItsOwnSmallAreaAndSnapshotKeepsItsPosition()
+    public void WalkingCoversVisibleGroundAndSnapshotKeepsItsPosition()
     {
         var marker = Marker("first"); var origin = marker.anchoredPosition;
         for (var i = 0; i < 30; i++) Call("TickVillageFriends", .1f);
@@ -154,11 +158,34 @@ public class AppVillageCharacterTests
         var moved = marker.anchoredPosition;
         Receive(State(2));
         Assert.Less(Vector2.Distance(moved, marker.anchoredPosition), 1, "snapshots must not reset wandering");
+        var farthest = 0f;
         for (var i = 0; i < 1200; i++)
         {
             Call("TickVillageFriends", .1f);
-            Assert.LessOrEqual(Vector2.Distance(origin, marker.anchoredPosition), 65, "stay near the original spot");
+            var distance = Vector2.Distance(origin, marker.anchoredPosition);
+            farthest = Mathf.Max(farthest, distance);
+            Assert.LessOrEqual(distance, 165, "walk on the grass near its own area");
         }
+        Assert.Greater(farthest, 90, "walking must cover ground beyond the old floating effect");
+    }
+
+    [Test]
+    public void WalkingAlternatesWithRestAndChangesTheArtMotionState()
+    {
+        var marker = Marker("first");
+        var art = marker.GetComponentsInChildren<MonoBehaviour>().FirstOrDefault(c => c.GetType().Name == "VillageCharacterArt");
+        Assert.NotNull(art, "village art must use an articulated frame renderer");
+        var moving = art.GetType().GetProperty("IsMoving");
+        var walked = false; var restedAfterWalking = false;
+        for (var i = 0; i < 800; i++)
+        {
+            Call("TickVillageFriends", .1f);
+            var isMoving = (bool)moving.GetValue(art);
+            if (isMoving) walked = true;
+            if (walked && !isMoving) restedAfterWalking = true;
+        }
+        Assert.IsTrue(walked);
+        Assert.IsTrue(restedAfterWalking);
     }
 
     [TestCase("reduced")]
