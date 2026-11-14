@@ -624,13 +624,15 @@ public static class AlloBuild
         {
             world.Apply(new Allo.Bridge.SceneState { kind = kind == "highway" ? "road" : kind, highway = kind == "highway", moving = true, speedKph = 40 }, reset: true);
             world.EditorStep(120);
-            var shell = world.MakeIntroShell(width, length, along, bounds.min.y - world.roadY);
+            var shell = world.MakeIntroShell(width, length, along, bounds.min.y - world.roadY, out var solid);
+            var cabinRenderers = System.Array.FindAll(cabin.GetComponentsInChildren<Renderer>(), r => r.enabled);
             foreach (var t in new[] { 0f, 0.3f, 0.45f, 0.55f, 0.65f, 0.72f, 0.8f, 0.86f, 1f })
             {
                 Allo.CameraRig.CameraRig.IntroPose(t, ground, fwd, rig.rearAnchor.position, Quaternion.Euler(0, baseYaw, 0), out var pos, out var rot);
                 var inside = bounds.Contains(pos);
                 shell.gameObject.SetActive(!inside);
-                Allo.CameraRig.CameraRig.CabinTwoSided(cabin, !inside, saved);
+                if (solid) foreach (var r in cabinRenderers) r.enabled = inside;
+                else Allo.CameraRig.CameraRig.CabinTwoSided(cabin, !inside, saved);
                 cam.transform.SetPositionAndRotation(pos, rot);
                 cam.Render();
                 RenderTexture.active = rt;
@@ -641,6 +643,7 @@ public static class AlloBuild
             }
             Object.DestroyImmediate(shell.gameObject);
             Allo.CameraRig.CameraRig.CabinTwoSided(cabin, false, saved);
+            foreach (var r in cabinRenderers) r.enabled = true;
         }
         cam.targetTexture = null;
         RenderTexture.active = null;
@@ -828,6 +831,13 @@ public static class AlloBuild
                     var p = MakeThirdParty(AssetDatabase.LoadAssetAtPath<GameObject>(path), "C_" + name, false, keep, outDir, converted);
                     if (p != null) prefabs.Add(p);
                 }
+            // 진입 연출에서 밖에서 보이는 우리 차 (WorldDirector.MakeIntroShell). 바퀴가 붙은 차 한 대만 쓴다
+            var own = AssetDatabase.LoadAssetAtPath<GameObject>($"{cc}/Prefabs/Cars/Futuristic_Car_1.prefab");
+            if (own != null)
+            {
+                var p = MakeThirdParty(own, Allo.World.WorldDirector.OwnCar, false, keep, outDir, converted);
+                if (p != null) prefabs.Add(p);
+            }
         }
         prefabs.AddRange(BuildAnimals(outDir, converted));
         Debug.Log($"[AlloBuild] third-party props: {prefabs.Count}, materials: {converted.Count}");

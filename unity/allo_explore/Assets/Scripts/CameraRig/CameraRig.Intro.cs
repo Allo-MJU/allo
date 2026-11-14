@@ -5,7 +5,8 @@ using UnityEngine;
 namespace Allo.CameraRig
 {
     /// 주행 화면에 처음 들어올 때의 연출: 뒤쪽 하늘에서 우리 차와 앞 풍경을 비스듬히 내려다보다가 차 뒤로 내려와 뒷좌석에 앉는다.
-    /// 차는 실내 모델 그대로다: 밖에 있는 동안만 벽·지붕을 양면으로 그리고 바퀴(WorldDirector.MakeIntroShell)를 단다.
+    /// 밖에서는 겉모습 차(WorldDirector.MakeIntroShell)를 보이고 실내는 그리지 않다가, 지붕을 지나는 순간 실내로 바꾼다.
+    /// 겉모습 차 프리팹이 없는 장면에서는 실내 모델을 양면으로 그리고 바퀴만 달아 차로 보이게 한다.
     /// 바깥 풍경은 그때의 장면(SceneState) 그대로다. 화면을 누르면 바로 자리에 앉는다.
     public sealed partial class CameraRig
     {
@@ -23,6 +24,7 @@ namespace Allo.CameraRig
         float _introT;
         Transform _shell;
         readonly System.Collections.Generic.Dictionary<Material, float> _introCull = new System.Collections.Generic.Dictionary<Material, float>();
+        readonly System.Collections.Generic.List<Renderer> _introHidden = new System.Collections.Generic.List<Renderer>();
         Vector3 _introGround, _introForward;
         Bounds _introCabin;
 
@@ -104,8 +106,14 @@ namespace Allo.CameraRig
             _introForward = world.forward; _introForward.y = 0; _introForward.Normalize();
             _introGround = new Vector3(world.carCenter.x, world.roadY, world.carCenter.z);
             if (!CabinBox(cabin, _introForward, out _introCabin, out var length, out var width)) return false;
-            _shell = world.MakeIntroShell(width, length, Vector3.Dot(_introCabin.center - _introGround, _introForward), _introCabin.min.y - world.roadY);
-            CabinTwoSided(cabin, true, _introCull);
+            _shell = world.MakeIntroShell(width, length, Vector3.Dot(_introCabin.center - _introGround, _introForward), _introCabin.min.y - world.roadY, out var solid);
+            if (solid)
+            {
+                // 충돌체·걷는 면은 그대로 두고 그리지만 않는다
+                foreach (var r in cabin.GetComponentsInChildren<Renderer>())
+                    if (r.enabled) { r.enabled = false; _introHidden.Add(r); }
+            }
+            else CabinTwoSided(cabin, true, _introCull);
             _introInside = false;
             _introT = 0;
             _intro = true;
@@ -133,6 +141,9 @@ namespace Allo.CameraRig
             if (_shell != null) Destroy(_shell.gameObject);
             _shell = null;
             CabinTwoSided(null, false, _introCull);
+            foreach (var r in _introHidden)
+                if (r != null) r.enabled = true;
+            _introHidden.Clear();
         }
 
         /// 연출을 끝내고 뒷좌석 정면에서 둘러보기를 시작한다. 중간에 화면이 바뀌어도(OnDisable) 실내를 되돌린다

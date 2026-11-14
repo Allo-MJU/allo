@@ -255,14 +255,28 @@ namespace Allo.World
             _backdrop.localRotation = Quaternion.Euler(0, -_carYaw + Time.time * 0.15f, 0); // 차가 돌면 먼 배경도 돌고, 구름은 천천히 흐른다
         }
 
-        /// 진입 연출(CameraRig.Intro): 실내 모델을 밖에서 볼 때 차로 보이게 바퀴·차대·미등을 단다.
+        /// 밖에서 보이는 우리 차 프리팹 이름 (장면 빌드가 props 에 넣는다)
+        public const string OwnCar = "C_OwnCar";
+
+        /// 진입 연출(CameraRig.Intro)에서 밖에서 보이는 우리 차. 차 프리팹이 있으면 그 차를 실내 길이에 맞춰 놓고
+        /// solid = true (부르는 쪽이 실내를 그리지 않는다). 없으면 실내 모델을 차로 보이게 바퀴·차대·미등만 단다.
         /// width·length 는 실내 크기, along 은 차 가운데에서 실내 가운데까지 앞쪽 거리, floor 는 노면에서 실내 바닥까지 높이.
         /// 실내에 들어오면 부르는 쪽이 지운다
-        public Transform MakeIntroShell(float width, float length, float along, float floor)
+        public Transform MakeIntroShell(float width, float length, float along, float floor, out bool solid)
         {
             Setup();
             var t = new GameObject("IntroShell").transform;
             t.SetParent(_root, false);
+            var car = _kit.Prop(OwnCar, t, Vector3.zero);
+            solid = car != null;
+            if (solid)
+            {
+                var b = Kit.LocalBounds(car, t);
+                var k = b.size.z > 0.01f ? length * 1.12f / b.size.z : 1;
+                car.transform.localScale = Vector3.one * k;
+                car.transform.localPosition = new Vector3(-b.center.x * k, -b.min.y * k, along - b.center.z * k);
+                return t;
+            }
             var r = Mathf.Max(0.3f, floor + 0.06f);
             foreach (var x in new[] { -1f, 1f })
             {
