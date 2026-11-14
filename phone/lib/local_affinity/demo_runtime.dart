@@ -55,6 +55,7 @@ class LocalAffinityApi implements EggDemoApi {
 
 /// In-memory stores never touch the normal collection, pairing or fishing keys.
 class LocalAffinityDex extends DexStore {
+  LocalAffinityDex() : super(namespace: 'local.affinity.');
   final List<DexEntry> entries = [];
   final Map<EggTier, IncubationProgress> _progress = {};
   @override

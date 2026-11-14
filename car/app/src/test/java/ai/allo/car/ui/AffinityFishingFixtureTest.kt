@@ -20,7 +20,9 @@ class AffinityFishingFixtureTest {
             assertTrue(reducer.apply(snapshot.jsonObject, root = true), name)
             val game = reducer.game
             assertTrue(game.invalidBlocks.isEmpty(), name)
-            assertEquals("fixture-companion", game.companion?.displayId, name)
+            val companion = assertNotNull(game.companion, name)
+            assertEquals("fixture-companion-${companion.displayRevision}", companion.displayId, name)
+            assertTrue(assertNotNull(game.fishing, name).appliesTo(game), name)
             assertEquals("road_sprout", game.companion?.speciesId, name)
             assertEquals(1L, game.fishing?.totalRecords, name)
             assertEquals("paused", game.fishing?.state, name)
@@ -45,7 +47,17 @@ class AffinityFishingFixtureTest {
         val next=GameSnapshotReader.parse(fixture["nextEgg"]!!.jsonObject)!!
         assertEquals("incubating",next.stage)
         assertEquals(0.0,next.affinity?.score)
-        assertEquals(hatched.fishing,next.fishing)
-        assertEquals(hatched.companion,next.companion)
+        val oldFriend = assertNotNull(hatched.companion)
+        val newFriend = assertNotNull(next.companion)
+        assertEquals(oldFriend.speciesId, newFriend.speciesId)
+        assertEquals(oldFriend.location, newFriend.location)
+        assertTrue(newFriend.displayRevision > oldFriend.displayRevision)
+        assertNotEquals(oldFriend.displayId, newFriend.displayId)
+        val oldFishing = assertNotNull(hatched.fishing)
+        val newFishing = assertNotNull(next.fishing)
+        assertNotEquals(oldFishing.leaseId, newFishing.leaseId)
+        assertNull(newFishing.requestId)
+        assertEquals(oldFishing.copy(leaseId = newFishing.leaseId, displayId = newFriend.displayId,
+            displayRevision = newFriend.displayRevision, requestId = null), newFishing)
     }
 }

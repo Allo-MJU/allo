@@ -14,6 +14,35 @@ public class DialogueTests
     [SetUp] public void Load() => Dialogue.Parse(Json);
     [TearDown] public void Clear() => Dialogue.Clear();
 
+    [TestCase("hatch")]
+    [TestCase("scene")]
+    [TestCase("ball")]
+    public void FullApplicationSuppressesLegacyPersonaWhileStandaloneExploreKeepsIt(string evt)
+    {
+        var previous = Allo.App.AppSession.State;
+        var stateProperty = typeof(Allo.App.AppSession).GetProperty(nameof(Allo.App.AppSession.State));
+        var actor = new UnityEngine.GameObject("Legacy dialogue boundary");
+        try
+        {
+            stateProperty.SetValue(null, null);
+            var director = actor.AddComponent<CritterDirector>();
+            var view = actor.AddComponent<CritterView>();
+            typeof(CritterView).GetProperty("Id").SetValue(view, "road_sprout");
+            Assert.IsNotNull(director.Speak(evt, "coast", who: view), "standalone explore retains its existing dialogue bank");
+            var bubble = actor.GetComponentInChildren<SpeechBubble>();
+            Assert.IsTrue(bubble.Showing);
+            stateProperty.SetValue(null, new Allo.App.AppState { ready = true, view = "cabin" });
+            Assert.IsNull(director.Speak(evt, "coast", who: view), "full app persona content belongs to the backend even before a learning target is selected");
+            typeof(CritterDirector).GetMethod("TalkTick", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).Invoke(director, new object[] { 100f });
+            Assert.IsFalse(bubble.Showing, "switching into full app also hides any existing legacy speech");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(actor);
+            stateProperty.SetValue(null, previous);
+        }
+    }
+
     [Test]
     public void SpeciesLineBeatsAttributeAndStar()
     {

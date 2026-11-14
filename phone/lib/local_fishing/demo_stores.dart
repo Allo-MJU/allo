@@ -8,6 +8,7 @@ import '../fishing/fishing_store.dart';
 
 /// Separate keys keep sample companions and rewards out of the real collection.
 class LocalDemoDexStore extends DexStore {
+  LocalDemoDexStore() : super(namespace: 'local.fishing.');
   static const key = 'local.fishing.demo.dex.v1';
   Future<void> seed() async {
     for (final id in [
@@ -45,14 +46,6 @@ class LocalDemoDexStore extends DexStore {
       throw StateError('Demo dex save failed');
     }
   }
-
-  @override
-  Future<IncubationProgress> incubationProgress(EggTier tier) async =>
-      const IncubationProgress();
-  @override
-  Future<void> saveIncubationProgress(
-          EggTier tier, IncubationProgress progress) async =>
-      throw UnsupportedError('Demo is fishing only');
 }
 
 class LocalDemoFishingStore extends FishingStore {

@@ -84,12 +84,12 @@ void main() {
 class _FailOnceStore extends DexStore {
   bool failed = false;
   @override
-  Future<void> saveIncubationProgress(
-      EggTier tier, IncubationProgress progress) async {
+  Future<void> saveTripProgress(
+      bool demo, EggTier tier, IncubationProgress progress) async {
     if (!failed) {
       failed = true;
       throw StateError('storage unavailable');
     }
-    await super.saveIncubationProgress(tier, progress);
+    await super.saveTripProgress(demo, tier, progress);
   }
 }

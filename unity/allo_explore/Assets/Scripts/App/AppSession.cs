@@ -14,20 +14,20 @@ namespace Allo.App
         CabinEgg _egg;
         public static AppState State { get; private set; }
         public static event Action<AppState> Changed;
-        public static bool StoryActive => State?.view == "cabin" && State.story != null && State.story.active && !State.story.paused;
+        // Experimental story snapshots do not own input in the phone application.
+        public static bool StoryActive => false;
         public static bool LearningActive => State?.view == "cabin" && State.learning != null && !string.IsNullOrEmpty(State.learning.creatureId);
         public static bool DialogueOwned => StoryActive || LearningActive || StoryOverlay.CapturingInput;
         public static string CurrentView => State?.view ?? "home";
 
         public static AppBackAction BackActionFor(AppState state) => state == null
             ? AppBackAction.CloseExplore
-            : state.view == "cabin" && state.story != null && state.story.active && !state.story.paused ? AppBackAction.PauseStory
             : state.view == "home" ? AppBackAction.BackgroundApp : AppBackAction.NavigateHome;
 
         public static bool Accepts(AppState current, AppState next) =>
             next != null && next.v == 1 && next.type == "app" &&
             (next.view == "home" || next.view == "cabin" || next.view == "camp" ||
-             next.view == "dex" || next.view == "inventory" || next.view == "settings") &&
+             next.view == "dex" || next.view == "inventory" || next.view == "settings" || next.view == "pairing") &&
             (current == null || next.revision > current.revision);
 
         public static void Install()
@@ -37,6 +37,7 @@ namespace Allo.App
             _instance = root.AddComponent<AppSession>();
             _instance._world = root.AddComponent<AppWorld>();
             _instance._egg = root.AddComponent<CabinEgg>();
+            root.AddComponent<CabinInteraction>();
             root.AddComponent<AppUi>();
         }
 
@@ -56,6 +57,7 @@ namespace Allo.App
             if (Application.isPlaying)
             {
                 Install();
+                _instance.GetComponent<CabinInteraction>()?.BeforeWorldChange(next);
                 _instance._world.Apply(next);
                 _instance._egg.SetView(next.view);
                 _instance._egg.Apply(next);

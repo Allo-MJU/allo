@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:allo_core/allo_core.dart';
 import 'package:allo_phone/feed/vehicle_feed.dart';
+import 'package:allo_phone/feed/fake_feed.dart';
 import 'package:allo_phone/game/game_controller.dart';
 import 'package:allo_phone/pairing/pairing_credentials.dart';
 import 'package:allo_phone/storage/dex_store.dart';
@@ -14,6 +15,38 @@ const sid = 'b0c260a8-e807-42e9-a119-26119837113b';
 const code = '004829';
 
 void main() {
+  test(
+      'demo restart recovers its trip; closing it gives a distinct trip and carries the same egg',
+      () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    SharedPreferences.setMockInitialValues({});
+    final store = DexStore(profile: 'demo-scope');
+    final first = GameController(
+        feed: FakeVehicleFeed(scenario: FakeScenario.clear), dex: store);
+    expect(await first.ensureTripEgg(), isTrue);
+    final id = first.eggId;
+    final trip = (await store.tripEggLedger(true)).demoSessionId;
+    expect(trip, isNotNull);
+    first.dispose();
+    final next = GameController(
+        feed: FakeVehicleFeed(scenario: FakeScenario.clear), dex: store);
+    addTearDown(next.dispose);
+    expect(await next.ensureTripEgg(), isTrue);
+    expect(next.eggId, id);
+    expect((await store.tripEggLedger(true)).demoSessionId, trip);
+    next.endFakeTrip();
+    await Future<void>.delayed(Duration.zero);
+    expect(await next.endSession(), isTrue);
+    await next.pair('explicit-demo-connection');
+    expect(next.paired, isTrue);
+    final ledger = await store.tripEggLedger(true);
+    expect(ledger.demoSessionId, isNot(trip));
+    expect(ledger.claims.values, [id, id]);
+    expect((await store.tripEggLedger(false)).claims, isEmpty);
+    expect((await DexStore().tripEggLedger(true)).claims, isEmpty);
+    expect(next.eggId, id);
+  });
+
   testWidgets('자동 재연결도 저장된 세션의 거리 위치를 복원한다', (tester) async {
     await tester.runAsync(() async {
       SharedPreferences.setMockInitialValues({});

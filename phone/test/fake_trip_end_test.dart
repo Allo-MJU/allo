@@ -32,7 +32,19 @@ void main() {
       final c = tester
           .widget<IncubatingScreen>(find.byType(IncubatingScreen))
           .controller;
-      expect(c.game.progress, .2);
+      expect(c.usesAffinity, isTrue);
+      expect(c.affinityRound, isNotNull);
+      await tester.scrollUntilVisible(find.byKey(const Key('pet-egg')), 120,
+          scrollable: find.byType(Scrollable).first);
+      await tester.ensureVisible(find.byKey(const Key('pet-egg')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('pet-egg')));
+      await tester.pump();
+      final egg = c.eggId;
+      final progress = c.game.progress;
+      final score = c.affinityRound!.score;
+      final firstTrip = await tester.runAsync(() => c.dex.tripEggLedger(true));
+      expect(score, greaterThan(0));
       await tester.tap(find.text('주행 종료'));
       await untilVisible('기록을 저장했어요');
       expect(c.sessionSaved, isTrue);
@@ -46,18 +58,27 @@ void main() {
         await tester.tap(find.text('체험 다시 시작'));
       }
       await tester.pumpAndSettle();
+      const nextTripLabel = '체험 시작';
       expect(
           tester
               .widget<ButtonStyleButton>(find.ancestor(
-                  of: find.text('체험 시작'),
+                  of: find.text(nextTripLabel),
                   matching:
                       find.byWidgetPredicate((w) => w is ButtonStyleButton)))
               .onPressed,
           isNotNull);
-      await tester.tap(find.text('체험 시작'));
+      await tester.tap(find.text(nextTripLabel));
       await untilVisible('알 품기');
       await tester.pump(const Duration(seconds: 1));
-      expect(c.game.progress, .3);
+      expect(c.eggId, egg,
+          reason: 'The unfinished egg continues into the next trip');
+      expect(c.game.progress, closeTo(progress + .1, 1e-9),
+          reason: 'The next trip adds distance to the carried hatch plan');
+      expect(c.affinityRound!.score, score);
+      final nextTrip = await tester.runAsync(() => c.dex.tripEggLedger(true));
+      expect(nextTrip!.demoSessionId, isNot(firstTrip!.demoSessionId));
+      expect(nextTrip.claims, hasLength(2));
+      expect(nextTrip.claims.values, everyElement(egg));
       await tester.tap(find.text('주행 종료'));
       await untilVisible('기록을 저장했어요');
       await tester.pumpWidget(const SizedBox());

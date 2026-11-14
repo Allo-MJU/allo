@@ -37,6 +37,25 @@ void main() {
   });
   Future<SpeechSentiment> evaluate([String text = 'hello']) =>
       api.evaluate(eggId: 'egg_1', requestId: 'request-1', text: text);
+  test(
+      'companion turns reuse authenticated transport and preserve server output',
+      () async {
+    final body = {
+      'requestId': 'turn-1',
+      'action': 'invite',
+      'creatureId': 'one',
+      'speciesId': 'road_sprout'
+    };
+    final output = {'requestId': 'turn-1', 'text': '서버 초대', 'mode': 'menu'};
+    server.listen((req) async {
+      expect(req.method, 'POST');
+      expect(req.uri.path, '/v1/companion/turn');
+      expect(req.headers.value('authorization'), 'Bearer private-token');
+      expect(jsonDecode(await utf8.decoder.bind(req).join()), body);
+      await reply(req, output);
+    });
+    expect(await api.companionTurn(body), output);
+  });
   for (final sentiment in SpeechSentiment.values) {
     test('authenticated evaluation ${sentiment.name}', () async {
       server.listen((req) async {

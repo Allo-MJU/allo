@@ -17,13 +17,26 @@ Future<bool> unityExploreAvailable() async {
   }
 }
 
+/// Bring the existing Unity activity back after a Flutter-owned route.
+Future<bool> openUnityExplore() async {
+  try {
+    return await _channel.invokeMethod<bool>('open') ?? false;
+  } on MissingPluginException {
+    return false;
+  } on PlatformException {
+    return false;
+  }
+}
+
 /// Flutter 가 먼저 Unity 화면을 내린다 (주행 종료·도착). Unity 는 종료하지 않고 뒤에 남는다.
-Future<void> closeUnityExplore() async {
+Future<void> closeUnityExplore({bool requireHost = false}) async {
   try {
     await _channel.invokeMethod<void>('close');
   } on MissingPluginException {
+    if (requireHost) rethrow;
     // 호스트가 없는 곳
   } on PlatformException {
+    if (requireHost) rethrow;
     // 이미 내려갔거나 Unity 가 없다
   }
 }
@@ -76,7 +89,7 @@ class _UnityLauncherState extends State<_UnityLauncher> {
     // resume 은 넘기지 않는다. Unity 는 별도 화면이라, 홈에 다녀오면 안드로이드가 알아서 되살린다.
     // Flutter 화면이 앞에 올 때마다 Unity 를 다시 열면 닫자마자 다시 열린다.
     widget.onCreated((json) => _channel.invokeMethod<void>('send', json));
-    _channel.invokeMethod<bool>('open');
+    openUnityExplore();
   }
 
   @override

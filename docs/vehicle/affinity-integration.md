@@ -36,7 +36,7 @@
 
 ## 공유 검증 데이터
 
-`data/fixtures/affinity-fishing-v2.json`은 실제 폰 `GameController` 시나리오가 발행한 JSON을 기준으로 한다. 생성 ID·전송 시각·revision만 비교 가능한 값으로 정규화한다. 낚시 관찰 기록 1건을 먼저 저장한 뒤 사진 퀘스트, 사진 완료, 부화 저장 실패/재시도, 다음 알, 버리기, 실패의 8개 상태에서 기존 선택 개체와 낚시 기록을 유지하는지 검증한다.
+`data/fixtures/affinity-fishing-v2.json`은 실제 폰 `GameController` 시나리오가 발행한 JSON을 기준으로 한다. 생성 ID·전송 시각·revision만 비교 가능한 값으로 정규화한다. 첫 여행에서 낚시 관찰 기록 1건을 저장하고 낚시를 일시 정지한 뒤, 사진 퀘스트와 부화 저장 실패·재시도를 검증한다. 같은 여행에서 30분을 더 주행해도 알이 추가되지 않는다. 두 번째 여행에서는 새 알을 버리고 세 번째 여행에서는 기한 만료로 실패한다. 세 여행의 스냅샷에서 선택한 친구와 낚시 누적 기록을 유지하며, 재페어링 때 차량 표시 세대와 낚시 lease를 갱신하는지 확인한다.
 
 폰 `affinity_fishing_contract_test.dart`는 실제 serializer 출력과 공유 데이터를 비교하고 차량 테스트는 같은 파일을 읽어 파싱·표시 의미를 검증한다. fixture 갱신은 `UPDATE_AFFINITY_FIXTURE=1`을 명시한 폰 테스트 실행에서만 수행한다.
 

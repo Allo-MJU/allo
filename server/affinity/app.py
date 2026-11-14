@@ -290,6 +290,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.command == 'GET' and self.path == '/health':
             return self.reply(200, {'status': 'ok'})
         self.authenticate()
+        if self.command == 'POST' and self.path == '/v1/companion/turn':
+            value = self.read_json(LEARNING_BODY_LIMIT)
+            return self.reply(200, self.server.learning.turn(value))
         if self.command == 'POST' and self.path == '/v1/companion/chat':
             value = self.read_json(LEARNING_BODY_LIMIT)
             return self.reply(200, self.server.learning(value))

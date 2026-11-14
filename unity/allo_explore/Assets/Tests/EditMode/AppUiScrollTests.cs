@@ -60,7 +60,7 @@ public class AppUiScrollTests
         SetOffsets(panels, .31f, .72f);
         var leftOffset = panels[0].content.anchoredPosition.y;
         var rightOffset = panels[1].content.anchoredPosition.y;
-        var tile = panels[0].GetComponentsInChildren<Button>()
+        var tile = panels[1].GetComponentsInChildren<Button>()
             .Last(button => button.transform.parent.name == "Dex grid");
         tile.onClick.Invoke();
         Assert.AreEqual("dex-23", Get<string>("_selectedDex"));

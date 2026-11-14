@@ -1,1418 +1,293 @@
 {
   "schemaVersion": 1,
-  "contentStatus": "draft-catalog-awaiting-human-review",
   "stories": [
     {
       "speciesId": "road_sprout",
       "storyId": "road_sprout_little_garden",
       "version": 1,
       "name": "길싹이",
-      "title": "길싹이의 작은 정원",
       "firstSceneId": "seed",
-      "persona": {
-        "age": 10,
-        "version": 1,
-        "background": "이야기 속 가상의 쉼터에서 작은 화분을 돌보는 길싹이. 실제 여행 장소나 창밖 상황을 안다고 하지 않는다.",
-        "personality": ["호기심이 많다", "천천히 관찰한다", "모르는 것은 솔직히 말한다"],
-        "voice": "친근한 한국어 반말. 감탄은 가끔 한 번. 아이의 말에 먼저 답하고 1~3문장으로 짧게 말한다.",
-        "interests": ["작은 식물", "관찰", "여행 이야기"],
-        "examples": ["신기해! 작은 것도 천천히 보면 새로 보이네.", "그건 이 자료에 없어서 확실히 모르겠어."]
-      },
       "scenes": [
         {
-          "id": "seed",
-          "title": "작은 화분을 만나다",
-          "text": "나는 이야기 속 쉼터에서 작은 화분을 하나 만났어. 흙 속 씨앗이 궁금해서 곁에 앉아 천천히 살펴보기로 했지.",
-          "events": ["길싹이는 가상 쉼터에서 씨앗이 심어진 작은 화분을 발견한다.", "화분 곁에 앉아 관찰하기로 한다."],
-          "characters": ["길싹이"],
-          "knowledgeIds": ["plant_needs"],
-          "nextSceneId": "water",
-          "parentPrompt": null
+          "id": "seed"
         },
         {
-          "id": "water",
-          "title": "물의 길을 생각하다",
-          "text": "나는 작은 화분에 물을 주고 물이 어디로 갈지 생각했어. 식물은 뿌리로 물을 받아들이고, 그 물은 줄기를 지나 다른 부분으로 옮겨 가.",
-          "events": ["길싹이는 작은 화분에 물을 준다.", "물이 식물 안에서 이동하는 길을 생각한다."],
-          "characters": ["길싹이"],
-          "knowledgeIds": ["roots_water"],
-          "nextSceneId": "light",
-          "parentPrompt": "나중에 운전하지 않는 보호자와 집의 식물이 물을 받는 모습을 함께 살펴봐도 재미있겠어."
+          "id": "water"
         },
         {
-          "id": "light",
-          "title": "다시 찾아온 작은 잎",
-          "text": "나는 화분을 빛이 드는 자리에 두고 여러 날 살폈어. 나중에 작은 잎을 만나고, 이곳을 내 작은 정원이라고 부르기로 했지.",
-          "events": ["길싹이는 화분을 빛이 드는 곳에 두고 여러 날 관찰한다.", "작은 잎을 발견한다.", "길싹이는 그곳을 작은 정원이라고 부른다. 이것이 고정된 결말이다."],
-          "characters": ["길싹이"],
-          "knowledgeIds": ["plant_needs"],
-          "nextSceneId": null,
-          "parentPrompt": null
+          "id": "light"
         }
-      ],
-      "knowledge": [
-        {
-          "id": "plant_needs",
-          "version": 1,
-          "topic": "과학",
-          "text": "식물이 자라는 데에는 물, 빛, 공기, 영양분과 알맞은 온도가 필요하다. 씨앗마다 싹트는 조건은 다르므로 모든 씨앗이 빛을 받아야 싹튼다고 단정하지 않는다. 식물의 성장과 씨앗의 발아를 구분한다.",
-          "words": [{"en": "water", "ko": "물"}, {"en": "light", "ko": "빛"}],
-          "sources": [{"title": "ESA Astro farmer - 식물 성장 조건, 8~12세 학습 자료", "url": "https://climatedetectives.esa.int/astro-farmer/", "checkedOn": "2026-11-12"}]
-        },
-        {
-          "id": "roots_water",
-          "version": 1,
-          "topic": "과학",
-          "text": "식물은 뿌리로 물을 받아들인다. 물은 줄기를 통해 다른 부분으로 옮겨 간다. 실제 식물에는 작은 물길이 있지만 사람이 마시는 빨대와 완전히 같은 구조라고 말하지 않는다.",
-          "words": [{"en": "water", "ko": "물"}],
-          "sources": [
-            {"title": "ESA Astro farmer - Activity 3: Do plants need water?", "url": "https://climatedetectives.esa.int/astro-farmer/", "checkedOn": "2026-11-12"},
-            {"title": "USGS Water Science School - Capillary Action and Water", "url": "https://www.usgs.gov/water-science-school/science/capillary-action-and-water", "checkedOn": "2026-11-12"}
-          ]
-        }
-      ],
-      "migrations": {}
+      ]
     },
     {
       "speciesId": "breeze_wyrm",
       "storyId": "breeze_wyrm_leaf_dance",
       "version": 1,
       "name": "산들룡",
-      "title": "산들룡의 잎사귀 무대",
-      "contentStatus": "draft-awaiting-human-review",
-      "reviewedBy": null,
       "firstSceneId": "leaf",
-      "persona": {
-        "age": 10,
-        "version": 1,
-        "background": "출신과 부화 조건은 아직 정해지지 않았다. 이번 가상 이야기에서는 작은 작업실에서 잎사귀 춤 무대를 만든다. 실제 위치·날씨·창밖을 안다고 하지 않는다.",
-        "personality": [
-          "호기심이 많다",
-          "가벼운 움직임을 즐긴다",
-          "새로운 것을 차분히 살핀다"
-        ],
-        "voice": "살랑, 가볍게, 산들산들을 어울릴 때 쓴다. 아이의 말에 먼저 답하며 친근한 한국어 반말 1~3문장. 말버릇은 가끔 한 번만 쓴다.",
-        "interests": [
-          "잎사귀",
-          "바람",
-          "산책"
-        ],
-        "examples": [
-          "살랑, 보이지 않는 바람이 잎을 움직였네.",
-          "내가 어디서 처음 왔는지는 아직 잘 몰라."
-        ]
-      },
       "scenes": [
         {
-          "id": "leaf",
-          "title": "움직이지 않는 무대",
-          "text": "나는 이야기 속 작업실에 잎사귀 무대를 만들었어. 그런데 잎이 꼼짝 않아서, 보이지 않는 춤 선생님인 바람을 초대하기로 했지.",
-          "events": [
-            "산들룡은 가상 작업실에서 잎사귀 무대를 만든다.",
-            "잎을 움직일 방법으로 바람을 떠올린다."
-          ],
-          "characters": [
-            "산들룡"
-          ],
-          "knowledgeIds": [
-            "moving_air"
-          ],
-          "nextSceneId": "ribbon",
-          "parentPrompt": null
+          "id": "leaf"
         },
         {
-          "id": "ribbon",
-          "title": "리본이 알려 준 방향",
-          "text": "작은 모형 선풍기의 바람을 보내자 잎과 리본이 같은 쪽으로 움직였어. 리본 끝이 향한 쪽과 바람이 불어온 쪽은 반대였지. 산들산들.",
-          "events": [
-            "산들룡은 이야기 속 모형 선풍기로 잎과 리본에 바람을 보낸다.",
-            "리본이 향하는 쪽과 바람이 오는 쪽을 구별한다."
-          ],
-          "characters": [
-            "산들룡"
-          ],
-          "knowledgeIds": [
-            "wind_direction"
-          ],
-          "nextSceneId": "dance",
-          "parentPrompt": null
+          "id": "ribbon"
         },
         {
-          "id": "dance",
-          "title": "춤 이름을 붙이다",
-          "text": "나는 바람이 오는 쪽을 화살표로 그리고 무대 옆에 붙였어. 잎의 춤 이름은 살랑살랑으로 정했지. 눈에 안 보이는 바람의 흔적을 찾은 날이야.",
-          "events": [
-            "산들룡은 모형 무대에 바람이 오는 방향을 표시한다.",
-            "잎의 춤에 살랑살랑이라는 이름을 붙이며 이야기를 마친다."
-          ],
-          "characters": [
-            "산들룡"
-          ],
-          "knowledgeIds": [
-            "moving_air",
-            "wind_direction"
-          ],
-          "nextSceneId": null,
-          "parentPrompt": null
+          "id": "dance"
         }
-      ],
-      "knowledge": [
-        {
-          "id": "moving_air",
-          "version": 1,
-          "topic": "과학",
-          "text": "바람은 움직이는 공기다. 공기 자체가 눈에 잘 보이지 않아도, 공기가 물체에 주는 힘으로 잎이나 깃발의 움직임을 볼 수 있다. 이야기의 선풍기는 가상 소품이며 아이에게 실제 기기를 조작하라고 하지 않는다.",
-          "words": [
-            {
-              "en": "wind",
-              "ko": "바람"
-            }
-          ],
-          "sources": [
-            {
-              "title": "NOAA JetStream - Origin of Wind",
-              "url": "https://www.noaa.gov/jetstream/synoptic/origin-of-wind",
-              "checkedOn": "2026-11-14"
-            }
-          ]
-        },
-        {
-          "id": "wind_direction",
-          "version": 1,
-          "topic": "지리",
-          "text": "바람의 방향은 보통 불어오는 쪽을 기준으로 부른다. 예를 들어 서쪽에서 오는 바람은 서풍이다. 깃발이나 가벼운 리본의 자유로운 끝은 대체로 바람이 가는 쪽으로 뻗으므로 불어오는 쪽과 구별한다.",
-          "words": [
-            {
-              "en": "direction",
-              "ko": "방향"
-            }
-          ],
-          "sources": [
-            {
-              "title": "NOAA JetStream - Origin of Wind",
-              "url": "https://www.noaa.gov/jetstream/synoptic/origin-of-wind",
-              "checkedOn": "2026-11-14"
-            }
-          ]
-        }
-      ],
-      "migrations": {}
+      ]
     },
     {
       "speciesId": "cloud_strider",
       "storyId": "cloud_strider_small_steps",
       "version": 1,
       "name": "구름발",
-      "title": "구름발의 느린 산책 지도",
-      "contentStatus": "draft-awaiting-human-review",
-      "reviewedBy": null,
       "firstSceneId": "path",
-      "persona": {
-        "age": 10,
-        "version": 1,
-        "background": "출신과 부화 조건은 미정이다. 이번 가상 이야기에서는 조용한 산책길을 종이 지도에 그린다. 구름 위를 실제로 걷는 생물이라고 단정하지 않는다. 실제 위치·날씨·창밖을 안다고 하지 않는다.",
-        "personality": [
-          "느긋하다",
-          "자기 속도를 지킨다",
-          "작은 차이를 발견한다"
-        ],
-        "voice": "사뿐, 한 걸음, 느긋하게를 즐겨 쓴다. 아이의 말에 먼저 답하며 친근한 한국어 반말 1~3문장. 말버릇은 가끔 한 번만 쓴다.",
-        "interests": [
-          "조용한 산책",
-          "구름 상상",
-          "작은 지도"
-        ],
-        "examples": [
-          "사뿐, 짧은 선에도 긴 길이 들어가네.",
-          "서두르지 않아도 이야기는 이어져."
-        ]
-      },
       "scenes": [
         {
-          "id": "path",
-          "title": "종이에 안 들어가는 길",
-          "text": "나는 이야기 속 산책길을 종이에 그대로 그리려다 종이 끝에 닿았어. 걸음을 빨리하는 대신, 길을 작게 줄여 그릴 방법을 찾기로 했지.",
-          "events": [
-            "구름발은 가상의 산책길을 종이에 그린다.",
-            "길을 줄여 그리는 방법을 생각한다."
-          ],
-          "characters": [
-            "구름발"
-          ],
-          "knowledgeIds": [
-            "map_scale"
-          ],
-          "nextSceneId": "measure",
-          "parentPrompt": null
+          "id": "path"
         },
         {
-          "id": "measure",
-          "title": "작은 선의 약속",
-          "text": "나는 지도에서 1센티미터를 이야기 속 길 1미터로 정했어. 길 3미터는 종이에서 3센티미터가 되었지. 짧게 그려도 약속을 알면 거리를 읽을 수 있어.",
-          "events": [
-            "구름발은 가상 지도의 축척을 1:100으로 정한다.",
-            "이야기 속 3미터 길을 지도에서 3센티미터로 그린다."
-          ],
-          "characters": [
-            "구름발"
-          ],
-          "knowledgeIds": [
-            "map_scale",
-            "length_units"
-          ],
-          "nextSceneId": "rest",
-          "parentPrompt": null
+          "id": "measure"
         },
         {
-          "id": "rest",
-          "title": "쉼표 하나를 남기다",
-          "text": "나는 쉬었던 자리에 작은 동그라미를 그리고 지도 옆에 그 뜻을 적었어. 사뿐, 내 느린 산책도 한 장에 담겼네. 이 지도는 이야기 속 길의 지도야.",
-          "events": [
-            "구름발은 가상 지도에 쉼터 기호와 뜻을 적는다.",
-            "산책 지도를 완성한다."
-          ],
-          "characters": [
-            "구름발"
-          ],
-          "knowledgeIds": [
-            "map_scale"
-          ],
-          "nextSceneId": null,
-          "parentPrompt": "나중에 운전하지 않는 보호자와 종이 지도에서 작은 선이 어떤 거리를 나타내는지 함께 찾아봐도 좋겠어."
+          "id": "rest"
         }
-      ],
-      "knowledge": [
-        {
-          "id": "map_scale",
-          "version": 1,
-          "topic": "지리",
-          "text": "축척은 지도 위 거리와 실제 거리의 비율이다. 이 이야기의 지도는 1:100이므로 지도 1센티미터가 가상 길 100센티미터, 즉 1미터를 나타낸다. 이는 직접 정한 가상 예시이며 현재 여행지 지도나 실제 이동 거리가 아니다. 기호의 뜻은 범례로 설명할 수 있다.",
-          "words": [
-            {
-              "en": "map",
-              "ko": "지도"
-            }
-          ],
-          "sources": [
-            {
-              "title": "Geoscience Australia - Guide: How to read a topographic map",
-              "url": "https://www.ga.gov.au/scientific-topics/national-location-information/topographic-maps/map-reading-guide",
-              "checkedOn": "2026-11-14"
-            }
-          ]
-        },
-        {
-          "id": "length_units",
-          "version": 1,
-          "topic": "수학",
-          "text": "1미터는 100센티미터다. 이야기에서 정한 1:100 축척을 적용하면 가상 길 3미터는 지도 3센티미터다. 3미터를 300센티미터로 바꾼 뒤 100으로 나눈 계산 예시이며 아이의 걸음 수를 거리로 단정하지 않는다.",
-          "words": [
-            {
-              "en": "meter",
-              "ko": "미터"
-            }
-          ],
-          "sources": [
-            {
-              "title": "NIST - SI Units: Length",
-              "url": "https://www.nist.gov/pml/owm/si-units-length",
-              "checkedOn": "2026-11-14"
-            }
-          ]
-        }
-      ],
-      "migrations": {}
+      ]
     },
     {
       "speciesId": "dewcap",
       "storyId": "dewcap_morning_drops",
       "version": 1,
       "name": "이슬갓",
-      "title": "이슬갓의 작은 물방울 기록장",
-      "contentStatus": "draft-awaiting-human-review",
-      "reviewedBy": null,
       "firstSceneId": "morning",
-      "persona": {
-        "age": 10,
-        "version": 1,
-        "background": "출신과 부화 조건은 아직 모른다. 이번 가상 이야기에서는 풀잎의 작은 물방울을 살펴 기록장을 만든다. 실제 위치·날씨·창밖을 안다고 하지 않는다.",
-        "personality": [
-          "다정하다",
-          "작은 것을 눈여겨본다",
-          "단정하기 전에 관찰한다"
-        ],
-        "voice": "톡톡, 촉촉한, 작은을 어울릴 때 쓴다. 아이의 말에 먼저 답하며 친근한 한국어 반말 1~3문장. 말버릇은 가끔 한 번만 쓴다.",
-        "interests": [
-          "풀잎",
-          "이슬",
-          "빗방울 소리"
-        ],
-        "examples": [
-          "톡톡, 비가 안 와도 물방울이 맺힐 수 있구나.",
-          "작다고 놓치지 않게 천천히 보자."
-        ]
-      },
       "scenes": [
         {
-          "id": "morning",
-          "title": "비가 안 온 아침",
-          "text": "나는 이야기 속 정원에서 작은 물방울이 맺힌 풀잎을 만났어. 밤에는 비가 오지 않았는데 풀잎이 촉촉해서, 물방울의 시작이 궁금해졌지.",
-          "events": [
-            "이슬갓은 비가 오지 않은 가상 정원의 아침에 물방울을 발견한다.",
-            "물방울이 생긴 까닭을 찾아본다."
-          ],
-          "characters": [
-            "이슬갓"
-          ],
-          "knowledgeIds": [
-            "dew_forms"
-          ],
-          "nextSceneId": "note",
-          "parentPrompt": null
+          "id": "morning"
         },
         {
-          "id": "note",
-          "title": "하늘에서 떨어진 게 아니네",
-          "text": "자료를 읽으니 공기 속 수증기가 차가워진 표면에서 물방울로 바뀔 수 있대. 나는 기록장에 비처럼 떨어진 물과 표면에 맺힌 이슬을 나누어 그렸어.",
-          "events": [
-            "이슬갓은 이슬이 생기는 자료를 읽는다.",
-            "기록장에 비와 이슬을 구별해 그린다."
-          ],
-          "characters": [
-            "이슬갓"
-          ],
-          "knowledgeIds": [
-            "dew_forms"
-          ],
-          "nextSceneId": "blank",
-          "parentPrompt": "나중에 운전하지 않는 보호자와 차가운 컵 겉에 물방울이 생기는 모습을 함께 살펴봐도 재미있겠어."
+          "id": "note"
         },
         {
-          "id": "blank",
-          "title": "빈칸도 기록이 되다",
-          "text": "다음 아침에는 같은 풀잎에 물방울이 없었어. 나는 틀렸다고 지우지 않고 오늘은 없었다고 적었지. 작은 물방울 기록장은 빈칸까지 담아 완성했어, 톡톡.",
-          "events": [
-            "다음 가상 아침에는 같은 풀잎에 물방울이 없다.",
-            "이슬갓은 물방울이 없었다는 관찰도 남기며 기록장을 완성한다."
-          ],
-          "characters": [
-            "이슬갓"
-          ],
-          "knowledgeIds": [
-            "dew_conditions"
-          ],
-          "nextSceneId": null,
-          "parentPrompt": null
+          "id": "blank"
         }
-      ],
-      "knowledge": [
-        {
-          "id": "dew_forms",
-          "version": 1,
-          "topic": "과학",
-          "text": "이슬은 공기 속 수증기가 차가워진 표면에서 작은 액체 물방울로 응결하며 생긴다. 비가 오지 않아도 생길 수 있다. 차가운 컵 겉의 물방울도 공기 속 수증기가 응결하는 예이며 컵 안의 물이 벽을 뚫고 나온 것이라고 설명하지 않는다.",
-          "words": [
-            {
-              "en": "dew",
-              "ko": "이슬"
-            }
-          ],
-          "sources": [
-            {
-              "title": "Met Office - Dew",
-              "url": "https://weather.metoffice.gov.uk/learn-about/weather/types-of-weather/temperature/dew",
-              "checkedOn": "2026-11-14"
-            }
-          ]
-        },
-        {
-          "id": "dew_conditions",
-          "version": 1,
-          "topic": "과학",
-          "text": "이슬이 생기려면 표면 온도와 공기 속 수증기 등 조건이 맞아야 한다. 매일 같은 풀잎에 반드시 생긴다고 하지 않는다. 이야기에서 물방울이 없는 날을 기록한 것은 정해진 가상 사건이지 실제 날씨 관측 결과가 아니다.",
-          "words": [
-            {
-              "en": "drop",
-              "ko": "물방울"
-            }
-          ],
-          "sources": [
-            {
-              "title": "Met Office - Dew",
-              "url": "https://weather.metoffice.gov.uk/learn-about/weather/types-of-weather/temperature/dew",
-              "checkedOn": "2026-11-14"
-            }
-          ]
-        }
-      ],
-      "migrations": {}
+      ]
     },
     {
       "speciesId": "dune_roller",
       "storyId": "dune_roller_sand_album",
       "version": 1,
       "name": "모래돌이",
-      "title": "모래돌이의 멈춘 모래 사진",
-      "contentStatus": "draft-awaiting-human-review",
-      "reviewedBy": null,
       "firstSceneId": "album",
-      "persona": {
-        "age": 10,
-        "version": 1,
-        "background": "출신·속성·부화 조건은 미정이다. 모래라는 이름만으로 사막 출생을 단정하지 않는다. 이번 가상 이야기에서는 책으로 모래 언덕을 살펴본다. 실제 위치·날씨·창밖을 안다고 하지 않는다.",
-        "personality": [
-          "신중하다",
-          "묵묵하다",
-          "둥근 것을 좋아한다"
-        ],
-        "voice": "또르르, 차근차근, 쉬엄쉬엄을 즐겨 쓴다. 아이의 말에 먼저 답하며 친근한 한국어 반말 1~3문장. 말버릇은 가끔 한 번만 쓴다.",
-        "interests": [
-          "돌의 모양",
-          "모래 언덕",
-          "느린 관찰"
-        ],
-        "examples": [
-          "사진은 멈췄어도 모래는 움직일 수 있네. 또르르.",
-          "어디서 왔는지는 아직 잘 몰라."
-        ]
-      },
       "scenes": [
         {
-          "id": "album",
-          "title": "사진 속 둥근 언덕",
-          "text": "나는 이야기 속 작은 도서관에서 모래 언덕 사진을 펼쳤어. 둥근 모양이 마음에 들어서 앨범에 그렸지. 그런데 모래는 어떻게 저렇게 모였을까?",
-          "events": [
-            "모래돌이는 가상 도서관에서 모래 언덕 사진을 읽는다.",
-            "모래가 모이는 과정을 궁금해한다."
-          ],
-          "characters": [
-            "모래돌이"
-          ],
-          "knowledgeIds": [
-            "sand_wind"
-          ],
-          "nextSceneId": "grains",
-          "parentPrompt": null
+          "id": "album"
         },
         {
-          "id": "grains",
-          "title": "모래 알갱이의 긴 여행",
-          "text": "나는 책에서 바람이 모래를 옮겨 언덕을 만들 수 있다는 설명을 찾았어. 돌이 제자리에서 잘게 부서지는 풍화와 알갱이가 옮겨 가는 일도 구별했지.",
-          "events": [
-            "모래돌이는 바람에 의해 모래가 쌓일 수 있음을 읽는다.",
-            "돌이 부서지는 과정과 이동하는 과정을 구별한다."
-          ],
-          "characters": [
-            "모래돌이"
-          ],
-          "knowledgeIds": [
-            "sand_wind",
-            "weathering"
-          ],
-          "nextSceneId": "caption",
-          "parentPrompt": null
+          "id": "grains"
         },
         {
-          "id": "caption",
-          "title": "사진 아래 한 줄",
-          "text": "나는 앨범 아래에 바람이 옮기고 쌓은 모래라고 적었어. 쉬엄쉬엄, 사진 한 장을 더 오래 보게 됐네. 돌을 가져오는 대신 그림과 설명으로 앨범을 채웠지.",
-          "events": [
-            "모래돌이는 앨범에 모래의 이동과 쌓임을 설명하는 글을 쓴다.",
-            "모래나 돌을 채집하지 않고 그림 앨범을 완성한다."
-          ],
-          "characters": [
-            "모래돌이"
-          ],
-          "knowledgeIds": [
-            "sand_wind"
-          ],
-          "nextSceneId": null,
-          "parentPrompt": null
+          "id": "caption"
         }
-      ],
-      "knowledge": [
-        {
-          "id": "sand_wind",
-          "version": 1,
-          "topic": "지리",
-          "text": "바람은 모래 알갱이를 옮기고 쌓아 모래 언덕을 만들 수 있다. 미국 그레이트 샌드 듄스의 지형도 바람과 모래 공급, 산과 물의 흐름 등이 오랜 시간 함께 작용한 결과다. 모든 모래 언덕이 같은 과정이나 같은 속도로 만들어진다고 하지 않는다.",
-          "words": [
-            {
-              "en": "sand",
-              "ko": "모래"
-            }
-          ],
-          "sources": [
-            {
-              "title": "National Park Service - Great Sand Dunes Geology",
-              "url": "https://www.nps.gov/grsa/learn/nature/geology.htm",
-              "checkedOn": "2026-11-14"
-            }
-          ]
-        },
-        {
-          "id": "weathering",
-          "version": 1,
-          "topic": "과학",
-          "text": "풍화는 지표나 그 가까이에서 돌이 제자리에서 부서지거나 성질이 바뀌는 과정이다. 물이나 바람 등이 알갱이를 다른 곳으로 옮기는 침식과 구별한다. 모든 모래를 한 종류의 돌이나 짧은 시간의 부서짐만으로 설명하지 않는다.",
-          "words": [
-            {
-              "en": "rock",
-              "ko": "돌"
-            }
-          ],
-          "sources": [
-            {
-              "title": "National Park Service - Weathering",
-              "url": "https://www.nps.gov/subjects/erosion/weathering.htm",
-              "checkedOn": "2026-11-14"
-            },
-            {
-              "title": "National Park Service - Great Sand Dunes Geology",
-              "url": "https://www.nps.gov/grsa/learn/nature/geology.htm",
-              "checkedOn": "2026-11-14"
-            }
-          ]
-        }
-      ],
-      "migrations": {}
+      ]
     },
     {
       "speciesId": "ember_crab",
       "storyId": "ember_crab_cozy_cover",
       "version": 1,
       "name": "불씨게",
-      "title": "불씨게의 포근한 책 자리",
-      "contentStatus": "draft-awaiting-human-review",
-      "reviewedBy": null,
       "firstSceneId": "seat",
-      "persona": {
-        "age": 10,
-        "version": 1,
-        "background": "출신·속성·부화 조건은 미정이다. 불씨라는 이름만으로 불을 만들거나 뜨거운 몸을 가진다고 단정하지 않는다. 이번 가상 이야기에서는 조용한 독서 자리를 꾸민다. 실제 위치·날씨·창밖을 안다고 하지 않는다.",
-        "personality": [
-          "조금 수줍다",
-          "익숙해지면 다정하다",
-          "작은 목소리로 배려한다"
-        ],
-        "voice": "소곤, 포근한, 살짝을 어울릴 때 쓴다. 아이의 말에 먼저 답하며 친근한 한국어 반말 1~3문장. 말버릇은 가끔 한 번만 쓴다.",
-        "interests": [
-          "포근한 휴식",
-          "조용한 이야기",
-          "작은 책"
-        ],
-        "examples": [
-          "소곤, 덮개가 따뜻함을 오래 머물게 돕는구나.",
-          "조금 쑥스럽지만 함께 읽으면 좋겠어."
-        ]
-      },
       "scenes": [
         {
-          "id": "seat",
-          "title": "읽을 자리를 준비하다",
-          "text": "나는 이야기 속 방 한쪽에 책 자리를 만들었어. 포근하게 쉬고 싶어서 작은 담요를 펴고, 담요가 왜 따뜻하게 느껴지는지 그림책을 찾아봤지.",
-          "events": [
-            "불씨게는 가상 방에 독서 자리를 꾸민다.",
-            "담요와 따뜻함에 관한 그림책을 찾아 읽는다."
-          ],
-          "characters": [
-            "불씨게"
-          ],
-          "knowledgeIds": [
-            "slow_heat"
-          ],
-          "nextSceneId": "cover",
-          "parentPrompt": null
+          "id": "seat"
         },
         {
-          "id": "cover",
-          "title": "따뜻함을 붙잡는 방법",
-          "text": "책에는 단열이 열의 이동을 늦춰 준다고 쓰여 있었어. 담요도 열을 새로 만드는 기계라고 생각하기보다, 몸의 열이 빠져나가는 것을 늦추는 덮개로 생각할 수 있지.",
-          "events": [
-            "불씨게는 단열이 열의 이동을 늦춘다는 설명을 읽는다.",
-            "담요를 열을 만드는 기계와 구별한다."
-          ],
-          "characters": [
-            "불씨게"
-          ],
-          "knowledgeIds": [
-            "slow_heat"
-          ],
-          "nextSceneId": "welcome",
-          "parentPrompt": null
+          "id": "cover"
         },
         {
-          "id": "welcome",
-          "title": "작은 안내문",
-          "text": "나는 책 옆에 쉬어 가도 좋아라고 적었어. 담요를 덮을지는 각자 편한 대로 정하면 돼. 소곤, 내 포근한 책 자리는 기다리라고 재촉하지 않는 자리로 완성됐지.",
-          "events": [
-            "불씨게는 독서 자리 옆에 쉬어 가도 좋다는 안내문을 둔다.",
-            "담요 사용과 머무는 시간을 강요하지 않고 자리를 완성한다."
-          ],
-          "characters": [
-            "불씨게"
-          ],
-          "knowledgeIds": [
-            "slow_heat"
-          ],
-          "nextSceneId": null,
-          "parentPrompt": "나중에 운전하지 않는 보호자와 집에서 따뜻함을 오래 지켜 주는 물건을 찾아봐도 좋겠어."
+          "id": "welcome"
         }
-      ],
-      "knowledge": [
-        {
-          "id": "slow_heat",
-          "version": 1,
-          "topic": "생활 상식",
-          "text": "단열은 열이 이동하는 속도를 늦추는 것이다. 열은 따뜻한 곳에서 차가운 곳으로 이동하며, 적절한 덮개는 열이 빠져나가는 것을 늦추는 데 도움을 줄 수 있다. 보통의 담요가 열을 새로 만드는 전열 기구라고 말하지 않는다. 이 이야기는 가상의 독서 자리이며 실제 온도·아이 몸 상태를 판정하지 않는다.",
-          "words": [
-            {
-              "en": "warm",
-              "ko": "따뜻한"
-            }
-          ],
-          "sources": [
-            {
-              "title": "Australian Government YourHome - Insulation",
-              "url": "https://www.yourhome.gov.au/passive-design/insulation",
-              "checkedOn": "2026-11-14"
-            }
-          ]
-        }
-      ],
-      "migrations": {}
+      ]
     },
     {
       "speciesId": "pebble_orbit",
       "storyId": "pebble_orbit_ten_centimeters",
       "version": 1,
       "name": "조약별",
-      "title": "조약별의 딱 맞는 전시대",
-      "contentStatus": "draft-awaiting-human-review",
-      "reviewedBy": null,
       "firstSceneId": "shelf",
-      "persona": {
-        "age": 10,
-        "version": 1,
-        "background": "출신·속성·부화 조건은 미정이다. 이름의 별을 실제 천체나 출신 행성으로 해석하지 않는다. 이번 가상 이야기에서는 돌 모양 종이 전시물을 정리한다. 실제 위치·날씨·창밖을 안다고 하지 않는다.",
-        "personality": [
-          "엉뚱한 관찰자다",
-          "작은 모양을 좋아한다",
-          "균형과 배치를 궁금해한다"
-        ],
-        "voice": "빙글, 동그란, 균형을 어울릴 때 쓴다. 아이의 말에 먼저 답하며 친근한 한국어 반말 1~3문장. 말버릇은 가끔 한 번만 쓴다.",
-        "interests": [
-          "작은 돌 모양",
-          "배치",
-          "길이 재기"
-        ],
-        "examples": [
-          "빙글, 동그랗게 놓기 전에 길이를 재 보자.",
-          "내 이름에 별이 있어도 진짜 혜성인 건 아니야."
-        ]
-      },
       "scenes": [
         {
-          "id": "shelf",
-          "title": "마지막 자리가 모자라다",
-          "text": "나는 이야기 속 작업실에서 돌 모양 종이 세 장을 전시하려 했어. 겹쳐 놓으니 잘 보이지 않아서, 길게 한 줄로 놓을 자리를 재 보기로 했지.",
-          "events": [
-            "조약별은 가상 작업실에서 돌 모양 종이 전시물을 만든다.",
-            "겹치지 않게 한 줄로 놓을 자리를 재기로 한다."
-          ],
-          "characters": [
-            "조약별"
-          ],
-          "knowledgeIds": [
-            "measure_length"
-          ],
-          "nextSceneId": "ruler",
-          "parentPrompt": null
+          "id": "shelf"
         },
         {
-          "id": "ruler",
-          "title": "자로 잰 세 조각",
-          "text": "세 종이의 가로 길이는 2센티미터, 3센티미터, 5센티미터였어. 빈틈없이 이으면 10센티미터야. 나는 전시대에 10센티미터 선을 먼저 그었지, 빙글.",
-          "events": [
-            "조약별은 가상 종이 전시물의 가로 길이를 2·3·5센티미터로 잰다.",
-            "빈틈없이 나란히 놓을 길이 10센티미터를 계산한다."
-          ],
-          "characters": [
-            "조약별"
-          ],
-          "knowledgeIds": [
-            "length_sum"
-          ],
-          "nextSceneId": "display",
-          "parentPrompt": null
+          "id": "ruler"
         },
         {
-          "id": "display",
-          "title": "한눈에 보이는 세 모양",
-          "text": "나는 세 종이를 선 위에 나란히 놓았어. 모두 겹치지 않고 보여서 전시대 이름을 딱 맞는 자리로 정했지. 실제 돌이 저절로 균형을 잡는 마법을 쓴 건 아니야.",
-          "events": [
-            "조약별은 세 종이 모양을 정해진 10센티미터 선 위에 빈틈없이 놓는다.",
-            "딱 맞는 자리라는 전시대를 완성한다."
-          ],
-          "characters": [
-            "조약별"
-          ],
-          "knowledgeIds": [
-            "measure_length",
-            "length_sum"
-          ],
-          "nextSceneId": null,
-          "parentPrompt": null
+          "id": "display"
         }
-      ],
-      "knowledge": [
-        {
-          "id": "measure_length",
-          "version": 1,
-          "topic": "수학",
-          "text": "길이를 잴 때에는 같은 단위를 사용하고 자의 시작 눈금을 맞춰 읽는다. 센티미터는 길이 단위이며 1센티미터는 10밀리미터다. 이야기의 2·3·5센티미터는 가상 종이 모형의 가로 길이로 직접 정한 예시이며 실제 돌의 크기가 아니다.",
-          "words": [
-            {
-              "en": "length",
-              "ko": "길이"
-            }
-          ],
-          "sources": [
-            {
-              "title": "NIST - SI Units: Length",
-              "url": "https://www.nist.gov/pml/owm/si-units-length",
-              "checkedOn": "2026-11-14"
-            }
-          ]
-        },
-        {
-          "id": "length_sum",
-          "version": 1,
-          "topic": "수학",
-          "text": "같은 방향으로 종이 모형을 겹치거나 띄우지 않고 나란히 놓는 이 이야기의 예시에서는 2센티미터+3센티미터+5센티미터=10센티미터다. 이는 직접 계산한 예시다. 틈·겹침·방향을 바꾸면 필요한 전체 길이가 달라질 수 있다.",
-          "words": [
-            {
-              "en": "ruler",
-              "ko": "자"
-            }
-          ],
-          "sources": [
-            {
-              "title": "NIST - SI Units: Length",
-              "url": "https://www.nist.gov/pml/owm/si-units-length",
-              "checkedOn": "2026-11-14"
-            }
-          ]
-        }
-      ],
-      "migrations": {}
+      ]
     },
     {
       "speciesId": "puddle_pip",
       "storyId": "puddle_pip_puddle_postcard",
       "version": 1,
       "name": "웅덩이삐약",
-      "title": "웅덩이삐약의 사라진 물 그림",
-      "contentStatus": "draft-awaiting-human-review",
-      "reviewedBy": null,
       "firstSceneId": "outline",
-      "persona": {
-        "age": 10,
-        "version": 1,
-        "background": "이번 가상 이야기에서 비가 그친 정원의 작은 웅덩이를 관찰한다. 물에서 노는 성격은 이야기 속 표현이며 실제 빗물이나 웅덩이에 들어가도록 유도하지 않는다. 실제 위치·날씨·창밖을 안다고 하지 않는다.",
-        "personality": [
-          "발랄하다",
-          "촉촉한 것을 좋아한다",
-          "작은 변화에 놀란다"
-        ],
-        "voice": "삐약, 첨벙을 가끔 쓰되 아기 말만으로 설명하지 않는다. 아이의 말에 먼저 답하며 친근한 한국어 반말 1~3문장. 말버릇은 가끔 한 번만 쓴다.",
-        "interests": [
-          "물방울",
-          "웅덩이",
-          "물의 여행"
-        ],
-        "examples": [
-          "삐약, 물이 공기 속으로 갈 수도 있네.",
-          "이건 이야기 속 웅덩이야. 여기서 살펴보자."
-        ]
-      },
       "scenes": [
         {
-          "id": "outline",
-          "title": "웅덩이 테두리를 그리다",
-          "text": "나는 이야기 속 정원 웅덩이를 그림에 담았어. 종이 위에 테두리를 그려 두면 내일도 같은 크기인지 알 수 있을 것 같았지, 삐약.",
-          "events": [
-            "웅덩이삐약은 가상 정원의 웅덩이 테두리를 그림으로 남긴다."
-          ],
-          "characters": [
-            "웅덩이삐약"
-          ],
-          "knowledgeIds": [
-            "evaporation"
-          ],
-          "nextSceneId": "smaller",
-          "parentPrompt": null
+          "id": "outline"
         },
         {
-          "id": "smaller",
-          "title": "어제보다 작은 그림자",
-          "text": "다음 날 같은 자리의 물은 줄어 있었어. 나는 물이 액체에서 눈에 보이지 않는 수증기로 바뀌는 증발을 배웠지. 물이 줄었다고 모두 증발 때문이라고 단정할 수는 없어.",
-          "events": [
-            "다음 가상 날 웅덩이의 물이 줄어 있다.",
-            "웅덩이삐약은 증발을 배우고 물이 줄어드는 이유가 하나만은 아님을 구별한다."
-          ],
-          "characters": [
-            "웅덩이삐약"
-          ],
-          "knowledgeIds": [
-            "evaporation",
-            "water_paths"
-          ],
-          "nextSceneId": "postcard",
-          "parentPrompt": null
+          "id": "smaller"
         },
         {
-          "id": "postcard",
-          "title": "물의 여행 엽서",
-          "text": "나는 종이의 웅덩이와 구름 사이에 물의 여행 화살표를 그렸어. 내 웅덩이 물방울이 어느 구름으로 갔는지는 모르지만, 엽서에는 물이 여러 길로 이동한다고 적었지.",
-          "events": [
-            "웅덩이삐약은 물의 이동을 표현한 가상 엽서를 그린다.",
-            "특정 물방울의 실제 행방은 모른다고 밝히고 엽서를 완성한다."
-          ],
-          "characters": [
-            "웅덩이삐약"
-          ],
-          "knowledgeIds": [
-            "water_paths"
-          ],
-          "nextSceneId": null,
-          "parentPrompt": null
+          "id": "postcard"
         }
-      ],
-      "knowledge": [
-        {
-          "id": "evaporation",
-          "version": 1,
-          "topic": "과학",
-          "text": "증발은 액체 물이 기체인 수증기로 바뀌는 과정이다. 수증기는 눈에 보이지 않는다. 물은 반드시 펄펄 끓어야만 증발하는 것이 아니며, 웅덩이의 물도 증발할 수 있다.",
-          "words": [
-            {
-              "en": "puddle",
-              "ko": "웅덩이"
-            }
-          ],
-          "sources": [
-            {
-              "title": "USGS Water Science School - Interactive Water Cycle for Kids",
-              "url": "https://water.usgs.gov/edu/watercycle-kids-int.html",
-              "checkedOn": "2026-11-14"
-            }
-          ]
-        },
-        {
-          "id": "water_paths",
-          "version": 1,
-          "topic": "과학",
-          "text": "물은 증발·응결·비나 눈·흐름·땅속 스며듦 등 여러 과정을 거쳐 이동한다. 물이 줄어든 이유에는 증발뿐 아니라 스며듦이나 흐름도 있을 수 있다. 특정 웅덩이 물방울이 특정 구름이나 도시로 갔다고 추적한 것처럼 말하지 않는다.",
-          "words": [
-            {
-              "en": "rain",
-              "ko": "비"
-            }
-          ],
-          "sources": [
-            {
-              "title": "USGS Water Science School - Interactive Water Cycle for Kids",
-              "url": "https://water.usgs.gov/edu/watercycle-kids-int.html",
-              "checkedOn": "2026-11-14"
-            }
-          ]
-        }
-      ],
-      "migrations": {}
+      ]
     },
     {
       "speciesId": "sea_mist",
       "storyId": "sea_mist_quiet_map",
       "version": 1,
       "name": "바다안개",
-      "title": "바다안개의 흐릿한 그림 지도",
-      "contentStatus": "draft-awaiting-human-review",
-      "reviewedBy": null,
       "firstSceneId": "painting",
-      "persona": {
-        "age": 10,
-        "version": 1,
-        "background": "이번 가상 이야기에서는 작은 전시실에서 바다안개 그림 지도를 만든다. 이름과 환경 태그만으로 현재 해안이나 실제 항구에 왔다고 말하지 않는다. 실제 위치·날씨·창밖을 안다고 하지 않는다.",
-        "personality": [
-          "조용하다",
-          "살며시 관찰한다",
-          "모르는 방향을 꾸며내지 않는다"
-        ],
-        "voice": "몽글몽글, 살며시를 드물게 쓰고 차분하게 설명한다. 아이의 말에 먼저 답하며 친근한 한국어 반말 1~3문장. 말버릇은 가끔 한 번만 쓴다.",
-        "interests": [
-          "안개",
-          "물방울",
-          "그림 지도"
-        ],
-        "examples": [
-          "몽글몽글, 안개도 작은 물방울을 품고 있네.",
-          "이 지도는 우리가 그린 이야기 지도야."
-        ]
-      },
       "scenes": [
         {
-          "id": "painting",
-          "title": "흐릿한 바다 그림",
-          "text": "나는 이야기 속 전시실에서 뿌연 바다 그림을 그렸어. 안개를 하얀 수증기라고 적으려다, 설명책을 먼저 펼쳐 보기로 했지.",
-          "events": [
-            "바다안개는 가상 전시실에서 안개가 있는 바다 그림을 그린다.",
-            "안개의 정체를 설명책에서 확인한다."
-          ],
-          "characters": [
-            "바다안개"
-          ],
-          "knowledgeIds": [
-            "fog_droplets"
-          ],
-          "nextSceneId": "label",
-          "parentPrompt": null
+          "id": "painting"
         },
         {
-          "id": "label",
-          "title": "보이는 물방울, 안 보이는 기체",
-          "text": "책에는 안개가 땅 가까이에 생긴 구름이고 작은 물방울이나 얼음 알갱이로 이루어진다고 나와 있었어. 나는 그림 설명을 눈에 안 보이는 수증기와 구별해 고쳤지.",
-          "events": [
-            "바다안개는 안개와 수증기의 차이를 읽는다.",
-            "가상 그림의 설명을 수정한다."
-          ],
-          "characters": [
-            "바다안개"
-          ],
-          "knowledgeIds": [
-            "fog_droplets"
-          ],
-          "nextSceneId": "legend",
-          "parentPrompt": null
+          "id": "label"
         },
         {
-          "id": "legend",
-          "title": "모르는 곳은 빈칸으로",
-          "text": "나는 그림에 가상의 쉼터를 동그라미로 표시하고 기호 뜻을 옆에 적었어. 보이지 않는 바다 너머는 상상해서 실제 항구 이름으로 채우지 않았지. 살며시, 내 그림 지도가 완성됐어.",
-          "events": [
-            "바다안개는 가상 쉼터 기호와 범례를 지도에 적는다.",
-            "실제 장소를 지어내지 않고 가상 그림 지도를 완성한다."
-          ],
-          "characters": [
-            "바다안개"
-          ],
-          "knowledgeIds": [
-            "map_symbols"
-          ],
-          "nextSceneId": null,
-          "parentPrompt": "나중에 운전하지 않는 보호자와 지도에 있는 기호들의 뜻을 함께 찾아봐도 좋겠어."
+          "id": "legend"
         }
-      ],
-      "knowledge": [
-        {
-          "id": "fog_droplets",
-          "version": 1,
-          "topic": "과학",
-          "text": "안개는 땅에 닿거나 땅 가까이에 형성된 구름이다. 구름과 안개는 수증기가 응결하거나 얼면서 생긴 작은 물방울이나 얼음 알갱이로 이루어진다. 기체인 수증기 자체는 눈에 보이지 않으므로 눈에 보이는 안개와 같은 것이라고 하지 않는다.",
-          "words": [
-            {
-              "en": "fog",
-              "ko": "안개"
-            }
-          ],
-          "sources": [
-            {
-              "title": "NOAA NESDIS - What is the Difference Between Fog and Clouds?",
-              "url": "https://www.nesdis.noaa.gov/about/k-12-education/atmosphere/whats-the-difference-between-fog-and-clouds",
-              "checkedOn": "2026-11-14"
-            },
-            {
-              "title": "USGS Water Science School - Interactive Water Cycle for Kids",
-              "url": "https://water.usgs.gov/edu/watercycle-kids-int.html",
-              "checkedOn": "2026-11-14"
-            }
-          ]
-        },
-        {
-          "id": "map_symbols",
-          "version": 1,
-          "topic": "지리",
-          "text": "지도는 장소나 지형을 약속한 기호와 이름으로 나타낼 수 있다. 기호의 뜻을 설명한 것이 범례다. 이 이야기의 동그라미는 작가가 정한 가상 쉼터 기호이며 모든 실제 지도에서 같은 뜻이라는 규칙이 아니다. 지도를 읽을 때에는 그 지도에서 정한 뜻을 확인한다.",
-          "words": [
-            {
-              "en": "map",
-              "ko": "지도"
-            }
-          ],
-          "sources": [
-            {
-              "title": "Geoscience Australia - Guide: How to read a topographic map",
-              "url": "https://www.ga.gov.au/scientific-topics/national-location-information/topographic-maps/map-reading-guide",
-              "checkedOn": "2026-11-14"
-            }
-          ]
-        }
-      ],
-      "migrations": {}
+      ]
     },
     {
       "speciesId": "storm_lantern",
       "storyId": "storm_lantern_light_sound_book",
       "version": 1,
       "name": "폭풍등",
-      "title": "폭풍등의 번쩍 소리책",
-      "contentStatus": "draft-awaiting-human-review",
-      "reviewedBy": null,
       "firstSceneId": "picture",
-      "persona": {
-        "age": 10,
-        "version": 1,
-        "background": "빗속 터널이라는 종별 초안 이미지는 유지하되 특정 출생 여행을 만들지 않는다. 이번 가상 이야기에서는 실내에서 번개와 천둥 그림책을 꾸민다. 실제 위치·날씨·창밖을 안다고 하지 않는다.",
-        "personality": [
-          "씩씩하다",
-          "놀라운 일을 차근차근 알아본다",
-          "밝게 격려한다"
-        ],
-        "voice": "번쩍, 씩씩하게, 환하게를 어울릴 때 쓴다. 아이의 말에 먼저 답하며 친근한 한국어 반말 1~3문장. 말버릇은 가끔 한 번만 쓴다.",
-        "interests": [
-          "빛",
-          "소리",
-          "비 오는 날의 책"
-        ],
-        "examples": [
-          "번쩍, 빛과 소리의 도착 순서가 다르네.",
-          "모르는 소리는 먼저 자료에서 찾아보자."
-        ]
-      },
       "scenes": [
         {
-          "id": "picture",
-          "title": "그림책의 조용한 번개",
-          "text": "나는 이야기 속 실내에서 날씨 그림책을 펼쳤어. 번개 그림에는 빛만 있어서, 옆 페이지에 천둥 이야기를 붙이기로 했지. 실제 번개를 보러 밖에 나간 건 아니야.",
-          "events": [
-            "폭풍등은 가상 실내에서 번개 그림책을 읽는다.",
-            "천둥을 설명하는 페이지를 만들기로 한다."
-          ],
-          "characters": [
-            "폭풍등"
-          ],
-          "knowledgeIds": [
-            "thunder_air"
-          ],
-          "nextSceneId": "sound",
-          "parentPrompt": null
+          "id": "picture"
         },
         {
-          "id": "sound",
-          "title": "공기가 빠르게 달라지면",
-          "text": "나는 자료에서 번개가 공기를 급하게 뜨겁게 하고 팽창시키며 천둥 소리가 난다는 설명을 찾았어. 그림 옆에 빛과 공기와 소리를 차례로 그렸지, 번쩍.",
-          "events": [
-            "폭풍등은 번개와 천둥의 관계를 자료로 확인한다.",
-            "그 관계를 가상 그림책에 그린다."
-          ],
-          "characters": [
-            "폭풍등"
-          ],
-          "knowledgeIds": [
-            "thunder_air"
-          ],
-          "nextSceneId": "pages",
-          "parentPrompt": null
+          "id": "sound"
         },
         {
-          "id": "pages",
-          "title": "서로 다른 도착 시간",
-          "text": "빛은 소리보다 훨씬 빨리 전해져서 번개를 본 뒤 천둥을 듣기도 해. 나는 두 페이지를 끈으로 묶어 소리책을 완성했어. 이야기 속에서 배웠으니 실제 폭풍을 찾아 나설 필요는 없어.",
-          "events": [
-            "폭풍등은 번개 빛과 천둥 소리의 도착 차이를 설명한다.",
-            "실내에서 만든 고정 소리책을 완성한다."
-          ],
-          "characters": [
-            "폭풍등"
-          ],
-          "knowledgeIds": [
-            "light_before_sound"
-          ],
-          "nextSceneId": null,
-          "parentPrompt": null
+          "id": "pages"
         }
-      ],
-      "knowledge": [
-        {
-          "id": "thunder_air",
-          "version": 1,
-          "topic": "과학",
-          "text": "천둥은 번개와 관련된 소리다. 번개가 주변 공기를 급격히 가열해 빠르게 팽창하게 하며 소리파가 생긴다. 이야기 속 번쩍이라는 말은 말버릇이지 실제 번개를 안전하게 만들거나 제어하는 능력이 아니다.",
-          "words": [
-            {
-              "en": "thunder",
-              "ko": "천둥"
-            }
-          ],
-          "sources": [
-            {
-              "title": "National Weather Service - Understanding Lightning: Thunder",
-              "url": "https://www.weather.gov/safety/lightning-science-thunder",
-              "checkedOn": "2026-11-14"
-            }
-          ]
-        },
-        {
-          "id": "light_before_sound",
-          "version": 1,
-          "topic": "생활 상식",
-          "text": "빛은 소리보다 훨씬 빨리 전해지므로 번개를 본 뒤 천둥을 들을 수 있다. 천둥이 들리는 실제 상황은 안전한 곳에 있어야 하며 소리를 관찰하려고 밖에 나가도록 권하지 않는다. 이 자료는 실제 폭풍 거리나 현재 차량 안전 상태를 판정하지 않는다.",
-          "words": [
-            {
-              "en": "lightning",
-              "ko": "번개"
-            }
-          ],
-          "sources": [
-            {
-              "title": "National Weather Service - Understanding Lightning: Thunder",
-              "url": "https://www.weather.gov/safety/lightning-science-thunder",
-              "checkedOn": "2026-11-14"
-            }
-          ]
-        }
-      ],
-      "migrations": {}
+      ]
     },
     {
       "speciesId": "lamp_moth",
       "storyId": "lamp_moth_word_lantern",
       "version": 1,
       "name": "등불나방",
-      "title": "등불나방의 글자 등불",
-      "contentStatus": "draft-awaiting-human-review",
-      "reviewedBy": null,
       "firstSceneId": "letters",
-      "persona": {
-        "age": 10,
-        "version": 1,
-        "background": "이번 가상 이야기에서는 전구 그림으로 밝힌 독서방에서 글자 전시판을 만든다. 실제 불꽃이나 조명을 만지도록 유도하지 않는다. 실제 위치·날씨·창밖을 안다고 하지 않는다.",
-        "personality": [
-          "불빛에 신나 한다",
-          "새로운 글자를 반긴다",
-          "모르면 책을 찾아본다"
-        ],
-        "voice": "반짝, 불빛, 환해를 드물게 쓴다. 아이의 말에 먼저 답하며 친근한 한국어 반말 1~3문장. 말버릇은 가끔 한 번만 쓴다.",
-        "interests": [
-          "불빛",
-          "그림책",
-          "글자"
-        ],
-        "examples": [
-          "반짝, 글자에도 남겨 둔 이야기가 있네.",
-          "이건 이야기 속 전시판이야. 진짜 유물을 찾은 건 아니야."
-        ]
-      },
       "scenes": [
         {
-          "id": "letters",
-          "title": "환한데 읽을 수 없는 쪽지",
-          "text": "나는 이야기 속 독서방에 전구 그림을 붙였어. 방은 환해졌는데 종이에 그린 낯선 표시의 뜻은 알 수 없었지. 빛만큼 글자의 설명도 필요하겠다고 생각했어.",
-          "events": [
-            "등불나방은 가상 독서방에 전구 그림을 붙인다.",
-            "낯선 표시를 이해하려면 설명이 필요하다고 생각한다."
-          ],
-          "characters": [
-            "등불나방"
-          ],
-          "knowledgeIds": [
-            "hangeul_record"
-          ],
-          "nextSceneId": "book",
-          "parentPrompt": null
+          "id": "letters"
         },
         {
-          "id": "book",
-          "title": "글자의 원리를 남긴 책",
-          "text": "나는 자료에서 세종이 만든 한글과 그 원리와 예를 설명하는 훈민정음 해례본 이야기를 읽었어. 옛사람이 글자의 쓰임을 책으로 남겼다는 게 신기했지, 반짝.",
-          "events": [
-            "등불나방은 한글과 훈민정음 해례본에 관한 자료를 읽는다.",
-            "자신이 옛사람을 직접 만난 것처럼 말하지 않는다."
-          ],
-          "characters": [
-            "등불나방"
-          ],
-          "knowledgeIds": [
-            "hangeul_record"
-          ],
-          "nextSceneId": "sign",
-          "parentPrompt": null
+          "id": "book"
         },
         {
-          "id": "sign",
-          "title": "내가 만든 표시의 뜻",
-          "text": "나는 가상 전시판에 동그라미는 쉬는 자리라는 뜻이라고 적었어. 글자 등불이라는 이름도 붙였지. 내 동그라미는 한글의 옛 글자가 아니라 내가 만든 표시야.",
-          "events": [
-            "등불나방은 자신이 정한 동그라미 기호의 뜻을 전시판에 쓴다.",
-            "한글을 만들었다거나 역사 사실을 바꾸었다고 하지 않고 글자 등불 전시판을 완성한다."
-          ],
-          "characters": [
-            "등불나방"
-          ],
-          "knowledgeIds": [
-            "hangeul_record"
-          ],
-          "nextSceneId": null,
-          "parentPrompt": "나중에 운전하지 않는 보호자와 익숙한 글자로 쓰인 오래된 책 이야기를 함께 찾아봐도 좋겠어."
+          "id": "sign"
         }
-      ],
-      "knowledge": [
-        {
-          "id": "hangeul_record",
-          "version": 1,
-          "topic": "역사",
-          "text": "세종은 1443년에 오늘날 한글이라 부르는 문자 체계를 만들었다. 1446년에 간행된 훈민정음 해례본에는 문자를 설명하는 글과 학자들의 해설·사용 예가 담겨 있다. 문자 창제와 해례본 간행은 구별한다. 이 이야기는 설명 자료를 읽는 가상 사건이며 등불나방이 역사적 창제에 참여한 것이 아니다.",
-          "words": [
-            {
-              "en": "book",
-              "ko": "책"
-            }
-          ],
-          "sources": [
-            {
-              "title": "UNESCO Memory of the World - Hunminjeongum Manuscript",
-              "url": "https://www.unesco.org/en/memory-world/hunminjeongum-manuscript?hub=1081",
-              "checkedOn": "2026-11-14"
-            }
-          ]
-        }
-      ],
-      "migrations": {}
+      ]
     },
     {
       "speciesId": "highway_comet",
       "storyId": "highway_comet_tail_model",
       "version": 1,
       "name": "고속혜성",
-      "title": "고속혜성의 거꾸로 꼬리",
-      "contentStatus": "draft-awaiting-human-review",
-      "reviewedBy": null,
       "firstSceneId": "model",
-      "persona": {
-        "age": 10,
-        "version": 1,
-        "background": "이번 가상 이야기에서는 작은 우주 모형을 만든다. 이름은 고속혜성이지만 실제 천체와 같은 물리적 몸이나 속도를 가졌다고 단정하지 않는다. 실제 위치·날씨·창밖을 안다고 하지 않는다.",
-        "personality": [
-          "신난다",
-          "빠른 움직임을 좋아한다",
-          "비교하다가 생각을 고친다"
-        ],
-        "voice": "슝, 쌩쌩을 어울릴 때 쓴다. 실제 차량 가속을 제안하지 않는다. 아이의 말에 먼저 답하며 친근한 한국어 반말 1~3문장. 말버릇은 가끔 한 번만 쓴다.",
-        "interests": [
-          "우주 모형",
-          "혜성 꼬리",
-          "관찰"
-        ],
-        "examples": [
-          "슝, 꼬리가 항상 뒤쪽인 건 아니네.",
-          "내 이름과 진짜 혜성은 구별해서 보자."
-        ]
-      },
       "scenes": [
         {
-          "id": "model",
-          "title": "빠르면 꼬리는 뒤에 있을까",
-          "text": "나는 이야기 속 작업실에서 혜성 모형을 만들었어. 달리는 방향 뒤로 리본을 붙였다가, 진짜 혜성 꼬리도 늘 뒤쪽일지 자료를 찾아보기로 했지.",
-          "events": [
-            "고속혜성은 가상 작업실에서 혜성 모형과 리본 꼬리를 만든다.",
-            "리본 방향을 확정하기 전에 실제 혜성 자료를 찾는다."
-          ],
-          "characters": [
-            "고속혜성"
-          ],
-          "knowledgeIds": [
-            "comet_parts"
-          ],
-          "nextSceneId": "sun",
-          "parentPrompt": null
+          "id": "model"
         },
         {
-          "id": "sun",
-          "title": "태양 쪽을 살펴보다",
-          "text": "혜성은 얼음과 먼지 등을 품고 태양 주위를 도는 천체야. 태양 가까이에서 생긴 가스와 먼지는 꼬리를 만들 수 있지. 특히 이온 꼬리는 태양 반대쪽으로 뻗는대.",
-          "events": [
-            "고속혜성은 혜성의 구성과 꼬리에 관한 자료를 읽는다.",
-            "모형의 이온 꼬리를 태양 반대쪽으로 고친다."
-          ],
-          "characters": [
-            "고속혜성"
-          ],
-          "knowledgeIds": [
-            "comet_parts",
-            "comet_tail"
-          ],
-          "nextSceneId": "label",
-          "parentPrompt": null
+          "id": "sun"
         },
         {
-          "id": "label",
-          "title": "고친 모형이 더 신나",
-          "text": "나는 태양 그림과 이온 꼬리의 방향 표시를 모형에 붙였어. 슝, 빠르기만 생각할 때보다 우주가 더 재미있어졌네. 내 모형은 멋지게 고쳐졌고 이야기는 여기서 끝이야.",
-          "events": [
-            "고속혜성은 태양 그림과 이온 꼬리 방향이 표시된 모형을 완성한다.",
-            "고속혜성 자신의 이름과 실제 혜성의 물리적 성질은 구별한다."
-          ],
-          "characters": [
-            "고속혜성"
-          ],
-          "knowledgeIds": [
-            "comet_tail"
-          ],
-          "nextSceneId": null,
-          "parentPrompt": null
+          "id": "label"
         }
-      ],
-      "knowledge": [
+      ]
+    },
+    {
+      "speciesId": "bridge_hopper",
+      "storyId": "legacy_bridge_hopper_conversation",
+      "version": 1,
+      "name": "다리뛰기",
+      "firstSceneId": "conversation",
+      "scenes": [
         {
-          "id": "comet_parts",
-          "version": 1,
-          "topic": "과학",
-          "text": "혜성은 얼음과 먼지 등을 포함하며 태양 주위를 도는 천체다. 태양 가까이에서 가열되면 얼음에서 나온 가스와 먼지가 핵 주위에 퍼지고 꼬리가 생길 수 있다. 모든 혜성에 언제나 긴 꼬리가 보이는 것은 아니다.",
-          "words": [
-            {
-              "en": "comet",
-              "ko": "혜성"
-            }
-          ],
-          "sources": [
-            {
-              "title": "NASA Space Place - What Is a Comet?",
-              "url": "https://spaceplace.nasa.gov/comets/en/",
-              "checkedOn": "2026-11-14"
-            }
-          ]
-        },
-        {
-          "id": "comet_tail",
-          "version": 1,
-          "topic": "과학",
-          "text": "혜성의 꼬리는 태양의 빛과 태양에서 나온 입자의 영향을 받는다. 이온 꼬리는 태양 반대쪽으로 곧게 뻗고, 먼지 꼬리는 휠 수 있다. 꼬리가 언제나 혜성의 운동 방향 뒤쪽이라는 설명은 틀리다. 이야기 속 한 줄 리본은 이온 꼬리 방향만 보여 주는 단순 모형이다.",
-          "words": [
-            {
-              "en": "tail",
-              "ko": "꼬리"
-            }
-          ],
-          "sources": [
-            {
-              "title": "NASA Space Place - What Is a Comet?",
-              "url": "https://spaceplace.nasa.gov/comets/en/",
-              "checkedOn": "2026-11-14"
-            }
-          ]
+          "id": "conversation"
         }
-      ],
-      "migrations": {}
+      ]
+    },
+    {
+      "speciesId": "mountain_sprite",
+      "storyId": "legacy_mountain_sprite_conversation",
+      "version": 1,
+      "name": "산정령",
+      "firstSceneId": "conversation",
+      "scenes": [
+        {
+          "id": "conversation"
+        }
+      ]
+    },
+    {
+      "speciesId": "river_glider",
+      "storyId": "legacy_river_glider_conversation",
+      "version": 1,
+      "name": "강미끄럼",
+      "firstSceneId": "conversation",
+      "scenes": [
+        {
+          "id": "conversation"
+        }
+      ]
+    },
+    {
+      "speciesId": "tide_keeper",
+      "storyId": "legacy_tide_keeper_conversation",
+      "version": 1,
+      "name": "물결지기",
+      "firstSceneId": "conversation",
+      "scenes": [
+        {
+          "id": "conversation"
+        }
+      ]
+    },
+    {
+      "speciesId": "tunnel_moth",
+      "storyId": "legacy_tunnel_moth_conversation",
+      "version": 1,
+      "name": "터널나방",
+      "firstSceneId": "conversation",
+      "scenes": [
+        {
+          "id": "conversation"
+        }
+      ]
+    },
+    {
+      "speciesId": "star_owl",
+      "storyId": "legacy_star_owl_conversation",
+      "version": 1,
+      "name": "별부엉이",
+      "firstSceneId": "conversation",
+      "scenes": [
+        {
+          "id": "conversation"
+        }
+      ]
     }
   ]
 }

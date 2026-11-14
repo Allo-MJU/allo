@@ -260,6 +260,16 @@ namespace Allo.Critters
         public string CompanionId { get; private set; }
         public CritterView Companion => CompanionId != null && _views.TryGetValue(CompanionId, out var v) ? v : null;
 
+        public static event System.Action<string> CompanionTapped;
+
+        // A selected companion tap opens dialogue without generating a second care reward.
+        public bool InviteCompanion(CritterView view)
+        {
+            if (view == null || view != Companion || string.IsNullOrEmpty(Allo.App.AppSession.State?.learning?.creatureId)) return false;
+            if (Allo.App.AppUi.CanInviteCompanion(Allo.App.AppSession.State, view.Id)) CompanionTapped?.Invoke(view.Id);
+            return true;
+        }
+
         /// 탭: 폴짝 + 하트. 동행 캐릭터면 Flutter 에 tap 을 알린다 (놀아주기 횟수는 Flutter 가 센다)
         public void Poke(CritterView v)
         {
