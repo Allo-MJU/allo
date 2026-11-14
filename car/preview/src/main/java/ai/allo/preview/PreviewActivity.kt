@@ -10,12 +10,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ai.allo.car.model.*
 import ai.allo.car.dialogue.DialogueBank
 import ai.allo.car.ui.*
+import ai.allo.car.BuildConfig
+import ai.allo.car.voice.PlazaCloudVoice
 
 /** UI fixtures plus explicit local-demo transport; never a real vehicle/Firebase adapter. */
 class PreviewActivity : ComponentActivity() {
@@ -24,6 +28,10 @@ class PreviewActivity : ComponentActivity() {
     override fun onPause() { demoActive = false; super.onPause() }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Preview has no Firebase sign-in: cloud plaza voice only with a debug loopback gateway + dev token.
+        PlazaCloudVoice.configure(BuildConfig.ALLO_TTS_BASE_URL, BuildConfig.ALLO_TTS_VOICE_REVISION, BuildConfig.DEBUG,
+            PlazaCloudVoice.tokenSupplier(BuildConfig.ALLO_TTS_BASE_URL, BuildConfig.DEBUG,
+                BuildConfig.ALLO_TTS_DEV_TOKEN) { "" })
         if (intent.getBooleanExtra("localDemo", false)) {
             setContent { AlloTheme { LocalFishingDemo(active = demoActive) } }
             return
@@ -67,11 +75,11 @@ class PreviewActivity : ComponentActivity() {
                     totalRecords = if (route == PleosRoute.Reward) 3 else null,
                 )
                 Surface(Modifier.fillMaxSize()) {
-                    Column(Modifier.windowInsetsPadding(WindowInsets.safeDrawing)) {
-                        Text("UI 미리보기 · 테스트 데이터 · 실차/폰 연동 아님",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp,
-                            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant).padding(8.dp))
-                        if (intent.getBooleanExtra("controls", true)) {
+                    val controls = intent.getBooleanExtra("controls", true)
+                    Box {
+                    // Without the fixture controls the screen gets the whole window, as on the vehicle.
+                    Column(if (controls) Modifier.windowInsetsPadding(WindowInsets.safeDrawing) else Modifier) {
+                        if (controls) {
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             PleosRoute.entries.forEach { candidate ->
@@ -113,6 +121,12 @@ class PreviewActivity : ComponentActivity() {
                                 }
                             }
                         }
+                    }
+                    Text("UI 미리보기 · 테스트 데이터 · 실차/폰 연동 아님",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp,
+                        modifier = Modifier.align(Alignment.BottomStart).windowInsetsPadding(WindowInsets.safeDrawing).padding(6.dp)
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .85f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp))
                     }
                 }
             }

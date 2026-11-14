@@ -18,6 +18,7 @@ import '../game/game_controller.dart';
 import '../pairing/pairing_credentials.dart';
 import 'unity_demo_creatures.dart';
 import '../scene/window_scene.dart';
+import '../story/story_voice_config.dart';
 
 const _nativeInput = MethodChannel('allo/egg-input');
 const _companionVoice = MethodChannel('allo/companion-voice');
@@ -703,6 +704,16 @@ class UnityAppController extends ChangeNotifier {
     }
     if (decoded is! Map<String, dynamic>) return false;
     final m = decoded;
+    if (m['v'] == 1 && m['type'] == 'storyVoiceConfigRequest') {
+      final requestId = m['requestId'];
+      if (requestId is! String ||
+          !RegExp(r'^[a-f0-9]{32}$').hasMatch(requestId)) {
+        return false;
+      }
+      final response = await StoryVoiceConfig.reply(requestId);
+      if (!_disposed) _send?.call(jsonEncode(response));
+      return true;
+    }
     if (m['v'] == 1 && m['type'] == 'appLifecycle' && m['active'] is bool) {
       final active = m['active'] as bool;
       if (_unityActive && !active && !_nativeCompanionSpeech) {

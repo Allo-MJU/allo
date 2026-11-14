@@ -56,6 +56,32 @@ void main() {
     camp.dispose();
   });
 
+  test('voice configuration is transient and leaves game story unchanged',
+      () async {
+    final sent = <Map<String, dynamic>>[];
+    app.attach((json) => sent.add(jsonDecode(json) as Map<String, dynamic>));
+    final before = jsonEncode(app.snapshot);
+    const requestId = '0123456789abcdef0123456789abcdef';
+    expect(
+        await app.handleMessage(jsonEncode({
+          'v': 1,
+          'type': 'storyVoiceConfigRequest',
+          'requestId': requestId,
+        })),
+        isTrue);
+    expect(sent.last['type'], 'storyVoiceConfig');
+    expect(sent.last['requestId'], requestId);
+    expect(sent.last['token'], '');
+    expect(jsonEncode(app.snapshot), before);
+    expect(
+        await app.handleMessage(jsonEncode({
+          'v': 1,
+          'type': 'storyVoiceConfigRequest',
+          'requestId': '../../bad',
+        })),
+        isFalse);
+  });
+
   test('window story experiment never initializes or offers in the new cabin',
       () async {
     expect(app.snapshot['story'], isNull);
