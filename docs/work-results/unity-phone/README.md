@@ -41,3 +41,15 @@ Local integration now includes dev `c15c12e` through #120, preserving 3D charact
 ## Trip egg and server-owned character dialogue — 2026-11-14
 
 Pairing now prepares at most one egg for a trip; incomplete eggs carry into the next trip without another grant. Repeating grants and cabin selectors are removed. Owned friends are summoned from Friends; tapping their actual cabin character opens a head-anchored server invitation. Personal story progression and personas execute on the backend; APK contains an ID-only manifest. Flutter479/core93/Unity189/server48 and vehicle fixture2 checks passed. The updated APK was installed without clearing data and its server invitation/story/next flow was observed. See [current verification](../../verification/2026-11-14-trip-egg-companion-invitation.md) and [setup](../../companion-learning-local-setup.md).
+
+## Cabin pairing, direct conversation and action sheet — 2026-11-14
+
+The unpaired cabin now opens with only a vehicle-connect action. Pairing opens the Flutter QR camera or accepts credentials, then prepares the trip egg. Friends are summoned explicitly from the Dex; their care and server-owned conversation stay independent from egg affinity. A single rounded `행동` button opens grouped egg/friend choices.
+
+Flutter500/core93/Unity220/server53 passed. Fresh export and debug APK were installed on API36 without clearing data. Actual QR camera entry/cancel returned to Unity; manual synthetic pairing prepared an egg. Egg petting with a buddy present raised affinity to3; buddy petting left it at3. Actual character tap opened the conversation composer and honest key-unconfigured error. No live model was invoked. See [verification](../../verification/2026-11-14-cabin-pairing-direct-conversation.md) and [screenshot](cabin-direct-conversation/07-actions-sheet.png).
+
+## Directional toss and double-tap relocation — 2026-11-14
+
+The previous action sheet is replaced by four illustrated circles and a held item. Up/left/right/diagonal swipes throw toward the release position with bounded velocity follow-through. Double-tap arms free relocation; ordinary drops have no reward, while fixed cushion/blanket drops use existing care approval. Single-tap conversation waits briefly for the second tap. The QR connection action occupies the cabin title position.
+
+Final Unity EditMode236 and UI raycast PlayMode1 passed. Final export/APK build and API36 data-preserving install succeeded. Actual forward and horizontal left/right ball flights, landing and care submission were observed with a stable camera. [Verification and limits](../../verification/2026-11-14-cabin-toss-and-rest.md), [left toss](cabin-toss-and-rest/07-left-toss.png), [right toss](cabin-toss-and-rest/08-right-toss.png).

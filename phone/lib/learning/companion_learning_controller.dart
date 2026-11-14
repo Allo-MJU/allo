@@ -63,6 +63,7 @@ class CompanionLearningController extends ChangeNotifier {
   String _profile = '',
       _creatureId = '',
       _text = '',
+      _lastUserText = '',
       _source = '',
       _error = '',
       _title = '';
@@ -110,6 +111,7 @@ class CompanionLearningController extends ChangeNotifier {
         'sceneId': _progress?.sceneId ?? '',
         'title': _title,
         'text': _text,
+        'lastUserText': _lastUserText,
         'source': _source,
         'error': _error,
         'busy': _busy,
@@ -136,7 +138,10 @@ class CompanionLearningController extends ChangeNotifier {
       _title = '';
       _source = '';
     }
-    if (clearHistory) _history.clear();
+    if (clearHistory) {
+      _history.clear();
+      _lastUserText = '';
+    }
     unawaited(_stopSafely());
   }
 
@@ -175,7 +180,7 @@ class CompanionLearningController extends ChangeNotifier {
   void setActive(bool value) {
     if (_disposed || _active == value) return;
     _active = value;
-    if (!value) invalidate();
+    if (!value) invalidate(clearHistory: false);
     _notify();
   }
 
@@ -300,6 +305,20 @@ class CompanionLearningController extends ChangeNotifier {
 
   String _requestId() =>
       'turn_${DateTime.now().microsecondsSinceEpoch}_${++_turnSequence}';
+  Future<bool> openConversation({String? requestId}) async {
+    if (!_active || _disposed || _recording || _creatureId.isEmpty) {
+      return false;
+    }
+    invalidate(clearHistory: false);
+    _conversationMode = 'chat';
+    if (_story == null) {
+      _error = '이 친구의 대화는 준비 중이에요. 함께 놀 수 있어요.';
+      _notify();
+      return false;
+    }
+    return _turn('greet', requestId: requestId ?? _requestId());
+  }
+
   Future<bool> openInvitation({String? requestId}) async {
     if (!_active || _disposed || _recording || _creatureId.isEmpty) {
       return false;
@@ -347,7 +366,9 @@ class CompanionLearningController extends ChangeNotifier {
   Future<bool> _turn(String action,
       {String text = '', required String requestId}) async {
     if (!_canTalk ||
-        action != 'repeat' &&
+        action != 'greet' &&
+            action != 'chat' &&
+            action != 'repeat' &&
             action != 'invite' &&
             action != 'listen' &&
             _needsRestart ||
@@ -388,7 +409,7 @@ class CompanionLearningController extends ChangeNotifier {
           canNext = response['canNext'];
       final expectedMode = action == 'invite'
           ? 'menu'
-          : action == 'chat'
+          : (action == 'chat' || action == 'greet')
               ? 'chat'
               : 'story';
       if (['requestId', 'creatureId', 'speciesId', 'storyId', 'version']
@@ -398,7 +419,8 @@ class CompanionLearningController extends ChangeNotifier {
           action != 'next' && scene != progress.sceneId ||
           mode != expectedMode ||
           source is! String ||
-          !{'authored', 'ai'}.contains(source) ||
+          source !=
+              ((action == 'chat' || action == 'greet') ? 'ai' : 'authored') ||
           title is! String ||
           title.runes.length > 200 ||
           canNext is! bool ||
@@ -409,7 +431,7 @@ class CompanionLearningController extends ChangeNotifier {
           parent && action != 'chat') {
         throw const FormatException('Invalid companion turn');
       }
-      if (action != 'invite') {
+      if (!{'invite', 'greet'}.contains(action)) {
         final saved = await _save(
             progress.copy(
               sceneId: scene,
@@ -426,6 +448,7 @@ class CompanionLearningController extends ChangeNotifier {
         _completedRequests.remove(_completedRequests.first);
       }
       if (action == 'chat') {
+        _lastUserText = text.trim();
         _history.addAll([
           {'role': 'user', 'text': text.trim()},
           {'role': 'assistant', 'text': answer}
@@ -443,7 +466,7 @@ class CompanionLearningController extends ChangeNotifier {
       if (!_current(generation)) return false;
       _text = '';
       _source = '';
-      _error = '이야기에 연결하지 못했어요. 잠시 뒤 다시 눌러 주세요.';
+      _error = '대화에 연결하지 못했어요. 잠시 뒤 다시 눌러 주세요.';
       return false;
     } finally {
       if (_current(generation)) {

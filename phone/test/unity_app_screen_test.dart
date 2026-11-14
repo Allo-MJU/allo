@@ -5,6 +5,7 @@ import 'package:allo_phone/explore/explore_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'session_resume_test.dart' show sessionA;
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -39,6 +40,24 @@ void main() {
     }
     expect(messages.where((m) => m['type'] == 'app').last['ready'], true);
     expect(messages.where((m) => m['type'] == 'app').last['canStart'], false);
+    expect(messages.where((m) => m['type'] == 'app').last['connected'], false);
+    receive(jsonEncode({
+      'v': 1,
+      'type': 'appAction',
+      'requestId': 'explicit-pair',
+      'action': 'pair',
+      'sessionId': sessionA,
+      'pairCode': '123456'
+    }));
+    for (var i = 0;
+        i < 500 &&
+            !messages.any((m) => m['type'] == 'app' && m['connected'] == true);
+        i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)));
+      await tester.pump();
+    }
+    expect(messages.where((m) => m['type'] == 'app').last['connected'], true);
     receive('{"v":1,"type":"appAction","requestId":"end","action":"endTrip"}');
     await tester.pumpAndSettle();
     for (var i = 0;

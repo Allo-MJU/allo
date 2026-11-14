@@ -10,10 +10,11 @@ namespace Allo.App
     public sealed partial class AppUi : MonoBehaviour
     {
         RectTransform _safe, _content;
-        StoryOverlay _storyOverlay;
         bool _lastStoryUiBlocked, _lastLearningUiBlocked;
+        public bool CabinGesturesBlocked => StoryUiBlocked || _nativeSpeechHidden || _state?.learning?.recording == true;
         public bool StoryUiBlocked => View == "cabin" && (_speechDrawer || _zoneDrawer || _confirmAction != null);
         Text _title, _connection, _status;
+        Button _pairingTitle;
         Image _statusSurface;
         Font _font;
         Sprite _round;
@@ -38,9 +39,6 @@ namespace Allo.App
             if (_font == null) _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             _round = RoundedSprite();
             BuildChrome();
-            _storyOverlay = gameObject.AddComponent<StoryOverlay>();
-            _storyOverlay.Initialize(_safe, _font, _round);
-            _storyOverlay.LayoutChanged += () => _dirty = true;
         }
 
         void OnEnable()
@@ -55,6 +53,13 @@ namespace Allo.App
         void OnApplicationFocus(bool focused) { OnCompanionForegroundChanged(focused); }
         void OnState(AppState state)
         {
+            if (state != null && state.view == "cabin" &&
+                (!state.connected || state.egg?.active != true || _state?.egg?.id != state.egg?.id))
+            {
+                // An expired or replaced egg no longer owns its drawer or discard confirmation.
+                _speechDrawer = _zoneDrawer = false;
+                _confirmAction = null; _confirmTitle = null; _confirmDescription = null;
+            }
             OnLearningTargetChanged(state);
             SyncNativeCompanionSpeech(state);
             SyncVillageCharacter(state);
@@ -65,14 +70,14 @@ namespace Allo.App
         void LateUpdate()
         {
             ApplySafeArea();
-            if (_storyOverlay != null) _storyOverlay.Apply(_state, StoryUiBlocked);
+            // Window-story experiments remain standalone; this app owns direct conversation only.
             var storyBlocked = StoryUiBlocked;
             if (storyBlocked != _lastStoryUiBlocked)
             {
                 _lastStoryUiBlocked = storyBlocked;
                 AppSession.Request("storyUiBlocked", new AppAction { blocked = storyBlocked });
             }
-            var learningBlocked = StoryUiBlocked || (_storyOverlay != null && _storyOverlay.ShowingNotebook);
+            var learningBlocked = StoryUiBlocked;
             if (learningBlocked != _lastLearningUiBlocked)
             {
                 _lastLearningUiBlocked = learningBlocked;
@@ -110,6 +115,11 @@ namespace Allo.App
             var crest = Button(header, "ALLO", () => Navigate("home"), Color.clear, 40, true, 24);
             Stretch((RectTransform)crest.transform, 10, 7, 110, -7, Vector2.zero, new Vector2(0, 1)); crest.GetComponent<Outline>().enabled = false; _nav["home"] = crest;
             _title = Label(header, "우리의 마을", 24, TextAnchor.MiddleLeft); _title.color = Cream; Stretch(_title.rectTransform, 124, 0, -780, 0);
+            _pairingTitle = Button(header, "차량 QR 연결하기", () => Navigate("pairing"), new Color(1, 1, 1, .10f), 44, true, 22);
+            Stretch((RectTransform)_pairingTitle.transform, 124, 7, 382, -7, Vector2.zero, new Vector2(0, 1));
+            SmoothCabinSurface(_pairingTitle.GetComponent<Image>());
+            _pairingTitle.GetComponent<Outline>().enabled = false;
+            _pairingTitle.GetComponentInChildren<Text>().color = Cream;
             var balances = Rect("Material HUD", header); Stretch(balances, -700, 7, -180, -7, new Vector2(1, 0), Vector2.one); Row(balances, 8);
             foreach (var id in new[] { "wood", "stone", "ingredient" })
             {
@@ -166,6 +176,12 @@ namespace Allo.App
         void UpdateChrome()
         {
             var view = View;
+            var emptyCabin = view == "cabin" && _state != null && _state.ready && !_state.connected;
+            _title.transform.parent.gameObject.SetActive(true);
+            _nav["cabin"].transform.parent.gameObject.SetActive(true);
+            _title.gameObject.SetActive(view != "cabin");
+            _pairingTitle.gameObject.SetActive(view == "cabin");
+            _pairingTitle.interactable = CanAct;
             _title.text = view == "home" ? "우리의 마을" : ViewTitle(view);
             var s = _state;
             _connection.text = s == null || !s.ready ? "불러오는 중" : s.busy ? "처리 중" : s.sessionEnded ? "여행 종료" : s.isDemo ? "체험 모드" : s.connected ? "차량 연결" : "연결하기";
@@ -173,7 +189,7 @@ namespace Allo.App
             var error = s != null && !string.IsNullOrEmpty(s.error);
             _statusSurface.color = error ? CoralLight : s != null && s.busy ? Sky : Cream;
             _status.text = s == null || !s.ready ? "마을을 불러오고 있어요." : error ? ErrorLabel(s.error) : s.busy ? "처리 중이에요. 잠시 기다려 주세요." : s.notice ?? "";
-            _statusSurface.gameObject.SetActive(s == null || !s.ready || error || s.busy || !string.IsNullOrEmpty(s.notice));
+            _statusSurface.gameObject.SetActive(!emptyCabin && (s == null || !s.ready || error || s.busy || !string.IsNullOrEmpty(s.notice)));
             foreach (var entry in _resourceTexts)
             {
                 var material = s == null ? null : Array.Find(Items(s.materials), m => m.id == entry.Key);
@@ -222,6 +238,7 @@ namespace Allo.App
                     case "dex": BuildDex(); break;
                     case "inventory": BuildInventory(); break;
                     case "settings": BuildSettings(); break;
+                    case "pairing": BuildPairing(); break;
                     default: BuildHome(); break;
                 }
             }
@@ -276,7 +293,7 @@ namespace Allo.App
                 default: return error;
             }
         }
-        static string ViewTitle(string view) => view == "cabin" ? "차 안에서 함께하기" : view == "camp" ? "함께 만드는 캠프" : view == "dex" ? "우리 친구 도감" : view == "inventory" ? "보급품 가방" : "연결과 설정";
+        static string ViewTitle(string view) => view == "pairing" ? "차량 연결하기" : view == "cabin" ? "차 안에서 함께하기" : view == "camp" ? "함께 만드는 캠프" : view == "dex" ? "우리 친구 도감" : view == "inventory" ? "보급품 가방" : "연결과 설정";
         static string DefaultStatus(string view) => view == "home" ? "광장의 친구들과 함께, 다음 여행을 준비해요." : view == "cabin" ? "알을 쓰다듬고 말을 걸며 가까워져요." : view == "camp" ? "건설 · 요리 · 훈련은 각 담당 친구와 함께 진행해요." : view == "inventory" ? "여행에서 모은 재료와 완성한 요리를 확인해요." : view == "dex" ? "함께한 친구를 골라 요리와 배운 행동을 확인해요." : "차량에 표시된 세션 ID와 페어링 코드를 입력해 주세요.";
     }
 }

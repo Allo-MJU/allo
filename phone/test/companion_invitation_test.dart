@@ -104,7 +104,7 @@ void main() {
     expect(await action('startEgg', {'tier': 'large'}), false);
   });
   test(
-      'exact hit opens two-choice invitation and gates old story and chat actions',
+      'exact hit opens direct AI dialogue and rejects legacy menu and story actions',
       () async {
     await action('selectCarCompanion', {'creatureId': target});
     expect(await action('storyRepeat', {'creatureId': target}), false);
@@ -118,18 +118,14 @@ void main() {
         false);
     expect(await action('companionTapped', identity()), true,
         reason: learning.snapshot.toString());
-    expect(learning.snapshot['invitationOpen'], true);
-    expect(learning.snapshot['conversationMode'], 'menu');
-    expect(learning.snapshot['invitationText'], '나한테 궁금한 게 있는 거야?');
-    expect(spoken, ['나한테 궁금한 게 있는 거야?']);
-    expect(await action('listenStory', identity()), true);
-    expect(learning.snapshot['conversationMode'], 'story');
-    expect(learning.snapshot['text'], '작은 씨앗을 찾았어.');
-    expect(await action('storyNext', {'creatureId': target}), true);
-    expect(learning.snapshot['sceneId'], 'water');
-    expect(await action('companionTapped', identity()), true);
-    expect(await action('talkToCompanion', identity()), true);
+    expect(learning.snapshot['invitationOpen'], false);
     expect(learning.snapshot['conversationMode'], 'chat');
+    expect(learning.snapshot['invitationText'], '');
+    expect(learning.snapshot['source'], 'ai');
+    expect(spoken, ['물은 씨앗이 자라는 데 필요해.']);
+    expect(await action('listenStory', identity()), false);
+    expect(await action('storyNext', {'creatureId': target}), false);
+    expect(await action('talkToCompanion', identity()), false);
     expect(
         await action('companionChat', {...identity(), 'text': '물은 왜?'}), true);
     expect(requests, hasLength(1));
@@ -140,7 +136,6 @@ void main() {
     for (final change in ['close', 'notebook', 'target']) {
       await action('selectCarCompanion', {'creatureId': target});
       await action('companionTapped', identity());
-      await action('talkToCompanion', identity());
       answer = Completer<Map<String, dynamic>>();
       final pending = action('companionChat', {...identity(), 'text': '늦은 질문'});
       await Future<void>.delayed(Duration.zero);
@@ -165,7 +160,7 @@ void main() {
     }
   });
   test(
-      'owned friend with no story receives an honest preparation message on tap',
+      'owned friend absent from injected conversation catalog receives honest preparation error',
       () async {
     await game.dex.add(DexEntry(
         speciesId: 'breeze_wyrm',
@@ -180,8 +175,8 @@ void main() {
     expect(await action('selectCarCompanion', {'creatureId': friend.id}), true);
     expect(spoken, isEmpty);
     final hit = {'creatureId': friend.id, 'speciesId': friend.speciesId};
-    expect(await action('companionTapped', hit), true);
-    expect(learning.snapshot['conversationMode'], 'menu');
+    expect(await action('companionTapped', hit), false);
+    expect(learning.snapshot['conversationMode'], 'chat');
     expect(learning.snapshot['available'], false);
     expect(learning.snapshot['error'], contains('준비 중'));
     expect(await action('listenStory', hit), false);

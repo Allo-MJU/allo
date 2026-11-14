@@ -37,7 +37,7 @@ def main():
         raise SystemExit('Run with server/affinity/.venv/bin/python after installing requirements.') from None
     print('Starting emulator API on 127.0.0.1:8787. Keep this terminal open; Ctrl+C stops it.')
     if keyless:
-        print('Authored dialogue mode: server stories work; generated AI chat is unavailable.')
+        print('Keyless mode: pairing/legacy authored API checks work; new direct greet/chat requires an API key.')
     app.main()
 
 

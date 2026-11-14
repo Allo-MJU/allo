@@ -60,14 +60,14 @@ Map<String, dynamic> reply(Map<String, dynamic> request,
     'canNext': scene != 'water',
     'mode': action == 'invite'
         ? 'menu'
-        : action == 'chat'
+        : (action == 'chat' || action == 'greet')
             ? 'chat'
             : 'story',
-    'source': action == 'chat' ? 'ai' : 'authored',
+    'source': (action == 'chat' || action == 'greet') ? 'ai' : 'authored',
     'parentPromptUsed': parent,
     'text': action == 'invite'
         ? '나한테 궁금한 게 있는 거야?'
-        : action == 'chat'
+        : (action == 'chat' || action == 'greet')
             ? '물은 씨앗이 자라는 데 필요해.'
             : scene == 'water'
                 ? '씨앗에 물을 주었어.'
@@ -297,6 +297,51 @@ void main() {
     expect(await controller.listenStory(), true);
     expect(controller.snapshot['conversationMode'], 'story');
     expect(store.data['real/one']!['storyId'], 'garden');
+  });
+  test(
+      'presentation suspension preserves completed dialogue and cancels pending output',
+      () async {
+    final pendingReply = Completer<Map<String, dynamic>>();
+    late Map<String, dynamic> pendingBody;
+    controller.dispose();
+    controller = CompanionLearningController(
+        catalog: catalog(),
+        store: store,
+        request: (body) async {
+          requests.add(body);
+          if (body['requestId'] == 'pending-care') {
+            pendingBody = body;
+            return pendingReply.future;
+          }
+          return reply(body);
+        },
+        speak: (text) async {
+          spoken.add(text);
+        },
+        stop: () async {});
+    controller.setContext(profile: 'real', creatures: owned, active: true);
+    await controller.select('one');
+    await controller.openConversation(requestId: 'before-care');
+    await controller.chat('화분이 궁금해', requestId: 'completed-care');
+    final completedHistory = controller.history;
+    final pending = controller.chat('늦은 질문', requestId: 'pending-care');
+    await Future<void>.delayed(Duration.zero);
+    spoken.clear();
+    controller.setActive(false);
+    pendingReply.complete(reply(pendingBody));
+    expect(await pending, false);
+    expect(spoken, isEmpty);
+    expect(controller.history, completedHistory);
+    expect(controller.conversationMode, 'closed');
+    controller.setActive(true);
+    expect(await controller.openConversation(requestId: 'after-care'), true);
+    expect(requests.last['history'], completedHistory);
+    expect(await controller.chat('그럼 물은?', requestId: 'followup-care'), true);
+    expect(requests.last['history'], completedHistory);
+    expect(controller.history, hasLength(4));
+    controller.invalidate();
+    expect(controller.history, isEmpty);
+    expect(controller.snapshot['lastUserText'], '');
   });
   test('unconfigured backend fails honestly and leaves scene unchanged',
       () async {

@@ -67,6 +67,85 @@ class LearningHttpTests(unittest.TestCase):
         fields.update(updates)
         return self.request(body(**fields), path='/v1/companion/turn')
 
+    def test_direct_greet_requires_provider_and_never_falls_back_to_authored_story(self):
+        status, headers, result = self.turn('greet')
+        self.assertEqual((status, result), (503, {'error': 'learning_unavailable'}))
+        self.assertEqual(headers['Cache-Control'], 'no-store')
+
+    def test_direct_greet_and_followup_use_persona_full_fixed_background_and_real_history(self):
+        captured = []
+        self.install_provider(lambda messages: captured.append(messages) or
+                              {'text': '안녕! 오늘은 어떤 기분이야?', 'offerParentPrompt': False})
+        history = [{'role': 'user', 'text': '나는 오늘 좀 졸려'},
+                   {'role': 'assistant', 'text': '나도 가끔 조용히 쉬고 싶어.'}]
+        for action, text in [('greet', ''), ('chat', '너도 쉬어?')]:
+            status, _, reply = self.turn(action, text=text, history=history)
+            self.assertEqual(status, 200)
+            self.assertEqual((reply['mode'], reply['source'], reply['sceneId']), ('chat', 'ai', 'seed'))
+            system = captured[-1][0]['content']
+            authored = json.loads(system.split('서버 작성 자료:\n', 1)[1])
+            story = self.server.learning.catalog['stories'][0]
+            self.assertEqual(authored['persona'], story['persona'])
+            self.assertNotIn('currentScene', authored)
+            self.assertEqual([scene['text'] for scene in authored['fixedBackground']],
+                             [scene['text'] for scene in story['scenes']])
+            self.assertEqual(authored['knowledge'], story['knowledge'])
+            self.assertIn('낭독하지 않는다', system)
+            self.assertIn('10세', system)
+            user = json.loads(captured[-1][-1]['content'])
+            self.assertEqual(user['recentDialogue'], history)
+            self.assertEqual(user['currentText'], text)
+            self.assertEqual(user['action'], action)
+            self.assertNotIn(history[0]['text'], system)
+
+    def test_direct_chat_can_offer_catalog_parent_prompt_without_advancing_a_chapter(self):
+        self.install_provider(lambda messages: {'text': '물길이 궁금하구나.', 'offerParentPrompt': True})
+        status, _, reply = self.turn('chat', text='식물 물길이 궁금해', allowParentPrompt=True)
+        self.assertEqual(status, 200)
+        self.assertTrue(reply['parentPromptUsed'])
+        self.assertEqual(reply['sceneId'], 'seed')
+        self.assertIn('운전하지 않는 보호자', reply['text'])
+
+    def test_greetings_do_not_count_as_child_exchanges_or_offer_parent_prompts(self):
+        self.install_provider(lambda messages: {'text': '함께 얘기해 보자.', 'offerParentPrompt': True})
+        fields = {'sceneId': 'water', 'allowParentPrompt': True}
+        self.assertTrue(self.turn('chat', requestId='first-child', text='물', **fields)[2]['parentPromptUsed'])
+        for index in range(12):
+            self.assertFalse(self.turn('greet', requestId='hello-%d' % index, **fields)[2]['parentPromptUsed'])
+        self.assertFalse(self.turn('chat', requestId='second-child', text='뿌리', **fields)[2]['parentPromptUsed'])
+        state = next(iter(self.server.learning._turn_states.values()))
+        self.assertEqual(state['completed'], 2)
+
+    def test_all_six_hatchable_legacy_characters_have_distinct_conversation_only_profiles(self):
+        captured = []
+        self.install_provider(lambda messages: captured.append(messages) or
+                              {'text': '안녕, 함께 이야기하자.', 'offerParentPrompt': False})
+        ids = ['bridge_hopper', 'mountain_sprite', 'river_glider',
+               'tide_keeper', 'tunnel_moth', 'star_owl']
+        personas = []
+        for species in ids:
+            fields = {'speciesId': species, 'storyId': 'legacy_%s_conversation' % species,
+                      'sceneId': 'conversation', 'creatureId': species}
+            for action in ('greet', 'chat'):
+                with self.subTest(species=species, action=action):
+                    status, _, reply = self.turn(action, text='' if action == 'greet' else '어디에서 태어났어?', **fields)
+                    self.assertEqual(status, 200)
+                    self.assertEqual((reply['mode'], reply['source'], reply['canNext']), ('chat', 'ai', False))
+                    authored = json.loads(captured[-1][0]['content'].split('서버 작성 자료:\n', 1)[1])
+                    self.assertEqual(authored['persona']['age'], 10)
+                    self.assertEqual(authored['fixedBackground'], [])
+                    self.assertIn('제공되지 않', authored['backgroundAvailability'])
+                    self.assertEqual(len(authored['knowledge']), 22)
+                    self.assertEqual(len({item['id'] for item in authored['knowledge']}), 22)
+                    self.assertNotIn('currentScene', authored)
+                    if action == 'greet':
+                        personas.append(json.dumps(authored['persona'], ensure_ascii=False))
+            for action in ('invite', 'listen', 'next', 'repeat'):
+                self.assertEqual(self.turn(action, **fields)[0], 404)
+        self.assertEqual(len(set(personas)), 6)
+        unknown = dict(fields, speciesId='unrecognized_friend')
+        self.assertEqual(self.turn('greet', **unknown)[0], 404)
+
     def test_turn_invitation_uses_backend_menu_without_a_provider(self):
         status, headers, result = self.turn()
         self.assertEqual(status, 200)
@@ -415,7 +494,12 @@ class LearningContentTests(unittest.TestCase):
         expected = [{key: story[key] for key in ('speciesId', 'storyId', 'version', 'name', 'firstSceneId')}
                     | {'scenes': [{'id': scene['id']} for scene in story['scenes']]}
                     for story in catalog['stories']]
+        legacy = json.loads((ROOT / 'data/companion_learning/legacy_personas.json').read_text())
+        expected += [{'speciesId': item['speciesId'], 'storyId': 'legacy_%s_conversation' % item['speciesId'],
+                      'version': 1, 'name': item['name'], 'firstSceneId': 'conversation',
+                      'scenes': [{'id': 'conversation'}]} for item in legacy['profiles']]
         self.assertEqual(manifest['stories'], expected)
+        self.assertEqual(len(expected), 18)
 
 
 class LearningProviderTests(unittest.TestCase):

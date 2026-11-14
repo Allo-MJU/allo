@@ -67,6 +67,7 @@ Future<void> main(List<String> args) async {
       await File('assets/data/companion_learning.json').readAsString(),
     ) as Map<String, dynamic>;
     final stories = catalog['stories'] as List;
+    var authoredStories = 0;
     for (final story in stories) {
       final request = <String, dynamic>{
         'requestId': 'learning-${story['speciesId']}',
@@ -79,6 +80,34 @@ Future<void> main(List<String> args) async {
         'history': <Object>[],
         'allowParentPrompt': false,
       };
+      for (final action in ['greet', 'chat']) {
+        final directRequest = <String, dynamic>{
+          ...request,
+          'requestId': 'direct-${story['speciesId']}-$action',
+          'action': action,
+          'text': action == 'greet' ? '' : '앞에서 한 이야기를 이어서 말해줘.',
+        };
+        final direct = await first.companionTurn(directRequest);
+        for (final key in [
+          'requestId',
+          'creatureId',
+          'speciesId',
+          'storyId',
+          'version',
+          'sceneId'
+        ]) {
+          if (direct[key] != directRequest[key]) {
+            throw StateError('direct conversation context');
+          }
+        }
+        if (direct['mode'] != 'chat' ||
+            direct['source'] != 'ai' ||
+            direct['text'] != '작은 씨앗을 함께 관찰해 보자.') {
+          throw StateError('direct conversation response');
+        }
+      }
+      if ((story['storyId'] as String).startsWith('legacy_')) continue;
+      authoredStories++;
       final answer = await first.companionChat(request);
       for (final key in [
         'requestId',
@@ -131,8 +160,10 @@ Future<void> main(List<String> args) async {
         'photoGateReward': 65,
         'rampedScore': 77,
         'hatched': true,
-        'companionStoriesChecked': stories.length,
-        'serverOwnedTurnsChecked': stories.length * 4,
+        'companionProfilesChecked': stories.length,
+        'authoredStoriesChecked': authoredStories,
+        'serverOwnedTurnsChecked': authoredStories * 4,
+        'directDialogueTurnsChecked': stories.length * 2,
         'provider': 'injected synthetic evaluator, no live model',
       }),
     );

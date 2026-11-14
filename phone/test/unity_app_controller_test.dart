@@ -129,7 +129,7 @@ void main() {
     camp.dispose();
   });
   test(
-      'demo boots automatically and legacy start stays rejected after trip end',
+      'explicit demo pairing grants one egg and legacy start stays rejected after trip end',
       () async {
     app.dispose();
     game.dispose();
@@ -138,6 +138,9 @@ void main() {
     game = GameController(feed: fake, dex: dex, monotonicMs: () => 0);
     app = UnityAppController(game: game, camp: camp);
     await app.initialize();
+    expect(game.eggId, isNull);
+    expect(await action('pair', {'sessionId': sessionA, 'pairCode': '123456'}),
+        true);
     await action('navigate', {'view': 'cabin'});
     expect(game.eggId, isNotNull);
     expect(await action('startEgg', {'tier': 'small'}), isFalse);
@@ -178,6 +181,9 @@ void main() {
         monotonicMs: () => 0);
     app = UnityAppController(game: game, camp: camp);
     await app.initialize();
+    expect(game.eggId, isNull);
+    expect(await action('pair', {'sessionId': sessionA, 'pairCode': '123456'}),
+        true);
     await action('navigate', {'view': 'cabin'});
     expect(game.eggId, isNotNull);
     expect(await action('startEgg', {'tier': 'small'}), isFalse);
@@ -267,6 +273,7 @@ void main() {
       'error',
       'notice',
       'connected',
+      'pairingScanAvailable',
       'isDemo',
       'canStart',
       'sessionEnded',
