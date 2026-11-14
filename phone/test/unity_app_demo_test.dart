@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:allo_core/allo_core.dart';
 import 'package:allo_phone/app.dart';
@@ -20,30 +21,34 @@ void main() {
   Future<Map<String, dynamic>> launch(WidgetTester tester, VehicleFeed feed,
       {required bool enabled}) async {
     rootBundle.evict('assets/data/species.json');
-    final messages = <Map<String, dynamic>>[];
+    rootBundle.evict('assets/data/characters.json');
+    rootBundle.evict('assets/data/window_stories_ko.json');
+    rootBundle.evict('assets/data/companion_learning.json');
+    final ready = Completer<Map<String, dynamic>>();
     await tester.pumpWidget(AlloApp(
         feed: feed,
         useUnityApp: true,
         demoCreatures: enabled,
         unityView: ({required onCreated, required onMessage}) {
           receive = onMessage;
-          onCreated(
-              (json) => messages.add(jsonDecode(json) as Map<String, dynamic>));
+          onCreated((json) {
+            final message = jsonDecode(json) as Map<String, dynamic>;
+            if (!ready.isCompleted &&
+                message['type'] == 'app' &&
+                (message['ready'] == true || message['error'] != '')) {
+              ready.complete(message);
+            }
+          });
           return const SizedBox();
         }));
     await tester.pumpAndSettle();
     receive('{"type":"ready"}');
-    // Initialization includes asset/plugin I/O that does not schedule a frame.
-    for (var attempt = 0; attempt < 100; attempt++) {
-      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
-      await tester.pump();
-      final current = messages.where((m) => m['type'] == 'app').last;
-      if (current['ready'] == true || current['error'] != '') {
-        expect(current['ready'], isTrue, reason: current['error'] as String);
-        return current;
-      }
-    }
-    fail('Unity demo initialization did not finish');
+    // Wait for the published result while asset/plugin I/O runs on real time.
+    final current = await tester
+        .runAsync(() => ready.future.timeout(const Duration(seconds: 5)));
+    expect(current!['ready'], isTrue, reason: current['error'] as String);
+    await tester.pump();
+    return current;
   }
 
   Future<void> close(WidgetTester tester) async {

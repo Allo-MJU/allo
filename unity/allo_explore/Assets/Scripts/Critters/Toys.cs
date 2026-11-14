@@ -379,7 +379,7 @@ namespace Allo.Critters
         static Material ToonFor(Color color)
         {
             if (_byColor.TryGetValue(color, out var m) && m != null) return m;
-            _toon ??= new Material(Shader.Find("Allo/Toon"));
+            if (_toon == null) _toon = new Material(Shader.Find("Allo/Toon"));
             m = new Material(_toon) { color = color };
             m.SetFloat("_OutlineWidth", 0.003f);
             m.SetFloat("_HiSize", 0.25f);

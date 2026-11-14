@@ -56,6 +56,16 @@ public class PropModelTests
     }
 
     [Test]
+    public void DestroyedSharedTemplateIsRecreatedForShapeFallback()
+    {
+        Make(Toys.Kind.Cup);
+        var field = typeof(Toys).GetField("_toon", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Object.DestroyImmediate((Material)field.GetValue(null));
+        var cup = Make(Toys.Kind.Cup);
+        Assert.Greater(cup.GetComponentsInChildren<Renderer>().Length, 0);
+    }
+
+    [Test]
     public void KindsWithoutModelKeepShapes()
     {
         var cup = Make(Toys.Kind.Cup);

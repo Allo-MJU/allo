@@ -1,15 +1,17 @@
 """Runs the Dart client against the real local Python service, with synthetic evaluation."""
-import base64,importlib.util,io,os,subprocess,tempfile,threading,secrets,shutil
+import base64,importlib.util,io,os,subprocess,tempfile,threading,secrets,shutil,sys
 from pathlib import Path
 from PIL import Image
 root=Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(root/'server/affinity'))
 dart=os.environ.get('DART_BIN') or shutil.which('dart')
 if not dart: raise SystemExit('Set DART_BIN or put the Flutter Dart executable on PATH.')
 if not (root/'phone/.dart_tool/package_config.json').exists(): raise SystemExit('Run flutter pub get in phone/ first.')
 spec=importlib.util.spec_from_file_location('affinity_demo',root/'server/affinity/app.py');m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 with tempfile.TemporaryDirectory() as directory:
  token=secrets.token_urlsafe(32)
- server=m.create_server(token,directory,evaluate=lambda text:'positive')
+ server=m.create_server(token,directory,evaluate=lambda text:'positive',
+                        learning=m.LearningService(lambda messages: {'text':'작은 씨앗을 함께 관찰해 보자.', 'offerParentPrompt':False}))
  thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
  image=io.BytesIO();Image.new('RGB',(2,2),'blue').save(image,'PNG')
  env=dict(os.environ,SMOKE_ROOM_TOKEN=token,SMOKE_IMAGE=base64.b64encode(image.getvalue()).decode())

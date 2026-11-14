@@ -256,6 +256,7 @@ void main() {
       'photoAvailable',
       'story',
       'egg',
+      'learning',
       'materials',
       'facilities',
       'creatures',

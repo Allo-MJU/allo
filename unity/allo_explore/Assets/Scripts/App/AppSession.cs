@@ -15,6 +15,8 @@ namespace Allo.App
         public static AppState State { get; private set; }
         public static event Action<AppState> Changed;
         public static bool StoryActive => State?.view == "cabin" && State.story != null && State.story.active && !State.story.paused;
+        public static bool LearningActive => State?.view == "cabin" && State.learning != null && !string.IsNullOrEmpty(State.learning.creatureId);
+        public static bool DialogueOwned => StoryActive || LearningActive || StoryOverlay.CapturingInput;
         public static string CurrentView => State?.view ?? "home";
 
         public static AppBackAction BackActionFor(AppState state) => state == null
