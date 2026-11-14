@@ -68,6 +68,15 @@ public class AppUiTestPairingTests
         LogAssert.NoUnexpectedReceived();
     }
 
+    [TestCase(true, "테스트 연결됨")]
+    [TestCase(false, "차량 연결")]
+    public void ConnectionChipDistinguishesSuccessfulDemoAndVehicleConnections(bool demo, string label)
+    {
+        AppSession.Receive(new AppState { revision = 2, view = "cabin", ready = true, connected = true, isDemo = demo });
+        Call("OnState", AppSession.State); Call("UpdateChrome");
+        Assert.AreEqual(label, Get<Text>("_connection").text);
+    }
+
     void Receive(bool ready, bool busy, bool demo)
     {
         AppSession.Receive(new AppState { revision = 2, view = "pairing", ready = ready, busy = busy, isDemo = demo });

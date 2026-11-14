@@ -203,7 +203,7 @@ class UnityAppController extends ChangeNotifier {
       'phase': game.game.affinityPhase ?? r?.phase.name ?? game.game.stage.name,
       'feedback': game.eggFeedback.name,
       'remainingLabel': remaining == null
-          ? '차량 신호를 기다려요'
+          ? (game.vehicle == null ? '차량 신호를 기다려요' : '도착 시간 정보가 없어요')
           : '${(remaining / 60000).ceil()}분 남음',
       'active': active,
       'photoRequired': r?.phase == AffinityPhase.photoRequired,
@@ -231,7 +231,6 @@ class UnityAppController extends ChangeNotifier {
       'ready': _ready,
       'busy': _pending > 0 ||
           game.busy ||
-          camp.busy ||
           _nativeSpeech ||
           _nativePhoto ||
           _nativeCompanionSpeech,
@@ -610,6 +609,7 @@ class UnityAppController extends ChangeNotifier {
   static const _actions = {
     'navigate',
     'pair',
+    'testPair',
     'scanPairingQr',
     'disconnect',
     'refresh',
@@ -1102,14 +1102,19 @@ class UnityAppController extends ChangeNotifier {
     }
   }
 
-  Future<bool> _pair(PairingCredentials credentials) async {
+  Future<bool> _pair(PairingCredentials credentials,
+      {bool enterCabin = true}) async {
     if (_disposed || game.busy || game.endingSession) return false;
     final pairingView = view;
     final navigationGeneration = _navigationGeneration;
     final profile = '${game.dex.namespace}:${game.dex.profile}';
     // A repeated scan of the running demo must not toggle its live connection.
-    if (!game.isFake || !game.paired || game.sessionEnded) {
+    if (!game.isFake ||
+        !game.paired ||
+        game.sessionEnded ||
+        game.eggId == null) {
       await game.pair(credentials.sessionId, pairCode: credentials.code);
+      if (game.error != null) return false;
     }
     if (_disposed ||
         !game.paired ||
@@ -1118,11 +1123,49 @@ class UnityAppController extends ChangeNotifier {
     }
     _disconnected = false;
     _stoppedRoundTier = null;
-    if (view == pairingView && navigationGeneration == _navigationGeneration) {
+    if (enterCabin &&
+        view == pairingView &&
+        navigationGeneration == _navigationGeneration) {
       view = 'cabin';
     }
     _changed();
     return true;
+  }
+
+  Future<bool> _testPair() async {
+    if (!game.isFake ||
+        _scanningPairing ||
+        !{'pairing', 'settings'}.contains(view)) {
+      return false;
+    }
+    final generation = _navigationGeneration;
+    final credentials = PairingCredentials.parseFields(
+        '00000000-0000-4000-8000-000000000001', '000000');
+    if (game.sessionEnded && !game.sessionSaved && !await game.endSession()) {
+      return false;
+    }
+    if (_disposed || generation != _navigationGeneration) return false;
+    if (!await _pair(credentials, enterCabin: false)) return false;
+    final terminal = game.eggId == null ||
+        game.game.stage == Stage.failed ||
+        game.game.stage == Stage.hatched ||
+        game.affinityRound?.isTerminal == true;
+    if (!terminal) {
+      if (generation == _navigationGeneration) {
+        view = 'cabin';
+        _changed();
+      }
+      return true;
+    }
+    if (_disposed || generation != _navigationGeneration) return false;
+    // A test connection can begin a new demo trip after restoring a completed egg.
+    game.endFakeTrip();
+    if (!await game.endSession() ||
+        _disposed ||
+        generation != _navigationGeneration) {
+      return false;
+    }
+    return _pair(credentials);
   }
 
   Future<bool> _scanPairingQr() async {
@@ -1167,6 +1210,8 @@ class UnityAppController extends ChangeNotifier {
 
   Future<bool> _dispatch(Map<String, dynamic> m) async {
     switch (m['action']) {
+      case 'testPair':
+        return _testPair();
       case 'pair':
         if (_scanningPairing) return false;
         final p = PairingCredentials.parseFields(m['sessionId'], m['pairCode']);

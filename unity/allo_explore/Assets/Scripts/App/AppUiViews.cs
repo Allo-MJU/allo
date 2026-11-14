@@ -432,10 +432,7 @@ namespace Allo.App
             Copy(panel, _state.sessionEnded ? "이전 여행이 끝났어요. 차량에서 새로운 연결 정보를 확인해 주세요." : "차량 QR을 스캔하거나 세션 ID와 코드를 입력해 주세요.");
             if (_state.isDemo)
             {
-                Button(panel, "테스트 연결", () => Send("pair", new AppAction
-                {
-                    sessionId = "00000000-0000-4000-8000-000000000001", pairCode = "000000"
-                }), Mint, 54, CanAct, 23);
+                Button(panel, "테스트 연결", () => Send("testPair"), Mint, 54, CanAct, 23);
                 Note(panel, "실제 차량 없이 가상 주행으로 연결해요.");
             }
             Button(panel, "차량 QR 스캔", () => Send("scanPairingQr"), Yellow, 60, CanAct && _state.pairingScanAvailable, 23);

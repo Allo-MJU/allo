@@ -199,7 +199,7 @@ namespace Allo.App
             _pairingTitle.interactable = CanAct;
             _title.text = view == "home" ? "우리의 마을" : ViewTitle(view);
             var s = _state;
-            _connection.text = s == null || !s.ready ? "불러오는 중" : s.busy ? "처리 중" : s.sessionEnded ? "여행 종료" : s.isDemo ? "체험 모드" : s.connected ? "차량 연결" : "연결하기";
+            _connection.text = s == null || !s.ready ? "불러오는 중" : s.busy ? "처리 중" : s.sessionEnded ? "여행 종료" : s.isDemo ? (s.connected ? "테스트 연결됨" : "체험 모드") : s.connected ? "차량 연결" : "연결하기";
             _connection.color = Cream;
             var error = s != null && !string.IsNullOrEmpty(s.error);
             _statusSurface.color = error ? CoralLight : s != null && s.busy ? Sky : Cream;
