@@ -34,4 +34,10 @@
 
 증거 로그: `/tmp/allo-merged-edit.xml`, `/tmp/allo-merged-play.xml`, `/tmp/allo-merged-flutter.log`, `/tmp/allo-merged-core.log`, `/tmp/allo-merged-server.log`, `/tmp/allo-merged-book-capture.log`. 화면은 `docs/work-results/unity-phone/book-ui/`에 반영했다.
 
-이번 병합 결과를 APK로 새로 빌드·설치하거나 실제 차량에서 실행하지는 않았다. 기존 작업 문서의 Android 관찰 결과를 이번 통합 빌드의 실기기 검증으로 세지 않는다.
+## 후속 Android 에뮬레이터 실행
+
+같은 병합 커밋 `5ba48e1`에서 Unity Android 라이브러리 export와 debug APK 빌드를 완료했다(Gradle 100.5초). `ALLO_API_36` 에뮬레이터를 다시 켠 뒤 `adb install -r`로 기존 데이터를 유지하며 업데이트하고 cold launch했다. 실제 최상위 Activity가 UnityPlayerActivity임을 확인했으며 마을 화면과 기존 저장 수량·보유 친구가 표시되는 것을 캡처로 확인했다. AndroidRuntime/Unity 오류 로그도 확인했다.
+
+APK SHA-256: `8a1a3fd5d3e576e2160c1cbb859087540bdee22121646418d358c24056550677`.
+
+이는 Android 에뮬레이터 실행 확인이다. 실물 기기·실제 차량, 실제 AI 모델의 응답 품질은 검증 범위에 포함하지 않는다. APK·Unity export·비공개 로컬 설정은 Git에 추가하지 않았다.
