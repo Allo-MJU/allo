@@ -57,6 +57,7 @@ namespace Allo.App
         {
             OnLearningTargetChanged(state);
             SyncNativeCompanionSpeech(state);
+            SyncVillageCharacter(state);
             _state = state; _dirty = true;
             if (_villageLayer != null) _villageLayer.gameObject.SetActive(state != null && state.ready && (state.view == "home" || state.view == "camp"));
         }
@@ -125,7 +126,7 @@ namespace Allo.App
             Stretch(rail, -108, 16, -8, -78, new Vector2(1, 0), Vector2.one);
             var railLayout = Column(rail, 8); railLayout.childAlignment = TextAnchor.MiddleCenter;
             string[] ids = { "cabin", "camp", "dex", "inventory", "settings" };
-            string[] labels = { "차 안", "시설", "친구", "가방", "설정" };
+            string[] labels = { "차 안", "시설", "도감", "가방", "설정" };
             for (var i = 0; i < ids.Length; i++)
             {
                 var id = ids[i];
