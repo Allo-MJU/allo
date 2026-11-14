@@ -87,7 +87,7 @@ The UI is landscape and uses a height-matched 1600×720 reference canvas (`match
 
 ## Elevation & Depth
 
-Depth comes from the open-book illustration, spine, page edges and a dimmed reading backdrop. Content surfaces remain restrained and rely on tonal contrast and fine outlines rather than layered card shadows.
+Depth comes from the open-book illustration, spine and page edges. Behind the book, the same VillageArt/background landscape used by the camp fills the entire canvas with aspect-cover scaling and a 45% RGB tint. Only dex and inventory show this darkened landscape; the HUD and navigation remain above it at normal brightness. Content surfaces remain restrained and rely on tonal contrast and fine outlines rather than layered card shadows.
 
 ## Shapes
 

@@ -9,7 +9,7 @@ namespace Allo.App
     /// Landscape application chrome. Game state is owned by the host, never by this view.
     public sealed partial class AppUi : MonoBehaviour
     {
-        RectTransform _safe, _content;
+        RectTransform _safe, _content, _bookBackdrop;
         bool _lastStoryUiBlocked, _lastLearningUiBlocked;
         public bool CabinGesturesBlocked => StoryUiBlocked || _nativeSpeechHidden || _state?.learning?.recording == true;
         public bool StoryUiBlocked => View == "cabin" && (_speechDrawer || _zoneDrawer || _confirmAction != null);
@@ -110,6 +110,19 @@ namespace Allo.App
             var scaler = canvasGo.GetComponent<CanvasScaler>(); scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1600, 720); scaler.matchWidthOrHeight = 1;
             _safe = Rect("Safe area", canvasGo.transform); Stretch(_safe);
+            _bookBackdrop = Rect("Camp reading backdrop", canvasGo.transform); Stretch(_bookBackdrop);
+            _bookBackdrop.SetAsFirstSibling();
+            var landscape = Rect("Reading village landscape", _bookBackdrop); Stretch(landscape);
+            var landscapeImage = landscape.gameObject.AddComponent<RawImage>();
+            landscapeImage.texture = Resources.Load<Texture2D>("VillageArt/background");
+            landscapeImage.color = new Color(.45f, .45f, .45f, 1); landscapeImage.raycastTarget = false;
+            if (landscapeImage.texture != null)
+            {
+                var fit = landscape.gameObject.AddComponent<AspectRatioFitter>();
+                fit.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+                fit.aspectRatio = (float)landscapeImage.texture.width / landscapeImage.texture.height;
+            }
+            _bookBackdrop.gameObject.SetActive(false);
             var header = Surface("Compact application HUD", _safe, new Color(.07f, .12f, .10f, .68f), false);
             Stretch(header, 0, -62, 0, -8, new Vector2(0, 1), Vector2.one);
             var crest = Button(header, "ALLO", () => Navigate("home"), Color.clear, 40, true, 24);
@@ -176,6 +189,7 @@ namespace Allo.App
         void UpdateChrome()
         {
             var view = View;
+            _bookBackdrop.gameObject.SetActive(view == "dex" || view == "inventory");
             var emptyCabin = view == "cabin" && _state != null && _state.ready && !_state.connected;
             _title.transform.parent.gameObject.SetActive(true);
             _nav["cabin"].transform.parent.gameObject.SetActive(true);

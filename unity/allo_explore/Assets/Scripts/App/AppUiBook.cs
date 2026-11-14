@@ -14,8 +14,6 @@ namespace Allo.App
 
         void CollectionBook(string leftTitle, string rightTitle, out RectTransform left, out RectTransform right)
         {
-            var shade = Surface("Reading backdrop", _content, new Color(.10f, .14f, .11f, .88f), false);
-            Stretch(shade);
             var book = Rect("Collection book", _content); Stretch(book, 34, 0, 0, 0);
             var artwork = Rect("Book art", book); Stretch(artwork);
             var image = artwork.gameObject.AddComponent<RawImage>();
