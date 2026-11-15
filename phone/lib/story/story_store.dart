@@ -9,8 +9,13 @@ class SharedPreferencesStoryStore implements StoryStore {
   SharedPreferencesStoryStore({this.prefix = 'unityApp.story.v1'});
   final String prefix;
   @override
-  Future<String?> read() async =>
-      (await SharedPreferences.getInstance()).getString(prefix);
+  Future<String?> read() async {
+    final preferences = await SharedPreferences.getInstance();
+    // A failed native write can leave the singleton's cache ahead of disk.
+    await preferences.reload();
+    return preferences.getString(prefix);
+  }
+
   @override
   Future<void> write(String value) async {
     if (!await (await SharedPreferences.getInstance())

@@ -55,6 +55,8 @@ void main() {
         'type': 'appAction',
         'requestId': 'pilot-${serial++}',
         'action': name,
+        if (name.startsWith('story'))
+          'storyPresentationRevision': story()['presentationRevision'],
         ...fields,
       }));
   Future<bool> choose(String id) => action('storyChoose', {
@@ -148,11 +150,13 @@ void main() {
       () async {
     await start();
     expect(await choose('next'), true);
+    await app.handleMessage('{"v":1,"type":"appLifecycle","active":false}');
     await app.setHostLifecycle(AppLifecycleState.paused);
     expect(story()['paused'], true);
     expect(story()['notebookOpen'], false);
     expect(story()['canOpen'], false);
     await app.setHostLifecycle(AppLifecycleState.resumed);
+    await app.handleMessage('{"v":1,"type":"appLifecycle","active":true}');
     expect(story()['paused'], true);
     expect(
         await action('storyResume', {
@@ -170,6 +174,74 @@ void main() {
         }),
         true);
     expect(story()['nodeId'], 'prediction');
+  });
+
+  test('foreground native Unity can open while Flutter host is paused',
+      () async {
+    await app.setHostLifecycle(AppLifecycleState.paused);
+    expect(story()['canOpen'], true);
+    await start();
+    expect(await choose('next'), true);
+    await app.handleMessage('{"v":1,"type":"appLifecycle","active":false}');
+    expect(story()['canOpen'], false);
+    expect(story()['paused'], true);
+    expect(story()['notebookOpen'], false);
+    await app.handleMessage('{"v":1,"type":"appLifecycle","active":true}');
+    expect(story()['paused'], true);
+    expect(story()['canOpen'], true);
+    await app.setHostLifecycle(AppLifecycleState.detached);
+    expect(story()['canOpen'], false);
+  });
+
+  test('old notebook close cannot pause the newly opened experiment', () async {
+    expect(await action('storyNotebook', {'open': true}), true);
+    final oldPresentation = story()['presentationRevision'];
+    expect(await action('storyNotebook', {'open': false}), true);
+    await start();
+    expect(
+        await action('storyNotebook', {
+          'open': false,
+          'storyPresentationRevision': oldPresentation,
+        }),
+        false);
+    expect(story()['active'], true);
+    expect(await action('storyNotebook', {'open': false}), true);
+    expect(story()['paused'], true);
+  });
+
+  test('old start cannot run after the notebook was closed and reopened',
+      () async {
+    expect(await action('storyNotebook', {'open': true}), true);
+    final oldPresentation = story()['presentationRevision'];
+    expect(await action('storyNotebook', {'open': false}), true);
+    expect(await action('storyNotebook', {'open': true}), true);
+    expect(
+        await action('storyStart', {
+          'topicId': 'coast_sail',
+          'storyPresentationRevision': oldPresentation,
+        }),
+        false);
+    expect(story()['active'], false);
+    expect(story()['notebookOpen'], true);
+    expect(await action('storyStart', {'topicId': 'coast_sail'}), true);
+  });
+
+  test(
+      'vehicle ticks preserve presentation token but capture loss invalidates it',
+      () async {
+    expect(await action('storyNotebook', {'open': true}), true);
+    final presentation = story()['presentationRevision'];
+    feed.sample(tags: ['coast']);
+    expect(story()['presentationRevision'], presentation);
+    await app.handleMessage('{"v":1,"type":"appLifecycle","active":false}');
+    expect(story()['presentationRevision'], isNot(presentation));
+    await app.handleMessage('{"v":1,"type":"appLifecycle","active":true}');
+    expect(
+        await action('storyStart', {
+          'topicId': 'coast_sail',
+          'storyPresentationRevision': presentation,
+        }),
+        false);
   });
 
   test('notebook captures egg inputs and closes on navigation', () async {
@@ -228,6 +300,35 @@ void main() {
     expect(story()['canOpen'], false);
     expect(story()['notebookOpen'], false);
     expect(await action('storyNotebook', {'open': true}), false);
+  });
+
+  test('malformed v1 save shows retry and preserves raw data until repaired',
+      () async {
+    app.dispose();
+    const malformed = '{"version":1,"cards":["coast_sail"],"session":4}';
+    final store = _MemoryStoryStore()..value = malformed;
+    final director = StoryDirector(
+        packs: StoryPack.decodeList(
+            await rootBundle.loadString('assets/data/window_stories_ko.json')),
+        store: store,
+        playableTopics: const {'coast_sail'});
+    app = UnityAppController(game: game, camp: camp, story: director);
+    expect(await app.initialize(), true);
+    await action('navigate', {'view': 'cabin'});
+    expect(story()['ready'], false);
+    expect(story()['error'], isNotEmpty);
+    expect(story()['cardCount'], 0,
+        reason: 'a failed load installs no partial cards');
+    expect(await action('storyNotebook', {'open': true}), true);
+    expect(await action('storyStart', {'topicId': 'coast_sail'}), false);
+    expect(await action('storyRetry'), false);
+    await director.flush();
+    expect(store.value, malformed);
+    store.value = '{"version":1,"cards":["coast_sail"]}';
+    expect(await action('storyRetry'), true);
+    expect(story()['ready'], true);
+    expect(story()['cardCount'], 1);
+    expect(await action('storyStart', {'topicId': 'coast_sail'}), true);
   });
 
   test('story initialization can fail and retry without disabling the app',

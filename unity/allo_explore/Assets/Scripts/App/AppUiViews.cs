@@ -44,7 +44,6 @@ namespace Allo.App
             var entry = Button(_content, "탐험 노트", () =>
             {
                 if (!CanOpenNotebook) return;
-                CloseCompanionInvitation();
                 _storyOverlay.ToggleNotebook();
             }, Cream, 58, CanOpenNotebook, 22);
             Stretch((RectTransform)entry.transform, -180, 8, 0, 66, new Vector2(1, 0), new Vector2(1, 0));

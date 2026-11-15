@@ -28,6 +28,7 @@ while (($#)); do
 done
 
 command -v adb >/dev/null || { echo "adb is required (Android SDK platform-tools)." >&2; exit 1; }
+adb reconnect offline >/dev/null 2>&1 || true
 
 if ((build)); then
   UNITY=/Applications/Unity/Hub/Editor/6000.0.85f2/Unity.app/Contents/MacOS/Unity \
@@ -56,9 +57,14 @@ if [[ -n "$device" ]]; then
 else
   device="$(adb devices | awk '$1 ~ /^emulator-/ && $2 == "device" { print $1; exit }')"
   if [[ -z "$device" ]]; then
-    command -v emulator >/dev/null || { echo "No online emulator and emulator command is unavailable." >&2; exit 1; }
+    emulator_bin="$(command -v emulator || true)"
+    if [[ -z "$emulator_bin" ]]; then
+      sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/Library/Android/sdk}}"
+      emulator_bin="$sdk_root/emulator/emulator"
+    fi
+    [[ -x "$emulator_bin" ]] || { echo "No online emulator and emulator command is unavailable." >&2; exit 1; }
     echo "Starting visible $AVD emulator..."
-    nohup emulator -avd "$AVD" -gpu host >/tmp/allo-sea-learning-emulator.log 2>&1 </dev/null &
+    nohup "$emulator_bin" -avd "$AVD" -gpu host >/tmp/allo-sea-learning-emulator.log 2>&1 </dev/null &
     for ((attempt = 0; attempt < 180; attempt++)); do
       device="$(adb devices | awk '$1 ~ /^emulator-/ && $2 == "device" { print $1; exit }')"
       [[ -n "$device" ]] && break
@@ -70,6 +76,16 @@ else
     }
   fi
 fi
+
+booted=0
+for ((attempt = 0; attempt < 60; attempt++)); do
+  if [[ "$(adb -s "$device" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == 1 ]]; then
+    booted=1
+    break
+  fi
+  sleep 1
+done
+[[ "$booted" == 1 ]] || { echo "Emulator $device did not finish booting within 60 seconds." >&2; exit 1; }
 
 echo "Using $device; installing without clearing app data."
 adb -s "$device" install -r "$APK"

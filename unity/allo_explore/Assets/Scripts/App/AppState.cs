@@ -35,7 +35,7 @@ namespace Allo.App
         public string error, prediction, firstAction, observation, principle, nextQuestion;
         public string ackRequestId;
         public string instanceId, topicId, title, nodeId, line, visual, variant, cardTitle, cardText, notice, invitation;
-        public int revision, cardCount;
+        public int revision, presentationRevision, cardCount;
         public StoryChoice[] choices = Array.Empty<StoryChoice>();
         public StoryCard[] savedCards = Array.Empty<StoryCard>();
         public StoryCard[] library = Array.Empty<StoryCard>();
@@ -78,7 +78,7 @@ namespace Allo.App
         public string type = "appAction";
         public string requestId, action, view, eggId, tier, role, creatureId, targetId, facility, recipeId, actionId, text, sessionId, pairCode;
         public string instanceId, nodeId, topicId, speciesId;
-        public int storyRevision;
+        public int storyRevision, storyPresentationRevision;
         public bool blocked, open;
         public int zone;
         public bool gyro, reducedMotion;

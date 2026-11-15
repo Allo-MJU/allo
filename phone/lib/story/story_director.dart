@@ -24,7 +24,9 @@ class StoryDirector extends ChangeNotifier {
   Map<String, dynamic>? _retainedSession;
   Map<String, String> _evidence = {};
   bool _observedA = false, _observedB = false, _explained = false;
-  bool get _writable => !_disposed && _owner.owns;
+  bool _initialized = false;
+  bool get _ownsStore => !_disposed && _owner.owns;
+  bool get _writable => _initialized && _ownsStore;
   static const _evidenceFields = [
     'prediction',
     'firstAction',
@@ -32,11 +34,23 @@ class StoryDirector extends ChangeNotifier {
     'principle',
     'nextQuestion'
   ];
-  static Map<String, String> _readEvidence(dynamic value) => {
-        if (value is Map)
-          for (final field in _evidenceFields)
-            if (value[field] is String) field: value[field] as String
-      };
+  static Map<String, String> _readEvidence(dynamic value) {
+    if (value != null && value is! Map) {
+      throw const FormatException('Invalid story evidence');
+    }
+    final result = <String, String>{};
+    if (value is Map) {
+      for (final field in _evidenceFields) {
+        if (!value.containsKey(field)) continue;
+        if (value[field] is! String) {
+          throw const FormatException('Invalid story evidence field');
+        }
+        result[field] = value[field] as String;
+      }
+    }
+    return result;
+  }
+
   String? _current, _candidate;
   String _node = 'intro', _instance = '', _notice = '';
   int _revision = 0, _now = 0, _lastOffer = -90000, _quietUntil = 0;
@@ -111,60 +125,90 @@ class StoryDirector extends ChangeNotifier {
   }
 
   Future<void> initialize() async {
-    final String? raw;
+    _initialized = false;
     try {
-      raw = await _owner.read();
+      final raw = await _owner.read();
+      if (!_ownsStore) return;
+      final data = raw == null ? {'version': 1} : jsonDecode(raw);
+      if (data is! Map || data['version'] != 1) {
+        throw const FormatException('Invalid story save version');
+      }
+      final ids = data['cards'] ?? const [];
+      final savedRecords = data['records'];
+      final saved = data['session'];
+      if (ids is! List ||
+          ids.any((id) => id is! String) ||
+          (savedRecords != null && savedRecords is! Map) ||
+          (saved != null && saved is! Map)) {
+        throw const FormatException('Invalid story save');
+      }
+      final cards = ids.cast<String>().where(packs.containsKey).toSet();
+      final records = <String, Map<String, String>>{};
+      if (savedRecords is Map) {
+        for (final id in cards) {
+          final evidence = _readEvidence(savedRecords[id]);
+          if (evidence.isNotEmpty) records[id] = evidence;
+        }
+      }
+      String? current;
+      Map<String, dynamic>? retainedSession;
+      var node = 'intro', instance = '', notice = '';
+      var evidence = <String, String>{};
+      var observedA = false, observedB = false, explained = false;
+      if (saved is Map) {
+        if (saved['topicId'] is! String ||
+            saved['packVersion'] is! int ||
+            saved['nodeId'] is! String ||
+            ['observedA', 'observedB', 'explained']
+                .any((key) => saved.containsKey(key) && saved[key] is! bool)) {
+          throw const FormatException('Invalid story session');
+        }
+        final savedEvidence = _readEvidence(saved['evidence']);
+        final pack = packs[saved['topicId']];
+        if (pack != null) {
+          if (!_playable(pack.id)) {
+            retainedSession = Map<String, dynamic>.from(saved);
+            notice = '바다 탐험을 시작하면 이전 미완료 탐험 대신 새로 시작해.';
+          } else {
+            current = pack.id;
+            instance = 'restored-${DateTime.now().microsecondsSinceEpoch}';
+            if (saved['packVersion'] == pack.version &&
+                pack.nodes.containsKey(saved['nodeId'])) {
+              node = saved['nodeId'] as String;
+              evidence = savedEvidence;
+              observedA = saved['observedA'] == true;
+              observedB = saved['observedB'] == true;
+              explained = saved['explained'] == true;
+            } else {
+              notice = '탐험이 새로워져 처음부터 시작해. 저장한 카드는 그대로야.';
+            }
+          }
+        }
+      }
+      // Install only a fully validated save. Failed loads leave disk untouched.
+      _cards
+        ..clear()
+        ..addAll(cards);
+      _records
+        ..clear()
+        ..addAll(records);
+      _retainedSession = retainedSession;
+      _current = current;
+      _paused = current != null;
+      _node = node;
+      _instance = instance;
+      _evidence = evidence;
+      _observedA = observedA;
+      _observedB = observedB;
+      _explained = explained;
+      _notice = notice;
+      _initialized = true;
+      _emit();
     } catch (_) {
       _notice = '이전 이야기를 불러오지 못했어요. 다시 시도해 줘.';
       _emit();
       rethrow;
     }
-    if (!_writable) return;
-    _notice = '';
-    if (raw == null) {
-      _emit();
-      return;
-    }
-    try {
-      final data = jsonDecode(raw) as Map<String, dynamic>;
-      if (data['version'] != 1) return;
-      for (final id in data['cards'] as List? ?? []) {
-        if (id is String && packs.containsKey(id)) _cards.add(id);
-      }
-      final records = data['records'];
-      if (records is Map) {
-        for (final id in _cards) {
-          final evidence = _readEvidence(records[id]);
-          if (evidence.isNotEmpty) _records[id] = evidence;
-        }
-      }
-      final saved = data['session'];
-      if (saved is Map && packs.containsKey(saved['topicId'])) {
-        final pack = packs[saved['topicId']]!;
-        if (!_playable(pack.id)) {
-          _retainedSession = Map<String, dynamic>.from(saved);
-          _notice = '바다 탐험을 시작하면 이전 미완료 탐험 대신 새로 시작해.';
-        } else {
-          _current = pack.id;
-          _paused = true;
-          _instance = 'restored-${DateTime.now().microsecondsSinceEpoch}';
-          if (saved['packVersion'] == pack.version &&
-              pack.nodes.containsKey(saved['nodeId'])) {
-            _node = saved['nodeId'] as String;
-            _evidence = _readEvidence(saved['evidence']);
-            _observedA = saved['observedA'] == true;
-            _observedB = saved['observedB'] == true;
-            _explained = saved['explained'] == true;
-          } else {
-            _node = 'intro';
-            _notice = '탐험이 새로워져 처음부터 시작해. 저장한 카드는 그대로야.';
-          }
-        }
-      }
-    } catch (_) {
-      _notice = '이전 이야기를 불러오지 못했어요.';
-    }
-    _emit();
   }
 
   /// Feed the same already-stabilized scene as Unity; speed never selects topics.

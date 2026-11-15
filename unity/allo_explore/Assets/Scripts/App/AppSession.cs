@@ -79,6 +79,7 @@ namespace Allo.App
                 request.nodeId ??= State.story.nodeId;
                 request.topicId ??= State.story.topicId;
                 request.storyRevision = State.story.revision;
+                request.storyPresentationRevision = State.story.presentationRevision;
             }
             if (string.IsNullOrEmpty(request.eggId)) request.eggId = State?.egg?.id;
             return request;

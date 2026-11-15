@@ -369,6 +369,36 @@ public class AppUiLearningTests
     }
 
     [Test]
+    public void NotebookClickKeepsCompanionInvitationVisibleUntilHostApprovesOpening()
+    {
+        var state = State(); SelectFriend(state);
+        state.learning.conversationMode = "chat";
+        state.learning.invitationOpen = true;
+        state.story = new StoryState { ready = true, canOpen = true, canPlay = true };
+        Apply(state); Call("BuildCabin");
+        var bubble = (RectTransform)typeof(AppUi).GetField("_companionBubble", Private).GetValue(_ui);
+        var overlay = _root.GetComponent<StoryOverlay>();
+        Assert.IsTrue(bubble.gameObject.activeSelf);
+
+        ButtonNamed("탐험 노트").onClick.Invoke();
+
+        Assert.IsTrue(bubble.gameObject.activeSelf, "requesting a notebook must not dismiss the current invitation");
+        Assert.IsTrue(AppSession.State.learning.invitationOpen);
+        Assert.IsFalse(overlay.ShowingNotebook, "the host has not approved notebook presentation");
+        RebuildCabin();
+        Assert.IsTrue(HasText(state.learning.text), "an unchanged or rejected host snapshot keeps companion dialogue available");
+
+        var approved = JsonUtility.FromJson<AppState>(JsonUtility.ToJson(AppSession.State));
+        approved.story.notebookOpen = true;
+        approved.learning.invitationOpen = false;
+        approved.learning.conversationMode = "closed";
+        Apply(approved); RebuildCabin();
+        Assert.IsTrue(overlay.ShowingNotebook);
+        Assert.IsFalse(HasText(state.learning.text));
+        Assert.IsFalse(AppSession.State.learning.invitationOpen);
+    }
+
+    [Test]
     public void OpenNotebookBlocksCareCompanionChatAndNativeSpeech()
     {
         var state=State(); SelectFriend(state);

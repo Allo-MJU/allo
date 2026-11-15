@@ -53,6 +53,9 @@ void main() {
         'type': 'appAction',
         'requestId': id ?? 'r${request++}',
         'action': name,
+        if (name.startsWith('story'))
+          'storyPresentationRevision':
+              (app.snapshot['story'] as Map)['presentationRevision'],
         ...fields
       }));
   Future<bool> summon(String id) =>

@@ -61,6 +61,7 @@ class UnityAppController extends ChangeNotifier {
   bool _storyNotebookOpen = false, _storyUiBlocked = false;
   String _storyError = '', _storyAckRequest = '';
   bool _storyAckAccepted = false;
+  int _storyPresentationRevision = 0;
   String? _storyEggState;
   final _learningRandom = math.Random.secure();
   String _careActionId = '';
@@ -298,6 +299,7 @@ class UnityAppController extends ChangeNotifier {
         'error': _storyError,
         'canOpen': _canOpenStory,
         'notebookOpen': _storyNotebookOpen,
+        'presentationRevision': _storyPresentationRevision,
         'ackRequestId': _storyAckRequest,
         'ackAccepted': _storyAckAccepted,
       },
@@ -481,7 +483,7 @@ class UnityAppController extends ChangeNotifier {
       !_disposed &&
       _ready &&
       view == 'cabin' &&
-      _hostLifecycle == AppLifecycleState.resumed &&
+      _hostLifecycle != AppLifecycleState.detached &&
       _unityActive &&
       !_disconnected &&
       game.paired &&
@@ -500,6 +502,7 @@ class UnityAppController extends ChangeNotifier {
       _learning?.recording != true;
 
   void _pauseStory() {
+    if (_storyCapturing) _storyPresentationRevision++;
     _storyNotebookOpen = false;
     if (_story?.active == true) _story!.pause();
   }
@@ -962,7 +965,10 @@ class UnityAppController extends ChangeNotifier {
   Future<bool> _dispatchStory(Map<String, dynamic> m) async {
     final action = m['action'];
     var accepted = false;
+    final presentation = _storyPresentationRevision;
+    final capturing = _storyCapturing;
     try {
+      if (m['storyPresentationRevision'] != presentation) return false;
       if (action == 'storyNotebook') {
         if (m['open'] == false) {
           _pauseStory();
@@ -990,6 +996,19 @@ class UnityAppController extends ChangeNotifier {
         }
         accepted = await director.handle(action as String, m);
         if (accepted && (entry || exiting)) _storyNotebookOpen = false;
+      }
+      if (accepted &&
+          _storyPresentationRevision == presentation &&
+          ({
+                'storyNotebook',
+                'storyStart',
+                'storyResume',
+                'storyPause',
+                'storyClose',
+                'storyRetry'
+              }.contains(action) ||
+              capturing != _storyCapturing)) {
+        _storyPresentationRevision++;
       }
       return accepted;
     } finally {

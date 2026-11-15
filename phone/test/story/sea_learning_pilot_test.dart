@@ -6,6 +6,7 @@ import 'package:allo_phone/scene/window_scene.dart';
 import 'package:allo_phone/story/story_director.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
 
 class DelayedStoryStore implements StoryStore {
   String? value;
@@ -32,6 +33,22 @@ class DelayedPreferencesStore extends SharedPreferencesStoryStore {
   Future<void> write(String value) async {
     if (gate != null) await gate!.future;
     await super.write(value);
+  }
+}
+
+// Fails the native write while retaining SharedPreferences' real optimistic cache.
+class FailingSavedPreferences extends InMemorySharedPreferencesStore {
+  FailingSavedPreferences({required this.throws}) : super.empty();
+  final bool throws;
+  @override
+  Future<bool> setValue(String valueType, String key, Object value) async {
+    if (key == 'flutter.failed-save' &&
+        value is String &&
+        (jsonDecode(value)['session'] as Map?)?['nodeId'] == 'saved') {
+      if (throws) throw StateError('native disk write failed');
+      return false;
+    }
+    return super.setValue(valueType, key, value);
   }
 }
 
@@ -86,6 +103,39 @@ void main() {
     ready(director);
   });
   tearDown(() => director.dispose());
+
+  for (final throws in [false, true]) {
+    test(
+        'failed native save (${throws ? 'throw' : 'false'}) cannot restore an uncommitted card',
+        () async {
+      final previousPlatform = SharedPreferencesStorePlatform.instance;
+      SharedPreferences.setMockInitialValues({});
+      SharedPreferencesStorePlatform.instance =
+          FailingSavedPreferences(throws: throws);
+      addTearDown(() {
+        SharedPreferencesStorePlatform.instance = previousPlatform;
+        SharedPreferences.setMockInitialValues({});
+      });
+      director.dispose();
+      director = StoryDirector(
+          packs: packs,
+          store: SharedPreferencesStoryStore(prefix: 'failed-save'));
+      await director.initialize();
+      ready(director);
+      await start();
+      await complete('a', 'b');
+      await director.flush();
+      expect(await choose('save'), false);
+      expect(director.snapshot['cardCount'], 0);
+      final restored = StoryDirector(
+          packs: packs,
+          store: SharedPreferencesStoryStore(prefix: 'failed-save'));
+      addTearDown(restored.dispose);
+      await restored.initialize();
+      expect(restored.snapshot['cardCount'], 0);
+      expect(restored.snapshot['nodeId'], 'ending');
+    });
+  }
 
   for (final prediction in ['a', 'b']) {
     for (final first in ['a', 'b']) {
@@ -330,6 +380,27 @@ void main() {
         ['coast_sail']);
     replacement.dispose();
     director = StoryDirector(packs: packs, store: store);
+  });
+
+  test('malformed load blocks direct writes until a successful initialization',
+      () async {
+    director.dispose();
+    store.value = '{"version":1,"cards":"broken"}';
+    final raw = store.value;
+    director = StoryDirector(packs: packs, store: store);
+    await expectLater(director.initialize(), throwsFormatException);
+    ready(director);
+    expect(
+        await director.handle('storyStart',
+            {'requestId': 'corrupt-start', 'topicId': 'coast_sail'}),
+        false);
+    director.pause();
+    await director.flush();
+    expect(store.value, raw);
+    store.value = null;
+    await director.initialize();
+    ready(director);
+    await start();
   });
 
   test('storage read error is retryable without replacing owner', () async {
