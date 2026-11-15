@@ -11,7 +11,7 @@ class SharedPreferencesStoryStore implements StoryStore {
   @override
   Future<String?> read() async {
     final preferences = await SharedPreferences.getInstance();
-    // A failed native write can leave the singleton's cache ahead of disk.
+    // Refresh Flutter's cache; StoryStoreOwner also guards failed native commits.
     await preferences.reload();
     return preferences.getString(prefix);
   }
@@ -43,12 +43,34 @@ class StoryStoreOwner {
   Future<String?> read() async {
     await flush();
     if (!owns) return null;
-    return _store.read();
+    if (_queue.failedWrite) {
+      if (!_queue.hasCommittedValue) {
+        throw StateError('Story commit state unknown');
+      }
+      return _queue.committedValue;
+    }
+    final value = await _store.read();
+    if (!owns) return null;
+    _queue.committedValue = value;
+    _queue.hasCommittedValue = true;
+    return value;
   }
 
   Future<void> write(String value) {
     if (!owns) return Future.error(StateError('Story owner replaced'));
-    final next = _queue.tail.then((_) => _store.write(value));
+    final next = _queue.tail.then((_) async {
+      try {
+        await _store.write(value);
+        _queue.committedValue = value;
+        _queue.hasCommittedValue = true;
+        _queue.failedWrite = false;
+      } catch (_) {
+        // Android may update native memory before a disk commit reports failure.
+        // Keep the last acknowledged value across owners until a write succeeds.
+        _queue.failedWrite = true;
+        rethrow;
+      }
+    });
     _queue.tail = next.catchError((Object _) {});
     return next;
   }
@@ -60,5 +82,7 @@ class StoryStoreOwner {
 
 class _StoryWriteQueue {
   StoryStoreOwner? owner;
+  String? committedValue;
+  bool hasCommittedValue = false, failedWrite = false;
   Future<void> tail = Future.value();
 }

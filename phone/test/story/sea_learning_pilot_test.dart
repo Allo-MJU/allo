@@ -36,15 +36,23 @@ class DelayedPreferencesStore extends SharedPreferencesStoryStore {
   }
 }
 
-// Fails the native write while retaining SharedPreferences' real optimistic cache.
+// Models native memory being updated before a failed disk commit.
 class FailingSavedPreferences extends InMemorySharedPreferencesStore {
-  FailingSavedPreferences({required this.throws}) : super.empty();
-  final bool throws;
+  FailingSavedPreferences(
+      {required this.throws,
+      required this.prefix,
+      this.mutatesBeforeFailure = false})
+      : super.empty();
+  final bool throws, mutatesBeforeFailure;
+  final String prefix;
+  bool fail = true;
   @override
   Future<bool> setValue(String valueType, String key, Object value) async {
-    if (key == 'flutter.failed-save' &&
+    if (fail &&
+        key == 'flutter.$prefix' &&
         value is String &&
         (jsonDecode(value)['session'] as Map?)?['nodeId'] == 'saved') {
+      if (mutatesBeforeFailure) await super.setValue(valueType, key, value);
       if (throws) throw StateError('native disk write failed');
       return false;
     }
@@ -105,35 +113,91 @@ void main() {
   tearDown(() => director.dispose());
 
   for (final throws in [false, true]) {
+    for (final mutatesBeforeFailure in [false, true]) {
+      test(
+          'failed native save (throw=$throws, nativeMemory=$mutatesBeforeFailure) cannot restore an uncommitted card',
+          () async {
+        final previousPlatform = SharedPreferencesStorePlatform.instance;
+        SharedPreferences.setMockInitialValues({});
+        final prefix = 'failed-save-$throws-$mutatesBeforeFailure';
+        SharedPreferencesStorePlatform.instance = FailingSavedPreferences(
+            throws: throws,
+            prefix: prefix,
+            mutatesBeforeFailure: mutatesBeforeFailure);
+        addTearDown(() {
+          SharedPreferencesStorePlatform.instance = previousPlatform;
+          SharedPreferences.setMockInitialValues({});
+        });
+        director.dispose();
+        director = StoryDirector(
+            packs: packs, store: SharedPreferencesStoryStore(prefix: prefix));
+        await director.initialize();
+        ready(director);
+        await start();
+        await complete('a', 'b');
+        await director.flush();
+        expect(await choose('save'), false);
+        expect(director.snapshot['cardCount'], 0);
+        final restored = StoryDirector(
+            packs: packs, store: SharedPreferencesStoryStore(prefix: prefix));
+        addTearDown(restored.dispose);
+        await restored.initialize();
+        expect(restored.snapshot['cardCount'], 0);
+        expect(restored.snapshot['nodeId'], 'ending');
+      });
+    }
+  }
+
+  for (final throws in [false, true]) {
     test(
-        'failed native save (${throws ? 'throw' : 'false'}) cannot restore an uncommitted card',
+        'failed native replay (throw=$throws) restores old evidence until retry commits',
         () async {
       final previousPlatform = SharedPreferencesStorePlatform.instance;
       SharedPreferences.setMockInitialValues({});
-      SharedPreferencesStorePlatform.instance =
-          FailingSavedPreferences(throws: throws);
+      final prefix = 'failed-replay-$throws';
+      final platform = FailingSavedPreferences(
+          throws: throws, prefix: prefix, mutatesBeforeFailure: true)
+        ..fail = false;
+      SharedPreferencesStorePlatform.instance = platform;
       addTearDown(() {
         SharedPreferencesStorePlatform.instance = previousPlatform;
         SharedPreferences.setMockInitialValues({});
       });
       director.dispose();
       director = StoryDirector(
-          packs: packs,
-          store: SharedPreferencesStoryStore(prefix: 'failed-save'));
+          packs: packs, store: SharedPreferencesStoryStore(prefix: prefix));
       await director.initialize();
       ready(director);
       await start();
       await complete('a', 'b');
+      expect(await choose('save'), true);
+      expect(await director.handle('storyReplay', intent()), true);
+      await complete('b', 'a');
       await director.flush();
+      platform.fail = true;
       expect(await choose('save'), false);
-      expect(director.snapshot['cardCount'], 0);
-      final restored = StoryDirector(
-          packs: packs,
-          store: SharedPreferencesStoryStore(prefix: 'failed-save'));
-      addTearDown(restored.dispose);
-      await restored.initialize();
-      expect(restored.snapshot['cardCount'], 0);
-      expect(restored.snapshot['nodeId'], 'ending');
+      director.dispose();
+      director = StoryDirector(
+          packs: packs, store: SharedPreferencesStoryStore(prefix: prefix));
+      await director.initialize();
+      expect(director.snapshot['nodeId'], 'ending');
+      final oldCard = (director.snapshot['savedCards'] as List).single as Map;
+      expect(oldCard['prediction'], '돛을 펼친 배가 더 멀리 갈 것 같았어.');
+      expect(oldCard['firstAction'], '돛 접기');
+      expect(director.snapshot['prediction'], '돛을 접은 배가 더 멀리 갈 것 같았어.');
+      ready(director);
+      expect(await director.handle('storyResume', intent()), true);
+      platform.fail = false;
+      expect(await choose('save'), true);
+      final replaced = StoryDirector(
+          packs: packs, store: SharedPreferencesStoryStore(prefix: prefix));
+      addTearDown(replaced.dispose);
+      await replaced.initialize();
+      expect(replaced.snapshot['nodeId'], 'saved');
+      expect(replaced.snapshot['cardCount'], 1);
+      final newCard = (replaced.snapshot['savedCards'] as List).single as Map;
+      expect(newCard['prediction'], '돛을 접은 배가 더 멀리 갈 것 같았어.');
+      expect(newCard['firstAction'], '돛 펼치기');
     });
   }
 
