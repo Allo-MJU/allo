@@ -58,6 +58,11 @@ namespace Allo.World
         Passersby _passersby;
         float _glassPulse, _rainLevel;
         float _visKph; // 창밖이 흐르는 속도 (km/h)
+        readonly CorneringMotion _cornering = new();
+        bool _usingCornering;
+        float _corneringYaw;
+        RouteState _latestRoute;
+        float _routeOffset;
         bool _inTunnel; // 차가 실제로 터널 조각 안에 있는지. 장면이 터널로 바뀌어도 입구에 닿기 전까지는 바깥 조명이다
         static readonly int WorldToRoot = Shader.PropertyToID("_AlloWorldToRoot"), Travel = Shader.PropertyToID("_AlloTravel");
 
@@ -112,22 +117,70 @@ namespace Allo.World
         {
             FlutterBridge.SceneChanged += OnScene;
             FlutterBridge.RouteChanged += OnRoute;
+            if (_kit != null)
+            {
+                if (FlutterBridge.LastScene != null) Apply(FlutterBridge.LastScene);
+                OnRoute(FlutterBridge.LastRoute);
+            }
         }
 
         void OnDisable()
         {
             FlutterBridge.SceneChanged -= OnScene;
             FlutterBridge.RouteChanged -= OnRoute;
+            _cornering.Active(Time.realtimeSinceStartupAsDouble, false);
         }
 
         /// 내비의 다음 회전들. 그 거리에 교차로·유턴 조각을 놓는다
         public void OnRoute(RouteState r)
         {
             Setup();
+            // A UI republish can repeat the same remaining distances long after the vehicle passed them.
+            if (!SameManeuvers(_latestRoute?.turns, r?.turns)) _routeOffset = _track.Offset;
+            _latestRoute = r;
+            var elapsed = Time.realtimeSinceStartupAsDouble;
+            var fresh = _cornering.Receive(r?.cornering, System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), elapsed);
+            var active = SensorActive(elapsed);
+            if (active)
+            {
+                if (!_usingCornering)
+                {
+                    _headingOrigin = null;
+                    Sync(_track.SetTurns(System.Array.Empty<(string, float)>()), now: !Application.isPlaying);
+                }
+                if (fresh || !_usingCornering) ApplyBend(_track.SetCorneringBend(_cornering.Bend));
+            }
+            else
+            {
+                if (_usingCornering) ApplyBend(_track.SetCorneringBend(0));
+                ApplyNavigation();
+            }
+            _usingCornering = active;
+        }
+
+        static bool SameManeuvers(TurnInfo[] previous, TurnInfo[] current)
+        {
+            if (previous == current) return true;
+            int count = previous?.Length ?? 0;
+            if (count != (current?.Length ?? 0)) return false;
+            for (int i = 0; i < count; i++)
+                if (previous[i]?.type != current[i]?.type || previous[i]?.inM != current[i]?.inM)
+                    return false;
+            return true;
+        }
+
+        bool SensorActive(double elapsed) => _cornering.Active(elapsed,
+            _scene.moving && _scene.speedKph > 0 && FlutterBridge.LastSettings?.reducedMotion != true);
+
+        void ApplyNavigation()
+        {
+            var r = _latestRoute;
+            var travelled = _track.Offset - _routeOffset;
             var turns = new List<(string, float)>();
             if (r?.turns != null)
                 foreach (var t in r.turns)
-                    if (t != null && !string.IsNullOrEmpty(t.type)) turns.Add((t.type, t.inM));
+                    if (t != null && !string.IsNullOrEmpty(t.type) && t.inM >= travelled)
+                        turns.Add((t.type, t.inM - travelled));
             Sync(_track.SetTurns(turns), now: !Application.isPlaying);
             if (r != null && r.heading >= 0) Steer(r.heading);
         }
@@ -149,7 +202,11 @@ namespace Allo.World
             var desired = heading - _headingOrigin.Value;
             // 차가 실제로 도는 중(지금 앞길과 30도 넘게 차이)이면 내비 회전을 기다린다
             if (Mathf.Abs(Mathf.DeltaAngle(car, desired)) > 30) return;
-            var res = _track.SteerTo(desired);
+            ApplyBend(_track.SteerTo(desired));
+        }
+
+        void ApplyBend((ChunkInfo bent, List<ChunkInfo> moved)? res)
+        {
             if (res == null) return;
             var (bent, moved) = res.Value;
             if (_chunks.TryGetValue(bent.index, out var bt))
@@ -184,8 +241,17 @@ namespace Allo.World
         static string Key(SceneState s) => s.kind == "tunnel" ? "tunnel" : s.highway ? "highway" : s.kind;
 
         /// 장면을 바로 맞춘다. reset 이면 지난 장면 조각을 모두 지운다 (에디터 캡처용).
+        /// 촬영 모드(FilmMode)가 정한 배경. 있으면 차량 신호 대신 맑은 낮의 이 배경을 쓴다
+        public static string FilmKind;
+
         public void Apply(SceneState s, bool reset = false)
         {
+            if (!string.IsNullOrEmpty(FilmKind) && s != null)
+            {
+                // 촬영 중에는 늘 달린다 (서 있다가 천천히 출발하지 않게 보이는 속도도 바로 맞춘다)
+                s = new SceneState { kind = FilmKind == "highway" ? "road" : FilmKind, highway = FilmKind == "highway", speedKph = Mathf.Max(s.speedKph, 50), moving = true };
+                _visKph = Mathf.Max(_visKph, s.speedKph);
+            }
             Setup();
             if (reset)
             {
@@ -196,6 +262,8 @@ namespace Allo.World
                 _track = new ChunkTrack();
                 if (_passersby != null) _passersby.Init(_trackT, sprite, _track);
             }
+            // While following steering, a stopped vehicle must not coast around an earlier sensor bend.
+            if (_usingCornering && (!s.moving || s.speedKph <= 0)) _visKph = 0;
             _scene = s;
             Sync(_track.SetScene(Key(s)), now: reset || !Application.isPlaying);
             // 터널 장면은 배경을 새로 만들지 않는다. 입구까지는 지금 배경이 보이고, 터널 안에서는 배경을 숨긴다
@@ -223,6 +291,18 @@ namespace Allo.World
             var step = (target > _visKph ? 2f : 3f) * 3.6f * Time.deltaTime;
             _visKph = Mathf.MoveTowards(_visKph, target, step);
             var meters = _visKph / 3.6f * Time.deltaTime;
+            var active = SensorActive(Time.realtimeSinceStartupAsDouble);
+            if (_usingCornering && !active)
+            {
+                _usingCornering = false;
+                ApplyBend(_track.SetCorneringBend(0));
+                ApplyNavigation();
+            }
+            // A bounded turn-in cue starts before the car reaches the next generated road chunk.
+            // It moves the exterior only. A committed navigation maneuver owns the whole turn.
+            var committed = _track.HasCommittedManeuver;
+            var visual = _cornering.Step(active && !committed, Time.deltaTime);
+            _corneringYaw = committed ? 0 : 5f * visual;
             var swu = System.Diagnostics.Stopwatch.StartNew();
             Sync(_track.Advance(meters));
             if (swu.ElapsedMilliseconds > 80) Debug.Log($"[World] slow advance {swu.ElapsedMilliseconds}ms offset={_track.Offset:F0} live={_track.Live.Count}");
@@ -246,6 +326,46 @@ namespace Allo.World
             _backdrop.localRotation = Quaternion.Euler(0, -_carYaw + Time.time * 0.15f, 0); // 차가 돌면 먼 배경도 돌고, 구름은 천천히 흐른다
         }
 
+        /// 촬영 장면(FilmMode): 가속·감속 없이 지금 장면의 속도로 바로 보이게 한다
+        public void SnapSpeed()
+        {
+            Setup();
+            _visKph = _scene != null && _scene.moving ? Mathf.Min(_scene.speedKph, _track.SpeedCapAt(_track.Offset)) : 0;
+        }
+
+        /// 밖에서 보이는 우리 차 프리팹 이름 (장면 빌드가 props 에 넣는다)
+        public const string OwnCar = "C_OwnCar";
+
+        /// 진입 연출(CameraRig.Intro)에서 밖에서 보이는 우리 차. 차 프리팹이 있으면 그 차를 실내 길이에 맞춰 놓고
+        /// solid = true (부르는 쪽이 실내를 그리지 않는다). 없으면 실내 모델을 차로 보이게 바퀴·차대·미등만 단다.
+        /// width·length 는 실내 크기, along 은 차 가운데에서 실내 가운데까지 앞쪽 거리, floor 는 노면에서 실내 바닥까지 높이.
+        /// 실내에 들어오면 부르는 쪽이 지운다
+        public Transform MakeIntroShell(float width, float length, float along, float floor, out bool solid)
+        {
+            Setup();
+            var t = new GameObject("IntroShell").transform;
+            t.SetParent(_root, false);
+            var car = _kit.Prop(OwnCar, t, Vector3.zero);
+            solid = car != null;
+            if (solid)
+            {
+                var b = Kit.LocalBounds(car, t);
+                var k = b.size.z > 0.01f ? length * 1.12f / b.size.z : 1;
+                car.transform.localScale = Vector3.one * k;
+                car.transform.localPosition = new Vector3(-b.center.x * k, -b.min.y * k, along - b.center.z * k);
+                return t;
+            }
+            var r = Mathf.Max(0.3f, floor + 0.06f);
+            foreach (var x in new[] { -1f, 1f })
+            {
+                foreach (var z in new[] { -0.3f, 0.3f })
+                    _kit.Wheel(t, new Vector3(x * (width / 2 - 0.08f), r, along + z * length), r, 0.24f);
+                _kit.GlowBox(t, new Vector3(x * width * 0.36f, floor + 0.35f, along - length / 2 - 0.02f), new Vector3(0.3f, 0.16f, 0.05f), Kit.C("#E2463A"));
+            }
+            _kit.Box(t, new Vector3(0, 0.14f, along), new Vector3(width * 0.94f, Mathf.Max(0.05f, floor - 0.12f), length * 0.98f), Kit.C("#3A3531"));
+            return t;
+        }
+
         /// 에디터 캡처용: meters 만큼 달린 것으로 치고 조각을 바로 짓는다 (Update 가 돌지 않는 배치 모드)
         public void EditorStep(float meters)
         {
@@ -267,8 +387,8 @@ namespace Allo.World
         void Follow()
         {
             var pose = _track.CarPose;
-            _carYaw = pose.yaw;
-            var rot = Quaternion.Euler(0, -pose.yaw, 0);
+            _carYaw = pose.yaw + _corneringYaw;
+            var rot = Quaternion.Euler(0, -_carYaw, 0);
             _trackT.localRotation = rot;
             _trackT.localPosition = -(rot * pose.pos);
             // 땅 무늬는 트랙 좌표에 붙인다 (Allo/Toon 의 _WorldUV). 트랙이 움직이므로 달린 거리를 따로 더하지 않는다
@@ -538,7 +658,7 @@ namespace Allo.World
             foreach (var g in parts) Kill(g);
             foreach (var (m, list) in groups)
             {
-                var mesh = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32, name = m.name };
+                var mesh = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32, name = Combined + m.name };
                 mesh.CombineMeshes(list.ToArray(), true, true);
                 var go = new GameObject(m.name);
                 go.transform.SetParent(chunk, false);
@@ -551,10 +671,18 @@ namespace Allo.World
             foreach (var m in custom) Kill(m);
         }
 
-        /// 조각을 지울 때 합친 메시도 같이 지운다 (메모리 누수 방지)
+        const string Combined = "Chunk:";
+
+        /// 조각을 지울 때 합친 메시도 같이 지운다 (메모리 누수 방지).
+        /// 우리가 만든 메시만 지운다: 아직 합치기 전인 조각에는 내장 도형(Cube·Cylinder)과 프리팹 메시가 그대로 있고,
+        /// 그것을 지우면 그 뒤로 CreatePrimitive 가 계속 실패해 도로·난간이 사라진다
         static void Drop(Transform chunk)
         {
-            foreach (var mf in chunk.GetComponentsInChildren<MeshFilter>()) Kill(mf.sharedMesh);
+            foreach (var mf in chunk.GetComponentsInChildren<MeshFilter>())
+            {
+                var mesh = mf.sharedMesh;
+                if (mesh != null && (mesh.name.StartsWith(Combined) || mesh.name == "Facade")) Kill(mesh);
+            }
             Kill(chunk.gameObject);
         }
 

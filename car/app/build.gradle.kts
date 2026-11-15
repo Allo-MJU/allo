@@ -34,6 +34,10 @@ android {
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
+        buildConfigField("String", "ALLO_TTS_BASE_URL", quoted(localProps.getProperty("ALLO_TTS_BASE_URL", "")))
+        buildConfigField("String", "ALLO_TTS_VOICE_REVISION", quoted(localProps.getProperty("ALLO_TTS_VOICE_REVISION", "1")))
+        // Local voice testing only; used solely by debug builds against a loopback http gateway.
+        buildConfigField("String", "ALLO_TTS_DEV_TOKEN", quoted(localProps.getProperty("ALLO_TTS_DEV_TOKEN", "")))
         buildConfigField("String", "ALLO_DB_URL", quoted(localProps.getProperty("ALLO_DB_URL", "")))
         buildConfigField("boolean", "FIREBASE_EMULATOR", "false")
         buildConfigField("String", "CAR_APP_VERSION", quoted("0.1.0"))
@@ -54,6 +58,8 @@ android {
         }
         release {
             isMinifyEnabled = true
+            // 공모전 제출용 APK: 별도 키스토어 없이 설치되도록 디버그 키로 서명한다 (폰 앱과 같은 방식).
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -77,6 +83,7 @@ dependencies {
     implementation(libs.pleos.navi.helper)
     implementation(libs.pleos.navi.data)
     implementation(libs.pleos.tts)
+    implementation(libs.pleos.stt)
 
     // AndroidX / Compose
     implementation(libs.androidx.core.ktx)

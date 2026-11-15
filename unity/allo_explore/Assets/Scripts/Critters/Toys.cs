@@ -34,9 +34,50 @@ namespace Allo.Critters
 
         public static bool IsSnack(Kind k) => k is Kind.Apple or Kind.Shell or Kind.Acorn or Kind.FishBun;
 
+        /// 3D 모델 프리팹 ID (Resources/Props/P_{ID}, scripts/import_props.sh). 프리팹이 있으면 도형 대신 쓴다
+        static readonly System.Collections.Generic.Dictionary<Kind, string> PropIds = new()
+        {
+            [Kind.Apple] = "apple", [Kind.Shell] = "shell", [Kind.Acorn] = "acorn", [Kind.FishBun] = "fishbun",
+            [Kind.Ball] = "ball", [Kind.Plush] = "plush", [Kind.Cushion] = "cushion", [Kind.Blanket] = "blanket",
+            [Kind.Egg] = "egg", [Kind.EggTop] = "egg_top", [Kind.EggBottom] = "egg_bottom", [Kind.Nest] = "nest",
+        };
+
+        /// 프리팹 크기와 다르게 쓰는 것: 동행에게 건네는 작은 인형·쿠션 (프리팹은 차 안 옆자리 크기)
+        static readonly System.Collections.Generic.Dictionary<Kind, float> PropHeight = new()
+        {
+            [Kind.Plush] = 0.13f, [Kind.Cushion] = 0.16f,
+        };
+
+        public static GameObject PropModel(string id) => string.IsNullOrEmpty(id) ? null : Resources.Load<GameObject>("Props/P_" + id);
+
+        public static GameObject PropModel(Kind k) => PropIds.TryGetValue(k, out var id) ? PropModel(id) : null;
+
         public static Transform Make(Kind k)
         {
             var root = new GameObject("Toy_" + k).transform;
+            // 알 담요(포대기)는 잘 때 담요 모델을 알 크기로 맞춰 덮는다: 알 아래 3/4 을 덮고 꼭대기는 담요 위로 나온다
+            if (k == Kind.EggWrap && PropModel("blanket") is { } quilt)
+            {
+                var m = Object.Instantiate(quilt, root, false).transform;
+                m.name = "Model";
+                var b = BoundsOf(m);
+                m.localScale = new Vector3(EggW * EggWrapWide / b.size.x, EggH * EggWrapHigh / b.size.y, EggW * EggWrapWide / b.size.z);
+                return root;
+            }
+            var prefab = PropModel(k);
+            if (prefab != null)
+            {
+                var m = Object.Instantiate(prefab, root, false).transform;
+                m.name = "Model";
+                if (PropHeight.TryGetValue(k, out var h))
+                {
+                    var b = BoundsOf(m);
+                    m.localScale = Vector3.one * (h / Mathf.Max(0.001f, b.size.y));
+                }
+                // 담요: 도형 돔처럼 뒤(-z)로 조금 물려 얼굴 쪽을 남긴다
+                if (k == Kind.Blanket) m.localPosition = new Vector3(0, 0, -CritterView.Height * 0.12f);
+                return root;
+            }
             switch (k)
             {
                 case Kind.Apple:
@@ -307,6 +348,9 @@ namespace Allo.Critters
             return root;
         }
 
+        /// 알 담요 모델 크기: 알 폭의 배수, 알 키의 비율
+        public const float EggWrapWide = 1.3f, EggWrapHigh = 0.75f;
+
         /// 알 크기 (m). 큰 알은 Unity 에서 1.25배로 키운다
         public const float EggW = 0.1f, EggH = 0.125f;
         static readonly Color EggYellow = new(0.99f, 0.8f, 0.27f);
@@ -335,7 +379,7 @@ namespace Allo.Critters
         static Material ToonFor(Color color)
         {
             if (_byColor.TryGetValue(color, out var m) && m != null) return m;
-            _toon ??= new Material(Shader.Find("Allo/Toon"));
+            if (_toon == null) _toon = new Material(Shader.Find("Allo/Toon"));
             m = new Material(_toon) { color = color };
             m.SetFloat("_OutlineWidth", 0.003f);
             m.SetFloat("_HiSize", 0.25f);
@@ -354,6 +398,16 @@ namespace Allo.Critters
             r.sharedMaterial = ToonFor(color);
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             return go.transform;
+        }
+
+        /// t 아래 렌더러를 모두 감싸는 상자 (월드)
+        public static Bounds BoundsOf(Transform t)
+        {
+            var rs = t.GetComponentsInChildren<Renderer>();
+            if (rs.Length == 0) return new Bounds(t.position, Vector3.zero);
+            var b = rs[0].bounds;
+            foreach (var r in rs) b.Encapsulate(r.bounds);
+            return b;
         }
 
         static void Kill(Object o)

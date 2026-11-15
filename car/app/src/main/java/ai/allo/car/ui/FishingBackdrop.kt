@@ -16,7 +16,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/** Static scenery anchored to the exact square occupied by the original fishing sheet. */
+/**
+ * Static scenery anchored to the exact square occupied by the original fishing sheet.
+ * The sheet is [spriteSize] wide, centred on [centerX] of the width with its foot on [baseline]
+ * of the height; DrivingScreen places the character with the same two fractions.
+ */
 @Composable
 internal fun FishingBackdrop(
     modifier: Modifier = Modifier,
@@ -24,6 +28,8 @@ internal fun FishingBackdrop(
     speciesId: String? = null,
     showContact: Boolean = true,
     frame: Int = 0,
+    centerX: Float = .5f,
+    baseline: Float = .90f,
 ) {
     val dark = MaterialTheme.colorScheme.surface.luminance() < .35f
     val sky = if (dark) Color(0xFF1A292B) else Color(0xFFEAF2E9)
@@ -87,13 +93,13 @@ internal fun FishingBackdrop(
                 strokeWidth = unit * .010f, cap = StrokeCap.Round)
         }
 
-        // Match DrivingScreen's BottomCenter placement and 10% bottom inset exactly.
+        // Match DrivingScreen's character placement exactly.
         // Pier and contact shadows share the sprite scale instead of scaling to the viewport.
         val art = spriteSize.toPx()
         if (!showContact || art <= 0f) return@Canvas
         val profile = FishingSceneProfile.forSpecies(speciesId) ?: return@Canvas
-        val sx = (w - art) / 2f
-        val sy = h * .90f - art
+        val sx = w * centerX - art / 2f
+        val sy = h * baseline - art
         val rearY = sy + art * (profile.groundY - .11f)
         val frontY = sy + art * (profile.groundY + .06f)
         val rearX = sx + art * .35f
@@ -101,7 +107,7 @@ internal fun FishingBackdrop(
         val depth = art * .035f
         val contactY = sy + art * profile.groundY
         // Mirror only the scenery; the authored character and fishing direction remain intact.
-        withTransform({ if (profile.castsRight) scale(-1f, 1f, pivot = Offset(w / 2f, 0f)) }) {
+        withTransform({ if (profile.castsRight) scale(-1f, 1f, pivot = Offset(sx + art / 2f, 0f)) }) {
 
         // Broad reflection beneath the pier, then the posts and bevelled timber edge.
         drawOval(Brush.radialGradient(listOf(Color(0xFF173C37).copy(alpha = .26f), Color.Transparent),

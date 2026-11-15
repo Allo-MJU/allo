@@ -9,10 +9,12 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         ExploreBridge.attach(flutterEngine, this)
         EggInputBridge.attach(flutterEngine, this)
+        CompanionVoiceBridge.attach(flutterEngine, this)
         ScreenShareBridge.attach(flutterEngine, this)
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        CompanionVoiceBridge.detach()
         EggInputBridge.detach()
         ExploreBridge.detach()
         ScreenShareBridge.detach()

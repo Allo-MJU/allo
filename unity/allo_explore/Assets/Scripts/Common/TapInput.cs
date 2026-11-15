@@ -57,6 +57,8 @@ namespace Allo
 
         void Update()
         {
+            if (Allo.App.CabinInteraction.IsCapturing || Allo.App.CabinEgg.IsCapturing) return;
+            if (Allo.App.AppSession.StoryActive || Allo.App.StoryOverlay.CapturingInput || Allo.CameraRig.CameraRig.IntroActive) { Cancel(); return; }
             FogGlass.Raining = world != null && world.Scene != null && world.Scene.rain > 0 && world.Scene.kind != "tunnel";
 #if UNITY_EDITOR
             if (Input.GetMouseButtonDown(0)) Begin(Input.mousePosition, -1);
@@ -81,7 +83,7 @@ namespace Allo
             _overUi = EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(finger);
             _petting = null; _rub = 0; _glassAtDown = null; _drawn = 0; _lastGlass = null;
             _mode = Mode.Look;
-            if (_overUi) { _mode = Mode.None; return; }
+            if (_overUi) { Lock(Mode.None); return; }
             if (critters != null && critters.Holding) { Lock(Mode.Throw); return; }
             if (!Physics.Raycast(_cam.ScreenPointToRay(p), out var hit, 80f)) return;
             var critter = hit.collider.GetComponentInParent<CritterView>();
@@ -169,7 +171,7 @@ namespace Allo
                     return;
                 }
                 case Mode.Pet:
-                    if (quick && _petting != null && critters != null && !critters.ToggleBlanket(_petting)) critters.Poke(_petting);
+                    if (quick && _petting != null && critters != null && !critters.InviteCompanion(_petting) && !critters.ToggleBlanket(_petting)) critters.Poke(_petting);
                     return;
                 case Mode.Draw:
                     if (_drawn > 0.5f) critters?.DrawDone();
@@ -216,8 +218,9 @@ namespace Allo
                     critters?.SetLightsOff(!cabinLight.enabled);
                 }
                 else if (n.StartsWith("Bottle")) critters?.Water(hit.point);
-                else if (n.StartsWith("Plush")) critters?.Toy(Toys.Kind.Plush, hit.point);
-                else if (n.StartsWith("Cushion")) critters?.Toy(Toys.Kind.Cushion, hit.point);
+                // 3D 모델(PlushModel·CushionModel)이면 그 물건을 직접 건넨다. 도형이면 작은 복사본을 던진다
+                else if (n.StartsWith("Plush")) critters?.Toy(Toys.Kind.Plush, hit.point, n.EndsWith("Model") ? hit.collider.transform : null);
+                else if (n.StartsWith("Cushion")) critters?.Toy(Toys.Kind.Cushion, hit.point, n.EndsWith("Model") ? hit.collider.transform : null);
                 return;
             }
             if (hit.collider.name.StartsWith("Glass_")) world?.TapGlass(hit.point);

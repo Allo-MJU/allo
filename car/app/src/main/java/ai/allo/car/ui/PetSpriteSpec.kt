@@ -9,6 +9,7 @@ data class PetSpriteSpec(
     val rows: Int = 2,
     val repeat: Boolean = true,
     val alphaCutoff: Int = 0,
+    val contentInsetFraction: Float = 0f,
 ) {
     val durationMs: Int get() = frameMs * timeline.size
     fun frameAt(elapsedMs: Long, enabled: Boolean): Int {
@@ -49,6 +50,11 @@ object PetSpriteSheets {
         mapOf(PetPose.Move to run, PetPose.Fishing to fish, PetPose.Sleep to sleep, PetPose.Fall to fall).mapValues { (_, sheet) ->
             sheet.copy(path = "poses/$speciesId/${sheet.path.substringAfterLast('/')}")
         }
+    } + listOf(
+        "breeze_wyrm", "cloud_strider", "dewcap", "dune_roller", "ember_crab", "pebble_orbit",
+    ).associateWith { speciesId ->
+        // Preserve the shared fishing clock; these characters have no authored run/sleep/fall sheets.
+        mapOf(PetPose.Fishing to fish.copy(path = "fishing/$speciesId/fish.png", alphaCutoff = 32, contentInsetFraction = .08f))
     }
 
     // New artwork packs three eight-frame actions in one 4-column, 6-row atlas.

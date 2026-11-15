@@ -47,8 +47,14 @@ namespace Allo.Critters
         }
 
         /// 상황(evt)에 맞는 대사를 골라 말풍선에 띄운다. 동행이 없으면 말하지 않는다. 골라진 문장을 돌려준다
+        /// 촬영 장면(FilmMode): 말풍선 없이 가만히 있는 장면을 찍을 때 켠다
+        public static bool Mute;
+
         public string Speak(string evt, string context = null, float seconds = 3.4f, CritterView who = null)
         {
+            if (Mute) return null;
+            // Full application dialogue and persona content are supplied by the backend.
+            if (Allo.App.AppSession.State != null || (Allo.App.AppSession.DialogueOwned && evt != "hatch")) return null;
             who ??= Companion;
             if (who == null || !Dialogue.Ready) return null;
             var line = Dialogue.Pick(evt, who.Id, AttrOf(who), context ?? SceneContext, _play);
@@ -70,6 +76,7 @@ namespace Allo.Critters
 
         void OnSceneTalk()
         {
+            if (Allo.App.AppSession.State != null || Allo.App.AppSession.DialogueOwned) { _lastSceneKey = SceneContext; return; }
             var key = SceneContext;
             if (key == _lastSceneKey) return;
             _lastSceneKey = key;
@@ -82,6 +89,12 @@ namespace Allo.Critters
 
         void TalkTick(float dt)
         {
+            if (Allo.App.AppSession.State != null || Allo.App.AppSession.DialogueOwned)
+            {
+                foreach (var bubble in _speech.Values) if (bubble != null) bubble.Hide();
+                _chatTimer = 28f;
+                return;
+            }
             var c = Companion;
             if (c == null || _hatching) return;
             _chatTimer -= dt;

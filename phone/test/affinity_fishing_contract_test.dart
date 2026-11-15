@@ -11,7 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'affinity_controller_test.dart' show DemoApi, RecordingStore;
 import 'fishing_feed_integration_test.dart' show MemoryFishingStore;
 import 'recurring_incubation_test.dart' show RoundFeed;
-import 'session_resume_test.dart' show sessionA;
+import 'session_resume_test.dart' show sessionA, sessionB;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -67,39 +67,43 @@ void main() {
       await settle();
     }
 
+    Future<void> requestFishing(String action, String requestId) async {
+      final f = last()['fishing'] as Map;
+      feed.carEvents.add({
+        'by': 'car',
+        'type': 'fishingRequested',
+        'payload': {
+          'requestId': requestId,
+          'leaseId': f['leaseId'],
+          'displayId': f['displayId'],
+          'displayRevision': f['displayRevision'],
+          'activityId': f['activityId'],
+          'cycle': f['cycle'],
+          'action': action
+        }
+      });
+      await settle();
+    }
+
     await sample();
-    final f = last()['fishing'] as Map;
-    feed.carEvents.add({
-      'by': 'car',
-      'type': 'fishingRequested',
-      'payload': {
-        'requestId': 'start-one',
-        'leaseId': f['leaseId'],
-        'displayId': f['displayId'],
-        'displayRevision': f['displayRevision'],
-        'activityId': f['activityId'],
-        'cycle': f['cycle'],
-        'action': 'start'
-      }
-    });
-    await settle();
+    await requestFishing('start', 'start-one');
     await sample();
     for (var i = 0; i < 60; i++) {
       await sample(1000);
     }
     expect((last()['fishing'] as Map)['totalRecords'], 1);
     expect((last()['fishing'] as Map)['state'], 'reward');
-    final originalCompanion =
-        Map<String, dynamic>.from(last()['companion'] as Map);
+    await requestFishing('pause', 'pause-one');
+    expect((last()['fishing'] as Map)['state'], 'paused');
+    var tripCompanion = Map<String, dynamic>.from(last()['companion'] as Map);
     final originalFishing = Map<String, dynamic>.from(last()['fishing'] as Map);
     final captures = <String, dynamic>{};
     Future<void> capture(String name) async {
       await settle();
       final state = last();
-      expect(state['companion'], originalCompanion, reason: name);
+      expect(state['companion'], tripCompanion, reason: name);
       for (final key in [
-        'displayId',
-        'displayRevision',
+        'state',
         'activityId',
         'cycle',
         'elapsedMs',
@@ -108,6 +112,10 @@ void main() {
         expect((state['fishing'] as Map)[key], originalFishing[key],
             reason: '$name:$key');
       }
+      expect(
+          (state['fishing'] as Map)['displayId'], tripCompanion['displayId']);
+      expect((state['fishing'] as Map)['displayRevision'],
+          tripCompanion['displayRevision']);
       expect(jsonEncode(state), isNot(contains('photoId')));
       expect(jsonEncode(state), isNot(contains('imageBase64')));
       captures[name] = jsonDecode(jsonEncode(state));
@@ -144,6 +152,24 @@ void main() {
     expect(await c.startIncubating(EggTier.small, useAffinity: true), isTrue);
     await sample();
     await sample(30 * 60000);
+    final firstEgg = c.eggId;
+    expect(c.game.stage, Stage.hatched);
+    Future<void> newTrip(String session) async {
+      final previousEgg = c.eggId;
+      final previousDisplay = tripCompanion;
+      await c.pair(session, pairCode: '123456');
+      await sample();
+      expect(c.eggId, isNot(previousEgg));
+      tripCompanion = Map<String, dynamic>.from(last()['companion'] as Map);
+      expect(tripCompanion['displayRevision'],
+          greaterThan(previousDisplay['displayRevision'] as int));
+      expect(tripCompanion['displayId'], isNot(previousDisplay['displayId']));
+      expect(tripCompanion['speciesId'], previousDisplay['speciesId']);
+      expect(tripCompanion['location'], 'car');
+    }
+
+    expect((await store.all()).last.sourceEggId, firstEgg);
+    await newTrip(sessionB);
     expect(c.game.stage, Stage.incubating);
     expect(c.affinityRound?.score, 0);
     expect(c.game.photoQuestCompleted, isFalse);
@@ -157,6 +183,8 @@ void main() {
         reason: 'discarded egg must not stop companion heartbeat');
     expect(await c.startIncubating(EggTier.small, useAffinity: true), isTrue);
     await sample();
+    expect(c.affinityRound?.phase, AffinityPhase.discarded);
+    await newTrip('b0c260a8-e807-42e9-a119-26119837113d');
     await sample(41 * 60000);
     expect(c.game.stage, Stage.failed);
     await capture('failed');
@@ -176,14 +204,16 @@ void main() {
 
     // Keep real serializer output; only normalize generated identifiers and wall-clock/order values.
     var index = 0;
+    final leases = <String, String>{};
     for (final state in captures.values.cast<Map<String, dynamic>>()) {
       state['ts'] = 1700000000000 + index;
       state['gameRevision'] = ++index;
       for (final block in ['companion', 'fishing']) {
         final value = state[block] as Map;
-        value['displayId'] = 'fixture-companion';
+        value['displayId'] = 'fixture-companion-${value['displayRevision']}';
         if (block == 'fishing') {
-          value['leaseId'] = 'fixture-lease';
+          value['leaseId'] = leases.putIfAbsent(value['leaseId'] as String,
+              () => 'fixture-lease-${leases.length + 1}');
           value['activityId'] = 'fixture-activity';
         }
       }

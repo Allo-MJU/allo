@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'base_camp_catalog.dart';
+import 'companion_quest.dart';
 
 const _maxInt = 9007199254740991;
 const _cap = 1000000000;
@@ -93,6 +96,9 @@ class BaseCamp {
     _number(nowMs);
     final c = BaseCamp._().._now = nowMs;
     c._replaceCreatures(creatures);
+    for (final id in c._creatures.keys) {
+      c._questInvitationAnchors[id] = nowMs;
+    }
     return c;
   }
   int _now = 0;
@@ -109,9 +115,14 @@ class BaseCamp {
   final _learned = <String, Set<String>>{};
   final _buffs = <String, int>{};
   final _drives = <String, _Drive>{};
+  final _quests = <String, CompanionQuest>{};
+  final _questInvitationAnchors = <String, int>{};
+  final _questVisitIds = <String>{};
   int _carryMm = 0;
   int? _lastActivity;
   final _paid = <String>{}, _finalized = <String>{};
+  final _collectionRewards = <String>{};
+  Map<String, CompanionQuest> get quests => Map.unmodifiable(_quests);
   int get nowMs => _now;
   Map<String, CampCreature> get creatures => Map.unmodifiable(_creatures);
   Map<CampMaterial, int> get materials => Map.unmodifiable(_materials);
@@ -179,6 +190,11 @@ class BaseCamp {
         !next.containsKey(id) ||
         CampCatalog.roleFor(next[id]!.speciesId) != role);
     _buffs.removeWhere((id, _) => !next.containsKey(id));
+    _quests.removeWhere((id, _) => !next.containsKey(id));
+    _questInvitationAnchors.removeWhere((id, _) => !next.containsKey(id));
+    for (final id in next.keys) {
+      _questInvitationAnchors.putIfAbsent(id, () => atMs);
+    }
   }
 
   void assign(CampRole role, String? creatureId, {required int atMs}) {
@@ -338,6 +354,165 @@ class BaseCamp {
     if (atMs > _maxInt - 300000) throw const CampException('invalid_time');
     _food[recipeId] = _food[recipeId]! - 1;
     _buffs[creatureId] = atMs + 300000;
+    final q = _quests[creatureId];
+    if (q != null &&
+        q.kind == CompanionQuestKind.food &&
+        q.status == CompanionQuestStatus.accepted &&
+        q.targetFoodId == recipeId) {
+      _quests[creatureId] = q.copyWith(
+          status: CompanionQuestStatus.completed, completedAtMs: atMs);
+    }
+  }
+
+  static const questIntervalMs = 172800000;
+  int questInvitationAtMs(String creatureId, {required int atMs}) {
+    _id(creatureId);
+    _number(atMs);
+    if (atMs < _now) throw const CampException('clock_backwards');
+    if (!_creatures.containsKey(creatureId))
+      throw const CampException('invalid_creature');
+    final anchor = _questInvitationAnchors[creatureId];
+    if (anchor == null) throw const CampException('missing_invitation_anchor');
+    return anchor + ((atMs - anchor) ~/ questIntervalMs) * questIntervalMs;
+  }
+
+  bool questDue(String creatureId, {required int atMs}) {
+    _id(creatureId);
+    _number(atMs);
+    if (atMs < _now) throw const CampException('clock_backwards');
+    if (!_creatures.containsKey(creatureId))
+      throw const CampException('invalid_creature');
+    final q = _quests[creatureId];
+    return q == null ||
+        (q.status != CompanionQuestStatus.accepted &&
+            atMs >= q.nextEligibleAtMs);
+  }
+
+  void _validateQuest(CompanionQuest q) {
+    _id(q.creatureId);
+    _id(q.questId);
+    _id(q.templateId);
+    if (q.targetFoodId != null) _id(q.targetFoodId!);
+    if (q.targetPlaceId != null) _id(q.targetPlaceId!);
+    if (q.completedVisitId != null) _id(q.completedVisitId!);
+    _number(q.templateVersion);
+    _number(q.issuedAtMs);
+    _number(q.nextEligibleAtMs);
+    if (q.templateVersion < 1 ||
+        q.issuedAtMs > _maxInt - questIntervalMs ||
+        q.nextEligibleAtMs != q.issuedAtMs + questIntervalMs ||
+        q.issuedAtMs > _now ||
+        (q.kind == CompanionQuestKind.food &&
+            (q.targetFoodId == null ||
+                !CampCatalog.recipes.containsKey(q.targetFoodId))) ||
+        (q.kind != CompanionQuestKind.food && q.targetFoodId != null) ||
+        (q.kind != CompanionQuestKind.travel &&
+            (q.targetPlaceId != null || q.completedVisitId != null)) ||
+        (q.status == CompanionQuestStatus.offered &&
+            (q.acceptedAtMs != null ||
+                q.completedAtMs != null ||
+                q.completedVisitId != null)) ||
+        (q.status != CompanionQuestStatus.offered &&
+            (q.acceptedAtMs == null ||
+                q.acceptedAtMs! < q.issuedAtMs ||
+                q.acceptedAtMs! > _now)) ||
+        (q.kind == CompanionQuestKind.travel &&
+            q.status != CompanionQuestStatus.offered &&
+            q.targetPlaceId == null) ||
+        (q.status == CompanionQuestStatus.completed &&
+            (q.completedAtMs == null ||
+                q.completedAtMs! < q.acceptedAtMs! ||
+                q.completedAtMs! > _now)) ||
+        (q.status != CompanionQuestStatus.completed &&
+            (q.completedAtMs != null || q.completedVisitId != null)) ||
+        (q.kind == CompanionQuestKind.travel &&
+            q.status == CompanionQuestStatus.completed &&
+            q.completedVisitId == null))
+      throw const CampException('invalid_snapshot');
+  }
+
+  bool offerQuest(CompanionQuest q, {required int atMs}) {
+    if (!questDue(q.creatureId, atMs: atMs)) return false;
+    _command(atMs);
+    if (q.status != CompanionQuestStatus.offered ||
+        q.issuedAtMs > atMs ||
+        (_quests[q.creatureId] != null &&
+            q.issuedAtMs < _quests[q.creatureId]!.nextEligibleAtMs))
+      throw const CampException('invalid_quest');
+    _validateQuest(q);
+    _quests[q.creatureId] = q;
+    return true;
+  }
+
+  bool acceptQuest(String creatureId, String questId,
+      {required int atMs, String? targetPlaceId}) {
+    _command(atMs);
+    _id(creatureId);
+    _id(questId);
+    final q = _quests[creatureId];
+    if (q == null ||
+        q.questId != questId ||
+        q.status != CompanionQuestStatus.offered ||
+        atMs >= q.nextEligibleAtMs) return false;
+    if (q.kind == CompanionQuestKind.travel) {
+      if (targetPlaceId == null ||
+          (q.targetPlaceId != null && q.targetPlaceId != targetPlaceId))
+        return false;
+      _id(targetPlaceId);
+    } else if (targetPlaceId != null) {
+      return false;
+    }
+    _quests[creatureId] = q.copyWith(
+        status: CompanionQuestStatus.accepted,
+        acceptedAtMs: atMs,
+        targetPlaceId: targetPlaceId);
+    return true;
+  }
+
+  bool completeStoryQuest(String creatureId, String questId,
+      {required int atMs}) {
+    _command(atMs);
+    _id(creatureId);
+    _id(questId);
+    final q = _quests[creatureId];
+    if (q == null ||
+        q.questId != questId ||
+        q.kind != CompanionQuestKind.story ||
+        q.status != CompanionQuestStatus.accepted) return false;
+    _quests[creatureId] =
+        q.copyWith(status: CompanionQuestStatus.completed, completedAtMs: atMs);
+    return true;
+  }
+
+  bool completeTravelQuest(String creatureId, String questId,
+      {required int atMs,
+      required String placeId,
+      required String visitId,
+      required int arrivedAtMs,
+      required List<String> companionIds}) {
+    _command(atMs);
+    _id(creatureId);
+    _id(questId);
+    _id(placeId);
+    _id(visitId);
+    _number(arrivedAtMs);
+    final q = _quests[creatureId];
+    if (q == null ||
+        q.questId != questId ||
+        q.kind != CompanionQuestKind.travel ||
+        q.status != CompanionQuestStatus.accepted ||
+        q.targetPlaceId != placeId ||
+        arrivedAtMs <= q.acceptedAtMs! ||
+        arrivedAtMs > atMs ||
+        !companionIds.contains(creatureId) ||
+        _questVisitIds.contains(jsonEncode([creatureId, visitId])))
+      return false;
+    _questVisitIds.add(jsonEncode([creatureId, visitId]));
+    _quests[creatureId] = q.copyWith(
+        status: CompanionQuestStatus.completed,
+        completedAtMs: atMs,
+        completedVisitId: visitId);
+    return true;
   }
 
   void advanceTo(int atMs) {
@@ -445,8 +620,23 @@ class BaseCamp {
     return true;
   }
 
+  bool grantCollectionReward(String tripId, {required int atMs}) {
+    _id(tripId);
+    _command(atMs);
+    if (_collectionRewards.contains(tripId)) return false;
+    final count = _food['berry_snack'] ?? 0;
+    if (count > _cap - 3) throw const CampException('resource_cap');
+    _food['berry_snack'] = count + 3;
+    _collectionRewards.add(tripId);
+    return true;
+  }
+
   Map<String, dynamic> toJson() => {
         'version': 1,
+        'questInvitationAnchors':
+            Map<String, int>.from(_questInvitationAnchors),
+        'quests': {for (final e in _quests.entries) e.key: e.value.toJson()},
+        'questVisitIds': _questVisitIds.toList(),
         'nowMs': _now,
         'creatures': [for (final c in _creatures.values) c.toJson()],
         'materials': {for (final e in _materials.entries) e.key.name: e.value},
@@ -470,6 +660,7 @@ class BaseCamp {
         'driveCarryMm': _carryMm,
         'lastActivity': _lastActivity,
         'paidActivityIds': _paid.toList(),
+        'collectionRewardTripIds': _collectionRewards.toList(),
         'finalizedTaskIds': _finalized.toList()
       };
   factory BaseCamp.fromJson(Map<String, dynamic> json) {
@@ -487,6 +678,39 @@ class BaseCamp {
     final cs = json['creatures'];
     if (cs is! List) throw const CampException('invalid_snapshot');
     c._replaceCreatures(cs.map((v) => CampCreature.fromJson(_map(v))).toList());
+    for (final e in _map(json['questInvitationAnchors'] ?? {}).entries) {
+      if (!c._creatures.containsKey(e.key))
+        throw const CampException('invalid_snapshot');
+      final anchor = _number(e.value);
+      if (anchor > c._now) throw const CampException('invalid_snapshot');
+      c._questInvitationAnchors[e.key] = anchor;
+    }
+    for (final e in _map(json['quests'] ?? {}).entries) {
+      final q = CompanionQuest.fromJson(_map(e.value));
+      if (e.key != q.creatureId || !c._creatures.containsKey(e.key))
+        throw const CampException('invalid_snapshot');
+      c._validateQuest(q);
+      c._quests[e.key] = q;
+    }
+    final visits = json['questVisitIds'] ?? [];
+    if (visits is! List) throw const CampException('invalid_snapshot');
+    for (final v in visits) {
+      if (v is! String || v.length > 4000)
+        throw const CampException('invalid_snapshot');
+      final pair = jsonDecode(v);
+      if (pair is! List || pair.length != 2)
+        throw const CampException('invalid_snapshot');
+      _string(pair[0]);
+      _string(pair[1]);
+      if (jsonEncode(pair) != v || !c._questVisitIds.add(v))
+        throw const CampException('invalid_snapshot');
+    }
+    for (final q in c._quests.values) {
+      if (q.completedVisitId != null &&
+          !c._questVisitIds
+              .contains(jsonEncode([q.creatureId, q.completedVisitId])))
+        throw const CampException('invalid_snapshot');
+    }
     final materials = _map(json['materials']);
     final facilities = _map(json['facilities']);
     if (materials.length != CampMaterial.values.length ||
@@ -521,11 +745,6 @@ class BaseCamp {
 
     countMap(json['foodInventory'], c._food);
     countMap(json['recipeBook'], c._book);
-    for (final e in c._food.entries) {
-      if (e.value > (c._book[e.key] ?? 0)) {
-        throw const CampException('invalid_snapshot');
-      }
-    }
     for (final e in _map(json['learnedActions']).entries) {
       _id(e.key);
       if (e.value is! List) throw const CampException('invalid_snapshot');
@@ -569,6 +788,14 @@ class BaseCamp {
     }
 
     ids(json['paidActivityIds'], c._paid);
+    ids(json['collectionRewardTripIds'] ?? [], c._collectionRewards);
+    for (final e in c._food.entries) {
+      final rewarded =
+          e.key == 'berry_snack' ? c._collectionRewards.length * 3 : 0;
+      if (e.value > (c._book[e.key] ?? 0) + rewarded) {
+        throw const CampException('invalid_snapshot');
+      }
+    }
     ids(json['finalizedTaskIds'], c._finalized);
     if ((c._lastActivity == null) != c._paid.isEmpty) {
       throw const CampException('invalid_snapshot');

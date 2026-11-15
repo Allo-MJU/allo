@@ -20,30 +20,42 @@ void main() {
   Future<Map<String, dynamic>> launch(WidgetTester tester, VehicleFeed feed,
       {required bool enabled}) async {
     rootBundle.evict('assets/data/species.json');
-    final messages = <Map<String, dynamic>>[];
+    rootBundle.evict('assets/data/characters.json');
+    rootBundle.evict('assets/data/character_profiles.json');
+    rootBundle.evict('assets/data/window_stories_ko.json');
+    rootBundle.evict('assets/data/companion_learning.json');
+    Map<String, dynamic>? current;
+    Map<String, dynamic>? lastMessage;
     await tester.pumpWidget(AlloApp(
         feed: feed,
         useUnityApp: true,
         demoCreatures: enabled,
         unityView: ({required onCreated, required onMessage}) {
           receive = onMessage;
-          onCreated(
-              (json) => messages.add(jsonDecode(json) as Map<String, dynamic>));
+          onCreated((json) {
+            final message = jsonDecode(json) as Map<String, dynamic>;
+            if (message['type'] == 'app') lastMessage = message;
+            if (message['type'] == 'app' &&
+                ((message['ready'] == true && message['busy'] == false) ||
+                    message['error'] != '')) {
+              current = message;
+            }
+          });
           return const SizedBox();
         }));
     await tester.pumpAndSettle();
     receive('{"type":"ready"}');
-    // Initialization includes asset/plugin I/O that does not schedule a frame.
-    for (var attempt = 0; attempt < 100; attempt++) {
-      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    // New trip preparation spans asset I/O and fake-zone storage callbacks.
+    for (var i = 0; i < 500 && current == null; i++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)));
       await tester.pump();
-      final current = messages.where((m) => m['type'] == 'app').last;
-      if (current['ready'] == true || current['error'] != '') {
-        expect(current['ready'], isTrue, reason: current['error'] as String);
-        return current;
-      }
     }
-    fail('Unity demo initialization did not finish');
+    expect(current, isNotNull,
+        reason: 'Unity app did not finish automatic trip preparation: ${jsonEncode(lastMessage)}');
+    expect(current!['ready'], isTrue, reason: current!['error'] as String);
+    await tester.pump();
+    return current!;
   }
 
   Future<void> close(WidgetTester tester) async {
@@ -166,7 +178,8 @@ void main() {
         await FishingStore(profile: 'unity-demo-examples').read();
     expect(demoFishing,
         isNotNull); // The actual app paired and attached its demo store.
-    expect(demoFishing!['session'], sessionA);
+    final demoSession = demoFishing!['session'];
+    expect(demoSession, startsWith('demo-'));
     expect(demoFishing['selected'], isNull);
     expect(demoFishing['entries'], isEmpty);
     await prefs.reload();
@@ -181,6 +194,9 @@ void main() {
         tester, FakeVehicleFeed(scenario: FakeScenario.clear),
         enabled: true);
     expect((second['creatures'] as List).map((c) => c['id']).toList(), ids);
+    expect(
+        (await FishingStore(profile: 'unity-demo-examples').read())!['session'],
+        demoSession);
     expect(
         (await DexStore(profile: 'unity-demo-examples').all()), hasLength(5));
     expect((await original.all()).single.sourceEggId, 'earned-original');

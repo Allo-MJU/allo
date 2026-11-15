@@ -8,8 +8,13 @@ data class DialogueAnswer(val questionId: String, val text: String, val fromBank
 
 /** Read-only dialogue for the currently displayed companion. The UI validates catalog membership. */
 class CompanionDialogue(private val bank: DialogueBank) {
-    fun subject(game: GameState, connected: Boolean): DialogueSubject? {
+    fun subject(game: GameState, connected: Boolean, guestSpeciesId: String? = null): DialogueSubject? {
         if (!connected) return null
+        // A guest is a local conversation target, never a replacement for the car companion.
+        if (guestSpeciesId != null) {
+            if (guestSpeciesId.isBlank() || guestSpeciesId !in PlazaPopulation.residents(game)) return null
+            return DialogueSubject("guest:${guestSpeciesId.length}:$guestSpeciesId", guestSpeciesId)
+        }
         if (game.hasV2Contract) {
             if ("companion" in game.invalidBlocks) return null
             val companion = game.companion ?: return null
@@ -27,9 +32,9 @@ class CompanionDialogue(private val bank: DialogueBank) {
         return DialogueSubject("legacy:$speciesId", speciesId)
     }
 
-    fun answer(questionId: String, game: GameState, connected: Boolean): DialogueAnswer? {
+    fun answer(questionId: String, game: GameState, connected: Boolean, guestSpeciesId: String? = null): DialogueAnswer? {
         if (QUESTIONS.none { it.id == questionId }) return null
-        val selected = subject(game, connected) ?: return null
+        val selected = subject(game, connected, guestSpeciesId) ?: return null
         val vars = bank.speciesName(selected.speciesId)?.let { mapOf("name" to it) }.orEmpty()
         // game.attribute describes the current egg, which can differ from the selected companion.
         val text = bank.line(questionId, selected.speciesId, bank.attributeOf(selected.speciesId), "hatched", vars)

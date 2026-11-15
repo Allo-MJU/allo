@@ -35,8 +35,10 @@ import androidx.compose.ui.unit.Dp
 fun rememberSpeciesCatalog(): SpeciesCatalog {
     val assets = LocalContext.current.assets
     return remember(assets) {
-        runCatching { assets.open("characters.json").bufferedReader().use { SpeciesCatalog.parse(it.readText()) } }
-            .getOrDefault(SpeciesCatalog.EMPTY)
+        fun load(path: String) = runCatching {
+            assets.open(path).bufferedReader().use { SpeciesCatalog.parse(it.readText()) }
+        }.getOrDefault(SpeciesCatalog.EMPTY)
+        load("species.json").withDisplayOverrides(load("characters.json"))
     }
 }
 
@@ -58,14 +60,17 @@ fun PetArt(
         return
     }
     val animate = ambientMotionAllowed(pose, parked, connected, runningMotion, drivingFishing)
-    val sheetSpec = PetSpriteSheets.forDisplay(summary.species?.id, pose, parked, runningMotion, drivingFishing)
+    // Keep authored driving choreography and its speed/fishing clock for the six
+    // matching identities. Plaza walking has its own separately selected sheets.
+    val sheetSpec = if (drivingFishing || runningMotion)
+        PetSpriteSheets.forDisplay(summary.species?.id, pose, parked, runningMotion, drivingFishing) else null
     val sheet = rememberPetSpriteSheet(sheetSpec)
     if (sheet != null && sheetSpec != null) {
         PetSpriteSheet(sheet, sheetSpec, animate, "${summary.title} · ${pose.label}", size, modifier, elapsedMs)
         return
     }
     val assets = LocalContext.current.assets
-    val sprite = PetPoses.assetPath(summary.species?.id, pose) ?: summary.species?.sprite
+    val sprite = LocalSuppliedCharacters.path(summary.species?.id, pose)
     val bitmap = remember(assets, sprite) {
         sprite?.let { path -> runCatching {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -110,7 +115,7 @@ fun PetArt(
         if (bitmap != null) {
             Image(bitmap, contentDescription = "${summary.title} · ${pose.label}", modifier = artModifier)
         } else {
-            PlaceholderPet(summary, size, artModifier, pose)
+            androidx.compose.material3.Text("원본 이미지 연결 대기")
         }
         if (pose == PetPose.Sleep || pose == PetPose.Fishing || runningMotion) {
             RestScene(pose, phase, motion, size, animate)

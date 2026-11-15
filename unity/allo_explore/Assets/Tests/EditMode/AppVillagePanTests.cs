@@ -1,11 +1,9 @@
 using System;
 using System.Linq;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using Allo.App;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
@@ -92,7 +90,7 @@ public class AppVillagePanTests
         Assert.AreEqual(content, first.parent);
         Assert.IsTrue(first.Find("Friend avatar/Missing friend artwork").gameObject.activeSelf, "missing art must be explicit, without substituting a different species");
         retained.GetComponent<Button>().onClick.Invoke();
-        Assert.AreEqual("owned-1", Get<string>("_selectedCreature")); Assert.AreEqual("species-1", Get<string>("_selectedDex"));
+        Assert.AreEqual("owned-1", Get<string>("_selectedCreature")); Assert.AreEqual("owned-1", Get<string>("_villageCreatureId"));
         var next = State(3, "home"); next.creatures = state.creatures.Select(c => new CreatureState { id = c.id, speciesId = c.speciesId, name = c.id == "owned-0" ? "바뀐 이름" : c.name, sprite = c.sprite }).ToArray();
         AppSession.Receive(next); Call("OnState", AppSession.State); Render();
         Assert.AreSame(first, content.Find("Village friend owned-0"), "unchanged IDs must keep their real GameObjects across snapshots");
@@ -108,10 +106,5 @@ public class AppVillagePanTests
     static AppState State(int revision, string view) => new AppState { revision = revision, view = view, ready = true, facilities = new[] { new FacilityState { id = "workshop", label = "작업장", level = 1 }, new FacilityState { id = "kitchen", label = "주방", level = 1 }, new FacilityState { id = "training", label = "훈련장", level = 1 } } };
     T Get<T>(string name) => (T)typeof(AppUi).GetField(name, Private).GetValue(_ui);
     void Call(string name, params object[] args) => typeof(AppUi).GetMethod(name, Private).Invoke(_ui, args);
-    void Render()
-    {
-        var content = Get<RectTransform>("_content"); var old = content.Cast<Transform>().ToArray();
-        foreach (var child in old) LogAssert.Expect(LogType.Error, new Regex("^Destroy may not be called from edit mode! Use DestroyImmediate instead\\."));
-        Call("Render"); foreach (var child in old) if (child != null && !child.gameObject.activeSelf) Object.DestroyImmediate(child.gameObject);
-    }
+    void Render() => Call("Render");
 }

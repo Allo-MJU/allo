@@ -13,6 +13,7 @@ namespace Allo.Bridge
     /// - 마지막 상태를 Last* 로 들고 있어 늦게 구독한 쪽도 읽을 수 있다
     public sealed class FlutterBridge : MonoBehaviour
     {
+        public static event Action<Allo.App.StoryVoiceConfig> StoryVoiceConfigured;
         public static event Action<SceneState> SceneChanged;
         public static event Action<CastState> CastChanged;
         public static event Action<string> Jolted;
@@ -50,8 +51,13 @@ namespace Allo.Bridge
 
         public static void HandleBack()
         {
+            var appUi = UnityEngine.Object.FindFirstObjectByType<Allo.App.AppUi>();
+            if (appUi != null && appUi.CloseVillageCharacterDetail()) return;
             switch (Allo.App.AppSession.BackActionFor(Allo.App.AppSession.State))
             {
+                case Allo.App.AppBackAction.PauseStory:
+                    Allo.App.AppSession.Request("storyNotebook", new Allo.App.AppAction { open = false });
+                    break;
                 case Allo.App.AppBackAction.NavigateHome:
                     Allo.App.AppSession.Request("navigate", new Allo.App.AppAction { view = "home" });
                     break;
@@ -71,13 +77,28 @@ namespace Allo.Bridge
         [UnityEngine.Scripting.Preserve]
         public void OnFlutterMessage(string json)
         {
+            if (Hold) return;
             if (!MessageParser.TryParse(json, out var type, out var payload))
             {
                 Debug.LogWarning("[FlutterBridge] 읽지 못한 메시지");
                 return;
             }
+            Dispatch(payload);
+        }
+
+        /// 촬영 장면(FilmMode)이 켠다: Flutter 가 보내는 상태를 받지 않고 Inject 로 넣은 것만 보인다
+        public static bool Hold;
+
+        /// Flutter 메시지와 같은 길로 상태를 넣는다 (촬영 장면 연출용)
+        public static void Inject(object payload) => Dispatch(payload);
+
+        static void Dispatch(object payload)
+        {
             switch (payload)
             {
+                case Allo.App.StoryVoiceConfig voice:
+                    StoryVoiceConfigured?.Invoke(voice);
+                    break;
                 case Allo.App.AppState app:
                     Allo.App.AppSession.Receive(app);
                     ClearLegacyEggForApp();

@@ -16,9 +16,6 @@ namespace Allo.CameraRig
     {
         public const float PitchLimit = 35f;
 
-        /// 자이로는 손가락 조작을 거드는 정도로만 작게 더한다 (멀미 방지)
-        public const float GyroScale = 0.3f;
-
         public static LookState Drag(LookState s, Vector2 deltaDegrees)
         {
             s.yaw = Mathf.Repeat(s.yaw + deltaDegrees.x, 360f);
@@ -32,8 +29,24 @@ namespace Allo.CameraRig
             return s;
         }
 
-        public static LookState AddGyro(LookState s, Vector2 gyroDegrees, bool enabled) =>
-            enabled ? Drag(s, gyroDegrees * GyroScale) : s;
+        /// 화면 방향 보정이 적용된 센서의 오른손 좌표계를 Unity 카메라의 왼손 좌표계로 바꾼다.
+        public static bool TryAttitude(Quaternion sensor, out Quaternion attitude)
+        {
+            var lengthSquared = Quaternion.Dot(sensor, sensor);
+            attitude = Quaternion.identity;
+            if (!(lengthSquared >= .5f && lengthSquared <= 1.5f)) return false;
+            attitude = new Quaternion(sensor.x, sensor.y, -sensor.z, -sensor.w).normalized;
+            return true;
+        }
+
+        public static LookState GyroTarget(LookState state, Quaternion neutral, Quaternion current)
+        {
+            var forward = Quaternion.Inverse(neutral) * current * Vector3.forward;
+            var target = Toward(state, Vector3.zero, forward, 0);
+            // 정수리 방향에서는 수평 방향을 읽을 수 없다.
+            if (forward.x * forward.x + forward.z * forward.z < 1e-6f) target.yaw = state.yaw;
+            return target;
+        }
 
         /// eye 에서 point 를 보는 yaw·pitch (baseYaw 를 0 으로). pitch 는 ±PitchLimit 안으로, rail 은 그대로
         public static LookState Toward(LookState s, Vector3 eye, Vector3 point, float baseYaw)

@@ -107,6 +107,17 @@ class HttpEggDemoApi implements EggDemoApi {
     }
   }
 
+  /// Reuses the configured authenticated transport without changing egg contracts.
+  Future<Map<String, dynamic>> companionChat(Map<String, dynamic> body) =>
+      _json('POST', '/v1/companion/chat', body);
+
+  Future<Map<String, dynamic>> companionTurn(Map<String, dynamic> body) =>
+      _json('POST', '/v1/companion/turn', body);
+
+  Future<Map<String, dynamic>> companionQuestTemplate(
+          Map<String, dynamic> body) =>
+      _json('POST', '/v1/companion/quest-template', body);
+
   static const _maxPhoto = 5 * 1024 * 1024;
   final Uri _baseUri;
   final String _token;

@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Allo.App
 {
-    public enum AppBackAction { CloseExplore, NavigateHome, BackgroundApp }
+    public enum AppBackAction { CloseExplore, NavigateHome, BackgroundApp, PauseStory }
 
     /// Authoritative snapshots come from Dart. The Unity side emits intents only.
     public sealed class AppSession : MonoBehaviour
@@ -14,16 +14,21 @@ namespace Allo.App
         CabinEgg _egg;
         public static AppState State { get; private set; }
         public static event Action<AppState> Changed;
+        // Only a host-opened manual pilot owns the phone story presentation.
+        public static bool StoryActive => StoryOverlay.ShowsStory(State);
+        public static bool LearningActive => State?.view == "cabin" && State.learning != null && !string.IsNullOrEmpty(State.learning.creatureId);
+        public static bool DialogueOwned => StoryActive || LearningActive || StoryOverlay.CapturingInput;
         public static string CurrentView => State?.view ?? "home";
 
         public static AppBackAction BackActionFor(AppState state) => state == null
             ? AppBackAction.CloseExplore
+            : StoryOverlay.OwnsInput(state) ? AppBackAction.PauseStory
             : state.view == "home" ? AppBackAction.BackgroundApp : AppBackAction.NavigateHome;
 
         public static bool Accepts(AppState current, AppState next) =>
             next != null && next.v == 1 && next.type == "app" &&
             (next.view == "home" || next.view == "cabin" || next.view == "camp" ||
-             next.view == "dex" || next.view == "inventory" || next.view == "settings") &&
+             next.view == "dex" || next.view == "inventory" || next.view == "settings" || next.view == "pairing") &&
             (current == null || next.revision > current.revision);
 
         public static void Install()
@@ -33,6 +38,7 @@ namespace Allo.App
             _instance = root.AddComponent<AppSession>();
             _instance._world = root.AddComponent<AppWorld>();
             _instance._egg = root.AddComponent<CabinEgg>();
+            root.AddComponent<CabinInteraction>();
             root.AddComponent<AppUi>();
         }
 
@@ -52,6 +58,8 @@ namespace Allo.App
             if (Application.isPlaying)
             {
                 Install();
+                _instance.GetComponent<CabinInteraction>()?.BeforeWorldChange(next);
+                _instance._egg.BeforeWorldChange(next);
                 _instance._world.Apply(next);
                 _instance._egg.SetView(next.view);
                 _instance._egg.Apply(next);
@@ -66,12 +74,24 @@ namespace Allo.App
             request.type = "appAction";
             request.requestId = "unity-" + Guid.NewGuid().ToString("N");
             request.action = action;
+            if (action.StartsWith("story", StringComparison.Ordinal) && State?.story != null)
+            {
+                request.instanceId ??= State.story.instanceId;
+                request.nodeId ??= State.story.nodeId;
+                request.topicId ??= State.story.topicId;
+                request.storyRevision = State.story.revision;
+                request.storyPresentationRevision = State.story.presentationRevision;
+            }
             if (string.IsNullOrEmpty(request.eggId)) request.eggId = State?.egg?.id;
             return request;
         }
 
-        public static void Request(string action, AppAction body = null) =>
-            AndroidHost.Send(JsonUtility.ToJson(CreateAction(action, body)));
+        public static string Request(string action, AppAction body = null)
+        {
+            var request = CreateAction(action, body);
+            AndroidHost.Send(JsonUtility.ToJson(request));
+            return request.requestId;
+        }
 
         void OnDestroy()
         {

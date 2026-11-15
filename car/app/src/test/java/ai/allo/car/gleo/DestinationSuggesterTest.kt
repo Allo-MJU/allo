@@ -105,6 +105,30 @@ class DestinationSuggesterTest {
         assertEquals(AcceptResult.RouteActive, flow.accept(g) { error("내비를 부르면 안 된다") })
     }
 
+    @Test fun `same destination offered after reset still invalidates earlier voice reply`() {
+        val flow = DestinationFlow(now = { 0L })
+        val original = (flow.offer(pangyo, "city") as DestinationFlow.Offer.Made).suggestion.destination
+        val capturedRevision = flow.revision
+        flow.reset()
+        val replacement = (flow.offer(pangyo, "city") as DestinationFlow.Offer.Made).suggestion.destination
+        assertEquals(original, replacement)
+        assertNotEquals(capturedRevision, flow.revision)
+    }
+
+    @Test fun `consumed or replaced offer invalidates recognition but failed route remains retryable`() {
+        val flow = DestinationFlow(now = { 0L })
+        flow.offer(pangyo, "city")
+        val initial = flow.revision
+        assertEquals(AcceptResult.NaviNotReady, flow.accept(Guidance.UNKNOWN) { error("No navigation") })
+        assertEquals(initial, flow.revision)
+        flow.offer(pangyo, "city")
+        val alternative = flow.revision
+        assertNotEquals(initial, alternative)
+        assertIs<AcceptResult.Started>(flow.accept(Guidance.IDLE) { true })
+        assertNotEquals(alternative, flow.revision)
+        assertNull(flow.pending())
+    }
+
     @Test fun `guidance mapping`() {
         assertEquals(Guidance.IDLE, Guidance.fromStatus("FREE_DRIVE"))
         assertEquals(Guidance.UNKNOWN, Guidance.fromStatus("INITIALIZING"))

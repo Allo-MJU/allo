@@ -6,6 +6,7 @@ data class PetSpecies(val id: String, val name: String, val attribute: String, v
 
 /** Display-only metadata from shared species.json, never a second game rules engine. */
 class SpeciesCatalog private constructor(val entries: Map<String, PetSpecies>) {
+    fun withDisplayOverrides(display: SpeciesCatalog) = SpeciesCatalog(entries + display.entries)
     operator fun get(id: String?): PetSpecies? = entries[id]
     companion object {
         val EMPTY = SpeciesCatalog(emptyMap())

@@ -75,7 +75,7 @@ internal fun PetSpriteSheet(
         val width = bitmap.width.toFloat() / spec.columns
         val height = bitmap.height.toFloat() / spec.rows
         val cell = spec.sourceRect(frame, bitmap.width, bitmap.height)
-        val scale = minOf(this.size.width / width, this.size.height / height)
+        val scale = minOf(this.size.width / width, this.size.height / height) * (1f - 2f * spec.contentInsetFraction)
         val targetWidth = (width * scale).roundToInt()
         val targetHeight = (height * scale).roundToInt()
         drawImage(bitmap,

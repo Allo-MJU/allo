@@ -234,6 +234,10 @@ namespace Allo.World
         public GameObject Box(Transform p, Vector3 bottomCenter, Vector3 size, Color c, Quaternion? rot = null) =>
             Prim(PrimitiveType.Cube, p, bottomCenter + Vector3.up * size.y / 2, size, Solid(c), rot);
 
+        /// 옆으로 누운 바퀴 (차축이 x)
+        public GameObject Wheel(Transform p, Vector3 center, float radius, float width) =>
+            Prim(PrimitiveType.Cylinder, p, center, new Vector3(radius * 2, width / 2, radius * 2), Solid(C("#1C1C1C")), Quaternion.Euler(0, 0, 90));
+
         public GameObject GlowBox(Transform p, Vector3 bottomCenter, Vector3 size, Color c) =>
             Prim(PrimitiveType.Cube, p, bottomCenter + Vector3.up * size.y / 2, size, Glow(c));
 

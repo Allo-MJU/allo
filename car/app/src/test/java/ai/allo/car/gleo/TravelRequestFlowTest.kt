@@ -91,4 +91,11 @@ class TravelRequestFlowTest {
         flow.reset()
         assertEquals(AcceptResult.NoOffer, flow.accept(offer.token, 0, context, Guidance.IDLE) { error("reset") })
     }
+    @Test fun `exact target only offers the requested place even in same region`() {
+        val destination = DestinationSuggester.CANDIDATES.first { it.region == "coast" }
+        val ctx = context.copy(request = TravelRequest("wish", "coast", destination.placeId), currentRegion = "coast")
+        val offer = offered(TravelRequestFlow(), ctx)
+        assertEquals(listOf(destination), offer.suggestions.map { it.destination })
+        assertIs<TravelRequestFlow.Offer.None>(TravelRequestFlow().offer(ctx.copy(request = TravelRequest("wish", "coast", "place_0000000000000000")), null))
+    }
 }

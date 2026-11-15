@@ -64,6 +64,39 @@ class Turn {
   String toString() => 'Turn($type, ${inM}m)';
 }
 
+/// Optional steering-derived display cue. It never affects gameplay decisions.
+class Cornering {
+  const Cornering({required this.bend, required this.receivedAtMs});
+
+  final double bend; // [-1, 1], negative left / positive right
+  final int receivedAtMs; // SDK delivery time, not a hardware timestamp
+
+  bool get isValid =>
+      bend.isFinite &&
+      bend >= -1 &&
+      bend <= 1 &&
+      receivedAtMs > 0 &&
+      receivedAtMs <= 9007199254740991;
+
+  static Cornering? parse(Object? value) {
+    if (value is! Map || value['version'] != 1) return null;
+    final bend = value['bend'];
+    final timestamp = value['receivedAtMs'];
+    if (bend is! num ||
+        timestamp is! num ||
+        !timestamp.isFinite ||
+        timestamp <= 0 ||
+        timestamp > 9007199254740991 ||
+        timestamp != timestamp.toInt()) return null;
+    final signal =
+        Cornering(bend: bend.toDouble(), receivedAtMs: timestamp.toInt());
+    return signal.isValid ? signal : null;
+  }
+
+  Map<String, Object> toJson() =>
+      {'version': 1, 'bend': bend, 'receivedAtMs': receivedAtMs};
+}
+
 /// /sessions/{sid}/vehicle — 차량 앱이 1초마다 쓴다.
 class VehicleState {
   final int ts;
@@ -79,6 +112,7 @@ class VehicleState {
   final List<String> envTags;
   final List<Turn> turns; // 누락 = 빈 목록
   final double? headingDeg; // 진행 방향 0~360 (북 0, 시계 방향). null = 모름
+  final Cornering? cornering;
   final List<String> capabilities;
 
   /// Optional v1 parking/activity evidence. Missing or malformed is ineligible.
@@ -98,6 +132,7 @@ class VehicleState {
     required this.envTags,
     this.turns = const [],
     this.headingDeg,
+    this.cornering,
     required this.capabilities,
     this.fishingPresence,
   });
@@ -116,6 +151,7 @@ class VehicleState {
         envTags: (j['envTags'] as List?)?.cast<String>() ?? const [],
         turns: Turn.parseList(j['turns']),
         headingDeg: _heading(j['headingDeg']),
+        cornering: Cornering.parse(j['cornering']),
         capabilities: (j['capabilities'] as List?)?.cast<String>() ?? const [],
         fishingPresence: j['fishingPresence'] is Map
             ? Map<String, dynamic>.from(j['fishingPresence'] as Map)
@@ -137,6 +173,8 @@ class VehicleState {
     List<String>? envTags,
     List<Turn>? turns,
     double? headingDeg,
+    Cornering? cornering,
+    bool clearCornering = false,
     List<String>? capabilities,
     Map<String, dynamic>? fishingPresence,
   }) =>
@@ -154,6 +192,7 @@ class VehicleState {
         envTags: envTags ?? this.envTags,
         turns: turns ?? this.turns,
         headingDeg: headingDeg ?? this.headingDeg,
+        cornering: clearCornering ? null : (cornering ?? this.cornering),
         capabilities: capabilities ?? this.capabilities,
         fishingPresence: fishingPresence ?? this.fishingPresence,
       );
@@ -239,7 +278,8 @@ class GameState {
           'transferResult',
           'fishing',
           'collectionSummary',
-          'baseSummary'
+          'baseSummary',
+          'travelRequest'
         ])
           if (vehicleFeatures.containsKey(key)) key: vehicleFeatures[key],
       };

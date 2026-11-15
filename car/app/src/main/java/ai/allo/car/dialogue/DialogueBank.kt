@@ -29,6 +29,10 @@ class DialogueBank(
 
     val size: Int get() = entries.size
 
+    /** Add display-only character copy without changing the gameplay species catalog. */
+    fun supplementedBy(other: DialogueBank): DialogueBank =
+        DialogueBank(entries + other.entries, species + other.species, random)
+
     fun speciesName(id: String?): String? = id?.let { species[it]?.nameKo }
     fun attributeOf(id: String?): String? = id?.let { species[it]?.attribute }
 
@@ -95,7 +99,13 @@ class DialogueBank(
         fun load(assets: AssetManager, includeUnreviewed: Boolean): DialogueBank = runCatching {
             val d = assets.open("dialogue.json").bufferedReader().use { it.readText() }
             val s = runCatching { assets.open("species.json").bufferedReader().use { it.readText() } }.getOrNull()
-            parse(d, s, includeUnreviewed)
+            val base = parse(d, s, includeUnreviewed)
+            val extra = runCatching {
+                val copy = assets.open("companion-dialogue.json").bufferedReader().use { it.readText() }
+                val display = assets.open("characters.json").bufferedReader().use { it.readText() }
+                parse(copy, display, includeUnreviewed)
+            }.getOrDefault(EMPTY)
+            base.supplementedBy(extra)
         }.getOrElse { EMPTY }
     }
 }

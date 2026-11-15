@@ -658,3 +658,57 @@ scripts/import_characters.sh
 
 미리보기: `blender_road_sprout_three.png` (정리 후). 에뮬레이터 캡처(`emu_3d_*`)는 색 텍스처 전 단색 모델로 찍은 것이다 (같은 프리팹 경로, 색만 다름).
 테스트: Unity EditMode 127개 통과.
+
+## 탐험 화면 — 소품 3D 모델(Tripo) 10종 (2026-11-13, A)
+
+Unity 6000.0.85f2, Blender 5.2.3, 휴대폰 에뮬레이터(Medium Phone API 37, `-gpu host`), release,
+`UNITY_APP=false FEED=fake SCENARIO=scene_tour EXPLORE_UNITY=true FAKE_TIME_SCALE=2 DEMO_SPECIES=road_sprout`.
+
+**결론: 알·둥지·담요·옆자리 인형·쿠션·공·간식 4종이 도형 대신 3D 모델로 나온다.** 부화(윗껍데기가 날아감)·공·간식까지 기기에서 확인.
+
+| 항목 | 결과 |
+| --- | --- |
+| 받은 모델 | Tripo HD, 부분별 생성 끔, 글 프롬프트. 10개 모두 색 텍스처 있음, 한 덩어리, 뼈대 없음. **모델마다 삼각형 약 190만~200만 개** → 소품마다 1,500~3,000 개로 줄임(알 3,000개에서도 텍스처·지그재그 금 유지). 공은 1차가 혹이 붙어 나와 다시 받음 |
+| 정리 `scripts/prepare_props.sh` | zip(`~/Downloads/{ID}.zip`) → `character.py`(`--size` 실제 m, `--max-tris`, `--tex`, `--yaw`). 크기는 기존 도형 기준: 알 키 0.125m, 둥지 0.17×0.06m(Unity 1.3배), 인형 키 0.30m, 쿠션 폭 0.30m(세움), 담요 0.34×0.27×0.10m, 공 0.08m, 사과 0.075m, 조개 폭 0.075m, 도토리 0.08m, 붕어빵 0.11m |
+| 알 자르기 `tools/blender/egg.py` | 키의 70% 에서 9갈래 지그재그(±4%)로 Boolean: 윗껍데기 높이 3.9cm(원점 = 금 높이), 아래 껍데기 8.9cm. 잘린 면은 크림색 속껍질 (`unity_props_egg_*.png`) |
+| 가져오기 `scripts/import_props.sh` → `PropImport` | `Resources/Props/P_{ID}.prefab`, 크기 FBX 그대로(m) — Unity 로그 크기가 Blender 값과 같음. 재질은 캐릭터와 같은 Toon(양면) |
+| `Toys.Make` | 프리팹이 있으면 도형 대신 모델. 동행에게 건네는 작은 인형(0.13m)·쿠션(0.16m)만 따로 줄임, 담요는 도형 돔처럼 뒤로 3.4cm 물림. 없는 소품(컵·하늘 손님 등)은 도형 그대로 |
+| 차 안 인형·쿠션 | 장면 빌드(`AlloBuild.SwapCabinProp`)가 `Cabin.glb` 의 도형을 숨기고 모델을 세워 아이 쪽을 보게. 이름이 `Plush…`/`Cushion…` 이라 탭·흔들림 그대로. 쿠션은 눕힌 상자 → 왼쪽 자리 문 쪽·등받이 구석에 세움(인형과 마주 봄), `Walk_RearSeat_L` 을 쿠션 앞까지로 줄임 (`cabin.py`, `unity_props_seat_*.png`) |
+| 에뮬레이터 | 둥지 위 알(`emu_props_egg.png`) → 2분 24초 뒤 부화, 윗껍데기 날아가고 길싹이 등장(`emu_props_hatch.png`) → 공 던지기·받기(`emu_props_ball.png`) → 사과 들기·던지기·먹기(`emu_props_apple.png`) |
+| 성능 | fps 26~45. 녹화가 끝나는 순간 15초 멈춤이 한 번 있었는데, 끝난 시각이 화면 녹화의 가상 디스플레이 해제 시각과 같아(14:49:10.54 / 10.68) 녹화 종료 처리로 본다(추정). 녹화 뒤에는 25~40fps |
+
+고친 것 (사용자: "왜 호러물이 됐어" — 곰 인형 눈이 검게 번지고 얼굴에 흉터 같은 선, 쿠션은 형광 민트):
+1. **삼각형을 너무 줄여 눈이 번짐.** 원본·3,000·8,000·15,000 개를 같은 조건으로 렌더해 비교: 3,000 개에서만 눈 둘레 텍스처가 끌려가 눈두덩이처럼 검게 번졌다(Tripo UV 가 잘게 쪼개져 있어 크게 줄이면 경계에서 그림이 끌려감, 추정). 얼굴이 있는 인형·쿠션 8,000, 도토리 4,000, 붕어빵 3,000 으로 올림
+2. **외곽선이 얼굴 굴곡마다 그려짐.** Blender 렌더에 없는 선이 Unity 에만 있었다 → 소품 재질만 외곽선 0.004 → 0.0015m, 테두리광 0.25 → 0.12 (`PropImport`)
+3. **텍스처 채도가 높음**(Blender 미리보기는 색을 약하게 보여 줌) → `character.py --desat`, 인형 0.15·쿠션 0.45·담요 0.3
+
+인형·쿠션을 탭하면 (사용자: "쿠션 누르면 쿠션 하나가 더 나가고 인형 누르면 인형 하나가 막 날라가", "쿠션 위에 앉는 것도 이상"):
+11/11 설계는 작은 **복사본**을 던져 놀고 줄여 없앴다. 도형일 땐 티가 안 났지만 3D 모델이 되자 물건이 둘로 보였고, 세운 쿠션 복사본 위에 동행이 올라앉았다.
+→ 모델이면 **옆자리의 그 물건이 직접** 동행에게 날아갔다가 놀이 뒤 제자리로 날아 돌아간다(`GiveToy(real)`, 날아가는 동안 다시 탭하면 무시). 쿠션은 날아가며 등을 대고 눕고(두께 0.5배) 동행이 그 위에서 통통 뛴 뒤 다시 서서 돌아간다. 진짜 인형은 동행만 해서 0.18m 떨어져 붙는다. 도형(모델 없음)은 예전 그대로.
+에뮬레이터: 인형 → 창턱의 동행이 꼭 안음 → 제자리 (`emu_props_plush.png`), 쿠션 → 창턱에 눕고 통통 → 다시 서서 제자리 (`emu_props_cushion.png`). 동행이 창턱처럼 좁은 면에 있으면 눕힌 쿠션이 창턱 밖으로 조금 나온다.
+
+담요 (사용자: 알 담요 "너무 대충"): 알 담요는 파란 구 + 접힌 단 12개 + 점 10개 도형이었다 → 잘 때 담요 모델(퀼팅·물결 단·크림 점)을 알 폭 1.3배·키 0.75배로 덮어 알 꼭대기만 나오게 (`unity_props_egg_wrap.png`). 잘 때 담요도 모델 키(0.10m)가 낮아 1.7배로는 몸 밑에 깔린 것처럼 보여 2.4배로 (`unity_props_blanket.png`).
+놀이 물건 6종(흔들 인형·장난감 차·오르골·그림책·휴지 상자·비눗방울 병)은 움직이는 부품이 있어 다음 작업.
+
+테스트: Unity EditMode 132개 통과 (+4 `PropModelTests`).
+
+
+### 2026-11-15 · 기존 Gleo 실제 음성 검증 시도 — 환경 초기화 실패
+
+- 범위: STT를 앱에 추가하지 않고 기존 Gleo 목적지 제안·수락·다음 후보의 실제 음성 입력 검증을 시도했다. Qwen TTS와 앱 코드는 변경하지 않았다.
+- `Pleos_Connect_2_1_0` AVD를 기존 데이터 그대로 실행했다. `ai.allo.car` 설치, 기본 assistant `ai.umos.ambientai/.service.AiAssistantService`, ASSIST activity 해석을 확인했다.
+- Gleo ASSIST 실행 및 현재 사용자 재실행 후에도 음성 입력 준비를 확인하지 못했다. 설정 화면은 `Unknown [4ch]`, Gleo Ai App `4.2.0.15`, STT SDK `3.3.1`, Speech SDK `1.17.1`을 표시했다. 설정값은 변경하지 않았다.
+- Gleo 로그에서 `initializeSpokesman() initialized fail`과 `InvalidConfigError`, `/data/user/10/ai.umos.ambientai/files/assets.zip/SpeechRecognitionConfig.dat`의 `ErrorNotExists`가 반복됐다. 적어도 Gleo 음성 초기화 구성에 문제가 있다. 이것만으로 모든 인식 모드의 불가 또는 설정 파일 누락의 발생 원인까지 단정하지 않는다.
+- **실제 음성 제안·수락·다음 후보: 모두 미검증.** 사용자 발화 또는 녹음 입력을 성공적으로 제공하지 않았으며, 이번 시도에서 `SUGGEST_DESTINATION`을 adb로 주입하지 않았다. 과거 브로드캐스트 검증을 이번 음성 검증 성공으로 취급하지 않는다.
+- 후속 조건: Pleos가 지원하는 Gleo 음성 자산/모델 초기화와 마이크 입력 경로가 준비된 환경에서 실제 발화→Gleo 함수 호출→후보 변경/내비 요청을 확인해야 한다. 앱의 별도 SpeechToText SDK 추가를 환경 문제 해결책으로 가정하지 않는다.
+- 화면·최소 오류 증거: 로컬 `tasks/verification/gleo-voice-2026-11-15/` (Git 제외). 로그의 에뮬레이터 시간은 호스트와 달라 한국 날짜는 2026-11-15로 기록했다.
+
+## 2026-11-15 목적지 STT 및 캐릭터 TTS 후속
+
+후속 사용자 승인으로 Gleo 호환 경로를 유지하면서 Pleos SpeechToText ON_DEVICE를 추가했다. 앞 절의 STT 미도입 결론은 이 승인 이전의 검증 기록이다. 범위·콜백 수정·실제 발화 결과는 [목적지 음성 입력](vehicle/destination-voice.md)에 기록한다.
+
+- 실제 사용자 발화로 추천→다음 후보→수락→내비 GUIDING/ROUTE_DRIVE를 확인했다. 을왕리해수욕장,81km·1시간20분. 실제 폰 대신 로컬 Firebase 인증 fixture로 동행 상태를 제공했고 STT 결과/목적지 명령을 주입하지 않았다.
+- 이야기의 선택 대상과 여행의 폰 동행은 별도로 Qwen 화자에 연결한다. 광장24문장은 원본 WAV로 재생한다.
+- Qwen 실패 시 동일 문장의 Pleos ON_DEVICE TTS 대체를 구현했다. 준비6초·대체12초 상한, 취소/지연 콜백/이중 완료 방지 회귀 포함 차량368테스트, 서버28테스트 통과. debug APK 빌드와 에뮬레이터 업데이트 설치 성공.
+- Qwen 실제 합성200/WAV 및 사용자 본 앱 소리 출력을 확인했으나, 캐릭터 원본 음색과는 다르다. 등록 voice가 없고 voice-enrollment 조회는403 AccessDenied.Unpurchased로 막힌다. 이 PR은 음색 복제 완료를 주장하지 않는다.
+- 자동 Pleos 대체 경로의 에뮬레이터 실제 청취는 후속 검증에서 완료했다. Qwen gateway 무응답과 캐시 배제로 이야기·여행 Pleos 재생 및 사용자 청취를 확인했고, TTS 완료 뒤 STT 재개→실제 수락→내비 연결까지 확인했다. 상세 시각은 [목적지 음성 입력](vehicle/destination-voice.md)의 장애 검증 표를 참고한다. 실차는 미검증이다.

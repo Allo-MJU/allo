@@ -18,6 +18,68 @@ class DexStore {
   static const _kProgress = 'hatch.progress.v2.';
   static const _kCarry = 'hatch.carried.v1.'; // + eggTier
 
+  String _ledgerKey(bool demo) =>
+      _key('hatch.trip.v1.${demo ? 'demo' : 'vehicle'}');
+
+  // A second controller (e.g. during a host recreation) must see the first
+  // controller's committed grant before deciding which egg to prepare.
+  static final _tripWrites = <String, Future<void>>{};
+  Future<T> withTripLock<T>(bool demo, Future<T> Function() action) {
+    final key = _ledgerKey(demo);
+    final result =
+        (_tripWrites[key] ?? Future<void>.value()).then((_) => action());
+    final tail = result.then<void>((_) {}, onError: (Object _) {});
+    _tripWrites[key] = tail;
+    tail.whenComplete(() {
+      if (identical(_tripWrites[key], tail)) _tripWrites.remove(key);
+    });
+    return result;
+  }
+
+  Future<TripEggLedger> tripEggLedger(bool demo) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_ledgerKey(demo));
+    return raw == null
+        ? TripEggLedger()
+        : TripEggLedger.fromJson(jsonDecode(raw));
+  }
+
+  Future<void> saveTripEggLedger(bool demo, TripEggLedger ledger) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!await prefs.setString(_ledgerKey(demo), jsonEncode(ledger.toJson()))) {
+      throw StateError('Could not save trip egg');
+    }
+  }
+
+  Future<IncubationProgress> tripProgress(bool demo, EggTier tier) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = _key('hatch.demo.v1.${tier.name}');
+    final raw = prefs.getString(key);
+    if (demo && raw != null) {
+      return IncubationProgress.fromJson(jsonDecode(raw));
+    }
+    final legacy = await incubationProgress(tier);
+    final fakeCheckpoint = legacy.round != null &&
+        legacy.round!['sessionId'] == null &&
+        legacy.sessionDistances.isEmpty;
+    if (!fakeCheckpoint) return demo ? const IncubationProgress() : legacy;
+    // Preserve the identifiable old demo copy before a real trip reuses its tier slot.
+    if (!await prefs.setString(key, raw ?? jsonEncode(legacy.toJson()))) {
+      throw StateError('Could not migrate demo egg');
+    }
+    return demo ? legacy : const IncubationProgress();
+  }
+
+  Future<void> saveTripProgress(
+      bool demo, EggTier tier, IncubationProgress value) async {
+    if (!demo) return saveIncubationProgress(tier, value);
+    final prefs = await SharedPreferences.getInstance();
+    if (!await prefs.setString(
+        _key('hatch.demo.v1.${tier.name}'), jsonEncode(value.toJson()))) {
+      throw StateError('Could not save demo egg');
+    }
+  }
+
   Future<List<DexEntry>> all() async {
     final p = await SharedPreferences.getInstance();
     final raw = p.getStringList(_key(_kDex)) ?? const [];
@@ -58,13 +120,7 @@ class DexStore {
     final p = await SharedPreferences.getInstance();
     final raw = p.getString(_key('$_kProgress${tier.name}'));
     if (raw != null) {
-      final data = jsonDecode(raw) as Map<String, dynamic>;
-      return IncubationProgress(
-        carriedM: (data['carriedM'] as num).toDouble(),
-        sessionDistances: (data['sessionDistances'] as Map<String, dynamic>)
-            .map((key, value) => MapEntry(key, (value as num).toDouble())),
-        round: (data['round'] as Map?)?.cast<String, dynamic>(),
-      );
+      return IncubationProgress.fromJson(jsonDecode(raw));
     }
     return IncubationProgress(
         carriedM: p.getDouble(_key('$_kCarry${tier.name}')) ?? 0);
@@ -75,12 +131,7 @@ class DexStore {
       EggTier tier, IncubationProgress progress) async {
     final p = await SharedPreferences.getInstance();
     final saved = await p.setString(
-        _key('$_kProgress${tier.name}'),
-        jsonEncode({
-          'carriedM': progress.carriedM,
-          'sessionDistances': progress.sessionDistances,
-          if (progress.round != null) 'round': progress.round,
-        }));
+        _key('$_kProgress${tier.name}'), jsonEncode(progress.toJson()));
     if (!saved) throw StateError('Could not save incubation progress');
   }
 
@@ -98,4 +149,46 @@ class IncubationProgress {
   final Map<String, dynamic>? round;
   final double carriedM;
   final Map<String, double> sessionDistances;
+  factory IncubationProgress.fromJson(Map<String, dynamic> data) =>
+      IncubationProgress(
+        carriedM: (data['carriedM'] as num).toDouble(),
+        sessionDistances: (data['sessionDistances'] as Map<String, dynamic>)
+            .map((k, v) => MapEntry(k, (v as num).toDouble())),
+        round: (data['round'] as Map?)?.cast<String, dynamic>(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'carriedM': carriedM,
+        'sessionDistances': sessionDistances,
+        if (round != null) 'round': round,
+      };
+}
+
+/// A claim and its initial progress are one write. The changing checkpoint
+/// can lag it or belong to an earlier egg in the same tier.
+class TripEggLedger {
+  TripEggLedger({Map<String, String>? claims}) : claims = claims ?? {};
+  final Map<String, String> claims;
+  String? demoSessionId;
+  String? eggId;
+  EggTier tier = EggTier.small;
+  bool useAffinity = true;
+  IncubationProgress initial = const IncubationProgress();
+
+  factory TripEggLedger.fromJson(Map<String, dynamic> data) =>
+      TripEggLedger(claims: (data['claims'] as Map).cast<String, String>())
+        ..demoSessionId = data['demoSessionId'] as String?
+        ..eggId = data['eggId'] as String?
+        ..tier = EggTier.values.byName(data['tier'] as String)
+        ..useAffinity = data['useAffinity'] as bool
+        ..initial = IncubationProgress.fromJson(data['initial']);
+
+  Map<String, dynamic> toJson() => {
+        'claims': claims,
+        'eggId': eggId,
+        'tier': tier.name,
+        'useAffinity': useAffinity,
+        'initial': initial.toJson(),
+        'demoSessionId': demoSessionId,
+      };
 }

@@ -17,7 +17,7 @@
 - 시각 `createdAt`·`ts`는 epoch **밀리초**, `etaSec`·`hatchAtSec`는 **초**, `distanceM`·`hatchAtM`은 **미터**, `speedKph`는 **km/h**다.
 - 전송 필드명은 본문의 이름만 쓴다. `etaSeconds`, `harshBrakeCount`, `seatRow2Occupied` 같은 별칭을 전송하지 않는다.
 - Firebase에서 null이나 빈 배열/객체의 키가 없어질 수 있다. 아래에서 허용한 누락값은 null/빈 값으로 읽는다. 타입 오류를 유효한 값으로 추측해서 바꾸지 않는다.
-- 좌표·아이 개인정보·주행 경로·도감 원문은 Firebase에 보내지 않는다. 도감과 이어하기 checkpoint는 폰 로컬에 저장한다.
+- 좌표·아이 개인정보·주행 경로·도감 원문은 Firebase에 보내지 않는다. 도감과 이어하기 checkpoint는 폰 로컬에 저장한다. 2026-11-15 사용자 요청으로 아래 ‘친구 부탁과 방문 이력’의 목적지 ID·이름·지역·실제 도착 시각은 별도 소유자 이력에 영속 저장한다. 기존 세션 이벤트에 주소/좌표를 추가하는 허용은 아니다.
 
 ## 2. 코드 위치
 
@@ -47,6 +47,9 @@
 /sessions/{sessionId}/vehicle
 /sessions/{sessionId}/game
 /sessions/{sessionId}/events/{pushId}
+/travelHistory/{phoneUid}/visits/{visitId}  # 인증된 차량 callable만 기록
+/travelHistory/{phoneUid}/places/{placeId} # 같은 transaction의 장소 요약
+/travelHistory/{phoneUid}/companions/{creatureId}/places/{placeId} # 실제 동행 개체별 최신 도착
 ```
 
 - `sessionId`는 차량이 생성한 UUID다. 차량이 인증된 `createVehicleSession` callable로 서버의 meta/ACL 생성을 완료한 뒤 해당 세션 데이터를 발행한다.
@@ -111,9 +114,14 @@ QR은 `allo://pair?sid={UUID}&code={6자리}`다. 수동 연결도 세션 ID와 
 | `envTags` | string[] | 관측 환경 태그. 누락은 빈 목록 |
 | `headingDeg` | number 또는 null/누락 | 차의 진행 방향(도, 0~360, 북쪽 0·시계 방향). 내비 현재 위치 콜백의 heading. 모르면 null |
 | `turns` | object[] 또는 누락 | 내비 경로 안내의 다음 회전들. 가까운 순 최대 3개. 안내 중이 아니거나 없으면 빈 목록 또는 누락 |
+| `cornering` | object 또는 누락 | 조향 센서에서 만든 창밖 회전 표시 전용 v1 값. `{version:1,bend,receivedAtMs}`. 사용할 수 없으면 생략 |
 | `capabilities` | string[] | 실제 지원하는 신호 목록 |
 
 지원 이름은 `wiper`, `light`, `seat`, `odometer`, `brake`, `steering`, `speed`, `gear`, `eta`, `turns`다. 차량 앱 내부의 `steerDeg`, `brakePressed`, `odometerM`를 별도 전송 필드로 추가하지 않는다.
+
+2026-11-15 사용자 요청의 조향 연동은 원본 조향각 대신 `cornering` 표시 요약을 사용한다. `bend`는 유한한 -1~1 값이며 음수는 왼쪽, 양수는 오른쪽, 0은 직진이다. 물리 도로 곡률·핸들 각도나 게임 판정값이 아니다. `receivedAtMs`는 SDK가 값을 전달한 epoch ms이며 새 하드웨어 관측 시각을 보장하지 않는다. 차량은 조향 지원, D 기어, 2km/h 초과의 유효한 최신 속도, SDK 수신 2500ms 이내 조건에서만 전송한다. 오류·비정상 각도·오래된 값이면 필드를 생략한다. 기존 `harshSteer` 산출은 유지한다.
+
+폰은 알 수 없는 버전·잘못된 값은 무시하고 Unity의 선택적 `route.cornering`으로 전달한다. Unity는 같은 수신 시각을 반복한 메시지로 유효 시간을 연장하지 않는다. 실제 조향 신호를 사용할 수 있는 동안 내비 예정 회전과 이중으로 회전하지 않으며, 이미 진입한 회전 구간은 보존한다. 신호가 없거나 만료되면 기존 내비 경로 표현을 사용한다. 위도·경도는 추가하지 않는다. 이번 요청에서 도시·산·해안·고속도로 분류는 아래의 기존 근사 방식을 유지하기로 했다.
 
 현재 파생 기준을 유지한다. 급제동은 속도 감소율 12km/h/s 이상, 급조향은 속도 15km/h 이상에서 조향각 변화율 90도/s 이상이며 각각 2초 쿨다운을 둔다. 거리는 Odometer의 양수 증가분을 사용하고, 없거나 정체/감소하면 이전 속도를 적분한다. SDK 거리 km→m 변환은 차량 안에서 한다.
 
@@ -213,17 +221,22 @@ Debug 지역 override는 좌표 미수신·lookup을 우회하는 시연 기능�
 - 최장 지역 W가 유일하고 그 시간이 두 번째 지역 S와 미확인 U의 합보다 클 때(**W > S + U**)만 그 지역을 기록한다. 동률·부족한 근거는 `regionTag=null`이다.
 - 새 알은 새 집계를 시작한다. 중단 복구는 합계를 유지하되 오래된 열린 태그를 복구하지 않는다. 수신 공백 5초는 GPS 관측 정보 자체의 신선도를 보증하지 않는다.
 
-#### 부화·이어하기
+#### 부화·이어하기 — 2026-11-14 사용자 변경
 
-- 각 알은 지급 시 사용할 수 있는 ETA로 계획을 고정한다. 도중 ETA 변경·소실로 현재 알을 되감지 않는다. 다음 알 지급 때 다시 확인한다.
-- ETA 2분 이상~80분 이하: 절반을 분 단위로 내려 품고 나머지는 동행한다. 11분=5+6, 80분=40+40.
-- ETA 80분 초과: 품기40분+동행30분 후 같은 크기 새 알을 지급한다. 81분=40+30+5+6, 150분=40+30+40+40, 300분은 5개 알.
+- 차량 페어링 성공 시 폰이 여행당 알 하나를 자동 준비한다. 기본 크기는 small이며 차 안에서 크기나 새 알을 선택하지 않는다. 여행 identity는 실제 sessionId이고 데모 여행에도 별도 영속 identity를 쓴다.
+- 이전 여행의 진행 중인 미부화 알은 같은 eggId·진도·호감도·사진 완료 상태로 이어 키운다. 이어 키운 여행도 그 알 하나로 진행하며 추가 알을 지급하지 않는다.
+- 동일 여행 재연결·QR 코드 재발급·앱 재시작·tier 변경 요청으로 재지급하지 않는다. 부화·실패·버리기 후에도 같은 여행의 지급 기회는 복원되지 않는다.
+- 반복 지급·부화 후 30분 재지급은 제거한다. 80분 초과의 ‘40분 품기’는 부화 계산 상한으로만 유지한다.
+- 각 알은 지급 시 사용할 수 있는 ETA로 계획을 고정한다. 도중 ETA 변경·소실이나 다음 여행 이어하기로 현재 알을 되감지 않는다.
+- ETA 2분 이상~80분 이하: 절반을 분 단위로 내려 부화 시간을 계산한다. 11분이면 5분, 80분이면 40분이다.
+- ETA 80분 초과: 부화 계획은 40분. 그 뒤 새 알을 자동 지급하지 않는다.
 - ETA 없음: 기존 거리 모드. 목표는 small 5km, mid 25km, large 75km다. ETA가 나중에 나타나도 해당 알의 모드는 유지한다.
-- ETA 2분 미만: 새 알 지급 보류. 기존 동행은 유지하고 첫 알이 없으면 idle로 대기한다. 보류 구간의 거리를 새 알에 합산하지 않는다.
-- 앱 중단 중 경과 시간·추가 거리·급격 조작을 진행에 합산하지 않는다. 같은 알의 인정된 시간·거리·지역·돌봄·판정 횟수를 로컬 checkpoint에서 복구한다. 새 알마다 평가 구간을 새로 잡는다.
-- 앱 일시중단은 동행도 복구한다. 차량 최종 종료를 마친 부화 회차는 다음 주행에서 새 알을 시작할 수 있도록 정리한다. 도감과 거리 중복 방지 기록은 유지한다.
-- 부화 저장 실패 시 같은 결과를 재시도하고 다음 알로 덮어쓰지 않는다. 종료 처리가 새 알 지급보다 우선한다. 강제 종료가 checkpoint 저장 완료보다 빠르면 미저장 진행은 잃을 수 있다.
-- 신호 공백으로 경계를 놓치면 재수신한 현재 알 한 개의 부화 저장을 마친 뒤 현재 ETA로 다음 알 한 개를 시작한다. 관측하지 못한 과거 알을 여러 개 소급 생성하지 않는다.
+- ETA 2분 미만 등 계획 보류 조건은 기존 부화 계산 규칙을 따른다. 계획 보류를 새 알 지급 권리로 취급하지 않으며 같은 여행의 지급/이어하기 identity를 보존한다.
+- 앱 중단 중 경과 시간·추가 거리·급격 조작은 진행에 합산하지 않는다. 인정된 시간·거리·지역·돌봄·판정 횟수는 로컬 checkpoint로 복구한다.
+- 여행별 지급/승계 기록은 tier별 checkpoint와 분리해 기존 namespace/profile 안에 저장한다. 앱 저장소 범위에서 중복을 막으며, 이 변경이 새 서버 보관 필드나 기기 간 지급 보장을 추가하지는 않는다.
+- 부화 저장 실패는 같은 결과를 먼저 재시도한다. 새 여행의 알로 덮어쓰지 않는다. 이전 세션의 지연 API/신호/저장 결과를 새 알에 적용하지 않는다.
+- 기존 도감·거리 중복 방지·진행 중 알을 지우지 않는다. 종료된 여행의 지급 기록과 미부화 알 이어하기를 구분한다.
+- 구체적인 화면·상태 전환은 [여행당 한 알과 캐릭터 탭 대화](superpowers/specs/2026-11-14-trip-egg-character-invitation-design.md)를 따른다. wire 필드명과 전체 game writer는 유지한다.
 
 ### 3.5 `events` — 개별 알림
 
@@ -291,8 +304,8 @@ DB 규칙의 원본은 [`firebase/database.rules.json`](../firebase/database.rul
 ## 5. 적용과 확인
 
 - **A:** 지역 요약 네 상태 정규화, root null/손상 값 초기화, 수집 기준 문구·키 명칭, 후보 없음 사유 구분, 요약/세션 변경 시 캐시 초기화와 수락 전 확인을 이 기준으로 맞춘다. 최종 vehicle 쓰기→sessionEnd 순서와 재시도(#27)는 후속 수정 반영 후 중복·실패 경로를 확인한다. GPS 갱신 실측 결과가 나오면 C에게 알려 본문을 수정한다.
-- **B/C:** #36에서 전체 game set·지역 요약·반복 부화·로컬 복구를 이 기준으로 구현한다. 스키마 문서와 모순되는 별도 규칙을 만들지 않는다.
-- **통합 확인:** 정상/미확인/빈 후보/손상 요약, 새 알 전후 필드 유지, 반복 경계·저장 실패·중단 복구, 최종 종료·새 세션, 실제 차량/Firebase 왕복을 확인한다. 로컬 테스트 통과를 실기 검증으로 표시하지 않는다.
+- **B/C:** #36에서 전체 game set·지역 요약·여행당 한 알·로컬 복구를 이 기준으로 구현한다. 스키마 문서와 모순되는 별도 규칙을 만들지 않는다.
+- **통합 확인:** 정상/미확인/빈 후보/손상 요약, 새 알 전후 필드 유지, 여행별 지급 경계·저장 실패·중단 복구, 최종 종료·새 세션, 실제 차량/Firebase 왕복을 확인한다. 로컬 테스트 통과를 실기 검증으로 표시하지 않는다.
 
 현재 기준의 측정 한계는 GPS 캐시 신선도, 종료 이벤트 배달, 실제 내비 안내 시작 확인이다. 미측정 값을 임의의 TTL이나 성공 보장으로 바꾸지 않고 현재 의미로 구현한다. 문제가 확인되면 C가 이 문서를 갱신하고 A/B가 따라 수정한다.
 
@@ -301,7 +314,7 @@ DB 규칙의 원본은 [`firebase/database.rules.json`](../firebase/database.rul
 [거점 구현 기준](base-camp.md)은 종별 역할, 시설별 병렬 작업, 실제 시간 기반 오프라인 진행, 주행·활동 재료, 음식/도감/속도 보너스, 훈련 행동을 정의한다. C의 BaseCampController가 기존 도감에서 영속 개체 참조를 만들고 별도 `baseCamp.v1.<profile>` JSON에 거점과 중복 방지 상태를 함께 저장한다. 기존 도감·부화 저장과 차량 game wire는 변경하지 않는다. 앱 화면의 기존 차량 샘플/행동을 명시적으로 전달받으며 새 차량 구독을 만들지 않는다. UI/3D 연결과 실기 확인은 별도 작업이다.
 ## 6. 호감도 부화 데모 계약 2026-11-11
 
-사용자 확정 규칙은 [호감도 부화 구현 기준](affinity-hatching.md)을 따른다. 기존 3주제/3점 초안 대신 0~100 호감도, 발화 +12/60초·-12·중립0, 쓰다듬기 +3/10초, 구역 놓기 +7/15초, 50점 필수 사진 업로드(+15), 100점 즉시 부화를 사용한다. 다음 알은 실제 부화 후 활성30분을 기준으로 한다. C API의 `startIncubating(tier, useAffinity:true)`에서 명시적으로 선택한다. 기본 호출과 기존 저장 알은 현행 시간/거리 동작을 유지한다.
+사용자 확정 규칙은 [호감도 부화 구현 기준](affinity-hatching.md)을 따른다. 기존 3주제/3점 초안 대신 0~100 호감도, 발화 +12/60초·-12·중립0, 쓰다듬기 +3/10초, 구역 놓기 +7/15초, 50점 필수 사진 업로드(+15), 100점 즉시 부화를 사용한다. 2026-11-14 변경으로 페어링 시 자동 준비하고 여행당 한 알만 진행한다. 미부화 알은 다음 여행으로 이어 키우며 부화 후 활성30분 재지급은 하지 않는다. 기존 호감도·사진 규칙과 부화 시간/거리 계산은 유지한다.
 
 새 모드의 `/game`은 `contractVersion:2`와 `affinity:{score:number,target:100,phase:string,photoCompleted:boolean}`을 추가한다. phase는 incubating/photoRequired/resultPending/hatched/failed/discarded다. photoRequired는 stage=incubating, 저장 성공 후만 stage=hatched, 실패/버리기는 stage=failed로 표시한다. progress는 시간/거리 진행률이다. 앱-local 체크포인트에는 별도의 affinity 회차 상태를 저장한다. 사진 ID·원문·발화·인증토큰은 `/game`에 넣지 않는다. 구버전 차량에 신규 UI가 구현됐다고 가정하지 않으며 새모드는 입력UI와 연결한 데모에서 선택한다.
 
@@ -323,3 +336,58 @@ PR #93의 `affinity {score, target, phase, photoCompleted}` 요약은 낚시·�
 폰 단일 game writer가 `contractVersion=2`/`gameRevision`와 함께 저장된 PR100 상태를 읽기 전용으로 보낸다. `collectionSummary` v1은 wood/stone/ingredient 현재 보유량과 speciesIds(수집 종ID 중복 제거), speciesCount를 제공한다. Firebase의 빈 목록 생략 시 speciesCount=0으로 빈 도감을 구분한다. 블록 미수신/저장 로드 실패는 0개로 추정하지 않는다.
 
 `baseSummary`는 기존 역할/시설 요약에 facilityLevels(시설ID→0~3), activeTaskKinds(건설·요리·훈련 전체), foodInventory(음식ID→재고), recipeBook(음식ID→누적 제작 횟수)를 추가한다. 기존 필드는 호환하며 최근 식사를 추정하지 않는다. 차량은 주차 후 확인만 제공하고 보상/도감/시설을 변경하지 않는다. 상세 계약: [주행 자동 낚시와 주차 확인](vehicle/driving-auto-fishing.md).
+
+## 개인 캐릭터 대화 역할 2026-11-14
+
+[여행당 한 알과 캐릭터 탭 대화](superpowers/specs/2026-11-14-trip-egg-character-invitation-design.md)에 따라 개인 대화 흐름·페르소나·본문·장면 이동은 별도 인증 서버 API가 결정한다. 폰/Unity는 입력·소유 대상 검증·표시·TTS·요청 수명 관리와 서버 승인 장면 참조 저장만 맡는다. 페르소나·지식·스토리 원문을 폰 번들에 배포하지 않는다. 기존 RTDB 전체 game writer와 폰의 알/부화 판정 책임은 유지한다.
+
+## 차량 진입/직접 대화 후속 변경 2026-11-14
+
+[차량 연결 진입과 직접 대화](superpowers/specs/2026-11-14-cabin-pairing-direct-conversation-design.md)에 따라 최초 미연결 차 안은 연결 버튼 하나를 표시한다. QR 또는 직접 입력으로 성공한 페어링에서만 기존 여행당 알 준비를 수행하고 fake 초기화는 자동 연결/지급하지 않는다. 알/친구 상태·호감도·사진·시간/거리 진행은 독립 유지한다. 캐릭터 클릭은 서버 `greet`/`chat`으로 곧바로 연결하며 새 UI에 메뉴·챕터 낭독·다음 장면 버튼을 표시하지 않는다. 기존 작성형 API는 구버전 호환용이다. 서버 고유 페르소나와 고정 배경·학습자료는 앱에 포함하지 않는다. 게임 wire와 기존 지급/승계 계약은 바꾸지 않는다.
+
+후속 [직접 조작 변경](superpowers/specs/2026-11-14-cabin-toss-and-rest-design.md)에서 연결 버튼은 차량 제목 자리에 배치한다. 간식·물·공·인형은 원형 버튼으로 고른 뒤 방향 스와이프로 던지며, 유효한 동작 뒤 기존 `commonCare`를 보낸다. 캐릭터 더블 탭 후 자유 배치는 로컬 표현이고 새 보상이나 서버 좌표 저장을 추가하지 않는다. 쿠션·담요에 놓을 때는 기존 돌봄 승인 경로를 사용한다.
+
+## 미수집 친구와 마을 표시 선택 2026-11-15
+
+[사용자 확정 변경](superpowers/specs/2026-11-15-collection-rewards-village-selection-design.md)에 따라 새 부화는 현재 도감의 미수집 종에서만 선택한다. 기존 환경·주행 조건에 맞는 후보를 우선하며 그 후보가 모두 수집됐으면 남은 종에서 고른다. 기존 도감·소유 개체와 이미 저장 중인 부화 결과는 지우거나 다시 추첨하지 않는다.
+
+현재 카탈로그 12종을 모두 수집한 뒤의 새 여행은 알 대신 `berry_snack` 3개를 받는다. 여행별 지급 영수증과 음식 재고는 거점 로컬 저장에 함께 확정한다. 재접속·앱 재시작·저장 재시도로 같은 여행의 간식을 중복 지급하지 않으며, 12번째 종을 얻은 여행에는 알과 간식을 함께 지급하지 않는다. 기존 `baseSummary.foodInventory`에 저장된 재고가 반영되며 새 Firebase 보상 명령이나 제어 권한은 추가하지 않는다.
+
+마을의 표시 친구 0~4개체는 소유 개체 ID 기반의 폰 로컬 설정이다. 초기 설정이 없는 경우만 기존 첫 4개체를 기본으로 사용하며 명시적인 빈 선택을 유지한다. 표시 선택은 건설·요리·훈련 배정 및 차량 동행 선택과 독립이고 체험/실제 프로필을 분리한다. Flutter→Unity의 로컬 표시 snapshot/action만 확장하며 RTDB 데이터 계약은 유지한다.
+
+## 친구 부탁과 방문 이력 2026-11-15
+
+사용자가 친구마다 각각 이틀 주기와 ‘여행 이력은 DB, 퀘스트 진행은 폰, 본문은 기존 이야기 서버’ 구조를 승인했다. [설계](superpowers/specs/2026-11-15-companion-quests-travel-history-design.md)와 [계획](superpowers/plans/2026-11-15-companion-quests-travel-history.md)을 따른다.
+
+### 방문 기록
+
+`recordDestinationVisit` callable 입력은 `sessionId, visitId, routeRevision, placeId, placeName, regionTag, arrivedAtMs, companionIds`다. `routeRevision`은 `route_<hex>` 형식의 문자열이다. 서버는 요청에 임의의 owner UID를 받지 않고 익명 인증된 세션 차량의 carUid와 서버 ACL phoneUid를 확인한다. 결과는 `{visitId,recorded:true}`다. 좌표·주소·주행 경로 필드는 허용하지 않는다.
+
+`travelHistory/{phoneUid}`의 `visits/{visitId}`와 `places/{placeId}`를 한 transaction으로 기록한다. visits 값에는 visitId가 중복 포함되지 않으며 map key가 식별자다. 값은 위 입력 중 visitId를 제외한 필드에 `receivedAtMs`와 `evidence:destination-arrived`가 추가된다. 빈 companionIds는 RTDB에서 생략될 수 있다. places는 `{placeId,placeName,regionTag,visitCount,lastArrivedAtMs}`다. 같은 visitId/같은 내용 재시도는 횟수를 늘리지 않고, 다른 내용 충돌은 거절한다. 소유 폰 UID만 읽으며 차량·다른 UID·미인증과 클라이언트 직접 쓰기는 금지한다. 이 경로는 세션24시간 만료와 독립적으로 유지된다.
+
+현재 폰은 장소 요약 전체와 `arrivedAtMs` 기준 최근 방문200개를 별도 읽는다. `visits`는 해당 필드 인덱스를 가진다. 읽기·인증·형식 오류는 unknown이며 빈 이력으로 추측하지 않는다. 새로운 폰 설치의 익명 UID는 기존 UID의 이력에 자동 연결되지 않는다. 현재 구현은 물리적 차량/사람 신원을 증명하지 않는다.
+
+차량은 같은 세션의 경로·목적지와 대응하는 실제 `onDestinationArrived` 콜백만 기록한다. 내비 요청 성공·목적지 목록·P단 정차·경로 종료는 방문 완료가 아니다. 취소/새 경로는 이전 상관관계를 폐기한다. 경로 종료 뒤에는 최대30초 동안 실제 도착 이벤트를 기다린다. 운전자가 고른 기존18개 카탈로그의 ID는 `place_` + SHA256(region+개행+name)의 앞16hex다. 차량 내부의 이름·좌표 대응으로 SDK의 목적지 스냅을 최대500m까지 처리하고, 다른 것은 provider POI 또는 경로별 unknown ID로 구분한다. 가까운 동명 지점과 실제 SDK 콜백 순서는 별도 기기 검증이 필요하다.
+
+### 차량으로 전달하는 부탁과 동행 식별
+
+기존 전체 game writer에 선택적 `travelRequest:{wishId,targetRegion,targetPlaceId}`를 추가한다. targetPlaceId가 있으면 차량은 그 장소만 제안하며 기존 주차/연결/진행 경로 보호와 운전자 확인을 유지한다. 이 요청 전달로 퀘스트가 완료되지 않는다.
+
+기존 companion 블록에 선택적 `ownedCreatureId`를 추가한다. displayId와 별개인 폰의 안정적인 소유 개체 ID다. 폰은 실제 저장된 선택 entry를 도감/거점 registry와 대조하고 복원하며, 차량은 유효한 현재 선택 친구만 방문의 companionIds에 넣는다. phone/car 위치 모두 동행으로 볼 수 있고 없거나 모르면 빈 목록이다. 전체 소유 친구를 모두 동행했다고 간주하지 않는다.
+
+### 친구별 로컬 상태와 본문
+
+거점 로컬 저장은 개체별 최초 관측 anchor와 `CompanionQuest`를 보관한다. 최초 부탁은 즉시 가능하고 48시간 구간은 anchor에서 계산한다. 미수락 부탁은 다음 구간으로 교체할 수 있고 만료된 옛 제안 수락은 거절한다. 수락한 부탁은 완료까지 유지한다. 개체가 같은 종이어도 독립이다.
+
+음식 부탁은 기존 foodFeed 성공의 재고1개 차감·효과·완료를 한 로컬 저장으로 확정한다. 이야기 부탁은 사용자의 명시적 관찰 확인이며 실제 시야를 센서로 판정했다고 하지 않는다. 여행 부탁은 수락 후 실제 도착·정확한 장소·해당 동행 개체 ID가 모두 맞아야 완료되며 같은 방문의 반복 처리는 개체별로 멱등이다. 새로운 완료 재화를 추가하지 않는다.
+
+본문은 `POST /v1/companion/quest-template`에서 받는다. 입력 `{speciesId,kind,variant}`의 variant는0~2147483647 정수다. 응답은 `{schemaVersion:1,templateId,templateVersion,speciesId,kind,title,text,storyId,targetFoodId,targetRegion}`이며 마지막3개는 해당 종류가 아니면null이다. 현재 실제 고정 스토리 자료가 없는 legacy6종의 이야기 요청은 먹이로 반환한다. 폰에는 본문/페르소나를 번들하지 않는다.
+
+Unity의 `quests` snapshot과 openQuest/laterQuest/acceptQuest/observeQuest/requestQuestTravel intent는 앱 로컬 표시 계약이다. 마을·상세·도감의 `?`는 자동 본문/TTS를 열지 않는다. 과거 방문·오랜만이라는 문장은 실제 확인한 동행 이력이 있을 때만 사용하고, 장소 후보는 확인된 방문을 제외한다. 현재 바다 재방문 간격 기본값은14일이다. 서버와 SDK가 배포/구동되었다는 증거 없이 실사용 완료로 표시하지 않는다.
+
+방문 이력 보완: 같은 owner transaction은 `companions/{creatureId}/places/{placeId}`에도 동행이 확인된 최신 도착을 기록한다. 값은 canonical visit과 동일한 필드에 embedded `visitId`를 포함한다. 더 오래된 도착·중복·동행자가 없는 도착은 이 인덱스를 바꾸지 않는다. 폰은 장소 요약·최근 방문200개·이 인덱스를 별도 읽고, 실제 근거와 동행 일치를 검증해 병합한다. 따라서 오래된 수락 후 도착과 캐릭터의 마지막 바다 방문이 최근200개 밖으로 밀려도 새 인덱스에 있으면 복구할 수 있다. 인덱스 이전 자료는 별도 백필하지 않으며 최근200개 밖의 이전 동행 이력은 없는 것으로 단정하지 않는다.
+### Unity 캐릭터 상세의 표시용 소개 (2026-11-15)
+
+캐릭터 정보 화면에는 `phone/assets/data/character_profiles.json`의 한 줄 소개와 성격 태그만 제공한다. 서버 persona·지식·스토리 본문이나 프롬프트를 배포하는 것이 아니며, AI 대화의 권위 있는 자료도 여전히 서버 소유다. 표시용 문구는 원문을 요약한 정적 메타데이터이며 원문이 바뀌면 출처 기록과 함께 검토한다.
+
+앱-local v1 Unity snapshot의 `creatures[]`는 optional `personaSummary:string`과 `personaTraits:string[]`를 추가한다. 정확한 `speciesId`로 연결하고, 등록되지 않은 종은 빈 문자열과 빈 배열을 전달한다. 구형 snapshot에서 누락되어도 기본 설명으로 표시한다. RTDB `/game`, 비용·보상·소유권 및 서버 대화 요청 계약은 변경하지 않는다.

@@ -9,13 +9,20 @@ import ai.allo.car.vehicle.*
 import ai.allo.car.dialogue.DialogueBank
 import ai.allo.car.gleo.AcceptResult
 import ai.allo.car.gleo.DestinationFlow
+import ai.allo.car.gleo.DestinationHandoff
 import ai.allo.car.gleo.DestinationSuggester
+import ai.allo.car.gleo.Destination
 import ai.allo.car.gleo.GleoFunctions
 import ai.allo.car.gleo.TravelRequestFlow
 import ai.allo.car.mirror.ParkedMirrorGate
 import ai.allo.car.gleo.RegionSummary
-import ai.allo.car.voice.DriverVoice
+import ai.allo.car.voice.*
+import android.os.Handler
+import android.os.Looper
 import ai.allo.car.navi.NaviEtaReader
+import ai.allo.car.navi.DestinationVisitTracker
+import ai.allo.car.navi.VisitOutbox
+import ai.allo.car.navi.DestinationVisit
 import ai.allo.car.voice.HatchAnnouncement
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -40,6 +47,14 @@ class SessionManager(private val context: Context) {
         BuildConfig.FIREBASE_FUNCTIONS_REGION, endpoint = endpoints.sessionUrl)
     private val rest = FirebaseRest(if (sessionApi.configured) endpoints.databaseUrl else "", tokens = identity,
         databaseNamespace = endpoints.databaseNamespace)
+
+    init {
+        val voice = ai.allo.car.voice.PlazaCloudVoice
+        voice.configure(BuildConfig.ALLO_TTS_BASE_URL, BuildConfig.ALLO_TTS_VOICE_REVISION, BuildConfig.DEBUG,
+            voice.tokenSupplier(BuildConfig.ALLO_TTS_BASE_URL, BuildConfig.DEBUG, BuildConfig.ALLO_TTS_DEV_TOKEN) {
+                identity.token()
+            })
+    }
 
     val caps = CapabilityChecker()
     private val derivation = SignalDerivation()
@@ -81,8 +96,120 @@ class SessionManager(private val context: Context) {
     val vehicle: StateFlow<VehicleSnapshot?> = _vehicle
     /** 내비 ETA. 경로 안내 중이 아니면 null → 폰은 거리 폴백 */
     val naviEta = NaviEtaReader(context)
+    private val visitTracker = DestinationVisitTracker()
+    private val visitPrefs = context.getSharedPreferences("destination_visits", Context.MODE_PRIVATE)
+    private val visitOutbox = VisitOutbox({ visitPrefs.getString("pending", "[]") ?: "[]" },
+        { visitPrefs.edit().putString("pending", it).commit() })
+    private val unpersistedVisits = mutableListOf<DestinationVisit>()
+
+    private fun requestDestination(destination: Destination): Boolean {
+        visitTracker.expect(destination)
+        val accepted = naviEta.requestRoute(destination.latitude, destination.longitude, destination.name)
+        if (!accepted) visitTracker.cancel()
+        return accepted
+    }
+
+    @Synchronized private fun queueVisit(visit: DestinationVisit) {
+        if (!runCatching { visitOutbox.add(visit) }.getOrDefault(false)) unpersistedVisits.add(visit)
+    }
+
+    private suspend fun retryVisits() {
+        while (currentCoroutineContext().isActive) {
+            synchronized(this) {
+                unpersistedVisits.removeAll { runCatching { visitOutbox.add(it) }.getOrDefault(false) }
+            }
+            for (visit in runCatching { visitOutbox.pending() }.getOrDefault(emptyList())) {
+                if (runCatching { sessionApi.recordVisit(visit) }.isSuccess) visitOutbox.remove(visit.visitId)
+            }
+            delay(15_000)
+        }
+    }
+
     /** Gleo 목적지 제안 → 수락 */
     val destinations = DestinationFlow()
+    private val destinationMain = Handler(Looper.getMainLooper())
+    private val _destinationVoiceState = MutableStateFlow(DestinationVoiceState())
+    val destinationVoiceState: StateFlow<DestinationVoiceState> = _destinationVoiceState
+    private var destinationVoiceVisible = false
+    private val destinationDialogue = CompanionDialogue(dialogue)
+    private var destinationVoiceTarget: DestinationVoiceTarget? = null
+    private var voiceOfferRevision = -1L
+    private val destinationVoice by lazy {
+        DestinationVoiceController(
+            createRecognition = { PleosDestinationRecognition(context) },
+            createPrompt = {
+                characterDestinationPrompt(context, checkNotNull(destinationVoiceTarget).subject.speciesId)
+            },
+            execute = ::executeDestinationVoice,
+            allowed = ::destinationConversationAllowed,
+            scheduleTimeout = { action ->
+                val task = Runnable { action() }
+                destinationMain.postDelayed(task, 20_000L)
+                val cancel: () -> Unit = { destinationMain.removeCallbacks(task) }
+                cancel
+            },
+            onState = { _destinationVoiceState.value = it },
+        )
+    }
+
+    @Synchronized
+    private fun destinationVoiceAllowed(): Boolean = destinationVoiceVisible && activityResumed &&
+        hasParkingPermission() && _gameConnected.value && _meta.value.paired && !_ended.value
+
+    @Synchronized
+    private fun destinationConversationAllowed(): Boolean = destinationVoiceAllowed() &&
+        destinationVoiceTarget?.matches(sessionId, destinationDialogue.subject(_game.value, _gameConnected.value)) == true &&
+        voiceOfferRevision == destinations.revision
+
+    /** Only the existing parked travel page owns microphone sessions; leaving it releases the SDK. */
+    @Synchronized
+    fun setDestinationVoiceVisible(visible: Boolean) {
+        destinationVoiceVisible = visible
+        if (!visible) destinationMain.post { destinationVoice.cancel() }
+    }
+
+    @Synchronized
+    fun startDestinationVoice() {
+        if (!destinationVoiceAllowed()) return
+        val subject = destinationDialogue.subject(_game.value, _gameConnected.value)
+        if (subject == null) {
+            destinationVoice.cancel()
+            destinationVoiceTarget = null
+            _destinationVoiceState.value = DestinationVoiceState(message = "폰에서 차량과 함께할 친구를 선택해 주세요.")
+            return
+        }
+        destinationVoiceTarget = DestinationVoiceTarget(sessionId, subject)
+        voiceOfferRevision = destinations.revision
+        destinationVoice.start()
+    }
+
+    fun cancelDestinationVoice() = destinationVoice.cancel()
+
+    @Synchronized
+    private fun executeDestinationVoice(command: DestinationVoiceCommand): DestinationVoiceReply {
+        if (!destinationConversationAllowed()) {
+            return DestinationVoiceReply("제안 상태가 바뀌었어요. 다시 요청해 주세요.")
+        }
+        if (command != DestinationVoiceCommand.SUGGEST && destinations.pending() == null) {
+            return DestinationVoiceReply("먼저 목적지를 추천해 달라고 말해 주세요.")
+        }
+        return when (command) {
+            DestinationVoiceCommand.SUGGEST, DestinationVoiceCommand.NEXT -> {
+                val offer = suggestDestination()
+                val response = GleoFunctions.respond(GleoFunctions.SUGGEST_DESTINATION, _game.value, offer, dialogue)
+                // Keep the offer we actually read aloud across the following STT turn.
+                // Never recapture a newer Gleo offer when the prompt finishes.
+                voiceOfferRevision = destinations.revision
+                DestinationVoiceReply(response.message, listenAgain = offer is DestinationFlow.Offer.Made)
+            }
+            DestinationVoiceCommand.ACCEPT -> {
+                val response = GleoFunctions.respondAccept(acceptDestination(), dialogue)
+                voiceOfferRevision = destinations.revision
+                DestinationVoiceReply(response.message)
+            }
+        }
+    }
+
     /** 폰 도감의 지역 수집 요약. /game raw JSON 에서 정규화한다. 바뀌면 제안 캐시를 비운다 */
     private val _regions = MutableStateFlow<RegionSummary>(RegionSummary.Unknown)
     val regions: StateFlow<RegionSummary> = _regions
@@ -94,6 +221,7 @@ class SessionManager(private val context: Context) {
     private val _transferUi = MutableStateFlow(TransferUiState())
     val transferUi: StateFlow<TransferUiState> = _transferUi
     private val travel = TravelRequestFlow()
+    private val destinationHandoff = DestinationHandoff(destinations, travel)
     private val _travelOffer = MutableStateFlow<TravelRequestFlow.Offer?>(null)
     val travelOffer: StateFlow<TravelRequestFlow.Offer?> = _travelOffer
     private val _travelMessage = MutableStateFlow("")
@@ -138,6 +266,9 @@ class SessionManager(private val context: Context) {
             _travelMessage.value = ""
         }
         lastTravelContext = next
+        if (!destinationConversationAllowed() && _destinationVoiceState.value.busy) {
+            destinationMain.post { destinationVoice.cancel() }
+        }
     }
 
     @Synchronized
@@ -201,8 +332,8 @@ class SessionManager(private val context: Context) {
     @Synchronized
     fun acceptTravel(token: Long, index: Int) {
         syncFeatureState()
-        val result = travel.accept(token, index, travelContext(), naviEta.guidance.value) { d ->
-            naviEta.requestRoute(d.latitude, d.longitude, d.name)
+        val result = destinationHandoff.acceptTravel(token, index, travelContext(), naviEta.guidance.value) { d ->
+            requestDestination(d)
         }
         _travelMessage.value = when (result) {
             is AcceptResult.Started -> "내비 요청이 접수됐어요. 방문 확인은 폰에서 해 주세요."
@@ -303,7 +434,25 @@ class SessionManager(private val context: Context) {
         if (!aaos.start()) caps.mark(Capability.SPEED, false) // 권한 허용 후 onSpeedPermissionGranted 에서 다시 true
         vehicleReader.start()
         voice.start()
+        naviEta.onVisitRouteStarted = {
+            if (_gameConnected.value && _meta.value.paired && !_ended.value) visitTracker.start(sessionId)
+            else visitTracker.cancel()
+        }
+        naviEta.onVisitDestination = { name, provider, poi, sub, lat, lon ->
+            visitTracker.destination(sessionId, name, provider, poi, sub, lat, lon)
+        }
+        naviEta.onVisitRouteCancelled = { visitTracker.cancel() }
+        naviEta.onVisitRouteEnded = { visitTracker.end() }
+        naviEta.onVisitArrived = { name, at ->
+            val game = _game.value
+            val companionId = game.companion?.ownedCreatureId?.takeIf {
+                _gameConnected.value && _meta.value.paired && game.hasV2Contract &&
+                    game.companion.location in setOf("car", "phone")
+            }
+            visitTracker.arrive(sessionId, name, at, listOfNotNull(companionId))?.let(::queueVisit)
+        }
         naviEta.start { ok -> caps.mark(Capability.ETA, ok); caps.mark(Capability.TURNS, ok) }
+        scope.launch { retryVisits() }
         scope.launch { announceHatch() }
         beginSession()
         scope.launch { publishLoop() }
@@ -343,12 +492,14 @@ class SessionManager(private val context: Context) {
      * 운전자가 수락. 직전 제안이 유효하고, 안내 중이 아니고, 내비 요청이 성공했을 때만 목적지가 바뀐다.
      * accepted 이벤트도 성공했을 때만 보낸다.
      */
+    @Synchronized
     fun acceptDestination(): AcceptResult {
         // 수락 직전 확인: 제안 뒤에 그 지역을 수집했으면 그 제안은 더 유효하지 않다
-        val r = destinations.accept(naviEta.guidance.value,
+        val r = destinationHandoff.acceptDestination(naviEta.guidance.value,
             stillValid = { d -> d.region in DestinationSuggester.allowedRegions(_regions.value) },
-        ) { d -> naviEta.requestRoute(d.latitude, d.longitude, d.name) }
+        ) { d -> requestDestination(d) }
         if (r is AcceptResult.Started) {
+            _travelOffer.value = null
             val d = r.destination
             scope.launch { runCatching { emitEvent("destinationSuggest", mapOf("region" to d.region, "status" to "accepted")) } }
         }
@@ -373,15 +524,24 @@ class SessionManager(private val context: Context) {
         val request = pairingRefresh.begin(sessionId, _meta.value.paired, hasParkingPermission(),
             _ended.value, rest.isConfigured && sessionReady.isCompleted) ?: return
         _pairingRefreshUi.value = pairingRefresh.ui
+        val requestedMeta = _meta.value
         scope.launch {
-            val result = runCatching { sessionApi.renew(request.sessionId, _meta.value.carAppVersion, request.requestId) }
+            val result = runCatching {
+                sessionApi.renewOrCheckExpired(request.sessionId, requestedMeta, request.requestId, System.currentTimeMillis())
+            }
             synchronized(this@SessionManager) {
                 if (request.sessionId != sessionId) return@synchronized
-                // Do not regress a paired SSE update arriving while the callable returns.
-                if (result.isSuccess) _meta.update { current ->
-                    if (current.paired) current else result.getOrThrow()
+                val renewed = result.getOrNull()
+                if (result.isSuccess && renewed == null && canReplaceExpiredPairing(request.sessionId, sessionId,
+                        _meta.value, System.currentTimeMillis(), hasParkingPermission(), _ended.value)) {
+                    beginSession()
+                    return@synchronized
                 }
-                pairingRefresh.complete(request, result.isSuccess)
+                // Do not regress a paired SSE update arriving while the callable returns.
+                if (renewed != null) _meta.update { current ->
+                    if (current.paired) current else renewed
+                }
+                pairingRefresh.complete(request, renewed != null || _meta.value.paired)
                 _pairingRefreshUi.value = pairingRefresh.ui
             }
         }
@@ -414,7 +574,8 @@ class SessionManager(private val context: Context) {
         pairingRefresh.reset(); _pairingRefreshUi.value = pairingRefresh.ui
         val id = UUID.randomUUID().toString()
         val ready = CompletableDeferred<Unit>()
-        derivation.reset(); endDetector.reset(); destinations.reset(); travel.reset(); gameReducer.reset()
+        destinationMain.post { destinationVoice.cancel() }
+        derivation.reset(); endDetector.reset(); destinations.reset(); travel.reset(); gameReducer.reset(); visitTracker.cancel()
         gameRaw = JsonObject(emptyMap())
         fishingFreshness = FishingFreshness()
         fishingEpoch = UUID.randomUUID().toString(); fishingSequence = 0
@@ -470,6 +631,7 @@ class SessionManager(private val context: Context) {
     }
 
     fun stop() {
+        setDestinationVoiceVisible(false)
         if (!_ended.value) scope.launch { runCatching { emitEvent("sessionEnd") } }
         vehicleReader.stop(); aaos.stop(); voice.release(); naviEta.stop()
         scope.cancel()
@@ -523,6 +685,7 @@ class SessionManager(private val context: Context) {
         while (currentCoroutineContext().isActive) {
             val now = System.currentTimeMillis()
             if (tick++ % 10 == 0L) naviEta.poll() // 남은 시간 이벤트가 뜸한 구간 보강 (10초)
+            vehicleReader.pollSteering()
             val a = aaos.state.value
             val r = vehicleReader.raw.value
             derivation.update(now, a.speedKph, r.steerDeg, r.odometerM)
@@ -542,6 +705,7 @@ class SessionManager(private val context: Context) {
                 headingDeg = routeSim?.headingDeg(derivation.distanceM) ?: naviEta.headingDeg.value,
                 capabilities = caps.snapshot(),
                 fishingPresence = fishingPresence(),
+                cornering = vehicleReader.corneringSnapshot(a.gear, a.speedKph, aaos.motion.value.fresh),
             )
             if (BuildConfig.DEBUG && snap.copy(ts = 0) != _vehicle.value?.copy(ts = 0)) {
                 android.util.Log.d("SessionManager", "vehicle $snap") // 디버그 빌드만. 값이 바뀔 때만
@@ -623,11 +787,13 @@ class SessionManager(private val context: Context) {
         while (currentCoroutineContext().isActive) {
             runCatching {
                 rest.stream("sessions/$id/meta").collect { ev ->
-                    if (id != sessionId) return@collect   // 이미 다음 세션
-                    if (ev.data is JsonObject && (ev.data as JsonObject)["paired"]?.jsonPrimitive?.booleanOrNull == true)
-                        _meta.update { it.copy(paired = true) }
-                    if (ev.path == "/paired" && ev.data.jsonPrimitive.booleanOrNull == true)
-                        _meta.update { it.copy(paired = true) }
+                    synchronized(this@SessionManager) {
+                        if (id != sessionId) return@collect   // 이미 다음 세션
+                        if (ev.data is JsonObject && (ev.data as JsonObject)["paired"]?.jsonPrimitive?.booleanOrNull == true)
+                            _meta.update { it.copy(paired = true) }
+                        if (ev.path == "/paired" && ev.data.jsonPrimitive.booleanOrNull == true)
+                            _meta.update { it.copy(paired = true) }
+                    }
                 }
             }
             delay(2_000)

@@ -108,9 +108,13 @@ public static class AlloBuild
         var frontAnchor = new GameObject("FrontEye").transform;
         var between = (seatL.center + seatR.center) / 2 + (rear.center - (seatL.center + seatR.center) / 2) * 0.35f;
         frontAnchor.position = new Vector3(between.x, eyeY + 0.05f, between.z);
+        // 옆자리 인형·쿠션: 3D 모델(Resources/Props)이 있으면 도형 대신 세우고 아이 쪽을 보게
+        SwapCabinProp(cabin.transform, "Plush", "plush", rearAnchor.position);
+        SwapCabinProp(cabin.transform, "Cushion", "cushion", rearAnchor.position);
 
         var camGo = new GameObject("Main Camera") { tag = "MainCamera" };
         var cam = camGo.AddComponent<Camera>();
+        camGo.AddComponent<AudioListener>();
         cam.fieldOfView = 72;
         cam.nearClipPlane = 0.02f;
         cam.farClipPlane = 800;
@@ -308,6 +312,7 @@ public static class AlloBuild
         {
             ("unity_front", 0, -12, 0), ("unity_left", -90, -10, 0), ("unity_back", 180, 5, 0),
             ("unity_right", 90, -20, 0), ("unity_front_rail", 0, -15, 1), ("unity_down", 60, -30, 0), ("unity_floor", 0, -48, 0),
+            ("unity_props_seat_left", -80, -38, 0), ("unity_props_seat_right", 80, -38, 0), // 옆자리 쿠션·인형
         };
         foreach (var (name, yaw, pitch, rail) in shots)
         {
@@ -351,6 +356,22 @@ public static class AlloBuild
         {
             cam.transform.position = rig.rearAnchor.position;
             cam.transform.rotation = Quaternion.Euler(-pitch, baseYaw + yaw, 0);
+            cam.Render();
+            RenderTexture.active = rt;
+            var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+            tex.Apply();
+            File.WriteAllBytes(Path.Combine(outDir, name + ".png"), tex.EncodeToPNG());
+        }
+        // 알에 담요를 덮은 모습 (가까이서)
+        director.ToggleEggBlanket();
+        foreach (var (name, yaw, pitch) in new[] { ("unity_props_egg_wrap", 0f, -12f) })
+        {
+            // 아이 눈에서 둥지를 똑바로 보며 확대
+            var nest = GameObject.Find("EggNest");
+            cam.transform.position = rig.rearAnchor.position;
+            if (nest != null) cam.transform.LookAt(nest.transform.position + Vector3.up * 0.07f);
+            cam.fieldOfView = 12;
             cam.Render();
             RenderTexture.active = rt;
             var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
@@ -579,6 +600,57 @@ public static class AlloBuild
         RenderTexture.active = null;
     }
 
+    /// 진입 연출(CameraRig.Intro) 확인 사진: 길 위의 시점을 몇 장 찍는다. ALLO_CAPTURE_DIR 이 있으면 거기에 쓴다
+    ///   Unity -batchmode -quit -projectPath unity/allo_explore -executeMethod AlloBuild.CaptureIntro
+    public static void CaptureIntro()
+    {
+        EditorSceneManager.OpenScene(ScenePath);
+        var cam = Camera.main;
+        var rig = cam.GetComponent<Allo.CameraRig.CameraRig>();
+        var world = Object.FindFirstObjectByType<Allo.World.WorldDirector>();
+        var dir = rig.lookTarget.position - rig.rearAnchor.position;
+        var baseYaw = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+        var custom = System.Environment.GetEnvironmentVariable("ALLO_CAPTURE_DIR");
+        var outDir = string.IsNullOrEmpty(custom) ? Path.GetFullPath(Path.Combine(Application.dataPath, "../../../docs/work-results/explore")) : custom;
+        Directory.CreateDirectory(outDir);
+        var rt = new RenderTexture(1600, 720, 24);
+        cam.targetTexture = rt;
+        var cabin = GameObject.Find("Cabin");
+        var fwd = world.forward; fwd.y = 0; fwd.Normalize();
+        var ground = new Vector3(world.carCenter.x, world.roadY, world.carCenter.z);
+        Allo.CameraRig.CameraRig.CabinBox(cabin, fwd, out var bounds, out var length, out var width);
+        var along = Vector3.Dot(bounds.center - ground, fwd);
+        var saved = new System.Collections.Generic.Dictionary<Material, float>();
+        foreach (var kind in new[] { "coast", "city" })
+        {
+            world.Apply(new Allo.Bridge.SceneState { kind = kind == "highway" ? "road" : kind, highway = kind == "highway", moving = true, speedKph = 40 }, reset: true);
+            world.EditorStep(120);
+            var shell = world.MakeIntroShell(width, length, along, bounds.min.y - world.roadY, out var solid);
+            var cabinRenderers = System.Array.FindAll(cabin.GetComponentsInChildren<Renderer>(), r => r.enabled);
+            foreach (var t in new[] { 0f, 0.3f, 0.45f, 0.55f, 0.65f, 0.72f, 0.8f, 0.86f, 1f })
+            {
+                Allo.CameraRig.CameraRig.IntroPose(t, ground, fwd, rig.rearAnchor.position, Quaternion.Euler(0, baseYaw, 0), out var pos, out var rot);
+                var inside = bounds.Contains(pos);
+                shell.gameObject.SetActive(!inside);
+                if (solid) foreach (var r in cabinRenderers) r.enabled = inside;
+                else Allo.CameraRig.CameraRig.CabinTwoSided(cabin, !inside, saved);
+                cam.transform.SetPositionAndRotation(pos, rot);
+                cam.Render();
+                RenderTexture.active = rt;
+                var tex = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+                tex.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+                tex.Apply();
+                File.WriteAllBytes(Path.Combine(outDir, $"intro_{kind}_{Mathf.RoundToInt(t * 100):000}.png"), tex.EncodeToPNG());
+            }
+            Object.DestroyImmediate(shell.gameObject);
+            Allo.CameraRig.CameraRig.CabinTwoSided(cabin, false, saved);
+            foreach (var r in cabinRenderers) r.enabled = true;
+        }
+        cam.targetTexture = null;
+        RenderTexture.active = null;
+        Debug.Log($"[AlloBuild] captured intro to {outDir}");
+    }
+
     /// 회전·유턴 확인 사진: 교차로 앞(40m), 도는 중, 돈 뒤 30m 에서 앞·옆을 찍는다
     public static void CaptureTurns()
     {
@@ -760,6 +832,13 @@ public static class AlloBuild
                     var p = MakeThirdParty(AssetDatabase.LoadAssetAtPath<GameObject>(path), "C_" + name, false, keep, outDir, converted);
                     if (p != null) prefabs.Add(p);
                 }
+            // 진입 연출에서 밖에서 보이는 우리 차 (WorldDirector.MakeIntroShell). 바퀴가 붙은 차 한 대만 쓴다
+            var own = AssetDatabase.LoadAssetAtPath<GameObject>($"{cc}/Prefabs/Cars/Futuristic_Car_1.prefab");
+            if (own != null)
+            {
+                var p = MakeThirdParty(own, Allo.World.WorldDirector.OwnCar, false, keep, outDir, converted);
+                if (p != null) prefabs.Add(p);
+            }
         }
         prefabs.AddRange(BuildAnimals(outDir, converted));
         Debug.Log($"[AlloBuild] third-party props: {prefabs.Count}, materials: {converted.Count}");
@@ -1106,6 +1185,32 @@ public static class AlloBuild
         return w;
     }
 
+    /// 차 내부 모델의 물체(name)를 소품 3D 모델(P_{id})로 바꾼다: 원래 도형은 숨기고, 그 바닥 가운데에 모델을 세워 eye 쪽을 보게.
+    /// 모델은 원래 물체의 자식(흔들림 Wobble 이 같이 흔든다)이고 이름이 name 으로 시작해 탭(TapInput)도 그대로 된다
+    static void SwapCabinProp(Transform cabin, string name, string id, Vector3 eye)
+    {
+        var prefab = Allo.Critters.Toys.PropModel(id);
+        var t = Find(cabin, name);
+        if (prefab == null || t == null) return;
+        var old = Allo.Critters.Toys.BoundsOf(t);
+        foreach (var r in t.GetComponentsInChildren<Renderer>()) r.enabled = false;
+        foreach (var c in t.GetComponentsInChildren<Collider>()) Object.DestroyImmediate(c);
+        var m = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+        m.name = name + "Model";
+        var foot = new Vector3(old.center.x, old.min.y, old.center.z);
+        var look = eye - foot;
+        look.y = 0;
+        // 탭 상자는 돌리기 전(모델 좌표 = 월드 축)에 재서 모델에 붙인다
+        m.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+        var b = Allo.Critters.Toys.BoundsOf(m.transform);
+        var col = m.AddComponent<BoxCollider>();
+        col.center = b.center;
+        col.size = b.size;
+        m.transform.SetPositionAndRotation(foot, Quaternion.LookRotation(look.normalized));
+        m.transform.SetParent(t, true);
+        Debug.Log($"[AlloBuild] {name} → P_{id} at {foot} size {b.size}");
+    }
+
     static Transform Find(Transform root, string name)
     {
         if (root.name == name) return root;
@@ -1157,6 +1262,11 @@ public static class AlloBuild
         PlayerSettings.allowedAutorotateToLandscapeLeft = true;
         PlayerSettings.allowedAutorotateToLandscapeRight = true;
         PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, "ai.allo.explore");
+        // Local cloud-voice testing only (loopback http gateway). Default exports keep http blocked;
+        // the host's debug network config and StoryStreamVoice.ValidEndpoint still limit it to loopback.
+        var allowLocalHttp = System.Environment.GetEnvironmentVariable("ALLO_UNITY_LOCAL_HTTP") == "1";
+        PlayerSettings.insecureHttpOption = allowLocalHttp ? InsecureHttpOption.AlwaysAllowed : InsecureHttpOption.NotAllowed;
+        if (allowLocalHttp) Debug.LogWarning("[AlloBuild] ALLO_UNITY_LOCAL_HTTP=1: local testing export, do not ship");
 
         var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
         {

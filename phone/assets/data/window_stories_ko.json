@@ -1,0 +1,1529 @@
+{
+  "version": 1,
+  "packs": [
+    {
+      "id": "road_seed",
+      "version": 1,
+      "title": "씨앗의 여행 가방",
+      "environment": "road",
+      "invitation": "씨앗도 여행 가방이 있을까? 우리 하나 만들어 보자!",
+      "visual": "road_seed",
+      "cardTitle": "씨앗의 날개",
+      "cardText": "날개는 씨앗이 천천히 떨어지며 바람을 타도록 도울 수 있어.",
+      "reviewStatus": "draft",
+      "nodes": [
+        {
+          "id": "intro",
+          "line": "여긴 상상 작업실이야. 씨앗 모형이 여행을 준비해.",
+          "choices": [
+            {
+              "id": "next",
+              "label": "다음",
+              "next": "choose"
+            }
+          ],
+          "variant": "neutral"
+        },
+        {
+          "id": "choose",
+          "line": "어떤 모양으로 바람을 만나게 해 줄까?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "날개 달기",
+              "next": "react_a"
+            },
+            {
+              "id": "b",
+              "label": "둥글게 만들기",
+              "next": "react_b"
+            }
+          ],
+          "variant": "neutral"
+        },
+        {
+          "id": "react_a",
+          "line": "빙글빙글! 날개 달린 씨앗이 천천히 내려오네.",
+          "choices": [
+            {
+              "id": "compare",
+              "label": "비교해 보기",
+              "next": "compare_a"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "react_b",
+          "line": "톡! 둥근 씨앗은 먼저 바닥에 내려왔어.",
+          "choices": [
+            {
+              "id": "compare",
+              "label": "비교해 보기",
+              "next": "compare_b"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "compare_a",
+          "line": "같은 높이, 같은 바람! 이번엔 다른 모양을 놓아 보자.",
+          "choices": [
+            {
+              "id": "other",
+              "label": "다른 모양 놓기",
+              "next": "second_b"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "compare_b",
+          "line": "같은 높이, 같은 바람! 이번엔 다른 모양을 놓아 보자.",
+          "choices": [
+            {
+              "id": "other",
+              "label": "다른 모양 놓기",
+              "next": "second_a"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "second_a",
+          "line": "빙글빙글! 날개 달린 씨앗이 천천히 내려오네.",
+          "choices": [
+            {
+              "id": "discover",
+              "label": "발견 보기",
+              "next": "discovery"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "second_b",
+          "line": "톡! 둥근 씨앗은 먼저 바닥에 내려왔어.",
+          "choices": [
+            {
+              "id": "discover",
+              "label": "발견 보기",
+              "next": "discovery"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "discovery",
+          "line": "날개 달린 모형이 더 오래 떠서 바람에 멀리 갔네.",
+          "choices": [
+            {
+              "id": "why",
+              "label": "왜 그럴까?",
+              "next": "explain"
+            },
+            {
+              "id": "finish",
+              "label": "여행 마치기",
+              "next": "ending"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "explain",
+          "line": "날개가 공기의 저항을 받아 떨어지는 속도를 늦춘 거야.",
+          "choices": [
+            {
+              "id": "finish",
+              "label": "여행 마치기",
+              "next": "ending"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "ending",
+          "line": "씨앗 여행 가방 완성! 바퀴 대신 날개를 달았네.",
+          "choices": [
+            {
+              "id": "save",
+              "label": "카드 담기",
+              "next": "@save"
+            },
+            {
+              "id": "replay",
+              "label": "한 번 더",
+              "next": "choose"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "saved",
+          "line": "오늘의 발견을 여행 노트에 담았어.",
+          "choices": [
+            {
+              "id": "close",
+              "label": "돌아가기",
+              "next": "@close"
+            },
+            {
+              "id": "more",
+              "label": "더 궁금해",
+              "next": "more"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "more",
+          "line": "민들레 씨앗은 날개 대신 작은 털로 바람을 타기도 해.",
+          "choices": [
+            {
+              "id": "close",
+              "label": "돌아가기",
+              "next": "@close"
+            }
+          ],
+          "variant": "both"
+        }
+      ]
+    },
+    {
+      "id": "coast_sail",
+      "version": 2,
+      "title": "바닷바람 우편배",
+      "environment": "coast",
+      "invitation": "바다에 띄울 작은 편지가 있어. 배달을 도와줄래?",
+      "visual": "coast_sail",
+      "cardTitle": "바람 우편배",
+      "cardText": "바람이 돛을 밀어 배를 움직일 수 있어.",
+      "reviewStatus": "draft",
+      "nodes": [
+        {
+          "id": "intro",
+          "line": "우리의 장난감 바다야. 편지는 배에 꼭 실어 뒀어.",
+          "choices": [
+            {
+              "id": "next",
+              "label": "다음",
+              "next": "prediction"
+            }
+          ],
+          "variant": "neutral"
+        },
+        {
+          "id": "prediction",
+          "line": "같은 바람이면 어느 배가 더 멀리 갈까?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "돛 펼친 배",
+              "next": "choose"
+            },
+            {
+              "id": "b",
+              "label": "돛 접은 배",
+              "next": "choose"
+            }
+          ],
+          "variant": "neutral"
+        },
+        {
+          "id": "choose",
+          "line": "어느 쪽부터 해 볼까?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "돛 펼치기",
+              "next": "react_a"
+            },
+            {
+              "id": "b",
+              "label": "돛 접기",
+              "next": "react_b"
+            }
+          ],
+          "variant": "neutral"
+        },
+        {
+          "id": "react_a",
+          "line": "돛이 볼록! 배가 편지를 싣고 쭉 나아가네.",
+          "choices": [
+            {
+              "id": "compare",
+              "label": "비교해 보기",
+              "next": "compare_a"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "react_b",
+          "line": "살금살금 가네. 이번엔 어디까지 갔는지 표시하자.",
+          "choices": [
+            {
+              "id": "compare",
+              "label": "비교해 보기",
+              "next": "compare_b"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "compare_a",
+          "line": "같은 자리에서 같은 바람으로! 돛만 바꿔 보자.",
+          "choices": [
+            {
+              "id": "other",
+              "label": "돛 바꾸기",
+              "next": "second_b"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "compare_b",
+          "line": "같은 자리에서 같은 바람으로! 돛만 바꿔 보자.",
+          "choices": [
+            {
+              "id": "other",
+              "label": "돛 바꾸기",
+              "next": "second_a"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "second_a",
+          "line": "돛이 볼록! 배가 편지를 싣고 쭉 나아가네.",
+          "choices": [
+            {
+              "id": "discover",
+              "label": "발견 보기",
+              "next": "discovery"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "second_b",
+          "line": "살금살금 가네. 이번엔 어디까지 갔는지 표시하자.",
+          "choices": [
+            {
+              "id": "discover",
+              "label": "발견 보기",
+              "next": "discovery"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "discovery",
+          "line": "같은 시간 동안 돛을 펼친 배가 더 멀리 갔어.",
+          "choices": [
+            {
+              "id": "why",
+              "label": "왜 그럴까?",
+              "next": "explain"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "explain",
+          "line": "바람이 펼쳐진 돛을 밀어 배를 움직였어.",
+          "choices": [
+            {
+              "id": "finish",
+              "label": "편지 보내기",
+              "next": "ending"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "ending",
+          "line": "편지 도착! 오늘의 배달 도우미는 바람이었네.",
+          "choices": [
+            {
+              "id": "save",
+              "label": "발견 카드 담기",
+              "next": "@save"
+            },
+            {
+              "id": "replay",
+              "label": "한 번 더",
+              "next": "prediction"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "saved",
+          "line": "오늘의 발견을 여행 노트에 담았어.",
+          "choices": [
+            {
+              "id": "close",
+              "label": "돌아가기",
+              "next": "@close"
+            },
+            {
+              "id": "more",
+              "label": "더 궁금해",
+              "next": "more"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "more",
+          "line": "진짜 돛단배는 돛의 각도를 바꾸며 바람을 이용해.",
+          "choices": [
+            {
+              "id": "close",
+              "label": "돌아가기",
+              "next": "@close"
+            }
+          ],
+          "variant": "both"
+        }
+      ]
+    },
+    {
+      "id": "mountain_soil",
+      "version": 1,
+      "title": "흙 언덕 지키기",
+      "environment": "mountain",
+      "invitation": "작은 흙 언덕을 만들었어. 비가 오면 어떻게 될까?",
+      "visual": "mountain_soil",
+      "cardTitle": "언덕의 초록 지킴이",
+      "cardText": "풀과 뿌리는 흙이 빗물에 씻겨 가는 것을 줄여 줘.",
+      "reviewStatus": "draft",
+      "nodes": [
+        {
+          "id": "intro",
+          "line": "화면 속 언덕 두 개야. 한쪽에는 풀이 자라고 있어.",
+          "choices": [
+            {
+              "id": "next",
+              "label": "다음",
+              "next": "choose"
+            }
+          ],
+          "variant": "neutral"
+        },
+        {
+          "id": "choose",
+          "line": "어느 언덕에 먼저 비를 내려 볼까?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "풀 있는 언덕",
+              "next": "react_a"
+            },
+            {
+              "id": "b",
+              "label": "맨흙 언덕",
+              "next": "react_b"
+            }
+          ],
+          "variant": "neutral"
+        },
+        {
+          "id": "react_a",
+          "line": "풀 사이로 물이 흐르네. 흙은 많이 남아 있어.",
+          "choices": [
+            {
+              "id": "compare",
+              "label": "비교해 보기",
+              "next": "compare_a"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "react_b",
+          "line": "물에 흙이 섞여 내려오네. 아래쪽이 갈색이 됐어.",
+          "choices": [
+            {
+              "id": "compare",
+              "label": "비교해 보기",
+              "next": "compare_b"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "compare_a",
+          "line": "다른 언덕에도 같은 양의 비를 내려 보자.",
+          "choices": [
+            {
+              "id": "other",
+              "label": "다른 언덕 보기",
+              "next": "second_b"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "compare_b",
+          "line": "다른 언덕에도 같은 양의 비를 내려 보자.",
+          "choices": [
+            {
+              "id": "other",
+              "label": "다른 언덕 보기",
+              "next": "second_a"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "second_a",
+          "line": "풀 사이로 물이 흐르네. 흙은 많이 남아 있어.",
+          "choices": [
+            {
+              "id": "discover",
+              "label": "발견 보기",
+              "next": "discovery"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "second_b",
+          "line": "물에 흙이 섞여 내려오네. 아래쪽이 갈색이 됐어.",
+          "choices": [
+            {
+              "id": "discover",
+              "label": "발견 보기",
+              "next": "discovery"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "discovery",
+          "line": "이번 실험에서는 풀 있는 언덕의 흙이 덜 씻겨 갔어.",
+          "choices": [
+            {
+              "id": "why",
+              "label": "왜 그럴까?",
+              "next": "explain"
+            },
+            {
+              "id": "finish",
+              "label": "언덕 살펴보기",
+              "next": "ending"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "explain",
+          "line": "풀은 빗방울의 힘을 줄이고, 뿌리는 흙을 붙잡아 줘.",
+          "choices": [
+            {
+              "id": "finish",
+              "label": "언덕 살펴보기",
+              "next": "ending"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "ending",
+          "line": "작은 풀도 언덕을 지키는 일을 하고 있었네.",
+          "choices": [
+            {
+              "id": "save",
+              "label": "카드 담기",
+              "next": "@save"
+            },
+            {
+              "id": "replay",
+              "label": "한 번 더",
+              "next": "choose"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "saved",
+          "line": "오늘의 발견을 여행 노트에 담았어.",
+          "choices": [
+            {
+              "id": "close",
+              "label": "돌아가기",
+              "next": "@close"
+            },
+            {
+              "id": "more",
+              "label": "더 궁금해",
+              "next": "more"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "more",
+          "line": "비의 양이나 흙의 종류가 달라지면 결과도 달라질 수 있어.",
+          "choices": [
+            {
+              "id": "close",
+              "label": "돌아가기",
+              "next": "@close"
+            }
+          ],
+          "variant": "both"
+        }
+      ]
+    },
+    {
+      "id": "city_bridge",
+      "version": 1,
+      "title": "간식 열차의 다리",
+      "environment": "city",
+      "invitation": "간식 열차가 출발한대! 작은 다리를 만들어 줄까?",
+      "visual": "city_bridge",
+      "cardTitle": "쿠키 열차의 다리",
+      "cardText": "받침을 더하면 다리의 휘어짐을 줄일 수 있어.",
+      "reviewStatus": "draft",
+      "nodes": [
+        {
+          "id": "intro",
+          "line": "장난감 열차에 쿠키가 가득해. 다리는 양끝이 받치고 있어.",
+          "choices": [
+            {
+              "id": "next",
+              "label": "다음",
+              "next": "choose"
+            }
+          ],
+          "variant": "neutral"
+        },
+        {
+          "id": "choose",
+          "line": "가운데 받침을 더하면 뭐가 달라질까?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "받침 추가",
+              "next": "react_a"
+            },
+            {
+              "id": "b",
+              "label": "그대로 시험",
+              "next": "react_b"
+            }
+          ],
+          "variant": "neutral"
+        },
+        {
+          "id": "react_a",
+          "line": "덜 휘네! 쿠키 열차가 다리 위에 올라왔어.",
+          "choices": [
+            {
+              "id": "compare",
+              "label": "비교해 보기",
+              "next": "compare_a"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "react_b",
+          "line": "가운데가 휘었네. 열차는 멈추고 모양부터 보자.",
+          "choices": [
+            {
+              "id": "compare",
+              "label": "비교해 보기",
+              "next": "compare_b"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "compare_a",
+          "line": "같은 열차를 올리고, 가운데 받침만 바꿔 보자.",
+          "choices": [
+            {
+              "id": "other",
+              "label": "받침 바꾸기",
+              "next": "second_b"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "compare_b",
+          "line": "같은 열차를 올리고, 가운데 받침만 바꿔 보자.",
+          "choices": [
+            {
+              "id": "other",
+              "label": "받침 바꾸기",
+              "next": "second_a"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "second_a",
+          "line": "덜 휘네! 쿠키 열차가 다리 위에 올라왔어.",
+          "choices": [
+            {
+              "id": "discover",
+              "label": "발견 보기",
+              "next": "discovery"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "second_b",
+          "line": "가운데가 휘었네. 열차는 멈추고 모양부터 보자.",
+          "choices": [
+            {
+              "id": "discover",
+              "label": "발견 보기",
+              "next": "discovery"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "discovery",
+          "line": "이 다리는 가운데 받침이 있을 때 덜 휘었어.",
+          "choices": [
+            {
+              "id": "why",
+              "label": "왜 그럴까?",
+              "next": "explain"
+            },
+            {
+              "id": "finish",
+              "label": "열차 보내기",
+              "next": "ending"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "explain",
+          "line": "받침이 열차를 지탱하는 힘을 나누어 맡았거든.",
+          "choices": [
+            {
+              "id": "finish",
+              "label": "열차 보내기",
+              "next": "ending"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "ending",
+          "line": "받침을 놓고 출발! 쿠키가 부스러기 되기 전에 도착했네.",
+          "choices": [
+            {
+              "id": "save",
+              "label": "카드 담기",
+              "next": "@save"
+            },
+            {
+              "id": "replay",
+              "label": "한 번 더",
+              "next": "choose"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "saved",
+          "line": "오늘의 발견을 여행 노트에 담았어.",
+          "choices": [
+            {
+              "id": "close",
+              "label": "돌아가기",
+              "next": "@close"
+            },
+            {
+              "id": "more",
+              "label": "더 궁금해",
+              "next": "more"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "more",
+          "line": "다리는 받침뿐 아니라 모양과 재료로도 힘을 견뎌.",
+          "choices": [
+            {
+              "id": "close",
+              "label": "돌아가기",
+              "next": "@close"
+            }
+          ],
+          "variant": "both"
+        }
+      ]
+    },
+    {
+      "id": "tunnel_shadow",
+      "version": 1,
+      "title": "커다란 토끼의 비밀",
+      "environment": "tunnel",
+      "invitation": "어두운 곳에선 그림자 놀이 어때? 작은 토끼를 데려왔어.",
+      "visual": "tunnel_shadow",
+      "cardTitle": "커졌다 작아졌다",
+      "cardText": "물체와 벽이 그대로면 빛의 위치로 그림자 크기를 바꿀 수 있어.",
+      "reviewStatus": "draft",
+      "nodes": [
+        {
+          "id": "intro",
+          "line": "화면 속 그림자 극장이야. 토끼는 자리에 가만히 있을 거야.",
+          "choices": [
+            {
+              "id": "next",
+              "label": "다음",
+              "next": "choose"
+            }
+          ],
+          "variant": "neutral"
+        },
+        {
+          "id": "choose",
+          "line": "토끼 앞의 빛을 움직이면 그림자가 어떻게 될까?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "빛 가까이",
+              "next": "react_a"
+            },
+            {
+              "id": "b",
+              "label": "빛 멀리",
+              "next": "react_b"
+            }
+          ],
+          "variant": "neutral"
+        },
+        {
+          "id": "react_a",
+          "line": "토끼 그림자가 커졌어! 귀가 천장에 닿겠는걸.",
+          "choices": [
+            {
+              "id": "compare",
+              "label": "비교해 보기",
+              "next": "compare_a"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "react_b",
+          "line": "그림자가 작아졌네. 토끼가 줄어든 건 아니야.",
+          "choices": [
+            {
+              "id": "compare",
+              "label": "비교해 보기",
+              "next": "compare_b"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "compare_a",
+          "line": "토끼와 벽은 그대로! 이번엔 빛을 반대로 옮겨 보자.",
+          "choices": [
+            {
+              "id": "other",
+              "label": "빛 옮기기",
+              "next": "second_b"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "compare_b",
+          "line": "토끼와 벽은 그대로! 이번엔 빛을 반대로 옮겨 보자.",
+          "choices": [
+            {
+              "id": "other",
+              "label": "빛 옮기기",
+              "next": "second_a"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "second_a",
+          "line": "토끼 그림자가 커졌어! 귀가 천장에 닿겠는걸.",
+          "choices": [
+            {
+              "id": "discover",
+              "label": "발견 보기",
+              "next": "discovery"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "second_b",
+          "line": "그림자가 작아졌네. 토끼가 줄어든 건 아니야.",
+          "choices": [
+            {
+              "id": "discover",
+              "label": "발견 보기",
+              "next": "discovery"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "discovery",
+          "line": "빛이 토끼에 가까울 때 벽의 그림자가 더 컸어.",
+          "choices": [
+            {
+              "id": "why",
+              "label": "왜 그럴까?",
+              "next": "explain"
+            },
+            {
+              "id": "finish",
+              "label": "공연 끝내기",
+              "next": "ending"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "explain",
+          "line": "퍼져 나가는 빛을 가까이서 가리면 더 넓은 그림자가 생겨.",
+          "choices": [
+            {
+              "id": "finish",
+              "label": "공연 끝내기",
+              "next": "ending"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "ending",
+          "line": "토끼 한 마리로 큰 토끼, 작은 토끼 공연 완성!",
+          "choices": [
+            {
+              "id": "save",
+              "label": "카드 담기",
+              "next": "@save"
+            },
+            {
+              "id": "replay",
+              "label": "한 번 더",
+              "next": "choose"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "saved",
+          "line": "오늘의 발견을 여행 노트에 담았어.",
+          "choices": [
+            {
+              "id": "close",
+              "label": "돌아가기",
+              "next": "@close"
+            },
+            {
+              "id": "more",
+              "label": "더 궁금해",
+              "next": "more"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "more",
+          "line": "빛이 오는 방향을 바꾸면 그림자의 방향도 달라져.",
+          "choices": [
+            {
+              "id": "close",
+              "label": "돌아가기",
+              "next": "@close"
+            }
+          ],
+          "variant": "both"
+        }
+      ]
+    },
+    {
+      "id": "rain_path",
+      "version": 1,
+      "title": "물방울의 갈림길",
+      "environment": "rain",
+      "invitation": "톡톡! 물방울 친구들은 땅에 닿으면 어디로 갈까?",
+      "visual": "rain_path",
+      "cardTitle": "물방울 갈림길",
+      "cardText": "바닥에 따라 물이 스며들거나 표면으로 흐르는 정도가 달라져.",
+      "reviewStatus": "draft",
+      "nodes": [
+        {
+          "id": "intro",
+          "line": "작은 비 구름을 준비했어. 화면 속 길에 비를 내려 보자.",
+          "choices": [
+            {
+              "id": "next",
+              "label": "다음",
+              "next": "choose"
+            }
+          ],
+          "variant": "neutral"
+        },
+        {
+          "id": "choose",
+          "line": "물방울을 어느 길에 먼저 보내 볼까?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "흙길",
+              "next": "react_a"
+            },
+            {
+              "id": "b",
+              "label": "포장길",
+              "next": "react_b"
+            }
+          ],
+          "variant": "neutral"
+        },
+        {
+          "id": "react_a",
+          "line": "쏙쏙! 물이 흙 사이로 스며들고 있어.",
+          "choices": [
+            {
+              "id": "compare",
+              "label": "비교해 보기",
+              "next": "compare_a"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "react_b",
+          "line": "또르르! 물방울이 길 위를 따라 흘러가네.",
+          "choices": [
+            {
+              "id": "compare",
+              "label": "비교해 보기",
+              "next": "compare_b"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "compare_a",
+          "line": "다른 길에도 똑같이 비를 내려 보자.",
+          "choices": [
+            {
+              "id": "other",
+              "label": "다른 길 보기",
+              "next": "second_b"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "compare_b",
+          "line": "다른 길에도 똑같이 비를 내려 보자.",
+          "choices": [
+            {
+              "id": "other",
+              "label": "다른 길 보기",
+              "next": "second_a"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "second_a",
+          "line": "쏙쏙! 물이 흙 사이로 스며들고 있어.",
+          "choices": [
+            {
+              "id": "discover",
+              "label": "발견 보기",
+              "next": "discovery"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "second_b",
+          "line": "또르르! 물방울이 길 위를 따라 흘러가네.",
+          "choices": [
+            {
+              "id": "discover",
+              "label": "발견 보기",
+              "next": "discovery"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "discovery",
+          "line": "이 흙길은 물이 더 스며들고, 포장길은 위로 더 흘렀어.",
+          "choices": [
+            {
+              "id": "why",
+              "label": "왜 그럴까?",
+              "next": "explain"
+            },
+            {
+              "id": "finish",
+              "label": "물길 따라가기",
+              "next": "ending"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "explain",
+          "line": "이 흙에는 물이 들어갈 틈이 있어. 이 포장은 잘 안 스며들어.",
+          "choices": [
+            {
+              "id": "finish",
+              "label": "물길 따라가기",
+              "next": "ending"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "ending",
+          "line": "물방울 여행 지도 완성! 땅속 길도 있었네.",
+          "choices": [
+            {
+              "id": "save",
+              "label": "카드 담기",
+              "next": "@save"
+            },
+            {
+              "id": "replay",
+              "label": "한 번 더",
+              "next": "choose"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "saved",
+          "line": "오늘의 발견을 여행 노트에 담았어.",
+          "choices": [
+            {
+              "id": "close",
+              "label": "돌아가기",
+              "next": "@close"
+            },
+            {
+              "id": "more",
+              "label": "더 궁금해",
+              "next": "more"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "more",
+          "line": "흙도 물로 가득 차면 새 빗물이 스며들기 어려워져.",
+          "choices": [
+            {
+              "id": "close",
+              "label": "돌아가기",
+              "next": "@close"
+            }
+          ],
+          "variant": "both"
+        }
+      ]
+    },
+    {
+      "id": "night_stars",
+      "version": 1,
+      "title": "숨어 있는 별 찾기",
+      "environment": "night",
+      "invitation": "작은 밤하늘을 펼쳐 볼까? 숨어 보이는 별이 있대.",
+      "visual": "night_stars",
+      "cardTitle": "숨은 별 발견",
+      "cardText": "주변이 어두우면 희미한 별빛을 더 쉽게 구별할 수 있어.",
+      "reviewStatus": "draft",
+      "nodes": [
+        {
+          "id": "intro",
+          "line": "화면 속 별들은 같은 자리에 있어. 주변 빛만 바꿔 보자.",
+          "choices": [
+            {
+              "id": "next",
+              "label": "다음",
+              "next": "choose"
+            }
+          ],
+          "variant": "neutral"
+        },
+        {
+          "id": "choose",
+          "line": "우리 모형 도시의 조명을 어떻게 할까?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "조명 낮추기",
+              "next": "react_a"
+            },
+            {
+              "id": "b",
+              "label": "조명 높이기",
+              "next": "react_b"
+            }
+          ],
+          "variant": "neutral"
+        },
+        {
+          "id": "react_a",
+          "line": "희미하던 별까지 보이네. 별이 새로 생긴 걸까?",
+          "choices": [
+            {
+              "id": "compare",
+              "label": "비교해 보기",
+              "next": "compare_a"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "react_b",
+          "line": "밝은 별은 보이는데, 희미한 별은 찾기 어려워졌네.",
+          "choices": [
+            {
+              "id": "compare",
+              "label": "비교해 보기",
+              "next": "compare_b"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "compare_a",
+          "line": "별은 그대로 두고, 조명을 반대로 바꿔 보자.",
+          "choices": [
+            {
+              "id": "other",
+              "label": "조명 바꾸기",
+              "next": "second_b"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "compare_b",
+          "line": "별은 그대로 두고, 조명을 반대로 바꿔 보자.",
+          "choices": [
+            {
+              "id": "other",
+              "label": "조명 바꾸기",
+              "next": "second_a"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "second_a",
+          "line": "희미하던 별까지 보이네. 별이 새로 생긴 걸까?",
+          "choices": [
+            {
+              "id": "discover",
+              "label": "발견 보기",
+              "next": "discovery"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "second_b",
+          "line": "밝은 별은 보이는데, 희미한 별은 찾기 어려워졌네.",
+          "choices": [
+            {
+              "id": "discover",
+              "label": "발견 보기",
+              "next": "discovery"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "discovery",
+          "line": "같은 별인데 어두운 하늘에서 더 잘 보였어.",
+          "choices": [
+            {
+              "id": "why",
+              "label": "왜 그럴까?",
+              "next": "explain"
+            },
+            {
+              "id": "finish",
+              "label": "별 지도 담기",
+              "next": "ending"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "explain",
+          "line": "주변 빛이 하늘을 밝히면 희미한 별빛을 구별하기 어려워.",
+          "choices": [
+            {
+              "id": "finish",
+              "label": "별 지도 담기",
+              "next": "ending"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "ending",
+          "line": "별이 숨은 게 아니라 빛에 가려 보였구나.",
+          "choices": [
+            {
+              "id": "save",
+              "label": "카드 담기",
+              "next": "@save"
+            },
+            {
+              "id": "replay",
+              "label": "한 번 더",
+              "next": "choose"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "saved",
+          "line": "오늘의 발견을 여행 노트에 담았어.",
+          "choices": [
+            {
+              "id": "close",
+              "label": "돌아가기",
+              "next": "@close"
+            },
+            {
+              "id": "more",
+              "label": "더 궁금해",
+              "next": "more"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "more",
+          "line": "실제 밤하늘은 구름이나 달빛 때문에도 다르게 보여.",
+          "choices": [
+            {
+              "id": "close",
+              "label": "돌아가기",
+              "next": "@close"
+            }
+          ],
+          "variant": "both"
+        }
+      ]
+    },
+    {
+      "id": "highway_view",
+      "version": 1,
+      "title": "나무와 산의 달리기",
+      "environment": "highway",
+      "invitation": "나무와 산이 달리기 시합을 한다면? 화면에서 살펴보자!",
+      "visual": "highway_view",
+      "cardTitle": "풍경 달리기의 비밀",
+      "cardText": "우리가 이동하면 가까운 풍경이 더 빨리 지나가는 것처럼 보여.",
+      "reviewStatus": "draft",
+      "nodes": [
+        {
+          "id": "intro",
+          "line": "움직이는 건 우리 모형 차야. 나무와 산은 가만히 있어.",
+          "choices": [
+            {
+              "id": "next",
+              "label": "다음",
+              "next": "choose"
+            }
+          ],
+          "variant": "neutral"
+        },
+        {
+          "id": "choose",
+          "line": "누구에게 먼저 표시를 붙여 볼까?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "가까운 나무",
+              "next": "react_a"
+            },
+            {
+              "id": "b",
+              "label": "먼 산",
+              "next": "react_b"
+            }
+          ],
+          "variant": "neutral"
+        },
+        {
+          "id": "react_a",
+          "line": "슝! 가까운 나무의 표시가 화면을 빠르게 지나가네.",
+          "choices": [
+            {
+              "id": "compare",
+              "label": "비교해 보기",
+              "next": "compare_a"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "react_b",
+          "line": "먼 산의 표시는 화면에서 조금씩 움직이는 것 같아.",
+          "choices": [
+            {
+              "id": "compare",
+              "label": "비교해 보기",
+              "next": "compare_b"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "compare_a",
+          "line": "차의 속도는 그대로! 이번엔 다른 표시를 따라가 보자.",
+          "choices": [
+            {
+              "id": "other",
+              "label": "다른 표시 보기",
+              "next": "second_b"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "compare_b",
+          "line": "차의 속도는 그대로! 이번엔 다른 표시를 따라가 보자.",
+          "choices": [
+            {
+              "id": "other",
+              "label": "다른 표시 보기",
+              "next": "second_a"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "second_a",
+          "line": "슝! 가까운 나무의 표시가 화면을 빠르게 지나가네.",
+          "choices": [
+            {
+              "id": "discover",
+              "label": "발견 보기",
+              "next": "discovery"
+            }
+          ],
+          "variant": "a"
+        },
+        {
+          "id": "second_b",
+          "line": "먼 산의 표시는 화면에서 조금씩 움직이는 것 같아.",
+          "choices": [
+            {
+              "id": "discover",
+              "label": "발견 보기",
+              "next": "discovery"
+            }
+          ],
+          "variant": "b"
+        },
+        {
+          "id": "discovery",
+          "line": "같은 시간에 가까운 나무가 화면에서 더 많이 움직였어.",
+          "choices": [
+            {
+              "id": "why",
+              "label": "왜 그럴까?",
+              "next": "explain"
+            },
+            {
+              "id": "finish",
+              "label": "관찰 마치기",
+              "next": "ending"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "explain",
+          "line": "우리가 움직일 때 가까운 물체는 보는 방향이 더 크게 바뀌어.",
+          "choices": [
+            {
+              "id": "finish",
+              "label": "관찰 마치기",
+              "next": "ending"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "ending",
+          "line": "달리기 우승자는 없었네! 움직인 건 우리였으니까.",
+          "choices": [
+            {
+              "id": "save",
+              "label": "카드 담기",
+              "next": "@save"
+            },
+            {
+              "id": "replay",
+              "label": "한 번 더",
+              "next": "choose"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "saved",
+          "line": "오늘의 발견을 여행 노트에 담았어.",
+          "choices": [
+            {
+              "id": "close",
+              "label": "돌아가기",
+              "next": "@close"
+            },
+            {
+              "id": "more",
+              "label": "더 궁금해",
+              "next": "more"
+            }
+          ],
+          "variant": "both"
+        },
+        {
+          "id": "more",
+          "line": "애니메이션도 가까운 배경을 더 많이 움직여 거리감을 표현해.",
+          "choices": [
+            {
+              "id": "close",
+              "label": "돌아가기",
+              "next": "@close"
+            }
+          ],
+          "variant": "both"
+        }
+      ]
+    }
+  ]
+}

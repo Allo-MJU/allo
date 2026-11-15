@@ -1,10 +1,8 @@
 using System.Linq;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using Allo.App;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 using UnityEngine.UI;
 
 public class AppUiScrollTests
@@ -60,7 +58,7 @@ public class AppUiScrollTests
         SetOffsets(panels, .31f, .72f);
         var leftOffset = panels[0].content.anchoredPosition.y;
         var rightOffset = panels[1].content.anchoredPosition.y;
-        var tile = panels[0].GetComponentsInChildren<Button>()
+        var tile = panels[1].GetComponentsInChildren<Button>()
             .Last(button => button.transform.parent.name == "Dex grid");
         tile.onClick.Invoke();
         Assert.AreEqual("dex-23", Get<string>("_selectedDex"));
@@ -118,16 +116,5 @@ public class AppUiScrollTests
 
     T Get<T>(string name) => (T)typeof(AppUi).GetField(name, Private).GetValue(_ui);
     void Call(string name, params object[] args) => typeof(AppUi).GetMethod(name, Private).Invoke(_ui, args);
-    void Render()
-    {
-        // Runtime Render defers destruction; EditMode needs immediate cleanup afterward.
-        var content = Get<RectTransform>("_content");
-        var panels = content.GetComponentsInChildren<ScrollRect>();
-        // Expect only the known EditMode deferred-Destroy error; all other logs still fail.
-        foreach (Transform child in content)
-            LogAssert.Expect(LogType.Error, new Regex("^Destroy may not be called from edit mode! Use DestroyImmediate instead\\."));
-        Call("Render");
-        foreach (var panel in panels)
-            if (panel != null && !panel.gameObject.activeSelf) Object.DestroyImmediate(panel.gameObject);
-    }
+    void Render() => Call("Render");
 }

@@ -4,7 +4,10 @@ import ai.allo.car.dialogue.DialogueBank
 import ai.allo.car.model.CompanionDialogue
 import ai.allo.car.model.DialogueAnswer
 import ai.allo.car.model.GameState
-import ai.allo.car.voice.DialogueVoice
+import ai.allo.car.model.PlazaPopulation
+import androidx.compose.runtime.saveable.rememberSaveable
+import ai.allo.car.voice.DialogueVoiceState
+import ai.allo.car.voice.characterDialogueVoice
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,6 +19,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.foundation.layout.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Path
@@ -40,42 +45,62 @@ fun CompanionDialoguePanel(
     bank: DialogueBank,
     companionName: String,
     unreviewedPreview: Boolean = false,
+    minHeight: androidx.compose.ui.unit.Dp = 0.dp,
 ) {
     val dialogue = remember(bank) { CompanionDialogue(bank) }
     val catalog = rememberSpeciesCatalog()
-    val subject = dialogue.subject(game, connected)?.takeIf { catalog[it.speciesId] != null }
+    var guestSpeciesId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pickerOpen by remember { mutableStateOf(false) }
+    val available = PlazaPopulation.residents(game).filter { it in SuppliedCharacters.ids && catalog[it] != null }
+    val subject = dialogue.subject(game, connected, guestSpeciesId)?.takeIf { catalog[it.speciesId] != null }
+    val latestGuestSpeciesId by rememberUpdatedState(guestSpeciesId)
+    val displayedSpecies = subject?.let { catalog[it.speciesId] }
+    val displayedName = displayedSpecies?.name ?: companionName
     val latestGame by rememberUpdatedState(game)
     val latestConnected by rememberUpdatedState(connected)
     var answer by remember(subject?.key, connected) { mutableStateOf<DialogueAnswer?>(null) }
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val voice = remember(context) { DialogueVoice(context) }
-    val voiceState by voice.state.collectAsState()
+    val voice = remember(context, subject?.key) {
+        subject?.let { characterDialogueVoice(context, it.speciesId) }
+    }
+    val voiceState = voice?.state?.collectAsState()?.value ?: DialogueVoiceState()
     DisposableEffect(voice, lifecycleOwner) {
-        voice.start()
+        voice?.start()
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE) voice.stop()
+            if (event == Lifecycle.Event.ON_PAUSE) voice?.stop()
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            voice.release()
+            voice?.release()
         }
     }
-    LaunchedEffect(subject?.key, connected) { voice.stop() }
+    LaunchedEffect(subject?.key, connected) { voice?.stop() }
+    if (pickerOpen) StoryFriendPicker(available, guestSpeciesId, catalog, connected,
+        onSelect = { id ->
+            // Check current ownership again, including if the dialog was open during a sync.
+            if (id == null || (latestConnected && dialogue.subject(latestGame, true, id) != null)) {
+                voice?.stop()
+                answer = null
+                guestSpeciesId = id
+                pickerOpen = false
+            }
+        }, onDismiss = { pickerOpen = false })
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-        ParkedSectionTitle("친구와 이야기", "궁금한 질문을 골라 보세요.")
         if (subject == null) {
-            ParkedInfoCard("대화 준비 중", if (!connected) "폰 연결을 확인해 주세요." else "폰에서 차량과 함께할 친구를 선택해 주세요.")
+            ToyButton("대화할 친구 바꾸기", { pickerOpen = true }, enabled = connected)
+            ParkedInfoCard("대화 준비 중", if (!connected) "폰 연결을 확인해 주세요." else "대화할 친구 바꾸기에서 수집한 친구를 불러 주세요.")
         } else {
-            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+            NotebookSpread(minHeight = minHeight, scene = {
+            Column(Modifier.fillMaxWidth().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-                val bubbleColor = if (dark) Color(0xFFFAE6AE) else Color(0xFFFFF9E9)
-                val ink = Color(0xFF163C30)
-                val accent = if (dark) Color(0xFF72C6A0) else Color(0xFFFFD34F)
+                val bubbleColor = if (dark) Color(0xFFE8DFC5) else Color(0xFFFFFBE9)
+                val ink = Color(0xFF304729)
+                val accent = if (dark) Color(0xFF83996B) else Color(0xFFD8E4BB)
                 Surface(onClick = {
-                    if (dialogue.subject(latestGame, latestConnected)?.key == subject.key) {
-                        answer?.let { voice.speak(it.text) }
+                    if (dialogue.subject(latestGame, latestConnected, latestGuestSpeciesId)?.key == subject.key) {
+                        answer?.let { voice?.speak(it.text) }
                     }
                 }, enabled = answer != null && voiceState.ready,
                     modifier = Modifier.widthIn(max = 760.dp).fillMaxWidth()
@@ -83,76 +108,67 @@ fun CompanionDialoguePanel(
                         .drawBehind {
                             val tail = 28.dp.toPx()
                             val h = size.height - tail
-                            val r = 24.dp.toPx()
+                            val r = 42.dp.toPx()
                             val w = size.width
                             val outline = Path().apply {
                                 moveTo(r, 0f); lineTo(w - r, 0f)
                                 quadraticBezierTo(w, 0f, w, r)
                                 lineTo(w, h - r); quadraticBezierTo(w, h, w - r, h)
                                 lineTo(w * 0.56f, h)
-                                lineTo(w * 0.47f, size.height)
-                                lineTo(w * 0.49f, h)
+                                quadraticBezierTo(w * .52f, h + tail * .6f, w * .47f, size.height)
+                                quadraticBezierTo(w * .49f, h + tail * .45f, w * .49f, h)
                                 lineTo(r, h); quadraticBezierTo(0f, h, 0f, h - r)
                                 lineTo(0f, r); quadraticBezierTo(0f, 0f, r, 0f); close()
                             }
-                            translate(7.dp.toPx(), 7.dp.toPx()) { drawPath(outline, accent) }
+                            translate(3.dp.toPx(), 3.dp.toPx()) { drawPath(outline, accent) }
                             drawPath(outline, bubbleColor)
-                            drawPath(outline, ink, style = Stroke(3.dp.toPx()))
-                            // Small halftone corner, kept clear of the dialogue text.
-                            for (row in 0..2) for (col in 0..4) {
-                                drawCircle(ink.copy(alpha = 0.22f), 1.5.dp.toPx(),
-                                    Offset(w - 22.dp.toPx() - col * 9.dp.toPx(),
-                                        19.dp.toPx() + row * 9.dp.toPx()))
-                            }
+                            drawPath(outline, ink, style = Stroke(1.5.dp.toPx()))
+
                         }
                         .semantics { contentDescription = if (voiceState.speaking) "답변 읽기 중지" else "답변 읽기" },
-                    shape = RoundedCornerShape(24.dp), color = Color.Transparent) {
-                    Column(Modifier.padding(start = 24.dp, top = 20.dp, end = 24.dp, bottom = 50.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(companionName, style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.ExtraBold, color = ink,
-                            modifier = Modifier.padding(end = 54.dp)
-                                .background(accent, RoundedCornerShape(8.dp))
-                                .border(BorderStroke(2.dp, ink), RoundedCornerShape(8.dp))
-                                .padding(horizontal = 12.dp, vertical = 4.dp))
-                        Text(answer?.text ?: "어떤 이야기가 궁금해요? 아래 질문을 골라 주세요.",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = ink,
-                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                    shape = RoundedCornerShape(42.dp), color = Color.Transparent) {
+                    Column(Modifier.padding(start = 28.dp, top = 20.dp, end = 28.dp, bottom = 50.dp), verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(displayedName, style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF657256), textAlign = TextAlign.Center)
+                        Text(answer?.text ?: "어떤 이야기가 궁금해요? 질문을 골라 주세요.",
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, lineBreak = LineBreak.Heading),
+                            color = ink, textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite })
                         if (answer != null) Text(
                             voiceState.error ?: when {
                                 voiceState.speaking -> "읽는 중 · 말풍선을 누르면 멈춰요"
                                 voiceState.ready -> "말풍선을 누르면 소리로 읽어줘요"
                                 else -> "음성을 준비하고 있어요"
-                            }, style = MaterialTheme.typography.bodyMedium,
-                            color = ink)
+                            }, style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF657256), textAlign = TextAlign.Center)
                     }
                 }
                 BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    PetArt(PetSummary.from(game, connected, catalog),
-                        size = (maxWidth * 0.75f).coerceIn(180.dp, 340.dp),
-                        parked = true, connected = connected)
+                    PlazaPetArt(PetSummary(displayedName, "이야기 친구", displayedSpecies, false, 0f),
+                        size = (maxWidth * 0.9f).coerceIn(180.dp, 340.dp),
+                        modifier = Modifier, connected = connected, moving = false)
                 }
+                ToyButton("대화할 친구 바꾸기", { pickerOpen = true }, enabled = connected)
             }
-            ParkedCardGrid(CompanionDialogue.QUESTIONS, maxColumns = 2) { question ->
+            }, page = {
+            NotebookPaper("친구와 이야기", "오늘은 어떤 이야기를 나눌까요?") {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            CompanionDialogue.QUESTIONS.forEach { question ->
                 val chosen = answer?.questionId == question.id
-                Surface(onClick = {
+                ToyButton(question.label, onClick = {
                     // Revalidate the live subject; an old tap cannot answer for a replacement.
-                    if (dialogue.subject(latestGame, latestConnected)?.key == subject.key) {
-                        voice.stop()
-                        answer = dialogue.answer(question.id, latestGame, latestConnected)
+                    if (dialogue.subject(latestGame, latestConnected, latestGuestSpeciesId)?.key == subject.key) {
+                        voice?.stop()
+                        answer = dialogue.answer(question.id, latestGame, latestConnected, latestGuestSpeciesId)
                     }
-                }, selected = chosen, modifier = Modifier.fillMaxWidth().heightIn(min = 88.dp),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(22.dp),
-                    color = if (chosen) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
-                    contentColor = if (chosen) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface) {
-                    Box(Modifier.padding(22.dp), contentAlignment = androidx.compose.ui.Alignment.CenterStart) {
-                        Text(question.label, style = MaterialTheme.typography.titleLarge)
-                    }
-                }
+                }, primary = chosen, modifier = Modifier.fillMaxWidth())
+            }
             }
             Text(if (unreviewedPreview) "개발용 미리보기 · 검수 전 대사가 포함될 수 있어요."
                 else "준비된 대사로 답해요. 답변이 없는 질문은 준비 중으로 안내해요.",
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            })
         }
     }
 }

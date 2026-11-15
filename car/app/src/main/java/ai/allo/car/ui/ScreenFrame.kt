@@ -30,23 +30,29 @@ fun ScreenFrame(
             val compact = maxWidth < 600.dp
             val padding = if (short) 12.dp else if (compact) 20.dp else 28.dp
             Column(Modifier.fillMaxSize().padding(padding), verticalArrangement = Arrangement.spacedBy(if (short) 12.dp else 24.dp)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                    AlloWordmark(Modifier.width(if (compact) 100.dp else 140.dp).height(if (short) 44.dp else 64.dp))
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(title, style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        if (compact) Text(status, style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    }
-                    if (!compact) Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(20.dp)) {
-                        Text(status, Modifier.widthIn(max = 300.dp).padding(horizontal = 20.dp, vertical = 12.dp),
-                            style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    }
-                }
+                ScreenHeader(title, status, compact, short)
                 content()
             }
+        }
+    }
+}
+
+/** Logo, screen title and status. Also laid directly over full-bleed scenes. */
+@Composable
+internal fun ScreenHeader(title: String, status: String, compact: Boolean, short: Boolean, modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+        AlloWordmark(Modifier.width(if (compact) 100.dp else 140.dp).height(if (short) 44.dp else 64.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (compact) Text(status, style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        if (!compact) Surface(color = MaterialTheme.colorScheme.secondaryContainer, shape = RoundedCornerShape(20.dp)) {
+            Text(status, Modifier.widthIn(max = 300.dp).padding(horizontal = 20.dp, vertical = 12.dp),
+                style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer,
+                maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -91,14 +97,5 @@ fun ScreenColumns(
 
 @Composable
 fun ScreenAction(label: String, onClick: () -> Unit, enabled: Boolean = true, secondary: Boolean = false) {
-    val modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp)
-    if (secondary) {
-        OutlinedButton(onClick, modifier = modifier, enabled = enabled) {
-            Text(label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(vertical = 8.dp))
-        }
-    } else {
-        Button(onClick, modifier = modifier, enabled = enabled) {
-            Text(label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(vertical = 8.dp))
-        }
-    }
+    ToyButton(label, onClick, Modifier.fillMaxWidth(), primary = !secondary, enabled = enabled)
 }

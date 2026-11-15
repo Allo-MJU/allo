@@ -9,12 +9,18 @@ namespace Allo.App
         public string type = "app";
         public long revision;
         public string view = "home";
-        public bool ready, busy, connected, isDemo, canStart, sessionEnded, speechAvailable, photoAvailable;
+        public bool ready, busy, connected, pairingScanAvailable, isDemo, canStart, sessionEnded, speechAvailable, photoAvailable;
+        public bool testConnectionAvailable, canReturnToVehicle;
         public bool gyro = true, reducedMotion;
+        public bool villageSelectionReady, collectionRewardForTrip;
+        public string villageSelectionRequestId;
+        public string[] villageCreatureIds;
         public string error, notice, rewardStatus;
         public int fishingRecords;
         public string fishingError;
         public EggState egg;
+        public LearningState learning;
+        public StoryState story;
         public MaterialState[] materials = Array.Empty<MaterialState>();
         public FacilityState[] facilities = Array.Empty<FacilityState>();
         public CreatureState[] creatures = Array.Empty<CreatureState>();
@@ -23,8 +29,30 @@ namespace Allo.App
         public FoodState[] foods = Array.Empty<FoodState>();
         public TrainingState[] training = Array.Empty<TrainingState>();
         public DexState[] dex = Array.Empty<DexState>();
+        public QuestState[] quests = Array.Empty<QuestState>();
     }
 
+    [Serializable] public sealed class QuestCandidateState { public string placeId, name, region; }
+    [Serializable] public sealed class QuestState
+    {
+        public string creatureId, questId, status, kind, title, text, error, requirement, targetPlaceId;
+        public bool available, opened, busy;
+        public QuestCandidateState[] candidates = Array.Empty<QuestCandidateState>();
+    }
+
+    [Serializable] public sealed class StoryChoice { public string id, label; }
+    [Serializable] public sealed class StoryCard { public string id, title, text, topicId, prediction, firstAction, observation, principle, nextQuestion; }
+    [Serializable] public sealed class StoryState
+    {
+        public bool ready, canOpen, notebookOpen, available, active, paused, pending, canPlay, ackAccepted;
+        public string error, prediction, firstAction, observation, principle, nextQuestion;
+        public string ackRequestId;
+        public string instanceId, topicId, title, nodeId, line, visual, variant, cardTitle, cardText, notice, invitation;
+        public int revision, presentationRevision, cardCount;
+        public StoryChoice[] choices = Array.Empty<StoryChoice>();
+        public StoryCard[] savedCards = Array.Empty<StoryCard>();
+        public StoryCard[] library = Array.Empty<StoryCard>();
+    }
     [Serializable] public sealed class EggState
     {
         public string id, phase, feedback, remainingLabel, speciesId, name, sprite;
@@ -33,12 +61,23 @@ namespace Allo.App
         public int zone, preferredZone, speechCooldown, petCooldown, moveCooldown;
     }
     [Serializable] public sealed class MaterialState { public string id, label; public int count; }
+    [Serializable] public sealed class LearningState
+    {
+        public string conversationMode, invitationText, lastUserText;
+        public bool invitationOpen;
+        public string creatureId, speciesId, name, storyId, sceneId, title, text, target, status, error, source, careActionId;
+        public bool active, busy, recording, available, canNext, muted, speechAvailable;
+        public long careSequence;
+        public LearningCreatureState[] creatures = Array.Empty<LearningCreatureState>();
+    }
+    [Serializable] public sealed class LearningCreatureState { public string creatureId, speciesId, name; }
     [Serializable] public sealed class FacilityState { public string id, label; public int level, woodCost, stoneCost; public bool unlocked, canUpgrade; }
     [Serializable] public sealed class AssignmentState { public string role, creatureId; }
     [Serializable] public sealed class CreatureState
     {
-        public string id, speciesId, name, role, sprite;
+        public string id, speciesId, name, role, sprite, personaSummary;
         public string[] actions = Array.Empty<string>();
+        public string[] personaTraits = Array.Empty<string>();
         public long foodBoostUntilMs;
     }
     [Serializable] public sealed class JobState { public string id, role, label, workerId, targetId; public float progress; public int remainingSec; }
@@ -52,6 +91,10 @@ namespace Allo.App
         public int v = 1;
         public string type = "appAction";
         public string requestId, action, view, eggId, tier, role, creatureId, targetId, facility, recipeId, actionId, text, sessionId, pairCode;
+        public string instanceId, nodeId, topicId, speciesId, questId, placeId;
+        public string[] creatureIds;
+        public int storyRevision, storyPresentationRevision;
+        public bool blocked, open;
         public int zone;
         public bool gyro, reducedMotion;
     }

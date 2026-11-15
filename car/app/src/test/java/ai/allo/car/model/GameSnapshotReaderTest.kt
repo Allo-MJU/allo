@@ -102,4 +102,11 @@ class GameSnapshotReaderTest {
         }
     }
 
+    @Test fun exactTravelTargetAndOwnedCompanionAreOptionalAndValidated() {
+        val g = GameSnapshotReader.parse(raw(""", "travelRequest":{"wishId":"w","targetRegion":"coast","targetPlaceId":"place_657e95d442eb2c13"},"companion":{"displayId":"d","displayRevision":1,"speciesId":"road_sprout","location":"phone","ownedCreatureId":"creature-1"}"""))!!
+        assertEquals("place_657e95d442eb2c13", g.travelRequest!!.targetPlaceId)
+        assertEquals("creature-1", g.companion!!.ownedCreatureId)
+        val invalid = GameSnapshotReader.parse(raw(""", "travelRequest":{"wishId":"w","targetRegion":"coast","targetPlaceId":"bad"}"""))!!
+        assertNull(invalid.travelRequest); assertTrue("travelRequest" in invalid.invalidBlocks)
+    }
 }

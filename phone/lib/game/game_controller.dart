@@ -68,7 +68,11 @@ class GameController extends ChangeNotifier {
     final signature = jsonEncode(campVehicleSnapshot(camp.state));
     if (signature == _lastCampDisplay) return;
     _lastCampDisplay = signature;
-    if (paired && !sessionEnded && !endingSession && fishing.initialized) {
+    if (paired &&
+        !busy &&
+        !sessionEnded &&
+        !endingSession &&
+        fishing.initialized) {
       _publish();
     }
     notifyListeners();
@@ -86,13 +90,45 @@ class GameController extends ChangeNotifier {
         sessionEnded) {
       return;
     }
+    await _restoreOwnedCompanionIdentity(camp, connection, session);
+    if (_disposed ||
+        connection != _connection ||
+        session != _sessionId ||
+        sessionEnded) return;
     _activateCampForTrip(camp);
   }
 
+  Future<void> _restoreOwnedCompanionIdentity(
+      BaseCampController camp, int connection, String? session) async {
+    _ownedCompanionCreatureId = null;
+    _ownedCompanionEntry = null;
+    if (!fishing.initialized || fishing.selectedSpeciesId == null) return;
+    final selectedId = fishing.selectedOwnedCreatureId;
+    String? matchingId;
+    DexEntry? matchingEntry;
+    for (final creature in camp.state.creatures.values) {
+      if (selectedId != null && creature.id != selectedId) continue;
+      if (creature.speciesId != fishing.selectedSpeciesId) continue;
+      final entry = await camp.ownedEntryForCreature(creature.id);
+      if (_disposed ||
+          connection != _connection ||
+          session != _sessionId ||
+          sessionEnded) {
+        return;
+      }
+      if (entry != null && fishing.isSelected(entry)) {
+        // Old profiles cannot distinguish identical legacy acquisitions.
+        if (matchingId != null) return;
+        matchingId = creature.id;
+        matchingEntry = entry;
+      }
+    }
+    _ownedCompanionCreatureId = matchingId;
+    _ownedCompanionEntry = matchingEntry;
+  }
+
   bool _activateCampForTrip(BaseCampController camp) {
-    final id = isFake
-        ? (_campDriveSessionId ?? 'fake-$_now-${identityHashCode(this)}')
-        : _sessionId;
+    final id = _sessionId;
     if (id == null || id.isEmpty) return false;
     // Camp mutations notify after every saved sample. Reset only for a new
     // trip/connection, otherwise those notifications would discard distance.
@@ -120,7 +156,11 @@ class GameController extends ChangeNotifier {
   }
 
   /// Selection is only from this phone's persisted collection, never a species ID alone.
-  Future<bool> selectCarCompanion(DexEntry entry) async {
+  String? _ownedCompanionCreatureId;
+  DexEntry? _ownedCompanionEntry;
+  Map<String, dynamic>? _questTravelRequest;
+
+  Future<bool> selectCarCompanion(DexEntry entry, {String? creatureId}) async {
     if (!paired || sessionEnded || endingSession || busy) return false;
     final connection = _connection;
     busy = true;
@@ -136,7 +176,15 @@ class GameController extends ChangeNotifier {
         error = '이 폰의 도감에 있는 친구를 선택해 주세요.';
         return false;
       }
-      await fishing.select(entry);
+      if (creatureId != null) {
+        final owned = await baseCamp?.ownedEntryForCreature(creatureId);
+        if (owned == null ||
+            jsonEncode(owned.toJson()) != jsonEncode(entry.toJson())) {
+          error = '이 폰에 있는 친구를 다시 골라 주세요.';
+          return false;
+        }
+      }
+      await fishing.select(entry, ownedCreatureId: creatureId);
       if (_disposed ||
           connection != _connection ||
           !paired ||
@@ -148,6 +196,8 @@ class GameController extends ChangeNotifier {
         error = fishing.error;
         return false;
       }
+      _ownedCompanionCreatureId = creatureId;
+      _ownedCompanionEntry = entry;
       _ensureCompanionVehicleSubscription();
       _publish();
       return true;
@@ -158,6 +208,31 @@ class GameController extends ChangeNotifier {
       busy = false;
       notifyListeners();
     }
+  }
+
+  /// Publishes a proposal for the parked driver's existing confirmation UI.
+  Future<bool> proposeQuestTravel(
+      String wishId, String region, String placeId) async {
+    if (_disposed ||
+        !paired ||
+        sessionEnded ||
+        endingSession ||
+        !RegExp(r'^[A-Za-z0-9_-]{1,128}$').hasMatch(wishId) ||
+        !const {'coast', 'mountain', 'city'}.contains(region) ||
+        !RegExp(r'^place_[a-f0-9]{16}$').hasMatch(placeId)) return false;
+    final connection = _connection;
+    _questTravelRequest = {
+      'wishId': wishId,
+      'targetRegion': region,
+      'targetPlaceId': placeId
+    };
+    _publish();
+    await _publishTail;
+    return !_disposed &&
+        connection == _connection &&
+        paired &&
+        !sessionEnded &&
+        error == null;
   }
 
   void _ensureCompanionVehicleSubscription() {
@@ -198,8 +273,6 @@ class GameController extends ChangeNotifier {
   int _requestNumber = 0;
   Timer? _affinityTimer;
   int _lastAffinityCheckpointMs = 0;
-  int? _companionAtMs;
-  int? _lastAffinityVehicleAtMs;
   ({
     int harshBrake,
     int harshSteer,
@@ -238,7 +311,7 @@ class GameController extends ChangeNotifier {
 
   Future<void> _writeCheckpoint(EggTier tier, IncubationProgress value) {
     final write =
-        _checkpointTail.then((_) => dex.saveIncubationProgress(tier, value));
+        _checkpointTail.then((_) => dex.saveTripProgress(isFake, tier, value));
     _checkpointTail = write.catchError((Object _) {});
     return write;
   }
@@ -295,7 +368,7 @@ class GameController extends ChangeNotifier {
         _affinityEvidence != null) {
       _beginAffinityHatch();
     }
-    if (game.stage == Stage.failed) _affinityTimer?.cancel();
+    if (round.isTerminal) _affinityTimer?.cancel();
     _publish();
     notifyListeners();
   }
@@ -312,6 +385,7 @@ class GameController extends ChangeNotifier {
   void _startAffinityTimer() {
     _affinityTimer?.cancel();
     if (_affinity == null ||
+        _affinity!.isTerminal ||
         !_appActive ||
         _disposed ||
         _timer == null ||
@@ -571,8 +645,6 @@ class GameController extends ChangeNotifier {
   int? _clockAt;
   int _elapsedMs = 0;
   int? _hatchSec;
-  int? _companionSec;
-  bool _repeats = false;
   bool _modeSelected = false;
   int _roundNumber = 0;
   String? _eggId;
@@ -607,6 +679,15 @@ class GameController extends ChangeNotifier {
   Future<void> _publishTail = Future.value();
   int? _lastPublishedAt;
   String? get eggId => _eggId;
+  bool get tripEggAwaitingPlan =>
+      paired &&
+      !sessionEnded &&
+      !endingSession &&
+      _readyTrip == _sessionId &&
+      _eggId != null &&
+      _timer != null &&
+      !_modeSelected &&
+      (game.stage == Stage.idle || game.stage == Stage.incubating);
 
   final VehicleFeed feed;
   final DexStore dex;
@@ -754,9 +835,15 @@ class GameController extends ChangeNotifier {
   String? error;
 
   Future<void> loadSpecies() async {
-    _table ??= SpeciesTable.fromJson(
+    if (_table != null) return;
+    final table = SpeciesTable.fromJson(
         jsonDecode(await rootBundle.loadString('assets/data/species.json'))
             as Map<String, dynamic>);
+    if (table.all.length != 12 ||
+        table.all.map((s) => s.id).toSet().length != 12) {
+      throw const FormatException('Invalid species catalog');
+    }
+    _table = table;
   }
 
   Future<void> restorePairing() async {
@@ -797,17 +884,7 @@ class GameController extends ChangeNotifier {
     final connection = ++_connection;
     await feed.pair(credentials.sessionId, pairCode: credentials.code);
     if (_disposed || connection != _connection) return;
-    // A saved companion belongs to its vehicle session, not the next pairing.
-    // Legacy companions still use the known active session for this boundary.
-    final previousSessionId = _roundSessionId ?? _activeSessionId;
-    if (previousSessionId != null &&
-        previousSessionId != credentials.sessionId &&
-        game.stage == Stage.hatched) {
-      hatched = null;
-      companionMessage = null;
-      game = GameState(
-          ts: _now, eggTier: game.eggTier, stage: Stage.idle, progress: 0);
-    }
+    if (_activeSessionId != credentials.sessionId) _clearTripDisplay();
     _sessionId = credentials.sessionId;
     _remoteEnded = false;
     _remoteSaved = false;
@@ -818,9 +895,6 @@ class GameController extends ChangeNotifier {
     if (_disposed || connection != _connection) return;
     await _prepareCampForTrip();
     if (_disposed || connection != _connection) return;
-    if (fishing.selectedSpeciesId != null || baseCamp?.ready == true) {
-      _ensureCompanionVehicleSubscription();
-    }
     _eventsSub = feed.events().listen(
       (event) => _onCarEvent(event, connection),
       onError: (Object _) {
@@ -836,7 +910,7 @@ class GameController extends ChangeNotifier {
       pairingNotice = '연결됐지만 자동 재연결 정보를 저장하지 못했어요. 다음에는 QR을 다시 스캔해 주세요.';
     }
     await _refreshCollection();
-    if (!_disposed && connection == _connection) _publish();
+    if (_tripOpen(connection)) await _prepareTripEgg(EggTier.small, true);
   }
 
   void _onCarEvent(Map<String, Object?> event, int connection) {
@@ -861,6 +935,7 @@ class GameController extends ChangeNotifier {
 
   Future<void> pair(String sessionId, {String? pairCode}) async {
     if (busy || endingSession || (sessionEnded && !sessionSaved)) return;
+    if (isFake && sessionSaved) prepareNextFakeTrip();
     busy = true;
     paired = false;
     error = null;
@@ -868,15 +943,8 @@ class GameController extends ChangeNotifier {
     notifyListeners();
     try {
       if (isFake) {
-        await feed.pair(sessionId, pairCode: pairCode);
-        paired = true;
-        _sessionId = sessionId;
-        await fishing.attach(sessionId);
-        await fishing.setActive(_appActive);
-        _eventsSub ??=
-            feed.events().listen((event) => _onCarEvent(event, _connection));
         await _refreshCollection();
-        _publish();
+        await _prepareTripEgg(EggTier.small, true);
       } else {
         await _connect(
             PairingCredentials.parseFields(sessionId, pairCode ?? ''));
@@ -931,68 +999,316 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  /// 알 고르기 → 품기 시작. 이전 주행에서 넘어온 거리는 DexStore 에 있다.
-  Future<bool> startIncubating(EggTier tier, {bool useAffinity = false}) async {
-    if (!canStart) return false;
+  /// Ensuring an already prepared trip never replaces its egg or restarts its feed.
+  Future<bool> ensureTripEgg(
+      {EggTier tier = EggTier.small, bool useAffinity = true}) {
+    final pending = _preparingEgg;
+    if (pending != null) return pending;
+    if (!canStart) return Future.value(false);
     busy = true;
     error = null;
-    notifyListeners();
-    try {
-      if (!await endSession()) return false;
-      await loadSpecies();
-      await _refreshCollection();
-      final saved = await dex.incubationProgress(tier);
-      if (_disposed || sessionEnded || (!isFake && !paired)) return false;
-      _activeSessionId = isFake ? null : _sessionId;
-      await _prepareCampForTrip();
-      if (_disposed || sessionEnded || (!isFake && !paired)) return false;
-      _sessionDistances = Map.of(saved.sessionDistances);
-      _distanceBaseline = _sessionDistances[_activeSessionId] ?? 0;
-      _lastDistance = _distanceBaseline;
-      // 구버전 기록은 어느 세션의 거리인지 모른다. 첫 신호를 기준점으로
-      // 삼아 저장분을 보존하되 같은 거리를 다시 계산하지 않는다.
-      _needsLegacyBaseline =
-          !isFake && saved.sessionDistances.isEmpty && saved.carriedM > 0;
-      _timer = HatchTimer(eggTier: tier, carriedM: saved.carriedM);
-      vehicle = null;
-      _lastVehicleTs = null;
-      _useAffinityForNewEggs = useAffinity;
-      _resetEgg(tier);
-      final round = saved.round;
-      if (round != null) _restoreRound(round, tier);
-      _clockAt = activeClockMs;
-      await _sub?.cancel();
-      if (_disposed || sessionEnded || (!isFake && !paired)) return false;
-      if (isFake) {
-        _eventsSub ??=
-            feed.events().listen((event) => _onCarEvent(event, _connection));
-      }
-      final connection = _connection;
-      _sub = feed.watch().listen((v) {
-        if (connection == _connection) _onVehicle(v);
-      }, onError: (Object _) {
-        if (connection != _connection || _disposed) return;
-        if (_campDriveSessionId != null) {
-          baseCamp?.beginDrivingSession(_campDriveSessionId!);
-        }
-        error = '차량 신호를 받지 못했어요. 연결을 확인해 주세요.';
-        notifyListeners();
-      });
-      _startAffinityTimer();
-      notifyListeners();
-      _publish();
-      return true;
-    } catch (_) {
-      error = '시작하지 못했어요. 다시 시도해 주세요.';
-      return false;
-    } finally {
+    final preparing = _prepareTripEgg(tier, useAffinity).whenComplete(() {
+      _preparingEgg = null;
       busy = false;
       notifyListeners();
+    });
+    _preparingEgg = preparing;
+    notifyListeners();
+    return preparing;
+  }
+
+  /// Older Flutter callers choose distance-only care before the first sample.
+  /// They can change neither the granted identity nor an established hatch plan.
+  Future<bool> startIncubating(EggTier tier, {bool useAffinity = false}) async {
+    if (!await ensureTripEgg(tier: tier, useAffinity: useAffinity)) {
+      return false;
+    }
+    if (_timer != null &&
+        !_modeSelected &&
+        _retrySave == null &&
+        game.stage == Stage.incubating &&
+        _affinityForCurrentEgg != useAffinity) {
+      _affinityForCurrentEgg = _useAffinityForNewEggs = useAffinity;
+    }
+    return true;
+  }
+
+  Future<bool>? _preparingEgg;
+  String? _readyTrip;
+  bool _collectionRewardForTrip = false;
+  bool _collectionExhaustedEgg = false;
+  static const _exhaustedNotice = '도감을 모두 모아 남은 알을 마무리했어요. 다음 여행부터 간식을 받아요.';
+  bool get collectionRewardForTrip => _collectionRewardForTrip;
+  bool _tripOpen(int connection) =>
+      !_disposed &&
+      connection == _connection &&
+      !sessionEnded &&
+      !endingSession &&
+      (paired || isFake);
+
+  Future<bool> _prepareTripEgg(EggTier tier, bool useAffinity) async {
+    final connection = _connection;
+    var collectionReadFailed = false;
+    try {
+      await _pendingSave;
+      if (!_tripOpen(connection)) return false;
+      if (_retrySave != null) {
+        await _trySave();
+        if (_retrySave != null || !_tripOpen(connection)) return false;
+      }
+      if (_readyTrip != null && _readyTrip == _sessionId && _sub != null) {
+        return true;
+      }
+      await loadSpecies();
+      if (!_tripOpen(connection)) return false;
+      return await dex.withTripLock(isFake, () async {
+        if (!_tripOpen(connection)) return false;
+        final ledger = await dex.tripEggLedger(isFake);
+        final session = isFake
+            ? ledger.demoSessionId ??
+                'demo-${DateTime.now().microsecondsSinceEpoch}-${_affinityRandom.nextInt(1 << 30)}'
+            : _sessionId!;
+        if (isFake) {
+          ledger.demoSessionId = session;
+          if (!paired || _sessionId != session) {
+            await feed.pair(session);
+            _sessionId = session;
+            paired = true;
+            await fishing.attach(session);
+            await fishing.setActive(_appActive);
+          }
+          _eventsSub ??=
+              feed.events().listen((event) => _onCarEvent(event, connection));
+        }
+
+        if (!_tripOpen(connection)) return false;
+        _activeSessionId = session;
+        final checkpoints = <EggTier, IncubationProgress>{};
+        for (final size in EggTier.values) {
+          final progress = await dex.tripProgress(isFake, size);
+          checkpoints[size] = progress;
+          final round = progress.round;
+          final owner = round?['sessionId'];
+          final id = round?['eggId'];
+          if (owner is String && id is String) {
+            ledger.claims.putIfAbsent(owner, () => id);
+          }
+        }
+        if (!_tripOpen(connection)) return false;
+        var selectedTier = ledger.eggId == null ? tier : ledger.tier;
+        if (ledger.eggId != null &&
+            checkpoints[selectedTier]!.round?['eggId'] != ledger.eggId) {
+          checkpoints[selectedTier] = ledger.initial;
+        }
+
+        // Settle each interrupted collection write before allocating a new egg.
+        // Other tiers may also hold older unfinished eggs from before trip grants.
+        for (final size in EggTier.values) {
+          final pending = checkpoints[size]!;
+          if (pending.round?['pendingEntry'] == null) continue;
+          final round = pending.round!;
+          _installTripEgg(size, pending, round['eggId'] as String, useAffinity);
+          _restoreRound(round, size);
+          await _pendingSave;
+          if (!_tripOpen(connection)) return false;
+          if (_retrySave != null) {
+            _ensureCompanionVehicleSubscription();
+            return false;
+          }
+          checkpoints[size] = await dex.tripProgress(isFake, size);
+        }
+
+        // A failed or malformed dex cannot be treated as empty ownership.
+        late final List<DexEntry> entries;
+        try {
+          entries = await dex.all();
+          if (!RegionCollection.fromEntries(entries).known) {
+            throw StateError('Invalid collection');
+          }
+        } catch (_) {
+          collectionReadFailed = true;
+          if (_tripOpen(connection)) _invalidateCollection();
+          rethrow;
+        }
+        final owned = entries.map((e) => e.speciesId).toSet();
+        _collectedIds = owned.toList();
+        if (!_tripOpen(connection)) return false;
+
+        var saved = checkpoints[selectedTier]!;
+        final claim = ledger.claims[session];
+        final initialMigration = ledger.eggId == null;
+        final previousFinished = saved.round != null && _terminal(saved.round!);
+        if (initialMigration || (claim == null && previousFinished)) {
+          // The active egg wins ties. An unfinished older tier is used before
+          // a fresh grant, even when the previous tier just finished a retry.
+          int priority(IncubationProgress p) {
+            final r = p.round;
+            if (r == null) return p.carriedM > 0 ? 3 : 0;
+            if (!_terminal(r)) return 3;
+            return r['sessionId'] == session || r['sessionId'] == null ? 2 : 1;
+          }
+
+          for (final entry in checkpoints.entries) {
+            if (priority(entry.value) > priority(saved)) {
+              selectedTier = entry.key;
+              saved = entry.value;
+            }
+          }
+        }
+        var round = saved.round;
+        var egg = round?['eggId'] as String? ??
+            (selectedTier == ledger.tier ? ledger.eggId : null);
+        final source = round?['sessionId'] as String?;
+        final terminal = round != null && _terminal(round);
+        if (claim != null && claim != egg) {
+          if (initialMigration) {
+            ledger.eggId = egg;
+            ledger.tier = selectedTier;
+            ledger.initial = saved;
+            await dex.saveTripEggLedger(isFake, ledger);
+          }
+          if (!_tripOpen(connection)) return false;
+          _timer = null;
+          _clearTripDisplay();
+          _readyTrip = session;
+          _ensureCompanionVehicleSubscription();
+          _publish();
+          return true;
+        }
+        final needsNewEgg = egg == null ||
+            (claim == null && terminal && source != null && source != session);
+        if (claim == null && needsNewEgg) {
+          // Read validated current ownership after interrupted hatches settle.
+          if (_table!.all.every((species) => owned.contains(species.id))) {
+            final camp = baseCamp;
+            if (camp == null || !await camp.load()) {
+              throw StateError('Camp unavailable');
+            }
+            if (!_tripOpen(connection)) return false;
+            // Persist the demo identity before the independently stored camp
+            // receipt, so either write can be retried with the same ID.
+            if (isFake) {
+              await dex.saveTripEggLedger(true, ledger);
+              if (!_tripOpen(connection)) return false;
+            }
+            if (!await camp.grantCollectionReward(
+                '${isFake ? 'demo' : 'vehicle'}:$session')) {
+              throw StateError('Reward save failed');
+            }
+            if (!_tripOpen(connection)) return false;
+            _timer = null;
+            _clearTripDisplay();
+            _collectionRewardForTrip = true;
+            _readyTrip = session;
+            await _prepareCampForTrip();
+            if (!_tripOpen(connection)) return false;
+            _ensureCompanionVehicleSubscription();
+            _publish();
+            notifyListeners();
+            return true;
+          }
+        }
+        if (needsNewEgg) {
+          if (terminal) {
+            selectedTier = tier;
+            saved = IncubationProgress(
+                sessionDistances: checkpoints[tier]!.sessionDistances);
+            round = null;
+          }
+          egg =
+              'e-${DateTime.now().microsecondsSinceEpoch}-${_affinityRandom.nextInt(1 << 30)}';
+        }
+        final affinity = round == null
+            ? (ledger.eggId == egg ? ledger.useAffinity : useAffinity)
+            : round['useAffinityForNewEggs'] == true ||
+                round['affinity'] != null;
+        ledger.claims[session] = egg;
+        ledger.eggId = egg;
+        ledger.tier = selectedTier;
+        ledger.initial = saved;
+        ledger.useAffinity = affinity;
+        await dex.saveTripEggLedger(isFake, ledger);
+        if (!_tripOpen(connection)) return false;
+        _installTripEgg(selectedTier, saved, egg, affinity);
+        if (round != null) _restoreRound(round, selectedTier);
+        // An older unfinished egg can outlive completion of the catalog.
+        // Close it in its claimed trip; a later trip can earn the reward.
+        if (!terminal &&
+            !needsNewEgg &&
+            _table!.all.every((species) => owned.contains(species.id))) {
+          _affinity = null;
+          _collectionExhaustedEgg = true;
+          game = game.copyWith(stage: Stage.failed);
+          await _writeCheckpoint(selectedTier, _checkpoint());
+          if (!_tripOpen(connection)) return false;
+          pairingNotice = _exhaustedNotice;
+        }
+        _readyTrip = session;
+        await _prepareCampForTrip();
+        if (!_tripOpen(connection)) return false;
+        _ensureCompanionVehicleSubscription();
+        _startAffinityTimer();
+        _publish();
+        return true;
+      });
+    } catch (_) {
+      if (_tripOpen(connection)) {
+        error = '알의 주행 기록을 저장하지 못했어요. 다시 시도해 주세요.';
+        // An unreadable collection still needs an unknown summary on the car.
+        if (collectionReadFailed) _publish();
+        notifyListeners();
+      }
+      return false;
     }
   }
 
-  // A new egg never opens another vehicle subscription (Fake.watch resets a trip).
-  void _resetEgg(EggTier tier) {
+  bool _terminal(Map<String, dynamic> round) {
+    final stage = (round['game'] as Map)['stage'];
+    return stage == Stage.failed.name || stage == Stage.hatched.name;
+  }
+
+  void _clearTripDisplay() {
+    _questTravelRequest = null;
+    _collectionRewardForTrip = false;
+    _collectionExhaustedEgg = false;
+    if (pairingNotice == _exhaustedNotice) pairingNotice = null;
+    _affinityTimer?.cancel();
+    _invalidateInputs();
+    _affinity = null;
+    _eggId = null;
+    _affinityForCurrentEgg = false;
+    _eggFeedback = EggFeedback.none;
+    _pendingPhotoRequestId = null;
+    _pendingPhotoBytes = null;
+    careCount = lookOutCount = feedCount = playCount = 0;
+    seenTags.clear();
+    vehicle = null;
+    hatched = null;
+    companionMessage = null;
+    game = GameState(
+        ts: _now, eggTier: EggTier.small, stage: Stage.idle, progress: 0);
+  }
+
+  void _installTripEgg(
+      EggTier tier, IncubationProgress saved, String id, bool affinity) {
+    _sessionDistances = Map.of(saved.sessionDistances);
+    _distanceBaseline = feed is FakeVehicleFeed
+        ? (feed as FakeVehicleFeed).odometerOriginM
+        : _sessionDistances[_activeSessionId] ?? 0;
+    _lastDistance = _distanceBaseline;
+    _needsLegacyBaseline =
+        !isFake && saved.sessionDistances.isEmpty && saved.carriedM > 0;
+    _timer = HatchTimer(eggTier: tier, carriedM: saved.carriedM);
+    vehicle = null;
+    _lastVehicleTs = null;
+    _useAffinityForNewEggs = affinity;
+    _resetEgg(tier, id);
+    _clockAt = activeClockMs;
+  }
+
+  void _resetEgg(EggTier tier, String id) {
+    _collectionExhaustedEgg = false;
+    if (pairingNotice == _exhaustedNotice) pairingNotice = null;
     _affinityTimer?.cancel();
     _invalidateInputs();
     _affinity = null;
@@ -1002,21 +1318,17 @@ class GameController extends ChangeNotifier {
     _pendingPhotoBytes = null;
     _pendingPhotoMime = null;
     _pendingEntry = null;
-    _companionAtMs = null;
-    _lastAffinityVehicleAtMs = null;
     _affinityEvidence = null;
     _lastAffinityCheckpointMs = 0;
     _roundSessionId = _activeSessionId;
     _roundNumber++;
-    _eggId = '$_now-$_roundNumber-${_affinityRandom.nextInt(1 << 30)}';
+    _eggId = id;
     _elapsedMs = 0;
     _regions = RegionDurationAccumulator();
     _regionSourceTs = null;
     _clockAt = activeClockMs;
     _modeSelected = false;
     _hatchSec = null;
-    _companionSec = null;
-    _repeats = false;
     _needsCounterBaseline = true;
     _needsResumeBaseline = false;
     _brakeOffset = _steerOffset = 0;
@@ -1053,8 +1365,6 @@ class GameController extends ChangeNotifier {
     if (eta != null) {
       final round = incubationRound(eta);
       _hatchSec = round.hatchEndSec;
-      _companionSec = round.companionEndSec;
-      _repeats = round.grantsNextEgg;
     }
     if (_affinityForCurrentEgg) {
       _affinity = AffinityRound.start(
@@ -1116,9 +1426,6 @@ class GameController extends ChangeNotifier {
       return;
     }
     _advanceClock();
-    if (_affinity != null && !finalSnapshot) {
-      _lastAffinityVehicleAtMs = _elapsedMs;
-    }
     if (_needsResumeBaseline) {
       _distanceBaseline +=
           (v.distanceM - _lastDistance).clamp(0, double.infinity);
@@ -1137,8 +1444,7 @@ class GameController extends ChangeNotifier {
       _sessionDistances[_activeSessionId!] = _lastDistance;
     }
     if (game.stage == Stage.hatched) {
-      final granted = _grantNextEgg(v, finalSnapshot: finalSnapshot);
-      if (!granted && !finalSnapshot) _publishHeartbeat();
+      if (!finalSnapshot) _publishHeartbeat();
       notifyListeners();
       return;
     }
@@ -1187,49 +1493,6 @@ class GameController extends ChangeNotifier {
     _publish();
   }
 
-  bool _grantNextEgg(VehicleState v, {bool finalSnapshot = false}) {
-    if (_disposed ||
-        !_appActive ||
-        finalSnapshot ||
-        sessionEnded ||
-        endingSession ||
-        game.stage != Stage.hatched ||
-        _retrySave != null ||
-        _savingHatch ||
-        !_repeats ||
-        (_affinity != null &&
-            (_lastAffinityVehicleAtMs == null ||
-                _lastAffinityVehicleAtMs! < _companionAtMs!)) ||
-        _elapsedMs < (_companionAtMs ?? _companionSec! * 1000) ||
-        (v.etaSec != null && v.etaSec! < 120)) {
-      return false;
-    }
-    _distanceBaseline = _lastDistance;
-    _timer = HatchTimer(eggTier: game.eggTier);
-    _resetEgg(game.eggTier);
-    _selectMode(v);
-    _brakeBaseline = v.harshBrake;
-    _steerBaseline = v.harshSteer;
-    _needsCounterBaseline = false;
-    if (_affinity == null) {
-      _observeRegion(v);
-      seenTags.addAll(v.envTags);
-    } else {
-      _recordAffinityEvidence(v);
-    }
-    game = GameState(
-        ts: _now,
-        eggTier: game.eggTier,
-        stage: Stage.incubating,
-        progress: 0,
-        hatchAtM: _hatchSec == null ? _timer!.hatchAtM : null,
-        hatchAtSec: _hatchSec);
-    _syncAffinity();
-    notifyListeners();
-    _publish();
-    return true;
-  }
-
   void _applyCollection() {
     game = game.copyWith(
         regionCollectionKnown: _collection.known,
@@ -1266,6 +1529,17 @@ class GameController extends ChangeNotifier {
         vehicleFeatures: fishing.initialized
             ? {
                 ...fishing.snapshotFields,
+                if (fishing.snapshotFields['companion'] is Map &&
+                    _ownedCompanionCreatureId != null &&
+                    _ownedCompanionEntry != null &&
+                    fishing.isSelected(_ownedCompanionEntry!))
+                  'companion': {
+                    ...Map<String, dynamic>.from(
+                        fishing.snapshotFields['companion'] as Map),
+                    'ownedCreatureId': _ownedCompanionCreatureId,
+                  },
+                if (_questTravelRequest != null)
+                  'travelRequest': _questTravelRequest,
                 if (baseCamp?.ready == true)
                   ...campVehicleSnapshot(baseCamp!.state),
               }
@@ -1324,7 +1598,14 @@ class GameController extends ChangeNotifier {
         capabilities: v.capabilities);
     final demo =
         isFake && demoSpeciesId != null ? _table!.byId(demoSpeciesId!) : null;
-    final s = demo ?? _table!.pick(r, seenTags);
+    final owned = _collectedIds.toSet();
+    final s = demo != null && !owned.contains(demo.id)
+        ? demo
+        : _table!.pickUnseen(r, seenTags, owned);
+    if (s == null) {
+      error = '새 친구를 선택하지 못했어요. 다시 시도해 주세요.';
+      return;
+    }
     hatched = s;
     game = game.copyWith(
         stage: Stage.hatched,
@@ -1341,6 +1622,7 @@ class GameController extends ChangeNotifier {
       envTags: seenTags.toList(),
       regionTag: region,
       tier: r.tier,
+      sourceEggId: _eggId,
     );
     _pendingEntry = entry;
     final eggTier = game.eggTier;
@@ -1362,7 +1644,11 @@ class GameController extends ChangeNotifier {
         harshSteer: evidence.harshSteer,
         careCount: careCount,
         capabilities: evidence.capabilities);
-    final species = _table!.pick(result, seenTags);
+    final species = _table!.pickUnseen(result, seenTags, _collectedIds.toSet());
+    if (species == null) {
+      error = '새 친구를 선택하지 못했어요. 다시 시도해 주세요.';
+      return;
+    }
     final entry = DexEntry(
         speciesId: species.id,
         obtainedAt: DateTime.now(),
@@ -1371,8 +1657,6 @@ class GameController extends ChangeNotifier {
         tier: result.tier,
         sourceEggId: round.eggId);
     _pendingEntry = entry;
-    _companionAtMs = round.hatchedAtMs! + 1800000;
-    _repeats = true;
     final tier = game.eggTier;
     _retrySave = () => _saveAffinityHatch(entry, tier);
     _pendingSave = _trySave();
@@ -1437,28 +1721,20 @@ class GameController extends ChangeNotifier {
     } finally {
       _savingHatch = false;
     }
-    // A delayed observation settles exactly one past egg. Once storage succeeds,
-    // grant one new egg at now with the latest ETA; never replay absent cycles.
-    final latest = vehicle;
-    if (_retrySave == null && latest != null) _grantNextEgg(latest);
   }
 
   Future<void> _saveHatch(
       DexEntry entry, EggTier tier, IncubationProgress checkpoint) async {
     final connection = _connection;
+    await _writeCheckpoint(tier, checkpoint);
     await dex.add(entry);
     if (_disposed || connection != _connection) return;
     await _writeCheckpoint(
         tier,
-        _hatchSec == null
-            ? IncubationProgress(sessionDistances: checkpoint.sessionDistances)
-            : IncubationProgress(
-                carriedM: checkpoint.carriedM,
-                sessionDistances: checkpoint.sessionDistances,
-                round: checkpoint.round == null
-                    ? null
-                    : (Map<String, dynamic>.of(checkpoint.round!)
-                      ..remove('pendingEntry'))));
+        IncubationProgress(
+            sessionDistances: checkpoint.sessionDistances,
+            round: Map<String, dynamic>.of(checkpoint.round!)
+              ..remove('pendingEntry')));
     if (_disposed || connection != _connection) return;
     await _refreshCollection();
     if (!_disposed && connection == _connection) _publish();
@@ -1552,14 +1828,7 @@ class GameController extends ChangeNotifier {
           if (_retrySave != null) return false;
           if (_affinity != null) _regions.breakContinuity(_regionAtMs);
           final checkpoint = _checkpoint();
-          await _writeCheckpoint(
-              game.eggTier,
-              game.stage == Stage.hatched &&
-                      _affinity == null &&
-                      (_hatchSec == null || sessionEnded)
-                  ? IncubationProgress(
-                      sessionDistances: checkpoint.sessionDistances)
-                  : checkpoint);
+          await _writeCheckpoint(game.eggTier, checkpoint);
           _lifecycleCheckpoint = false;
         }
         if (_disposed || connection != _connection) return false;
@@ -1583,7 +1852,17 @@ class GameController extends ChangeNotifier {
           await _pairingSave;
         } catch (_) {/* 실패한 재연결 정보도 아래에서 제거한다. */}
         if (_disposed || connection != _connection) return false;
-        await pairingStore.clear();
+        if (isFake) {
+          await dex.withTripLock(true, () async {
+            final ledger = await dex.tripEggLedger(true);
+            if (ledger.demoSessionId == _sessionId) {
+              ledger.demoSessionId = null;
+              await dex.saveTripEggLedger(true, ledger);
+            }
+          });
+        } else {
+          await pairingStore.clear();
+        }
         await _eventsSub?.cancel();
         _eventsSub = null;
         if (_disposed || connection != _connection) return false;
@@ -1593,6 +1872,7 @@ class GameController extends ChangeNotifier {
         pairingNotice = '주행이 끝났어요. 다음에는 차량의 새 QR로 연결해 주세요.';
       }
       _timer = null;
+      _readyTrip = null;
       return true;
     } catch (_) {
       error = '저장하지 못했어요. 다시 시도해 주세요.';
@@ -1608,17 +1888,15 @@ class GameController extends ChangeNotifier {
 
   Map<String, dynamic> _roundSnapshot() => {
         'eggId': _eggId,
+        if (_collectionExhaustedEgg) 'collectionExhaustedEgg': true,
         'number': _roundNumber,
         'sessionId': _roundSessionId,
         'elapsedMs': _elapsedMs,
         'hatchSec': _hatchSec,
-        'companionSec': _companionSec,
-        'companionAtMs': _companionAtMs,
         'useAffinityForNewEggs': _useAffinityForNewEggs,
         if (_affinity != null) 'affinity': _affinity!.toJson(),
         if (_pendingPhotoRequestId != null)
           'pendingPhotoRequestId': _pendingPhotoRequestId,
-        'repeats': _repeats,
         'modeSelected': _modeSelected,
         'game': game.toJson(),
         'tags': seenTags.toList(),
@@ -1652,16 +1930,19 @@ class GameController extends ChangeNotifier {
       };
 
   IncubationProgress _checkpoint() => IncubationProgress(
-        carriedM:
-            game.stage == Stage.hatched || (_affinity?.isTerminal ?? false)
-                ? 0
-                : (_timer?.carryOver(hatched: false) ?? 0),
+        carriedM: game.stage == Stage.hatched ||
+                game.stage == Stage.failed ||
+                (_affinity?.isTerminal ?? false)
+            ? 0
+            : (_timer?.carryOver(hatched: false) ?? 0),
         sessionDistances: Map.of(_sessionDistances),
         round: _roundSnapshot(),
       );
 
   void _restoreRound(Map<String, dynamic> round, EggTier tier) {
     final g = Map<String, dynamic>.from(round['game'] as Map);
+    _collectionExhaustedEgg = round['collectionExhaustedEgg'] == true;
+    if (_collectionExhaustedEgg) pairingNotice = _exhaustedNotice;
     _useAffinityForNewEggs =
         _useAffinityForNewEggs || round['useAffinityForNewEggs'] == true;
     _affinityForCurrentEgg = _useAffinityForNewEggs;
@@ -1669,22 +1950,6 @@ class GameController extends ChangeNotifier {
         ? AffinityRound.fromJson(
             Map<String, dynamic>.from(round['affinity'] as Map))
         : null;
-    if (savedAffinity?.phase == AffinityPhase.failed ||
-        savedAffinity?.phase == AffinityPhase.discarded) {
-      return;
-    }
-    // Preserve unfinished saves and legacy/Fake checkpoints. A completed round
-    // from another real session must not replace the fresh egg set up by start.
-    if (!isFake &&
-        round['sessionId'] != null &&
-        _activeSessionId != null &&
-        round['sessionId'] != _activeSessionId &&
-        g['stage'] == Stage.hatched.name &&
-        round['pendingEntry'] == null) {
-      return;
-    }
-    // A distance-mode arrival retains the existing manual new-egg behavior.
-    // Lifecycle snapshots restore distance companions; explicit endSession clears it.
     _affinity = savedAffinity;
     final evidence = round['affinityEvidence'];
     if (savedAffinity != null && evidence is Map) {
@@ -1695,15 +1960,13 @@ class GameController extends ChangeNotifier {
             (evidence['capabilities'] as List).cast<String>()),
       );
     }
-    _affinityForCurrentEgg = savedAffinity != null;
-    _companionAtMs = (round['companionAtMs'] as num?)?.toInt();
+    _affinityForCurrentEgg = savedAffinity != null ||
+        (round['modeSelected'] != true && _useAffinityForNewEggs);
     _pendingPhotoRequestId = round['pendingPhotoRequestId'] as String?;
     _eggId = round['eggId'] as String?;
     _roundNumber = (round['number'] as num).toInt();
     _elapsedMs = (round['elapsedMs'] as num).toInt();
     _hatchSec = (round['hatchSec'] as num?)?.toInt();
-    _companionSec = (round['companionSec'] as num?)?.toInt();
-    _repeats = round['repeats'] == true;
     _modeSelected = round['modeSelected'] == true;
     final region = round['region'];
     if (region is Map) {
@@ -1741,7 +2004,8 @@ class GameController extends ChangeNotifier {
     final stage = Stage.values.byName(g['stage'] as String);
     // Retrying a completed result elsewhere must not reassign its source session.
     // Unhatched progress keeps the current session for resume counter baselines.
-    if (stage == Stage.hatched && !isFake) {
+    if ((stage == Stage.hatched || round['pendingEntry'] != null) &&
+        round['sessionId'] != null) {
       _roundSessionId = round['sessionId'] as String?;
     }
     final speciesId = g['speciesId'] as String?;

@@ -33,3 +33,23 @@ Runtime logs/results are /tmp/allo_phase2_full.log, /tmp/allo_phase2_core.log, /
 ## Remaining checks
 
 Real vehicle/network integration and physical-device camera/microphone remain unverified in this work. Manual emulator system Back/pan automation was inconclusive; the PlayMode test verifies actual raycast/drag dispatch and both axes. Species without approved sprites use a clearly labeled placeholder. Runtime credentials and generated Unity libraries/APKs are excluded from the PR.
+
+## Companion learning latest refresh — 2026-11-14
+
+Local integration now includes dev `c15c12e` through #120, preserving 3D character/props and optional window experiments beside fixed personal stories. Canonical12 personal drafts contain36 scenes; new11 plots/personas await human review. Flutter459/core93/Unity176/server38 tests passed. Fresh Unity export/debug APK build and data-preserving API36 emulator install/cold launch succeeded. See [verification](../../verification/2026-11-14-companion-learning-latest.md) and [local API setup](../../companion-learning-local-setup.md). Actual provider dialogue awaits an API key entered only in the local launcher; no remote deployment was performed.
+
+## Trip egg and server-owned character dialogue — 2026-11-14
+
+Pairing now prepares at most one egg for a trip; incomplete eggs carry into the next trip without another grant. Repeating grants and cabin selectors are removed. Owned friends are summoned from Friends; tapping their actual cabin character opens a head-anchored server invitation. Personal story progression and personas execute on the backend; APK contains an ID-only manifest. Flutter479/core93/Unity189/server48 and vehicle fixture2 checks passed. The updated APK was installed without clearing data and its server invitation/story/next flow was observed. See [current verification](../../verification/2026-11-14-trip-egg-companion-invitation.md) and [setup](../../companion-learning-local-setup.md).
+
+## Cabin pairing, direct conversation and action sheet — 2026-11-14
+
+The unpaired cabin now opens with only a vehicle-connect action. Pairing opens the Flutter QR camera or accepts credentials, then prepares the trip egg. Friends are summoned explicitly from the Dex; their care and server-owned conversation stay independent from egg affinity. A single rounded `행동` button opens grouped egg/friend choices.
+
+Flutter500/core93/Unity220/server53 passed. Fresh export and debug APK were installed on API36 without clearing data. Actual QR camera entry/cancel returned to Unity; manual synthetic pairing prepared an egg. Egg petting with a buddy present raised affinity to3; buddy petting left it at3. Actual character tap opened the conversation composer and honest key-unconfigured error. No live model was invoked. See [verification](../../verification/2026-11-14-cabin-pairing-direct-conversation.md) and [screenshot](cabin-direct-conversation/07-actions-sheet.png).
+
+## Directional toss and double-tap relocation — 2026-11-14
+
+The previous action sheet is replaced by four illustrated circles and a held item. Up/left/right/diagonal swipes throw toward the release position with bounded velocity follow-through. Double-tap arms free relocation; ordinary drops have no reward, while fixed cushion/blanket drops use existing care approval. Single-tap conversation waits briefly for the second tap. The QR connection action occupies the cabin title position.
+
+Final Unity EditMode236 and UI raycast PlayMode1 passed. Final export/APK build and API36 data-preserving install succeeded. Actual forward and horizontal left/right ball flights, landing and care submission were observed with a stable camera. [Verification and limits](../../verification/2026-11-14-cabin-toss-and-rest.md), [left toss](cabin-toss-and-rest/07-left-toss.png), [right toss](cabin-toss-and-rest/08-right-toss.png).
