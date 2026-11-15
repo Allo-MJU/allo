@@ -587,7 +587,7 @@ namespace Allo.World
             foreach (var g in parts) Kill(g);
             foreach (var (m, list) in groups)
             {
-                var mesh = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32, name = m.name };
+                var mesh = new Mesh { indexFormat = UnityEngine.Rendering.IndexFormat.UInt32, name = Combined + m.name };
                 mesh.CombineMeshes(list.ToArray(), true, true);
                 var go = new GameObject(m.name);
                 go.transform.SetParent(chunk, false);
@@ -600,10 +600,18 @@ namespace Allo.World
             foreach (var m in custom) Kill(m);
         }
 
-        /// 조각을 지울 때 합친 메시도 같이 지운다 (메모리 누수 방지)
+        const string Combined = "Chunk:";
+
+        /// 조각을 지울 때 합친 메시도 같이 지운다 (메모리 누수 방지).
+        /// 우리가 만든 메시만 지운다: 아직 합치기 전인 조각에는 내장 도형(Cube·Cylinder)과 프리팹 메시가 그대로 있고,
+        /// 그것을 지우면 그 뒤로 CreatePrimitive 가 계속 실패해 도로·난간이 사라진다
         static void Drop(Transform chunk)
         {
-            foreach (var mf in chunk.GetComponentsInChildren<MeshFilter>()) Kill(mf.sharedMesh);
+            foreach (var mf in chunk.GetComponentsInChildren<MeshFilter>())
+            {
+                var mesh = mf.sharedMesh;
+                if (mesh != null && (mesh.name.StartsWith(Combined) || mesh.name == "Facade")) Kill(mesh);
+            }
             Kill(chunk.gameObject);
         }
 

@@ -68,12 +68,11 @@ namespace Allo
             var sprout = new Bridge.CastState { companion = new Bridge.CastMember { id = "road_sprout", sprite = "", attribute = "normal" }, friends = new Bridge.CastMember[0] };
             Bridge.FlutterBridge.Inject(new Bridge.CastState { friends = new Bridge.CastMember[0] });
             Bridge.FlutterBridge.Inject(new Bridge.EggState { state = "idle", eggId = "", bornText = "" });
-            // 앱이 뜨자마자 지은 조각은 기본 도형(도로·난간)을 못 불러와 비어 있다. 잠깐 기다렸다가 처음부터 다시 짓는다
-            yield return new WaitForSecondsRealtime(2.5f);
             var scene = n == 3 ? new Bridge.SceneState { kind = "highway", highway = true, moving = false, speedKph = 0 } : driving;
             Bridge.FlutterBridge.Inject(scene);
             world.Apply(scene, reset: true);
             world.EditorStep(150); // 뒤쪽 길도 깔리게 조금 달린 자리에서 시작한다
+            yield return null;
             world.SnapSpeed();
             // 알이 없는 장면에서는 빈 둥지도 치운다
             var nest = _critters != null ? _critters.transform.Find("EggNest") : null;

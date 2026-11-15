@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &4745999168265582042
+--- !u!1 &6587172686966322116
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,9 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 3702120761718244364}
-  - component: {fileID: 9029099649367055900}
-  - component: {fileID: 5579488540364852737}
+  - component: {fileID: 3221044796625738767}
+  - component: {fileID: 3866782553921589532}
+  - component: {fileID: 5886693925181722098}
   m_Layer: 0
   m_Name: crops_cornStageC(Clone)
   m_TagString: Untagged
@@ -18,36 +18,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &3702120761718244364
+--- !u!4 &3221044796625738767
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4745999168265582042}
+  m_GameObject: {fileID: 6587172686966322116}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0, y: -0, z: -0}
   m_LocalScale: {x: 0.8000001, y: 0.8000001, z: 0.8000001}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 4727184905374193536}
+  m_Father: {fileID: 5417545738872612418}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &9029099649367055900
+--- !u!33 &3866782553921589532
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4745999168265582042}
+  m_GameObject: {fileID: 6587172686966322116}
   m_Mesh: {fileID: 4826666918228385017, guid: 491e523b41539457f91c890d0016ec2a, type: 3}
---- !u!23 &5579488540364852737
+--- !u!23 &5886693925181722098
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4745999168265582042}
+  m_GameObject: {fileID: 6587172686966322116}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -86,7 +86,7 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!1 &5699246152650471616
+--- !u!1 &8671852689276237638
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -94,7 +94,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 4727184905374193536}
+  - component: {fileID: 5417545738872612418}
   m_Layer: 0
   m_Name: K_crops_cornStageC
   m_TagString: Untagged
@@ -102,19 +102,19 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &4727184905374193536
+--- !u!4 &5417545738872612418
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5699246152650471616}
+  m_GameObject: {fileID: 8671852689276237638}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 3702120761718244364}
+  - {fileID: 3221044796625738767}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
