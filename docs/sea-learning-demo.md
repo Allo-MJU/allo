@@ -35,3 +35,5 @@ scripts/demo_sea_learning.sh
 - 이 파일럿은 폰 앱에 적용했다. Pleos 차량 앱 연결과 실제 차량 검증은 후속이다. 새 문장 일부는 자막으로 제공하며 실제 기기 음성 품질은 검증하지 않았다.
 
 상세 테스트와 APK 정보: [검증 기록](verification/2026-11-15-sea-learning-pilot.md).
+
+바다 예시의 배·물결은 새 일러스트로 개선했다. 현재 APK와 화면 증거는 [삽화 개선 검증](verification/2026-11-15-sea-illustration-refresh.md), 생성 원본과 프롬프트는 [에셋 제작 기록](../art/sea-learning/2026-11-15/README.md)을 참고한다.

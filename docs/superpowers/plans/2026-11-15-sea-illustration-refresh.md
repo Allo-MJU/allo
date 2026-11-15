@@ -12,10 +12,12 @@
 
 ## Work
 
-- [ ] Generate and inspect both images for style, transparency, equal framing and identical boat identity.
-- [ ] Replace only coast_sail procedural art in StoryOverlay. Reuse existing one-variable motion distances, neutral/reduced-motion handling and comparison labels.
-- [ ] Check image bounds/UV selection and meaningful branch motion in focused Unity tests; retain the story/ownership regression suite.
-- [ ] Run Unity tests, export current source, rebuild local fake-feed APK, install with data preserved.
-- [ ] Inspect actual single/paired scenes on the emulator, leave the improved screen ready to view and record evidence.
+- [x] Generate and inspect both images for style, transparency, equal framing and identical boat identity.
+- [x] Replace only coast_sail procedural art in StoryOverlay. Reuse existing one-variable motion distances, neutral/reduced-motion handling and comparison labels.
+- [x] Check image bounds/UV selection and meaningful branch motion in focused Unity tests; retain the story/ownership regression suite.
+- [x] Run Unity tests, export current source, rebuild local fake-feed APK, install with data preserved.
+- [x] Inspect actual single/paired scenes on the emulator, leave the improved screen ready to view and record evidence.
 
 Art generation and code integration have disjoint ownership. Main reviews both and coordinates the Unity editor/build; no parallel editors operate on the same project.
+
+Completed at source `18813e1`; Unity299/299 passed. Native textures, UV/alpha and small landscape were visually checked. Independent visual/code review returned ship for this artwork correction. See `docs/verification/2026-11-15-sea-illustration-refresh.md`.
