@@ -81,6 +81,7 @@ dependencies {
     implementation(libs.pleos.navi.helper)
     implementation(libs.pleos.navi.data)
     implementation(libs.pleos.tts)
+    implementation(libs.pleos.stt)
 
     // AndroidX / Compose
     implementation(libs.androidx.core.ktx)

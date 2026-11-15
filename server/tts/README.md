@@ -1,6 +1,6 @@
 # 캐릭터 음성 중계 서버
 
-모바일 여행 이야기는 DashScope WebSocket PCM을 받아 즉시 재생하며, Pleos 광장의 고정24문장은 완성된 WAV를 캐시해서 재생한다. 동일 캐릭터는 두 앱에서 같은 목소리 설정을 쓴다. 앱에는 DashScope API 키가 들어가지 않는다.
+모바일 여행 이야기는 DashScope WebSocket PCM을 받아 즉시 재생하며, Pleos 이야기·목적지 안내는 완성된 WAV를 캐시해서 재생한다. 광장의 고정24문장은 원본 번들 WAV를 재생한다. 동일 캐릭터는 두 앱에서 같은 목소리 설정을 쓴다. 앱에는 DashScope API 키가 들어가지 않는다.
 
 ## 캐릭터 목소리 (2026-11-14)
 
@@ -86,3 +86,18 @@ python3 -m unittest discover -s scripts/tests -p test_prepare_tts_manifest.py -v
 ```
 
 모의 WebSocket으로 task-started 전 텍스트 전송 방지, task ID 일치, 부분 PCM 도착, 취소 시 upstream cancel/close, 오류 정리와 캐시 재사용/격리를 검사한다. 실제 공급자 인증, 샘플 심사, 음색·한국어 발음, 실제 APK 스트리밍 및 청취는 **키·참조 등록·배포 전에는 완료되지 않은 상태**다. 서버 배포나 클라우드 과금 호출은 아직 하지 않았다.
+
+## 차량 이야기·목적지 캐릭터 음성
+
+차량의 선택된 캐릭터로 읽는 두 WAV API가 추가됩니다. 기존 광장/폰 스트리밍 API와 인증·캐시·할당량·Qwen 프로필을 공유합니다.
+
+- `POST /v1/car/dialogue/clip`: `{ "species": "road_sprout", "text": "나는 길싹이야. 처음 보는 게 참 신기해!" }`
+- `POST /v1/car/destination/clip`: `{ "species": "road_sprout", "text": "을왕리해수욕장까지 안내를 요청했어요." }`
+
+둘 다 `Authorization: Bearer <Firebase ID token>`(또는 위 로컬 debug 토큰)이 필요하며 `audio/wav`, 24kHz·mono·PCM16을 반환합니다. 선택 캐릭터 ID를 보내야 해당 캐릭터 프로필의 목소리·속도·음높이·말투를 사용합니다. 지원 캐릭터는 `data/characters.json`의 차량 표시12종입니다. 음성 복제가 미등록이면 기존 시스템 목소리 프로필을 사용하므로12종이 모두 서로 다른 기반 목소리라는 뜻은 아닙니다.
+
+`car_lines.py`는 `DialogueBank`의 기본/보충 뱅크 병합·조회 우선순위와 조사 치환을 따라 이야기의 정확한 출력만 허용합니다. debug 미검수/릴리즈 검수 뱅크 양쪽의 가능한 출력과 기존 준비 중 fallback을 포함하며, **릴리즈 검수 필터는 앱이 계속 적용**합니다. 서버 허용목록 자체가 대사 검수 승인을 뜻하지 않습니다. 목적지는 기존 `DestinationSuggester.kt` 후보와 거리 상한(현재120km), 5km 반올림 표현, `GleoFunctions` 추천·수락 문구 및 기존 상태 오류 문구만 허용합니다. 알 수 없는 종·장소, 다른 캐릭터의 대사, 임의 추가 문구, 인식된 사용자 발화는 허용하지 않습니다.
+
+이야기·목적지 앱 수정과 gateway 배포를 함께 적용해야 합니다. 기존 서버는 새 경로에404를 반환합니다. 전체 저장소의 카탈로그와 차량 후보 소스가 필요하며, 이를 바꾼 뒤에는 서버를 재시작합니다. 차량 음성 요청에 음성 원본이나 STT 원문을 넣지 않습니다.
+
+차량 이야기·목적지 Qwen 실패/준비6초 초과 시 클라이언트는 동일 문장을 Pleos ON_DEVICE TTS로 한 번 대체한다. 대체 음성은 캐릭터 원본 음색이 아니며 서버의 프리셋 선택·음성 복제 기능과 별개다.

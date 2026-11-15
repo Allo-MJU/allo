@@ -16,6 +16,7 @@ import wave
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import Response, StreamingResponse
 from .provider import DashScope, MAX_PCM_BYTES, SAMPLE_RATE, SynthesisError
+from .car_lines import build_car_lines
 
 LOG = logging.getLogger('uvicorn.error')
 ROOT = Path(__file__).resolve().parents[2]
@@ -187,6 +188,7 @@ def create_app(registry=None, provider=None, verify=None, cache_dir=None, lines=
     cache = AudioCache(cache_dir or os.environ.get('TTS_CACHE_DIR', '/tmp/allo-tts-cache'))
     limits = Limits()
     story_species, plaza_lines = lines or default_lines()
+    car_dialogue_lines, car_destination_lines = build_car_lines()
     profiles = load_profiles() if profiles is None else profiles
     if registry is None:
         path = os.environ.get('TTS_VOICES_FILE')
@@ -206,7 +208,7 @@ def create_app(registry=None, provider=None, verify=None, cache_dir=None, lines=
     if dev_token and len(dev_token) < 24:
         raise ValueError('TTS_DEV_TOKEN must be at least 24 characters')
 
-    async def request_data(request, plaza):
+    async def request_data(request, kind):
         auth = request.headers.get('authorization', '')
         if not auth.startswith('Bearer ') or len(auth) > 8192:
             raise HTTPException(401, 'authentication_required')
@@ -236,7 +238,10 @@ def create_app(registry=None, provider=None, verify=None, cache_dir=None, lines=
                 raise ValueError()
         except (ValueError, KeyError, TypeError):
             raise HTTPException(400, 'invalid_voice_request') from None
-        if (plaza and (species, text) not in plaza_lines) or (not plaza and species not in story_species):
+        allowed = (species in story_species if kind == 'story' else
+                   (species, text) in {'plaza': plaza_lines, 'car-dialogue': car_dialogue_lines,
+                                      'car-destination': car_destination_lines}[kind])
+        if not allowed:
             raise HTTPException(400, 'unknown_character_or_line')
         voice, style = resolve_voice(registry, profiles, species)
         if not voice or provider is None:
@@ -244,7 +249,7 @@ def create_app(registry=None, provider=None, verify=None, cache_dir=None, lines=
         limits.take(uid, len(text))
         key = cache_key(account, species, text, voice, style)
         # Character→voice audit for operations. No token, user ID or line text in logs.
-        LOG.info('voice %s species=%s voice=%s pitch=%s rate=%s cached=%s', 'plaza' if plaza else 'story',
+        LOG.info('voice %s species=%s voice=%s pitch=%s rate=%s cached=%s', kind,
                  species, voice, style.get('pitch', '-'), style.get('rate', '-'), cache.read(key) is not None)
         return uid, species, text, voice, style, key
 
@@ -264,7 +269,7 @@ def create_app(registry=None, provider=None, verify=None, cache_dir=None, lines=
 
     @app.post('/v1/story/stream')
     async def story(request: Request):
-        uid, species, text, voice, style, key = await request_data(request, False)
+        uid, species, text, voice, style, key = await request_data(request, 'story')
         async def output():
             try:
                 cached = cache.read(key)
@@ -288,9 +293,8 @@ def create_app(registry=None, provider=None, verify=None, cache_dir=None, lines=
         response.uid = uid
         return response
 
-    @app.post('/v1/plaza/clip')
-    async def plaza(request: Request):
-        uid, species, text, voice, style, key = await request_data(request, True)
+    async def clip(request: Request, kind):
+        uid, species, text, voice, style, key = await request_data(request, kind)
         try:
             pcm = cache.read(key)
             if pcm is None:
@@ -302,5 +306,17 @@ def create_app(registry=None, provider=None, verify=None, cache_dir=None, lines=
             raise HTTPException(502, 'synthesis_unavailable') from None
         finally:
             limits.release(uid)
+    @app.post('/v1/plaza/clip')
+    async def plaza(request: Request):
+        return await clip(request, 'plaza')
+
+    @app.post('/v1/car/dialogue/clip')
+    async def car_dialogue(request: Request):
+        return await clip(request, 'car-dialogue')
+
+    @app.post('/v1/car/destination/clip')
+    async def car_destination(request: Request):
+        return await clip(request, 'car-destination')
+
     app.state.limits = limits
     return app

@@ -14,9 +14,10 @@ import ai.allo.car.gleo.GleoFunctions
 import ai.allo.car.gleo.TravelRequestFlow
 import ai.allo.car.mirror.ParkedMirrorGate
 import ai.allo.car.gleo.RegionSummary
-import ai.allo.car.voice.DriverVoice
+import ai.allo.car.voice.*
+import android.os.Handler
+import android.os.Looper
 import ai.allo.car.navi.NaviEtaReader
-import ai.allo.car.voice.HatchAnnouncement
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.serialization.encodeToString
@@ -91,6 +92,89 @@ class SessionManager(private val context: Context) {
     val naviEta = NaviEtaReader(context)
     /** Gleo 목적지 제안 → 수락 */
     val destinations = DestinationFlow()
+    private val destinationMain = Handler(Looper.getMainLooper())
+    private val _destinationVoiceState = MutableStateFlow(DestinationVoiceState())
+    val destinationVoiceState: StateFlow<DestinationVoiceState> = _destinationVoiceState
+    private var destinationVoiceVisible = false
+    private val destinationDialogue = CompanionDialogue(dialogue)
+    private var destinationVoiceTarget: DestinationVoiceTarget? = null
+    private var voiceOfferRevision = -1L
+    private val destinationVoice by lazy {
+        DestinationVoiceController(
+            createRecognition = { PleosDestinationRecognition(context) },
+            createPrompt = {
+                characterDestinationPrompt(context, checkNotNull(destinationVoiceTarget).subject.speciesId)
+            },
+            execute = ::executeDestinationVoice,
+            allowed = ::destinationConversationAllowed,
+            scheduleTimeout = { action ->
+                val task = Runnable { action() }
+                destinationMain.postDelayed(task, 20_000L)
+                val cancel: () -> Unit = { destinationMain.removeCallbacks(task) }
+                cancel
+            },
+            onState = { _destinationVoiceState.value = it },
+        )
+    }
+
+    @Synchronized
+    private fun destinationVoiceAllowed(): Boolean = destinationVoiceVisible && activityResumed &&
+        hasParkingPermission() && _gameConnected.value && _meta.value.paired && !_ended.value
+
+    @Synchronized
+    private fun destinationConversationAllowed(): Boolean = destinationVoiceAllowed() &&
+        destinationVoiceTarget?.matches(sessionId, destinationDialogue.subject(_game.value, _gameConnected.value)) == true &&
+        voiceOfferRevision == destinations.revision
+
+    /** Only the existing parked travel page owns microphone sessions; leaving it releases the SDK. */
+    @Synchronized
+    fun setDestinationVoiceVisible(visible: Boolean) {
+        destinationVoiceVisible = visible
+        if (!visible) destinationMain.post { destinationVoice.cancel() }
+    }
+
+    @Synchronized
+    fun startDestinationVoice() {
+        if (!destinationVoiceAllowed()) return
+        val subject = destinationDialogue.subject(_game.value, _gameConnected.value)
+        if (subject == null) {
+            destinationVoice.cancel()
+            destinationVoiceTarget = null
+            _destinationVoiceState.value = DestinationVoiceState(message = "폰에서 차량과 함께할 친구를 선택해 주세요.")
+            return
+        }
+        destinationVoiceTarget = DestinationVoiceTarget(sessionId, subject)
+        voiceOfferRevision = destinations.revision
+        destinationVoice.start()
+    }
+
+    fun cancelDestinationVoice() = destinationVoice.cancel()
+
+    @Synchronized
+    private fun executeDestinationVoice(command: DestinationVoiceCommand): DestinationVoiceReply {
+        if (!destinationConversationAllowed()) {
+            return DestinationVoiceReply("제안 상태가 바뀌었어요. 다시 요청해 주세요.")
+        }
+        if (command != DestinationVoiceCommand.SUGGEST && destinations.pending() == null) {
+            return DestinationVoiceReply("먼저 목적지를 추천해 달라고 말해 주세요.")
+        }
+        return when (command) {
+            DestinationVoiceCommand.SUGGEST, DestinationVoiceCommand.NEXT -> {
+                val offer = suggestDestination()
+                val response = GleoFunctions.respond(GleoFunctions.SUGGEST_DESTINATION, _game.value, offer, dialogue)
+                // Keep the offer we actually read aloud across the following STT turn.
+                // Never recapture a newer Gleo offer when the prompt finishes.
+                voiceOfferRevision = destinations.revision
+                DestinationVoiceReply(response.message, listenAgain = offer is DestinationFlow.Offer.Made)
+            }
+            DestinationVoiceCommand.ACCEPT -> {
+                val response = GleoFunctions.respondAccept(acceptDestination(), dialogue)
+                voiceOfferRevision = destinations.revision
+                DestinationVoiceReply(response.message)
+            }
+        }
+    }
+
     /** 폰 도감의 지역 수집 요약. /game raw JSON 에서 정규화한다. 바뀌면 제안 캐시를 비운다 */
     private val _regions = MutableStateFlow<RegionSummary>(RegionSummary.Unknown)
     val regions: StateFlow<RegionSummary> = _regions
@@ -146,6 +230,9 @@ class SessionManager(private val context: Context) {
             _travelMessage.value = ""
         }
         lastTravelContext = next
+        if (!destinationConversationAllowed() && _destinationVoiceState.value.busy) {
+            destinationMain.post { destinationVoice.cancel() }
+        }
     }
 
     @Synchronized
@@ -422,6 +509,7 @@ class SessionManager(private val context: Context) {
         pairingRefresh.reset(); _pairingRefreshUi.value = pairingRefresh.ui
         val id = UUID.randomUUID().toString()
         val ready = CompletableDeferred<Unit>()
+        destinationMain.post { destinationVoice.cancel() }
         derivation.reset(); endDetector.reset(); destinations.reset(); travel.reset(); gameReducer.reset()
         gameRaw = JsonObject(emptyMap())
         fishingFreshness = FishingFreshness()
@@ -478,6 +566,7 @@ class SessionManager(private val context: Context) {
     }
 
     fun stop() {
+        setDestinationVoiceVisible(false)
         if (!_ended.value) scope.launch { runCatching { emitEvent("sessionEnd") } }
         vehicleReader.stop(); aaos.stop(); voice.release(); naviEta.stop()
         scope.cancel()

@@ -109,6 +109,9 @@ class DestinationFlow(
     private var ranked: List<Suggestion> = emptyList()
     private var index = -1
     private var at = 0L
+    /** Invalidates speech captured for an earlier offer, even when the same POI is offered again. */
+    @Volatile var revision: Long = 0
+        private set
 
     sealed interface Offer {
         data class Made(val suggestion: Suggestion) : Offer
@@ -117,6 +120,7 @@ class DestinationFlow(
 
     @Synchronized
     fun offer(here: GeoPoint?, currentRegion: String?, summary: RegionSummary = RegionSummary.Unknown): Offer {
+        revision++
         val continuing = index >= 0 && now() - at <= ttlMs
         if (!continuing) {
             ranked = DestinationSuggester.rank(here, currentRegion, summary)
@@ -131,7 +135,7 @@ class DestinationFlow(
 
     /** 새 세션·수집 요약 변경. 진행 중이던 제안을 버린다 (docs/schema.md "차량 추천") */
     @Synchronized
-    fun reset() { ranked = emptyList(); index = -1 }
+    fun reset() { revision++; ranked = emptyList(); index = -1 }
 
     /** 유효한(2분 안) 제안의 목적지. 소비하지 않는다 */
     @Synchronized
@@ -142,7 +146,7 @@ class DestinationFlow(
 
     /** 유효한 제안이 있으면 그 목적지를 돌려주고 대화를 끝낸다. 없거나 만료됐으면 null. */
     @Synchronized
-    fun accept(): Destination? = pending().also { index = -1 }
+    fun accept(): Destination? = pending().also { revision++; index = -1 }
 
     /**
      * 수락 처리. 안내 상태가 [Guidance.IDLE] 로 확인됐고 내비 요청([request])이 성공했을 때만 제안을 소비한다.
@@ -152,13 +156,14 @@ class DestinationFlow(
     @Synchronized
     fun accept(guidance: Guidance, stillValid: (Destination) -> Boolean = { true }, request: (Destination) -> Boolean): AcceptResult {
         val d = pending() ?: return AcceptResult.NoOffer
-        if (!stillValid(d)) { index = -1; return AcceptResult.NoOffer }
+        if (!stillValid(d)) { revision++; index = -1; return AcceptResult.NoOffer }
         when (guidance) {
             Guidance.GUIDING -> return AcceptResult.RouteActive
             Guidance.UNKNOWN -> return AcceptResult.NaviNotReady
             Guidance.IDLE -> {}
         }
         if (!request(d)) return AcceptResult.NaviNotReady
+        revision++
         index = -1
         return AcceptResult.Started(d)
     }
