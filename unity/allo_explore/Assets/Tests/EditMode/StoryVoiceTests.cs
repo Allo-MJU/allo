@@ -29,7 +29,7 @@ public class StoryVoiceTests
     [Test] public void CatalogRejectsChangedTextAndUnmatchedEndings()
     {
         var catalog = JsonUtility.FromJson<StoryVoiceCatalog>(Resources.Load<TextAsset>("StoryVoice/catalog").text);
-        Assert.AreEqual(102, catalog.entries.Length);
+        Assert.AreEqual(100, catalog.entries.Length);
         var state = new StoryState { topicId="road_seed",nodeId="intro",line="여긴 상상 작업실이야. 씨앗 모형이 여행을 준비해." };
         Assert.AreEqual("road_sprout",catalog.Find(state).species);
         state.line += "!"; Assert.IsNull(catalog.Find(state));

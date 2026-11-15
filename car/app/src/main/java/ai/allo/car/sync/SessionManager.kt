@@ -9,6 +9,7 @@ import ai.allo.car.vehicle.*
 import ai.allo.car.dialogue.DialogueBank
 import ai.allo.car.gleo.AcceptResult
 import ai.allo.car.gleo.DestinationFlow
+import ai.allo.car.gleo.DestinationHandoff
 import ai.allo.car.gleo.DestinationSuggester
 import ai.allo.car.gleo.Destination
 import ai.allo.car.gleo.GleoFunctions
@@ -220,6 +221,7 @@ class SessionManager(private val context: Context) {
     private val _transferUi = MutableStateFlow(TransferUiState())
     val transferUi: StateFlow<TransferUiState> = _transferUi
     private val travel = TravelRequestFlow()
+    private val destinationHandoff = DestinationHandoff(destinations, travel)
     private val _travelOffer = MutableStateFlow<TravelRequestFlow.Offer?>(null)
     val travelOffer: StateFlow<TravelRequestFlow.Offer?> = _travelOffer
     private val _travelMessage = MutableStateFlow("")
@@ -330,7 +332,7 @@ class SessionManager(private val context: Context) {
     @Synchronized
     fun acceptTravel(token: Long, index: Int) {
         syncFeatureState()
-        val result = travel.accept(token, index, travelContext(), naviEta.guidance.value) { d ->
+        val result = destinationHandoff.acceptTravel(token, index, travelContext(), naviEta.guidance.value) { d ->
             requestDestination(d)
         }
         _travelMessage.value = when (result) {
@@ -490,12 +492,14 @@ class SessionManager(private val context: Context) {
      * 운전자가 수락. 직전 제안이 유효하고, 안내 중이 아니고, 내비 요청이 성공했을 때만 목적지가 바뀐다.
      * accepted 이벤트도 성공했을 때만 보낸다.
      */
+    @Synchronized
     fun acceptDestination(): AcceptResult {
         // 수락 직전 확인: 제안 뒤에 그 지역을 수집했으면 그 제안은 더 유효하지 않다
-        val r = destinations.accept(naviEta.guidance.value,
+        val r = destinationHandoff.acceptDestination(naviEta.guidance.value,
             stillValid = { d -> d.region in DestinationSuggester.allowedRegions(_regions.value) },
         ) { d -> requestDestination(d) }
         if (r is AcceptResult.Started) {
+            _travelOffer.value = null
             val d = r.destination
             scope.launch { runCatching { emitEvent("destinationSuggest", mapOf("region" to d.region, "status" to "accepted")) } }
         }

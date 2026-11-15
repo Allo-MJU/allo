@@ -97,7 +97,7 @@ public class AppUiQuestTests
         Receive(State(opened: true, status: "accepted", kind: "food", error: "저장하지 못했어요.")); BuildMap();
         Assert.IsTrue(HasText("저장하지 못했어요."));
         Assert.IsTrue(HasText("아래 요리 주기에서 음식을 나눠 주세요."));
-        Assert.NotNull(ButtonNamed("베리 간식  2개 · 1개 주기"));
+        Assert.NotNull(ButtonNamed("베리 간식 · 2개 · 1개 주기"));
         Assert.IsNull(ButtonNamed("찾아봤어"));
     }
 
@@ -124,7 +124,7 @@ public class AppUiQuestTests
         Assert.IsFalse(HasText("초록빛을 찾아볼까?"));
         Receive(JsonUtility.FromJson<AppState>(JsonUtility.ToJson(State()).Replace("\"quests\":[", "\"ignoredQuests\":["))); BuildMap();
         Assert.IsNull(Named("Quest invitation owned-second"));
-        Assert.NotNull(ButtonNamed("베리 간식  2개 · 1개 주기"));
+        Assert.NotNull(ButtonNamed("베리 간식 · 2개 · 1개 주기"));
     }
 
     [Test] public void DetailCloseButtonClosesOpenedQuestAndInspector()
