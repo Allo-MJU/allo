@@ -157,3 +157,25 @@ Android debug 빌드 후 `python3 tool/verify_apk_assets.py`로 APK 안의 실�
 일반 시작 화면의 **마음으로 알 품기**에서 쓰다듬기·4구역 배치·글로 말 걸기·사진 퀘스트 상태를 확인할 수 있습니다. 기존 시간 기반 체험 시작은 유지합니다. 실제 말 판정과 사진 결과 재확인은 `ALLO_DEMO_API_URL`/`ALLO_DEMO_TOKEN` 설정이 필요하며, 미설정 시 합성 성공을 만들지 않습니다. 현재 STT·카메라 촬영/합성 입력은 포함하지 않습니다.
 
 `flutter run -t lib/main_local_affinity.dart -d <device-id>`는 일반 화면에 메모리 저장·합성 API·주차 신호를 주입하는 debug 전용 실행입니다. 상단 검증 배너의 시간 이동·모의 사진 완료는 일반 제품 동작이 아닙니다. 기존 도감/낚시 저장을 변경하지 않으며 종료 시 모의 상태가 사라집니다. 자세한 계약과 검증 범위는 [호감도 연결 문서](../docs/vehicle/affinity-integration.md)를 참고하세요.
+
+## English conversation prototype (debug)
+
+Ages 10–12, free-text English questions and an optional parent/trusted-adult
+conversation starter. After hatching, choose **Talk in English** from the companion
+screen (or the Flutter exploration fallback). The native Unity activity does not
+host the Flutter chat overlay; use the companion screen or standalone entry below.
+
+```sh
+# No vehicle or model needed: explicitly labeled scripted examples.
+flutter run -t lib/child_chat_preview.dart
+
+# Local model adapter; see the guide for server + adb reverse setup.
+flutter run -t lib/child_chat_preview.dart --dart-define=CHAT_MODE=local
+```
+
+The default is example mode, not live AI. The chat is held only in memory and is
+cleared on exit or **Clear chat**. This is a debug prototype for adult evaluation,
+not a child-ready release. See [the English conversation guide](../docs/english-child-chat.md)
+for model setup, limitations, and validation requirements.
+
+Local AI mode also requires `ollama pull granite3-guardian:2b`. The server checks input and output with this independent risk model; an unavailable classifier returns a fixed fallback. See [English chat safety pipeline](../docs/english-child-chat.md#independent-content-classifier).

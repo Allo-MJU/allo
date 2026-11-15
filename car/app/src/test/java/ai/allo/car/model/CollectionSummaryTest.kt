@@ -43,6 +43,29 @@ class CollectionSummaryTest {
         assertNull(GameSnapshotReader.parse(Json.parseToJsonElement(base.toString().replace("workshop\":1", "workshop\":4")).jsonObject)!!.baseSummary)
     }
 
+    @Test fun `phone village choice distinguishes legacy explicit empty and ordered selection`() {
+        val original = raw()["collectionSummary"]!!.jsonObject
+        fun read(fields: String) = GameSnapshotReader.parse(raw(JsonObject(original +
+            Json.parseToJsonElement(fields).jsonObject).toString()))!!
+        assertNull(read("{}").collectionSummary!!.villageSpeciesIds)
+        assertEquals(emptyList(), read("""{"villageSpeciesCount":0}""").collectionSummary!!.villageSpeciesIds)
+        assertEquals(emptyList(), read("""{"villageSpeciesCount":0,"villageSpeciesIds":[]}""").collectionSummary!!.villageSpeciesIds)
+        assertEquals(listOf("puddle_pip", "road_sprout"), read("""{"villageSpeciesCount":2,"villageSpeciesIds":["puddle_pip","road_sprout"]}""").collectionSummary!!.villageSpeciesIds)
+        for (fields in listOf(
+            """{"villageSpeciesIds":["road_sprout"]}""",
+            """{"villageSpeciesCount":1}""",
+            """{"villageSpeciesCount":-1}""",
+            """{"villageSpeciesCount":5}""",
+            """{"villageSpeciesCount":"1","villageSpeciesIds":["road_sprout"]}""",
+            """{"villageSpeciesCount":1,"villageSpeciesIds":["unknown"]}""",
+            """{"villageSpeciesCount":2,"villageSpeciesIds":["road_sprout","road_sprout"]}""")) {
+            val invalid = read(fields)
+            assertNull(invalid.collectionSummary, fields)
+            assertTrue("collectionSummary" in invalid.invalidBlocks, fields)
+            assertNotNull(invalid.baseSummary)
+        }
+    }
+
     @Test fun `parking review ignores legacy fishing while driving still wins`() {
         val game = GameState(ts = 1, contractVersion = 2, gameRevision = 1,
             companion = CompanionDisplay("pet", 1, "road_sprout", "car"),

@@ -1,6 +1,8 @@
 package ai.allo.car.ui
 
 import kotlinx.serialization.json.*
+import ai.allo.car.model.GameState
+import ai.allo.car.model.PlazaPopulation
 
 data class PetSpecies(val id: String, val name: String, val attribute: String, val sprite: String?)
 
@@ -24,3 +26,7 @@ class SpeciesCatalog private constructor(val entries: Map<String, PetSpecies>) {
         }.getOrDefault(EMPTY)
     }
 }
+
+/** Owned gameplay identities remain visible even when they use an atlas instead of supplied art. */
+internal fun SpeciesCatalog.plazaResidents(game: GameState): List<String> =
+    PlazaPopulation.residents(game).filter { this[it] != null }

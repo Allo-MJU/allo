@@ -24,6 +24,17 @@ class PlazaWalkArtTest {
             }
         }
     }
+    @Test fun `collected gameplay species use their own atlas without aliasing supplied identities`() {
+        val catalog = SpeciesCatalog.parse(File("../../data/species.json").readText())
+        for (id in catalog.entries.keys - SuppliedCharacters.ids) {
+            val spec = assertNotNull(PlazaWalkArt.spec(id), id)
+            assertEquals("poses/$id/actions.png", spec.path)
+            assertEquals(6, spec.rows)
+            assertEquals((0..7).toSet(), spec.timeline.toSet())
+            assertTrue(File("../../phone/assets", spec.path).isFile)
+            assertNull(SuppliedCharacters.path(id, PetPose.Idle))
+        }
+    }
     @Test fun `walking direction respects left and right facing source sheets`() {
         assertFalse(PlazaWalkArt.mirror("road_sprout", true, true))
         assertTrue(PlazaWalkArt.mirror("road_sprout", true, false))
@@ -31,6 +42,6 @@ class PlazaWalkArtTest {
         assertFalse(PlazaWalkArt.mirror("ember_crab", true, false))
         assertFalse(PlazaWalkArt.mirror("dune_roller", true, true))
         assertTrue(PlazaWalkArt.mirror("dune_roller", true, false))
-        assertNull(PlazaWalkArt.spec("bridge_hopper"))
+        assertNull(PlazaWalkArt.spec("unknown"))
     }
 }

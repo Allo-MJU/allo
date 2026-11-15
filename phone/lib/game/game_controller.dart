@@ -49,6 +49,29 @@ class GameController extends ChangeNotifier {
   int? _campDriveConnection;
   String? _lastCampDisplay;
 
+  bool _villageSelectionReady = false;
+  List<String>? _villageCreatureIds;
+
+  /// Publish only the locally saved choice; null retains the first-four default.
+  /// The display projection resolves owned IDs on every committed camp change.
+  void setVillageSelection(List<String>? creatureIds, {bool ready = true}) {
+    if (_disposed ||
+        (_villageSelectionReady == ready &&
+            listEquals(_villageCreatureIds, creatureIds))) {
+      return;
+    }
+    _villageSelectionReady = ready;
+    _villageCreatureIds =
+        creatureIds == null ? null : List<String>.unmodifiable(creatureIds);
+    _onCampChanged();
+  }
+
+  Map<String, dynamic> _campSnapshot(BaseCamp state) =>
+      campVehicleSnapshot(state,
+          villageCreatureIds: !_villageSelectionReady
+              ? null
+              : (_villageCreatureIds ?? state.creatures.keys.take(4).toList()));
+
   void _onCampChanged() {
     if (_disposed) return;
     final camp = baseCamp;
@@ -65,7 +88,7 @@ class GameController extends ChangeNotifier {
         _ensureCompanionVehicleSubscription();
       }
     }
-    final signature = jsonEncode(campVehicleSnapshot(camp.state));
+    final signature = jsonEncode(_campSnapshot(camp.state));
     if (signature == _lastCampDisplay) return;
     _lastCampDisplay = signature;
     if (paired &&
@@ -1540,8 +1563,7 @@ class GameController extends ChangeNotifier {
                   },
                 if (_questTravelRequest != null)
                   'travelRequest': _questTravelRequest,
-                if (baseCamp?.ready == true)
-                  ...campVehicleSnapshot(baseCamp!.state),
+                if (baseCamp?.ready == true) ..._campSnapshot(baseCamp!.state),
               }
             : const {});
     final snapshot = game;

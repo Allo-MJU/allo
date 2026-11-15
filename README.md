@@ -8,25 +8,25 @@
 
 현대자동차그룹 차량용 앱 개발 공모전 출품작 · Pleos Connect
 
-[APK 다운로드](https://github.com/Pleos-Allo/allo/releases/tag/v0.1.0-contest-20261115) · [실행 방법](#실행-방법) · [개발 환경](#개발-환경) · [상세 문서](#상세-문서)
+[APK 다운로드](https://github.com/Pleos-Allo/allo/releases/tag/v0.1.0-contest-20261115-final) · [실행 방법](#실행-방법) · [개발 환경](#개발-환경) · [상세 문서](#상세-문서)
 
 ## APK 다운로드
 
-설치할 기기에 맞는 APK를 [GitHub Release](https://github.com/Pleos-Allo/allo/releases/tag/v0.1.0-contest-20261115)에서 내려받습니다.
+설치할 기기에 맞는 APK를 [GitHub Release](https://github.com/Pleos-Allo/allo/releases/tag/v0.1.0-contest-20261115-final)에서 내려받습니다.
 
 | 앱 | 다운로드 | 설치 환경 |
 | --- | --- | --- |
-| 아이 폰 | [team-allo_ALLO-Phone_release.apk](https://github.com/Pleos-Allo/allo/releases/download/v0.1.0-contest-20261115/team-allo_ALLO-Phone_release.apk) | Android ARM64 · API 24 이상 |
-| Pleos 차량 | [team-allo_ALLO-Pleos_release.apk](https://github.com/Pleos-Allo/allo/releases/download/v0.1.0-contest-20261115/team-allo_ALLO-Pleos_release.apk) | Pleos Connect · API 28 이상 |
-| 전체 묶음 | [APK 두 개와 설치 안내 ZIP](https://github.com/Pleos-Allo/allo/releases/download/v0.1.0-contest-20261115/team-allo_APK_release_20261115.zip) | 설치 안내·빌드 기록·SHA-256 포함 |
+| 아이 폰 | [team-allo_ALLO-Phone_release.apk](https://github.com/Pleos-Allo/allo/releases/download/v0.1.0-contest-20261115-final/team-allo_ALLO-Phone_release.apk) | Android ARM64 · API 24 이상 |
+| Pleos 차량 | [team-allo_ALLO-Pleos_release.apk](https://github.com/Pleos-Allo/allo/releases/download/v0.1.0-contest-20261115-final/team-allo_ALLO-Pleos_release.apk) | Pleos Connect · API 28 이상 |
+| 전체 묶음 | [APK 두 개와 설치 안내 ZIP](https://github.com/Pleos-Allo/allo/releases/download/v0.1.0-contest-20261115-final/team-allo_APK_release_20261115.zip) | 설치 안내·빌드 기록·SHA-256 포함 |
 
-배포 버전은 **0.1.0(1)**이며, APK의 소스 기준은 [`8596105`](https://github.com/Pleos-Allo/allo/commit/85961059c61cd58de3164580fa9be519b15b54d2)입니다. 이후 README·배너 변경과 구분할 수 있도록 릴리스 태그에 빌드 기준을 고정했습니다.
+배포 버전은 **0.1.0(1)**입니다. 최종 제출 릴리즈에는 폰의 마을 친구 선택을 Pleos 광장에 동기화하는 수정과 캐릭터 그림 누락 수정이 포함됩니다. 정확한 소스 커밋과 APK 해시는 릴리즈의 `BUILD_INFO.json`, `SHA256SUMS.txt`에 기록합니다.
 
 ## 여행에서 하는 일
 
 - **알 돌보기** — 주행에 맞춰 알을 키우고, 차 안에서 쓰다듬거나 자리를 옮기며 돌봅니다.
 - **친구와 동행하기** — 깨어난 친구와 대화하고, 함께할 친구를 선택합니다.
-- **우리 마을 가꾸기** — 모은 친구를 마을에 배치하고 작업장·주방·훈련장을 이용합니다.
+- **우리 마을 가꾸기** — 모은 친구를 마을에 배치하고 작업장·주방·훈련장을 이용합니다. 폰의 **마을 친구 선택**이 Pleos 광장에도 반영됩니다(최대 4종, 같은 종은 한 마리로 표시).
 - **도감과 가방 채우기** — 만난 친구와 모은 아이템을 펼친 책 형태의 화면에서 살펴봅니다.
 - **이야기와 상상 탐험** — 창밖 이야기를 듣고 바다 탐험·탐험 노트·친구 부탁을 이어갑니다.
 
@@ -45,7 +45,7 @@ adb -s <Pleos_기기_ID> install -r team-allo_ALLO-Pleos_release.apk
 2. 폰에서 ALLO의 **연결하기**를 누르고 QR을 스캔합니다. 직접 입력할 때는 차량 화면의 **세션 ID와 연결 코드**를 함께 사용합니다.
 3. 연결 후 폰에서 알과 친구를 만나봅니다. 인터넷 연결이 필요합니다.
 
-배포 APK에는 기존 Firebase·AI 서버 연결 설정을 포함했습니다. 차량 cloud TTS gateway는 미구성이며 기존 패키지·Pleos 음성 경로를 사용합니다.
+배포 APK에는 실제 Firebase(`allo-525bc`)·AWS AI 서버 연결 설정을 포함했습니다. 로컬 Firebase 에뮬레이터 없이 인터넷으로 연결합니다. 차량 cloud TTS gateway는 미구성이며 기존 패키지·Pleos 음성 경로를 사용합니다.
 
 ### 확인한 환경
 
@@ -54,11 +54,12 @@ adb -s <Pleos_기기_ID> install -r team-allo_ALLO-Pleos_release.apk
 | 폰 | Android API 36 ARM64 에뮬레이터 · 업데이트 설치, cold launch, Unity 마을 화면 확인 |
 | 차량 | Pleos Connect Emulator **v2.1.0** · Android 14/API 34 · ARM64 |
 | Pleos 화면 | **2560 × 1440**, 12.8인치, 160dpi(mdpi) |
-| 차량 실행 | 설치, cold launch, 연결 QR 화면 확인 |
-| 배포 전 테스트 | Flutter 622개 · 공통 core 109개 · Unity EditMode 377개 · 차량 release 403개 통과 |
+| 차량 실행 | 설치, cold launch, 실제 Firebase 페어링 및 폰 선택 비우기·재선택의 광장 반영 확인 |
+| AI | 실제 AWS HTTPS 인증 및 AI 인사·질문 응답 확인 |
+| 배포 전 테스트 | Flutter 638개 · 공통 core 109개 · Unity EditMode 389개 · 차량 release 411개 통과 |
 | 빌드·서명 | 두 앱 모두 release · 기존 Android Debug 키 서명 · `debuggable=false` |
 
-위 결과는 2026-11-15 배포 APK의 검증 기록입니다. 실물 폰·실차, 두 앱의 실제 페어링과 주행 왕복, 모든 대응 서버 기능의 배포 상태까지 검증한 결과는 아닙니다. 상세 기록은 릴리스의 `BUILD_INFO.json`을 참고하세요.
+위 결과는 2026-11-15 에뮬레이터 검증 기록입니다. 실제 Firebase에서 페어링과 상태 동기화를 확인했습니다. 실물 폰·실차 주행, 마이크 인식·음성 재생 품질 및 모든 서버 기능은 검증하지 않았습니다. 에뮬레이터의 음성 재생 실패 시에도 화면 글로 대화를 확인할 수 있습니다. 상세 기록은 릴리즈의 `BUILD_INFO.json`을 참고하세요.
 
 ## 구성
 

@@ -6,6 +6,10 @@ object PlazaPopulation {
     fun residents(game: GameState): List<String> {
         if (!game.hasV2Contract || "collectionSummary" in game.invalidBlocks) return emptyList()
         val ids = game.collectionSummary?.speciesIds?.distinct() ?: return emptyList()
+        // A phone choice is authoritative, including an explicitly empty choice.
+        game.collectionSummary?.villageSpeciesIds?.let { chosen ->
+            return chosen.distinct().filter { it in ids }.take(4)
+        }
         val companion = game.companion.takeUnless { "companion" in game.invalidBlocks }
             ?.takeIf { it.location == "car" }?.speciesId
         return if (companion in ids) listOf(companion!!) + ids.filter { it != companion } else ids

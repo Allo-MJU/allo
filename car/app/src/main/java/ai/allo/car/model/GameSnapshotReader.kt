@@ -80,7 +80,23 @@ object GameSnapshotReader {
             }
             if (it["speciesCount"] != null) require(it.number("speciesCount") == ids.size.toLong())
             require(ids.size <= 1000 && ids.distinct().size == ids.size)
-            CollectionSummary(1, it.number("wood"), it.number("stone"), it.number("ingredient"), ids)
+            val village = if ("villageSpeciesCount" !in it) {
+                require(it["villageSpeciesIds"] == null || it["villageSpeciesIds"] == JsonNull)
+                null // Old phones do not publish a village display choice.
+            } else {
+                val count = it.number("villageSpeciesCount")
+                require(count in 0L..4L)
+                val rawVillage = it["villageSpeciesIds"]
+                val chosen = if (rawVillage == null || rawVillage == JsonNull) {
+                    require(count == 0L)
+                    emptyList()
+                } else (rawVillage as JsonArray).map { item ->
+                    (item as JsonPrimitive).also { p -> require(p.isString && p.content in ids) }.content
+                }
+                require(chosen.size.toLong() == count && chosen.distinct().size == chosen.size)
+                chosen
+            }
+            CollectionSummary(1, it.number("wood"), it.number("stone"), it.number("ingredient"), ids, village)
         }
         val travel = block("travelRequest") { TravelRequest(it.word("wishId"), it.word("targetRegion").also { v -> require(v in setOf("coast", "mountain", "city")) }, it.optional("targetPlaceId").also { id -> require(id == null || Regex("place_[0-9a-f]{16}").matches(id)) }) }
         val fishing = block("fishing") {

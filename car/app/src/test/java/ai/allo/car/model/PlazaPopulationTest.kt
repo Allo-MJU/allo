@@ -21,6 +21,14 @@ class PlazaPopulationTest {
         assertEquals(listOf("a", "b", "c"), PlazaPopulation.residents(input.copy(companion = companion.copy(speciesId = "unknown"))))
         assertEquals(listOf("a", "b", "c"), PlazaPopulation.residents(input.copy(companion = companion, invalidBlocks = setOf("companion"))))
     }
+    @Test fun `phone village choice preserves selected order and explicit empty over companion priority`() {
+        val base = game(listOf("a", "b", "c"))
+        val chosen = base.copy(collectionSummary = base.collectionSummary!!.copy(villageSpeciesIds = listOf("b", "a")),
+            companion = CompanionDisplay("selected", 1, "a", "car"))
+        assertEquals(listOf("b", "a"), PlazaPopulation.residents(chosen))
+        assertEquals(emptyList(), PlazaPopulation.residents(chosen.copy(
+            collectionSummary = chosen.collectionSummary!!.copy(villageSpeciesIds = emptyList()))))
+    }
     @Test fun `missing invalid or legacy collections never invent a populated plaza`() {
         val input = game(listOf("a"))
         assertEquals(emptyList(), PlazaPopulation.residents(input.copy(collectionSummary = null)))

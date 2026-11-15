@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../game/game_controller.dart';
+import '../child_chat/chat_screen.dart';
 import '../ui_mode.dart';
 import '../widgets/species_art.dart';
 import '../widgets/window_view.dart';
@@ -22,6 +23,7 @@ class CompanionScreen extends StatelessWidget {
             // 차 안 화면만 꽉 채운다. 캐릭터 탭 = 놀아주기
             return Scaffold(
               backgroundColor: Colors.black,
+              floatingActionButton: const ChildChatButton(),
               body: LayoutBuilder(
                 builder: (context, box) => WindowView(
                   vehicle: controller.vehicle,
@@ -103,6 +105,7 @@ class CompanionScreen extends StatelessWidget {
                     spacing: 12,
                     runSpacing: 12,
                     children: [
+                      const ChildChatButton(),
                       FilledButton.icon(
                           onPressed: () => context.push('/explore'),
                           icon: const Icon(Icons.threed_rotation),

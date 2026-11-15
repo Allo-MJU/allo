@@ -15,20 +15,22 @@ namespace Allo.App
         static readonly int[] JoyFrameMilliseconds = { 230, 110, 260, 170, 450 };
         static readonly HashSet<string> WalkingSpecies = new HashSet<string>
         { "road_sprout", "puddle_pip", "lamp_moth", "storm_lantern", "highway_comet", "sea_mist" };
+        static readonly HashSet<string> ActionAtlasSpecies = new HashSet<string>
+        { "bridge_hopper", "mountain_sprite", "river_glider", "tide_keeper", "tunnel_moth", "star_owl" };
         static readonly Dictionary<string, Texture2D> Textures = new Dictionary<string, Texture2D>();
         RawImage _image;
         AspectRatioFitter _fit;
         GameObject _fallback;
         Texture2D _idle, _atlas;
         string _species, _idlePath, _atlasPath;
-        bool _moving, _facingLeft, _reducedMotion, _reaction;
+        bool _moving, _facingLeft, _reducedMotion, _reaction, _actionAtlas;
         bool _loadComplete = true, _loading;
         float _elapsed;
         int _binding;
 
         public bool IsMoving => _moving;
         public bool FacingLeft => _facingLeft;
-        public bool IsAnimated => _moving && !_reducedMotion && _atlas != null;
+        public bool IsAnimated => _moving && !_reducedMotion && _atlas != null && !(_reaction && _actionAtlas);
         public int FrameIndex
         {
             get
@@ -64,8 +66,9 @@ namespace Allo.App
             ++_binding;
             _species = speciesId;
             _reaction = reaction;
+            _actionAtlas = ActionAtlasSpecies.Contains(speciesId ?? "");
             _idlePath = idleSpritePath;
-            _atlasPath = WalkingSpecies.Contains(speciesId ?? "")
+            _atlasPath = _actionAtlas ? "poses/" + speciesId + "/actions.png" : WalkingSpecies.Contains(speciesId ?? "")
                 ? "poses/" + speciesId + (reaction ? "/joy-sheet.png" : "/run-sheet.png") : null;
             _fallback = fallback;
             _idle = _atlas = null;
@@ -137,7 +140,10 @@ namespace Allo.App
             _image.color = texture == null ? Color.clear : Color.white;
             if (_fallback != null) _fallback.SetActive(texture == null);
             if (texture == null) { _image.uvRect = new Rect(0, 0, 1, 1); return; }
-            var columns = _reaction ? 5 : 4; var rows = _reaction ? 1 : 2;
+            // Canonical species have their own 4 x 6 action atlas, with locomotion
+            // in its first two rows. No joy strip exists: its first cell is the portrait.
+            var columns = _actionAtlas ? 4 : _reaction ? 5 : 4;
+            var rows = _actionAtlas ? 6 : _reaction ? 1 : 2;
             var uv = sheet ? CellUv(FrameIndex, texture.width, texture.height, columns, rows) : new Rect(0, 0, 1, 1);
             var sourceLeft = _species == "road_sprout" || _species == "puddle_pip";
             if (!_reaction && sourceLeft != _facingLeft) { uv.x += uv.width; uv.width = -uv.width; }

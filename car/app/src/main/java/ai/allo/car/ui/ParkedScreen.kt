@@ -46,8 +46,9 @@ fun ParkedScreen(
     var chosenFriends by rememberSaveable {
         mutableStateOf(plazaPreferences.getString("species_ids", null)?.let { ArrayList(it.split(",").filter(String::isNotBlank)) })
     }
-    val availableFriends = PlazaPopulation.residents(game).filter { it in SuppliedCharacters.ids && catalog[it] != null }
-    val visibleFriends = PlazaPopulation.selected(availableFriends, chosenFriends)
+    val availableFriends = catalog.plazaResidents(game)
+    val phoneSelection = game.collectionSummary?.villageSpeciesIds != null && "collectionSummary" !in game.invalidBlocks
+    val visibleFriends = PlazaPopulation.selected(availableFriends, if (phoneSelection) null else chosenFriends)
     BackHandler(enabled = tab != "광장") { tab = "광장" }
     var materialsOpen by remember { mutableStateOf(false) }
     val dark = MaterialTheme.colorScheme.surface.luminance() < .35f
@@ -108,7 +109,7 @@ fun ParkedScreen(
                                     chosenFriends = ArrayList(next)
                                     plazaPreferences.edit().putString("species_ids", next.joinToString(",")).apply()
                                 },
-                                onDone = { tab = "광장" })
+                                onDone = { tab = "광장" }, phoneSelection = phoneSelection)
                             "이야기" -> CompanionDialoguePanel(game, connected, dialogueBank, summary.title, unreviewedDialoguePreview, pageHeight)
                             "거점" -> {
                                 ParkedSectionTitle("우리 거점", "건설·요리·훈련 조작은 폰에서 진행해 주세요.")

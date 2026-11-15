@@ -53,5 +53,6 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp)
     implementation(libs.pleos.tts)
+    implementation(libs.pleos.stt)
     implementation(libs.zxing.core)
 }

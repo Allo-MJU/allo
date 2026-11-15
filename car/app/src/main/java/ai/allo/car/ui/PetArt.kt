@@ -62,8 +62,9 @@ fun PetArt(
     val animate = ambientMotionAllowed(pose, parked, connected, runningMotion, drivingFishing)
     // Keep authored driving choreography and its speed/fishing clock for the six
     // matching identities. Plaza walking has its own separately selected sheets.
-    val sheetSpec = if (drivingFishing || runningMotion)
-        PetSpriteSheets.forDisplay(summary.species?.id, pose, parked, runningMotion, drivingFishing) else null
+    val sheetSpec = (if (drivingFishing || runningMotion)
+        PetSpriteSheets.forDisplay(summary.species?.id, pose, parked, runningMotion, drivingFishing) else null)
+        ?: PetSpriteSheets.stillForDisplay(summary.species?.id, pose, parked)
     val sheet = rememberPetSpriteSheet(sheetSpec)
     if (sheet != null && sheetSpec != null) {
         PetSpriteSheet(sheet, sheetSpec, animate, "${summary.title} · ${pose.label}", size, modifier, elapsedMs)

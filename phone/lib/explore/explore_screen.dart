@@ -5,6 +5,7 @@ import 'package:allo_core/allo_core.dart';
 import 'package:flutter/material.dart';
 
 import '../game/game_controller.dart';
+import '../child_chat/chat_screen.dart';
 import '../scene/window_scene.dart';
 import '../widgets/window_view.dart';
 import 'explore_link.dart';
@@ -280,6 +281,12 @@ class _ExploreScreenState extends State<ExploreScreen>
               ),
             ),
           ),
+        if (!_useUnity && c.hatched != null)
+          const SafeArea(
+              child: Align(
+                  alignment: Alignment.bottomRight,
+                  child: Padding(
+                      padding: EdgeInsets.all(16), child: ChildChatButton()))),
         SafeArea(
           child: Align(
             alignment: Alignment.topLeft,

@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'unity_app_controller_test.dart' show CampMemory;
 import 'recurring_incubation_test.dart' show RoundFeed;
+import 'session_resume_test.dart' show sessionA;
 
 class FailingVillageStore extends PreferencesVillageSelectionStore {
   bool failRead = false, failWrite = false;
@@ -120,6 +121,95 @@ void main() {
     expect(app.snapshot['villageCreatureIds'],
         camp.state.creatures.keys.skip(1).toList());
   });
+  test('paired village choices publish ordered species and explicit empty',
+      () async {
+    stop();
+    await start(fake: false);
+    await add(0);
+    await add(1);
+    await game.dex.add(DexEntry(
+        speciesId: 'tide_keeper',
+        obtainedAt: DateTime.utc(2026, 2),
+        envTags: const [],
+        regionTag: null,
+        tier: 1,
+        sourceEggId: 'sea'));
+    await camp.refreshOwnership();
+    await game.pair(sessionA, pairCode: '123456');
+    final feed = game.feed as RoundFeed;
+    Map summary() => feed.published.last.toJson()['collectionSummary'] as Map;
+    await Future<void>.delayed(Duration.zero);
+    expect(summary()['villageSpeciesIds'], ['road_sprout', 'tide_keeper']);
+    expect(summary()['villageSpeciesCount'], 2);
+    final ids = camp.state.creatures.keys.toList();
+    expect(await select([ids.last, ids.first]), true);
+    await Future<void>.delayed(Duration.zero);
+    expect(summary()['villageSpeciesIds'], ['tide_keeper', 'road_sprout']);
+    expect(await select([]), true);
+    await Future<void>.delayed(Duration.zero);
+    expect(summary()['villageSpeciesIds'], isEmpty);
+    expect(summary()['villageSpeciesCount'], 0);
+    await add(2);
+    await Future<void>.delayed(Duration.zero);
+    expect(summary()['villageSpeciesCount'], 0);
+  });
+
+  test('failed village save never changes the published vehicle choice',
+      () async {
+    stop();
+    await start(fake: false);
+    await add(0);
+    app.dispose();
+    final store = FailingVillageStore();
+    app = UnityAppController(
+        game: game, camp: camp, villageSelectionStore: store);
+    await app.initialize();
+    await game.pair(sessionA, pairCode: '123456');
+    final feed = game.feed as RoundFeed;
+    await Future<void>.delayed(Duration.zero);
+    expect(
+        (feed.published.last.toJson()['collectionSummary']
+            as Map)['villageSpeciesIds'],
+        ['road_sprout']);
+    store.failWrite = true;
+    expect(await select([]), false);
+    await Future<void>.delayed(Duration.zero);
+    expect(
+        (feed.published.last.toJson()['collectionSummary']
+            as Map)['villageSpeciesIds'],
+        ['road_sprout']);
+  });
+
+  test('unreadable saved choice omits vehicle fields until retry succeeds',
+      () async {
+    stop();
+    await start(fake: false);
+    await add(0);
+    app.dispose();
+    final store = FailingVillageStore()..failRead = true;
+    app = UnityAppController(
+        game: game, camp: camp, villageSelectionStore: store);
+    await app.initialize();
+    await game.pair(sessionA, pairCode: '123456');
+    final feed = game.feed as RoundFeed;
+    Map summary() => feed.published.last.toJson()['collectionSummary'] as Map;
+    await Future<void>.delayed(Duration.zero);
+    expect(summary().containsKey('villageSpeciesCount'), false);
+    expect(summary().containsKey('villageSpeciesIds'), false);
+    store.failRead = false;
+    expect(
+        await app.handleMessage(jsonEncode({
+          'v': 1,
+          'type': 'appAction',
+          'requestId': 'retry-village',
+          'action': 'refresh',
+        })),
+        true);
+    await Future<void>.delayed(Duration.zero);
+    expect(summary()['villageSpeciesCount'], 1);
+    expect(summary()['villageSpeciesIds'], ['road_sprout']);
+  });
+
   test('explicit empty persists across reload and newly collected friends',
       () async {
     await add(0);

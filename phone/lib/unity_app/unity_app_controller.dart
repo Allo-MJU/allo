@@ -97,10 +97,12 @@ class UnityAppController extends ChangeNotifier {
       if (_disposed) return false;
       _villageCreatureIds = ids;
       _villageSelectionReady = true;
+      game.setVillageSelection(ids);
       return true;
     } catch (_) {
       if (!_disposed) {
         _villageSelectionReady = false;
+        game.setVillageSelection(null, ready: false);
         _error = '마을 친구 선택을 불러오지 못했어요. 새로고침해 주세요.';
       }
       return false;
@@ -1727,6 +1729,7 @@ class UnityAppController extends ChangeNotifier {
         }
         if (_disposed) return false;
         _villageCreatureIds = ids;
+        game.setVillageSelection(ids);
         _villageSelectionRequestId = m['requestId'] as String;
         _notice = '마을 친구 선택을 저장했어요.';
         return true;

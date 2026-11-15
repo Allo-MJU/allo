@@ -1,0 +1,14 @@
+Granite Guardian risk definitions and prompt rendering
+Source: IBM Granite Guardian 3.0 2B tokenizer_config.json (tokenizer.chat_template)
+https://huggingface.co/ibm-granite/granite-guardian-3.0-2b/blob/main/tokenizer_config.json
+Author: IBM Granite
+License: Apache License 2.0 (see Apache-2.0.txt)
+
+ALLO modifications: selected seven content-risk categories, retained their original
+prompt/response definitions, and rendered the corresponding user/assistant template
+using Python standard-library code instead of Jinja. Original source/model digests
+are recorded in ../guardian_risk_definitions.json. No model weights are included.
+
+ALLO child-chat-guardian-v3 additionally appends a project-specific clarification
+to the input jailbreak definition in memory. The bundled IBM definitions remain
+unmodified; the custom clarification is in child_chat_server.py.

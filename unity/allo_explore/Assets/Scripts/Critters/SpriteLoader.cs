@@ -37,6 +37,15 @@ namespace Allo.Critters
     public static class SpriteLoader
     {
         static readonly Dictionary<string, CritterArt> Cache = new();
+        static readonly HashSet<string> ActionAtlasSpecies = new()
+        { "bridge_hopper", "mountain_sprite", "river_glider", "tide_keeper", "tunnel_moth", "star_owl" };
+
+        static string ActionAtlasPath(string sprite)
+        {
+            var id = Path.GetFileNameWithoutExtension(sprite);
+            return ActionAtlasSpecies.Contains(id) && sprite == "species/" + id + ".png"
+                ? "poses/" + id + "/actions.png" : null;
+        }
 
         static string PosePath(string sprite, ArtPose p)
         {
@@ -57,7 +66,19 @@ namespace Allo.Critters
 #else
             Texture2D idle = null;
             yield return Fetch(sprite, t => idle = t);
-            if (idle == null) yield break;
+            if (idle == null)
+            {
+                var atlasPath = ActionAtlasPath(sprite);
+                if (atlasPath == null) yield break;
+                var url = $"{Application.streamingAssetsPath}/flutter_assets/assets/{atlasPath}";
+                using var request = UnityWebRequest.Get(url);
+                yield return request.SendWebRequest();
+                if (request.result != UnityWebRequest.Result.Success) yield break;
+                if (!Cache.TryGetValue(sprite, out var fallback))
+                    fallback = DecodeActionAtlas(request.downloadHandler.data, atlasPath);
+                if (fallback != null) { Cache[sprite] = fallback; done(fallback); }
+                yield break;
+            }
             var art = new CritterArt(idle);
             Cache[sprite] = art;
             done(art);
@@ -88,7 +109,15 @@ namespace Allo.Critters
                 return File.Exists(f) ? Decode(File.ReadAllBytes(f), p) : null;
             }
             var idle = Read(sprite);
-            if (idle == null) return null;
+            if (idle == null)
+            {
+                var atlasPath = ActionAtlasPath(sprite);
+                if (atlasPath == null) return null;
+                var file = Path.Combine(root, atlasPath);
+                var fallback = File.Exists(file) ? DecodeActionAtlas(File.ReadAllBytes(file), atlasPath) : null;
+                if (fallback != null) Cache[sprite] = fallback;
+                return fallback;
+            }
             var art = new CritterArt(idle);
             foreach (var p in new[] { ArtPose.Move, ArtPose.Happy, ArtPose.Sleep })
             {
@@ -122,6 +151,41 @@ namespace Allo.Critters
             if (!src.LoadImage(png)) { Drop(src); return null; }
             var px = src.GetPixels32();
             if (HasFloorPlate(path)) RemoveFloor(px, src.width, src.height);
+            var result = Premultiplied(px, src.width, src.height, path);
+            Drop(src);
+            return result;
+        }
+
+        // These species have an authored 4 x 6 atlas rather than standalone PNGs.
+        // Extract only the same species' cells; portraits must never show the full sheet.
+        static CritterArt DecodeActionAtlas(byte[] png, string path)
+        {
+            var src = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            if (!src.LoadImage(png) || src.width < 4 || src.height < 6 || src.width % 4 != 0 || src.height % 6 != 0)
+            { Drop(src); return null; }
+            var pixels = src.GetPixels32();
+            var width = src.width / 4; var height = src.height / 6;
+            Texture2D Cell(int frame)
+            {
+                var px = new Color32[width * height];
+                var x = frame % 4 * width; var y = src.height - (frame / 4 + 1) * height;
+                for (var row = 0; row < height; row++)
+                    Array.Copy(pixels, (y + row) * src.width + x, px, row * width, width);
+                // Match the village/car atlas alpha cutoff without applying the
+                // unrelated standalone portrait floor-removal heuristic.
+                for (var i = 0; i < px.Length; i++)
+                    px[i].a = (byte)Mathf.Clamp(Mathf.RoundToInt((px[i].a - 32) * 255f / 223), 0, 255);
+                return Premultiplied(px, width, height, path + "#" + frame);
+            }
+            var art = new CritterArt(Cell(0));
+            art.Set(ArtPose.Move, Cell(1));
+            art.Set(ArtPose.Sleep, Cell(16));
+            Drop(src);
+            return art;
+        }
+
+        static Texture2D Premultiplied(Color32[] px, int width, int height, string name)
+        {
             for (var i = 0; i < px.Length; i++)
             {
                 var a = px[i].a;
@@ -129,15 +193,15 @@ namespace Allo.Critters
                 px[i].g = (byte)(px[i].g * a / 255);
                 px[i].b = (byte)(px[i].b * a / 255);
             }
-            var t = new Texture2D(src.width, src.height, TextureFormat.RGBA32, true)
+            var t = new Texture2D(width, height, TextureFormat.RGBA32, true)
             {
+                name = name,
                 wrapMode = TextureWrapMode.Clamp,
                 filterMode = FilterMode.Trilinear,
                 anisoLevel = 2,
             };
             t.SetPixels32(px);
             t.Apply(true, true);
-            Drop(src);
             return t;
         }
 

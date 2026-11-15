@@ -4,7 +4,6 @@ import ai.allo.car.dialogue.DialogueBank
 import ai.allo.car.model.CompanionDialogue
 import ai.allo.car.model.DialogueAnswer
 import ai.allo.car.model.GameState
-import ai.allo.car.model.PlazaPopulation
 import androidx.compose.runtime.saveable.rememberSaveable
 import ai.allo.car.voice.DialogueVoiceState
 import ai.allo.car.voice.characterDialogueVoice
@@ -51,7 +50,7 @@ fun CompanionDialoguePanel(
     val catalog = rememberSpeciesCatalog()
     var guestSpeciesId by rememberSaveable { mutableStateOf<String?>(null) }
     var pickerOpen by remember { mutableStateOf(false) }
-    val available = PlazaPopulation.residents(game).filter { it in SuppliedCharacters.ids && catalog[it] != null }
+    val available = catalog.plazaResidents(game)
     val subject = dialogue.subject(game, connected, guestSpeciesId)?.takeIf { catalog[it.speciesId] != null }
     val latestGuestSpeciesId by rememberUpdatedState(guestSpeciesId)
     val displayedSpecies = subject?.let { catalog[it.speciesId] }
