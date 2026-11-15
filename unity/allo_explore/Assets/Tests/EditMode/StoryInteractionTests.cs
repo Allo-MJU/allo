@@ -5,19 +5,19 @@ public class StoryInteractionTests
 {
     static AppState Cabin(bool active, bool paused = false) => new AppState
     {
-        view = "cabin", ready = true,
+        view = "cabin", ready = true, connected = true,
         egg = new EggState { id = "egg", active = true },
         story = new StoryState { active = active, paused = paused }
     };
 
     [Test]
-    public void ActiveStoryBlocksEggGestureWithoutRemovingTheEgg()
+    public void StaleStoryCannotBlockAppEggGesture()
     {
         var state = Cabin(true);
         Assert.IsTrue(CabinEgg.ShowEgg("cabin", state.egg));
-        Assert.IsFalse(CabinEgg.CanInteract(state, "cabin", "egg"));
-        Assert.IsNull(CabinEgg.EggIntent(state, "cabin", "egg", "petEgg", 0));
-        Assert.IsNull(CabinEgg.EggIntent(state, "cabin", "egg", "placeEgg", 1));
+        Assert.IsTrue(CabinEgg.CanInteract(state, "cabin", "egg"));
+        Assert.NotNull(CabinEgg.EggIntent(state, "cabin", "egg", "petEgg", 0));
+        Assert.NotNull(CabinEgg.EggIntent(state, "cabin", "egg", "placeEgg", 1));
     }
 
     [Test]
@@ -33,10 +33,10 @@ public class StoryInteractionTests
     }
 
     [Test]
-    public void BackFirstPausesStoryThenUsesExistingNavigation()
+    public void BackUsesAppNavigationRegardlessOfStaleStory()
     {
         var state = Cabin(true);
-        Assert.AreEqual(AppBackAction.PauseStory, AppSession.BackActionFor(state));
+        Assert.AreEqual(AppBackAction.NavigateHome, AppSession.BackActionFor(state));
         state.story.paused = true;
         Assert.AreEqual(AppBackAction.NavigateHome, AppSession.BackActionFor(state));
         state.view = "home";

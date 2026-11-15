@@ -71,13 +71,13 @@ void main() {
     final store = SlowProgressStore();
     final c = GameController(feed: feed, dex: store);
     addTearDown(c.dispose);
-    await c.pair(sessionA, pairCode: '123456');
-    final start = c.startIncubating(EggTier.small);
+    final pairing = c.pair(sessionA, pairCode: '123456');
     await store.entered.future;
     feed.end();
     await c.endSession();
     store.result.complete(const IncubationProgress());
-    expect(await start, isFalse);
+    await pairing;
+    expect(c.eggId, isNull);
     expect(c.sessionSaved, isTrue);
     feed.send(5000);
     expect(c.game.stage, Stage.idle);
@@ -157,7 +157,7 @@ class SlowProgressStore extends DexStore {
   final result = Completer<IncubationProgress>();
   @override
   Future<IncubationProgress> incubationProgress(EggTier tier) {
-    entered.complete();
+    if (!entered.isCompleted) entered.complete();
     return result.future;
   }
 }

@@ -24,10 +24,10 @@ void main() {
     }
 
     await untilVisible('차량과 연결됐어요');
-    await tester.scrollUntilVisible(find.text('알 품기 시작'), 120,
+    await tester.scrollUntilVisible(find.text('차 안으로 가기'), 120,
         scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('알 품기 시작'));
+    await tester.tap(find.text('차 안으로 가기'));
     await untilVisible('알 품기');
     feed.send(2000);
     await tester.pump();

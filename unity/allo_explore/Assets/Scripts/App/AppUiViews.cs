@@ -13,45 +13,110 @@ namespace Allo.App
 
         void BuildCabin()
         {
-            var storyShowing = StoryOverlay.ShowsStory(_state) || (_storyOverlay != null && _storyOverlay.ShowingNotebook);
-            if (!storyShowing) BuildCompanionSelector();
-            if (!storyShowing && HasSelectedCompanion(_state))
-            {
-                BuildCommonCareDock();
-                BuildCompanionLearning();
-                var travel = Rect("Companion travel actions", _content);
-                Stretch(travel, -430, 10, 430, 78, new Vector2(.5f, 0), new Vector2(.5f, 0));
-                Row(travel, 8); BuildTravelButtons(travel);
-                return;
-            }
+            if (!_state.connected) return;
+            var buddy = HasSelectedCompanion(_state);
             var egg = _state.egg;
-            var openedEggId = egg?.id;
-            if (egg == null || !egg.active) { if (!storyShowing && !_choosingCompanion) BuildCabinStart(egg); return; }
+            if (buddy) BuildCompanionLearning();
+            if (egg != null && egg.active)
+            {
+                BuildEggHud(egg);
+                BuildEggDrawers(egg);
+            }
+            if (!HasCabinActionTarget(_state) || StoryUiBlocked) return;
+            BuildCabinItemRail();
+            var hint = Label(_content, "", 18, TextAnchor.MiddleCenter);
+            hint.color = Cream;
+            Stretch(hint.rectTransform, -340, 0, 340, 28, new Vector2(.5f, 0), new Vector2(.5f, 0));
+            var shadow = hint.gameObject.AddComponent<Shadow>(); shadow.effectColor = new Color(0, 0, 0, .7f); shadow.effectDistance = new Vector2(0, -1);
+            _liveChecks.Add(() =>
+            {
+                if (hint != null) hint.text = !string.IsNullOrEmpty(CabinInteraction.SelectedItem) ? "원하는 방향으로 밀어 던지기" :
+                    CabinInteraction.MoveArmed ? "친구를 원하는 자리에 놓아 주세요" :
+                    buddy ? "친구를 두 번 누르고 원하는 자리로 끌어 보세요" : "알을 부드럽게 문질러 주세요";
+            });
+        }
+
+        void BuildCabinItemRail()
+        {
+            var rail = Rect("Cabin item circles", _content);
+            rail.anchorMin = rail.anchorMax = Vector2.zero;
+            rail.pivot = Vector2.zero; rail.sizeDelta = new Vector2(196, 278);
+            var ids = new[] { "snack", "water", "ball", "plush" };
+            var names = new[] { "간식", "물", "공", "인형" };
+            var positions = new[] { new Vector2(56, 222), new Vector2(140, 168), new Vector2(56, 110), new Vector2(140, 56) };
+            for (var i = 0; i < ids.Length; i++)
+            {
+                var id = ids[i];
+                var button = Button(rail, names[i], () =>
+                {
+                    if (CabinGesturesBlocked || !CanCommonCare(_state, id)) return;
+                    CloseCompanionInvitation();
+                    CabinInteraction.SelectItem(id);
+                    _dirty = true;
+                }, Color.white, 76, true, 18);
+                var rect = (RectTransform)button.transform;
+                rect.anchorMin = rect.anchorMax = Vector2.zero;
+                rect.anchoredPosition = positions[i]; rect.sizeDelta = new Vector2(76, 76);
+                var surface = button.GetComponent<Image>(); surface.sprite = CabinItemDisc(); surface.type = Image.Type.Simple;
+                var ring = button.GetComponent<Outline>(); ring.effectColor = Yellow; ring.effectDistance = new Vector2(2, -2); ring.enabled = false;
+                var text = button.GetComponentInChildren<Text>(); text.color = Cream;
+                Stretch(text.rectTransform, -10, -26, 10, -3, Vector2.zero, new Vector2(1, 0));
+                var textShadow = text.gameObject.AddComponent<Shadow>(); textShadow.effectColor = new Color(0, 0, 0, .75f); textShadow.effectDistance = new Vector2(0, -1);
+                var art = Rect("Item artwork", rect);
+                art.anchorMin = art.anchorMax = new Vector2(.5f, .5f); art.sizeDelta = new Vector2(54, 54);
+                var image = art.gameObject.AddComponent<Image>(); image.sprite = CabinItemArtwork(id); image.raycastTarget = false;
+                _liveChecks.Add(() =>
+                {
+                    if (button == null) return;
+                    var enabled = CanCommonCare(_state, id) && !CabinGesturesBlocked;
+                    button.interactable = enabled;
+                    surface.color = enabled ? Color.white : new Color(.72f, .72f, .65f, .75f);
+                    ring.enabled = enabled && CabinInteraction.SelectedItem == id;
+                    rect.localScale = ring.enabled ? Vector3.one * 1.08f : Vector3.one;
+                });
+            }
+        }
+
+        void BuildEggHud(EggState egg)
+        {
             var hud = Surface("Cabin affinity HUD", _content, new Color(.949f, .933f, .898f, .90f));
             Stretch(hud, 12, -112, 414, -10, new Vector2(0, 1), new Vector2(0, 1));
             var score = Label(hud, "친밀도  " + Mathf.FloorToInt(egg.score) + " / 100", 23, TextAnchor.MiddleLeft); Stretch(score.rectTransform, 14, -38, -14, -6, new Vector2(0, 1), Vector2.one);
             var track = Surface("Affinity track", hud, Disabled, false); Stretch(track, 14, 41, -14, 49, Vector2.zero, new Vector2(1, 0));
             var fill = Surface("Confirmed affinity", track, Hex("53765B"), false); Stretch(fill, 0, 0, 0, 0, Vector2.zero, new Vector2(Mathf.Clamp01(egg.score / 100), 1));
             var hint = Label(hud, egg.photoRequired ? "함께 사진을 찍으면 다시 가까워져요" : !string.IsNullOrEmpty(egg.remainingLabel) ? egg.remainingLabel : "알을 부드럽게 문질러 주세요", 19, TextAnchor.MiddleLeft); Stretch(hint.rectTransform, 14, 6, -14, 37, Vector2.zero, new Vector2(1, 0));
+            var tools = Rect("Egg care tools", _content);
+            Stretch(tools, 12, -155, 414, -120, new Vector2(0, 1), new Vector2(0, 1)); Row(tools, 6);
+            var eggId = egg.id;
+            Button(tools, "말 걸기", () => Send("speech", new AppAction { eggId = eggId }), Cream, 35,
+                CanAct && _state.speechAvailable && !egg.photoRequired && !egg.speechBusy && egg.speechCooldown <= 0, 17);
+            Button(tools, "글로 말하기", () => OpenEggDrawer(true), Cream, 35, CanAct, 17);
+            Button(tools, "자리와 돌보기", () => OpenEggDrawer(false), Cream, 35, CanAct, 17);
             var feedback = EggFeedbackLabel(egg.feedback);
-            if (!string.IsNullOrEmpty(feedback))
+            if (egg.photoRequired)
             {
-                var bubble = Surface("Egg feedback", _content, Cream, false); Stretch(bubble, 12, -157, 414, -120, new Vector2(0, 1), new Vector2(0, 1));
-                var text = Label(bubble, feedback, 19, TextAnchor.MiddleCenter); Stretch(text.rectTransform, 8, 0, -8, 0);
+                var photos = Rect("Photo quest tools", _content);
+                Stretch(photos, 12, -201, 414, -163, new Vector2(0, 1), new Vector2(0, 1)); Row(photos, 6);
+                Button(photos, egg.photoBusy ? "사진 보내는 중" : "함께 사진 찍기", () => Send("photo", new AppAction { eggId = eggId }), Yellow, 38,
+                    CanAct && _state.photoAvailable && !egg.photoBusy, 18);
+                Button(photos, "보류한 사진 확인", () => Send("recoverPhoto", new AppAction { eggId = eggId }), Cream, 38, CanAct && !egg.photoBusy, 17);
             }
-            if (storyShowing) return;
-            var dock = Surface("Cabin action dock", _content, new Color(.949f, .933f, .898f, .96f));
-            var storyButtons = _state.story != null && (_state.story.available || _state.story.paused)
-                ? (_state.story.paused ? 1 : 2) : 0;
-            var dockHalfWidth = 510 + storyButtons * 80;
-            Stretch(dock, -dockHalfWidth, 10, dockHalfWidth, 84, new Vector2(.5f, 0), new Vector2(.5f, 0));
-            var actions = Rect("Cabin actions", dock); Stretch(actions, 9, 9, -9, -9); Row(actions, 8);
-            BuildCommonCareDock();
-            Button(actions, egg.speechBusy ? "듣고 있어요" : CooldownLabel("말 걸기", egg.speechCooldown), () => Send("speech"), Cream, 54, CanAct && _state.speechAvailable && !egg.photoRequired && !egg.speechBusy && egg.speechCooldown <= 0, 21);
-            Button(actions, egg.photoBusy ? "사진 보내는 중" : "함께 사진 찍기", () => Send("photo"), egg.photoRequired ? Yellow : Cream, 54, CanAct && egg.photoRequired && _state.photoAvailable && !egg.photoBusy, 21);
-            Button(actions, "글로 말하기", () => { _speechDrawer = !_speechDrawer; _zoneDrawer = _choosingCompanion = false; _dirty = true; }, Cream, 54, CanAct, 21);
-            Button(actions, "자리와 돌보기", () => { _zoneDrawer = !_zoneDrawer; _speechDrawer = _choosingCompanion = false; _dirty = true; }, Cream, 54, CanAct, 21);
-            BuildTravelButtons(actions);
+            else if (!string.IsNullOrEmpty(feedback))
+            {
+                var bubble = Surface("Egg feedback", _content, Cream, false); Stretch(bubble, 12, -198, 414, -163, new Vector2(0, 1), new Vector2(0, 1));
+                var text = Label(bubble, feedback, 18, TextAnchor.MiddleCenter); Stretch(text.rectTransform, 8, 0, -8, 0);
+            }
+        }
+
+        void OpenEggDrawer(bool speech)
+        {
+            CloseCompanionInvitation();
+            _speechDrawer = speech; _zoneDrawer = !speech; _dirty = true;
+        }
+
+        void BuildEggDrawers(EggState egg)
+        {
+            var openedEggId = egg.id;
             if (_zoneDrawer)
             {
                 var zones = DockSheet(260);
@@ -76,46 +141,11 @@ namespace Allo.App
                 Field(drawer, _speech, "따뜻한 말을 적어 주세요", text => _speech = text, 240);
                 LiveEnable(Button(drawer, "적은 말 전하기", () => { Send("submitSpeech", new AppAction { text = _speech.Trim() }); _speech = ""; }, Yellow, 54, false, 22), () => CanAct && _state.speechAvailable && _state.egg != null && !_state.egg.photoRequired && !_state.egg.speechBusy && _state.egg.speechCooldown <= 0 && !string.IsNullOrWhiteSpace(_speech), Yellow);
             }
-            if (egg.photoRequired && !_speechDrawer && !_zoneDrawer)
-            {
-                var photo = Surface("Photo quest hint", _content, Cream, false); Stretch(photo, -290, 162, 290, 204, new Vector2(.5f, 0), new Vector2(.5f, 0));
-                var label = Label(photo, _state.photoAvailable ? "함께 찍은 사진을 보내면 친밀도가 65가 돼요" : "지금은 사진을 연결할 수 없어요. 잠시 후 다시 시도해 주세요.", 20, TextAnchor.MiddleCenter); Stretch(label.rectTransform, 8, 0, -8, 0);
-                var recover = Button(_content, "보류한 사진 확인", () => Send("recoverPhoto"), Cream, 44, CanAct && !egg.photoBusy, 18);
-                Stretch((RectTransform)recover.transform, -224, 10, -14, 54, new Vector2(1, 0), new Vector2(1, 0));
-            }
         }
 
-        void BuildCabinStart(EggState egg)
-        {
-            var host = Rect("Cabin start bottom sheet", _content);
-            Stretch(host, -360, 10, 360, 302, new Vector2(.5f, 0), new Vector2(.5f, 0));
-            var panel = Sheet(host);
-            Heading(panel, egg != null && egg.phase == "hatched" ? "새 친구가 깨어났어요" : egg != null && (egg.phase == "failed" || egg.phase == "discarded") ? "새로운 만남을 시작할까요?" : "함께할 알을 골라 주세요");
-            var row = NewRow(panel, 50);
-            string[] tiers = { "small", "mid", "large" }; string[] names = { "작은 알", "중간 알", "큰 알" };
-            for (var i = 0; i < tiers.Length; i++) { var tier = tiers[i]; Button(row, names[i], () => { _tier = tier; _dirty = true; }, _tier == tier ? Mint : Cream, 50, CanAct, 21); }
-            var actions = NewRow(panel, 54);
-            Button(actions, "이 알과 시작하기", () => Send("startEgg", new AppAction { tier = _tier }), Yellow, 54, CanAct && _state.canStart, 22);
-            BuildTravelButtons(actions);
-            if (egg != null && egg.phase == "hatched") Button(actions, "새 친구 보러 가기", () => Navigate("dex"), Cream, 54, CanAct, 21);
-            if (!_state.canStart) Note(panel, egg != null && egg.phase == "hatched" ? "새 친구와 함께하면서 다음 알을 기다려 주세요." : _state.sessionEnded ? "여행이 끝났어요. 설정에서 다음 연결을 준비해 주세요." : "지금은 알을 시작할 수 없어요. 설정에서 차량 연결 상태를 확인해 주세요.");
-            else Note(panel, "알을 쓰다듬고 말을 걸어 주세요. 친밀도가 100이 되면 새 친구가 깨어나요.");
-            if (egg != null && !string.IsNullOrEmpty(EggFeedbackLabel(egg.feedback))) Note(panel, EggFeedbackLabel(egg.feedback));
-        }
-
-        void BuildTravelButtons(Transform parent)
-        {
-            if (_storyOverlay == null || _state.story == null) return;
-            Button(parent, "여행 노트", () => _storyOverlay.ToggleNotebook(), Cream, 54,
-                CanAct && _state.story.canPlay && !_zoneDrawer && !_speechDrawer && !_choosingCompanion, 21);
-            var story = _state.story;
-            if (!story.available && !story.paused) return;
-            var enabled = CanAct && story.canPlay && !story.pending && !_zoneDrawer && !_speechDrawer && !_choosingCompanion && string.IsNullOrEmpty(_state.error);
-            Button(parent, story.paused ? "이야기 이어 하기" : "이야기 시작", () => _storyOverlay.StartAvailableStory(),
-                Yellow, 54, enabled, 21);
-            if (!story.paused)
-                Button(parent, "나중에", () => _storyOverlay.DismissInvitation(), Cream, 54, enabled, 21);
-        }
+        static bool HasCabinActionTarget(AppState state) => state != null && state.ready && state.connected &&
+            state.view == "cabin" && !state.sessionEnded &&
+            (HasSelectedCompanion(state) || (state.egg != null && state.egg.active && !string.IsNullOrEmpty(state.egg.id)));
 
         void BuildCamp()
         {
@@ -234,69 +264,64 @@ namespace Allo.App
 
         void BuildDex()
         {
-            var left = Sheet(_content, 0, .64f);
-            var right = Sheet(_content, .64f, 1);
             var entries = Items(_state.dex);
-            Heading(left, "만난 친구 " + entries.Count(d => d.collected) + " / " + entries.Length);
-            Note(left, "친구를 누르면 이야기와 배운 행동을 볼 수 있어요.");
-            if (entries.Length == 0) { Copy(left, "도감 정보를 불러오는 중이에요. 설정에서 다시 확인할 수 있어요."); return; }
-            if (!entries.Any(d => d.id == _selectedDex)) _selectedDex = entries.FirstOrDefault(d => d.collected)?.id ?? entries[0].id;
-            var grid = Rect("Dex grid", left);
-            var layout = grid.gameObject.AddComponent<GridLayoutGroup>();
-            var gridWidth = Mathf.Max(180, _content.rect.width * .64f - 68);
-            var columns = Mathf.Clamp(Mathf.FloorToInt((gridWidth + 12) / 166), 2, 6);
-            layout.cellSize = new Vector2((gridWidth - (columns - 1) * 12) / columns, 176); layout.spacing = new Vector2(12, 16);
-            layout.constraint = GridLayoutGroup.Constraint.FixedColumnCount; layout.constraintCount = columns;
-            var gridSize = grid.gameObject.AddComponent<LayoutElement>(); gridSize.preferredHeight = Mathf.Ceil(entries.Length / (float)columns) * 192;
+            if (!entries.Any(d => d.id == _selectedDex)) _selectedDex = entries.FirstOrDefault(d => d.collected)?.id ?? entries.FirstOrDefault()?.id;
+            var detail = entries.FirstOrDefault(d => d.id == _selectedDex);
+            CollectionBook(detail == null ? "우리 친구 도감" : detail.collected ? detail.name : "아직 만나지 못한 친구",
+                "만난 친구 " + entries.Count(d => d.collected) + " / " + entries.Length, out var left, out var right);
+            if (detail == null)
+            {
+                BookCopy(left, "도감 정보를 불러오는 중이에요. 설정에서 다시 확인할 수 있어요.");
+                BookCopy(right, "여행에서 만난 친구들이 이곳에 모여요.", 22, true); return;
+            }
+            var grid = BookGrid(right, "Dex grid", entries.Length, out var cellSize);
             foreach (var entry in entries)
             {
                 var selected = entry;
-                var tile = Surface(entry.name, grid, _selectedDex == entry.id ? Mint : Color.white);
-                var button = tile.gameObject.AddComponent<Button>(); button.onClick.AddListener(() => { _selectedDex = selected.id; _selectedCreature = null; _dirty = true; });
-                var artRoot = Rect("Portrait", tile); Stretch(artRoot, 10, 48, -10, -8);
-                if (entry.collected) Art(artRoot, entry.sprite, 116);
+                var portrait = BookSlot(grid, entry.name, entry.collected ? entry.name : "???", _selectedDex == entry.id,
+                    () => { _selectedDex = selected.id; _selectedCreature = null; _dirty = true; });
+                if (entry.collected) BookPortrait(portrait, entry.sprite, entry.id, cellSize, true);
                 else
                 {
-                    var text = Label(artRoot, "아직\n만나지 못했어요", 23, TextAnchor.MiddleCenter); Stretch(text.rectTransform);
+                    var mystery = Label(portrait, "?", 48, TextAnchor.MiddleCenter); mystery.color = BookMuted; Stretch(mystery.rectTransform);
                 }
-                var name = Label(tile, entry.collected ? entry.name : "???", 23, TextAnchor.MiddleCenter);
-                Stretch(name.rectTransform, 5, 6, -5, 48, Vector2.zero, new Vector2(1, 0));
             }
-            var detail = entries.First(d => d.id == _selectedDex);
-            Heading(right, detail.collected ? detail.name : "아직 만나지 못한 친구");
             if (!detail.collected)
             {
-                Copy(right, string.IsNullOrEmpty(detail.description) ? "여행하며 알을 키워 보세요. 이 친구를 만나면 이야기와 모습이 도감에 남아요." : detail.description);
-                Button(right, "차 안에서 알 키우기", () => Navigate("cabin"), Yellow, 72, CanAct); return;
+                var mystery = Copy(left, "?", 84); mystery.alignment = TextAnchor.MiddleCenter; mystery.color = BookMuted;
+                BookCopy(left, "아직 이 친구를 만나지 못했어요.", 23);
+                BookCopy(left, string.IsNullOrEmpty(detail.description) ? "여행하며 알을 키워 보세요. 이 친구를 만나면 이야기와 모습이 도감에 남아요." : detail.description);
+                BookButton(left, "차 안에서 알 키우기", () => Navigate("cabin"), true, CanAct); return;
             }
-            Art(right, detail.sprite, 104);
-            Copy(right, AttributeLabel(detail.attribute) + " · " + RoleLabel(detail.role), 24);
-            Copy(right, detail.description);
+            BookPortrait(left, detail.sprite, detail.id, 170);
+            BookCopy(left, BookAttributeLabel(detail.attribute) + " · " + RoleLabel(detail.role), 22, true);
+            BookCopy(left, detail.description);
+            BookCopy(left, "함께한 친구 " + detail.count + "마리", 19, true);
             var owned = Items(_state.creatures).Where(c => c.speciesId == detail.id).ToArray();
-            if (owned.Length == 0) { Note(right, "도감에는 기록되어 있지만 지금 함께하는 개체 정보는 없어요."); return; }
+            if (owned.Length == 0) { BookCopy(left, "도감에는 기록되어 있지만 지금 함께하는 개체 정보는 없어요.", 21, true); return; }
             if (!owned.Any(c => c.id == _selectedCreature)) _selectedCreature = owned[0].id;
             if (owned.Length > 1) foreach (var creature in owned)
             {
                 var selected = creature;
-                Button(right, creature.name + " · " + ShortId(creature.id), () => { _selectedCreature = selected.id; _dirty = true; }, _selectedCreature == creature.id ? Mint : Cream, 62, CanAct, 23);
+                BookButton(left, creature.name + " · " + ShortId(creature.id), () => { _selectedCreature = selected.id; _dirty = true; }, _selectedCreature == creature.id, CanAct);
             }
             var friend = owned.First(c => c.id == _selectedCreature);
             var companionId = friend.id;
-            Button(right, "이 친구와 차량에서 함께하기", () =>
+            BookButton(left, "차 안으로 데리고 오기", () =>
             {
                 if (_state.connected && !_state.sessionEnded) Send("selectCarCompanion", new AppAction { creatureId = companionId });
-            }, Mint, 54, CanAct && _state.connected && !_state.sessionEnded, 21);
-            if (_state.sessionEnded) Note(right, "여행이 끝났어요. 차량과 다시 연결한 뒤 친구를 선택해 주세요.");
-            else if (!_state.connected) Note(right, "차량과 연결한 뒤 함께할 친구를 선택할 수 있어요.");
-            Copy(right, "차량 친구의 관찰 기록 " + _state.fishingRecords + "건", 21);
+            }, true, CanAct && _state.connected && !_state.sessionEnded);
+            if (_state.sessionEnded) BookCopy(left, "여행이 끝났어요. 차량과 다시 연결한 뒤 친구를 선택해 주세요.", 19, true);
+            else if (!_state.connected) BookCopy(left, "차량과 연결한 뒤 함께할 친구를 선택할 수 있어요.", 19, true);
+            BookCopy(left, "차량 친구의 관찰 기록 " + _state.fishingRecords + "건", 21);
             if (!string.IsNullOrEmpty(_state.fishingError))
             {
-                Note(right, _state.fishingError);
-                Button(right, "낚시 저장 다시 확인", () => Send("retryFishingSave"), Cream, 48, CanAct, 20);
+                BookCopy(left, _state.fishingError, 19, true);
+                BookButton(left, "낚시 저장 다시 확인", () => Send("retryFishingSave"), false, CanAct);
             }
-            CreatureActions(right, friend);
-            Space(right); Copy(right, "친구에게 요리 주기", 27);
-            FeedOptions(right, friend.id);
+            CreatureActions(left, friend);
+            Space(left); BookCopy(left, "친구에게 요리 주기", 26);
+            FeedOptions(left, friend.id);
         }
 
         void CreatureActions(Transform parent, CreatureState creature)
@@ -315,27 +340,72 @@ namespace Allo.App
 
         void BuildInventory()
         {
-            var host = Rect("Supply inventory", _content); Stretch(host, 0, 0, 0, 0, new Vector2(.14f, 0), new Vector2(.86f, 1));
-            var panel = Sheet(host);
-            Heading(panel, "여행에서 모은 보급품");
-            var materials = NewRow(panel, 48);
-            foreach (var material in Items(_state.materials)) Button(materials, material.label + "  " + material.count + "개", null, Cream, 48, false, 22);
-            Note(panel, "주행과 창밖 관찰로 모은 재료예요. 저장된 재료와 거점 요약을 차량에도 전달해요.");
-            var creatures = Items(_state.creatures);
-            if (!creatures.Any(c => c.id == _selectedCreature)) _selectedCreature = creatures.FirstOrDefault()?.id;
-            if (creatures.Length > 0)
+            var foodsTab = _supplyTab == "foods";
+            var materials = Items(_state.materials);
+            var foods = Items(_state.foods);
+            if (foodsTab && !foods.Any(f => f.id == _selectedSupply)) _selectedSupply = foods.FirstOrDefault(f => f.count > 0)?.id ?? foods.FirstOrDefault()?.id;
+            if (!foodsTab && !materials.Any(m => m.id == _selectedSupply)) _selectedSupply = materials.FirstOrDefault()?.id;
+            var food = foodsTab ? foods.FirstOrDefault(f => f.id == _selectedSupply) : null;
+            var material = foodsTab ? null : materials.FirstOrDefault(m => m.id == _selectedSupply);
+            CollectionBook(food?.label ?? material?.label ?? "여행 가방", "여행에서 모은 보급품", out var left, out var right);
+            var tabs = NewRow(right, 48);
+            BookButton(tabs, "재료", () => { _supplyTab = "materials"; _selectedSupply = null; _dirty = true; }, !foodsTab);
+            BookButton(tabs, "요리", () => { _supplyTab = "foods"; _selectedSupply = null; _dirty = true; }, foodsTab);
+            var grid = BookGrid(right, "Supply grid", foodsTab ? foods.Length : materials.Length, out var cellSize);
+            if (foodsTab) foreach (var entry in foods)
             {
-                var recipients = NewRow(panel, 48);
-                Copy(recipients, "요리 받을 친구 · " + CreatureName(_selectedCreature), 22);
-                if (creatures.Length > 1) Button(recipients, "다른 친구 고르기", () => { var index = Array.FindIndex(creatures, c => c.id == _selectedCreature); _selectedCreature = creatures[(index + 1) % creatures.Length].id; _dirty = true; }, Cream, 48, CanAct, 20);
-                FeedOptions(panel, _selectedCreature);
+                var selected = entry;
+                var art = BookSlot(grid, "Supply slot " + entry.id, entry.label, entry.id == _selectedSupply,
+                    () => { _selectedSupply = selected.id; _dirty = true; }, entry.count + "개");
+                BookItemArt(art, entry.id, cellSize);
+            }
+            else foreach (var entry in materials)
+            {
+                var selected = entry;
+                var art = BookSlot(grid, "Supply slot " + entry.id, entry.label, entry.id == _selectedSupply,
+                    () => { _selectedSupply = selected.id; _dirty = true; }, entry.count + "개");
+                BookItemArt(art, entry.id, cellSize);
+            }
+            if (food == null && material == null)
+            {
+                BookCopy(left, foodsTab ? "완성한 요리가 없어요. 캠프 주방에서 재료로 요리를 만들어 주세요." : "아직 모은 재료가 없어요. 여행하며 창밖을 관찰해 보세요.");
             }
             else
             {
-                Note(panel, "함께하는 친구가 생기면 요리를 줄 수 있어요.");
-                foreach (var food in Items(_state.foods)) Copy(panel, food.label + " · " + food.count + "개", 22);
+                BookItemArt(left, food?.id ?? material.id, 166);
+                BookCopy(left, "보유 수량  " + (food?.count ?? material.count) + "개", 27);
+                if (!foodsTab)
+                {
+                    BookCopy(left, MaterialUse(material.id));
+                    BookCopy(left, "주행과 창밖 관찰로 모은 재료예요.", 20, true);
+                }
+                else
+                {
+                    BookCopy(left, "친구에게 주면 요리의 힘을 보태요.", 22);
+                    var creatures = Items(_state.creatures);
+                    if (!creatures.Any(c => c.id == _selectedCreature)) _selectedCreature = creatures.FirstOrDefault()?.id;
+                    if (creatures.Length == 0) BookCopy(left, "함께하는 친구가 생기면 요리를 줄 수 있어요.", 21, true);
+                    else
+                    {
+                        BookCopy(left, "요리 받을 친구 · " + CreatureName(_selectedCreature), 22);
+                        if (creatures.Length > 1) BookButton(left, "다른 친구 고르기", () =>
+                        {
+                            var index = Array.FindIndex(creatures, c => c.id == _selectedCreature);
+                            _selectedCreature = creatures[(index + 1) % creatures.Length].id; _dirty = true;
+                        }, false, CanAct);
+                    }
+                    var recipient = _selectedCreature;
+                    var selectedFood = food;
+                    BookButton(left, "요리 1개 주기", () => ConfirmIntent(CreatureName(recipient) + "에게 요리를 줄까요?",
+                        selectedFood.label + " 1개를 사용해 친구에게 힘을 보태요.", "feedFood",
+                        new AppAction { recipeId = selectedFood.id, creatureId = recipient }), true, CanAct && food.count > 0 && !string.IsNullOrEmpty(recipient));
+                    if (food.count <= 0) BookCopy(left, food.unlocked ? "보유한 요리가 없어요. 주방에서 만들 수 있어요." :
+                        "주방 Lv." + food.requiredLevel + "에서 만들 수 있어요.", 19, true);
+                }
             }
-            Button(panel, "주방에서 요리하기", () => OpenVillageFacility("kitchen"), Cream, 48, CanAct, 21);
+            Space(left);
+            BookButton(left, "주방에서 요리하기", () => OpenVillageFacility("kitchen"), false, CanAct);
+            BookCopy(right, foodsTab ? "요리를 골라 왼쪽에서 친구에게 주세요." : "재료를 골라 어디에 쓰는지 살펴보세요.", 19, true);
         }
 
         void FeedOptions(Transform parent, string creatureId)
@@ -349,15 +419,34 @@ namespace Allo.App
             }
         }
 
+        void BuildPairing()
+        {
+            var panel = DockSheet(520);
+            BuildPairingForm(panel);
+            Button(panel, "차 안으로 돌아가기", () => Navigate("cabin"), Cream, 54, CanAct, 22);
+        }
+
+        void BuildPairingForm(Transform panel)
+        {
+            Heading(panel, _state.connected ? "차량과 연결되어 있어요" : "차량과 함께 시작해요");
+            Copy(panel, _state.sessionEnded ? "이전 여행이 끝났어요. 차량에서 새로운 연결 정보를 확인해 주세요." : "차량 QR을 스캔하거나 세션 ID와 코드를 입력해 주세요.");
+            if (_state.isDemo)
+            {
+                Button(panel, "테스트 연결", () => Send("testPair"), Mint, 54, CanAct, 23);
+                Note(panel, "실제 차량 없이 가상 주행으로 연결해요.");
+            }
+            Button(panel, "차량 QR 스캔", () => Send("scanPairingQr"), Yellow, 60, CanAct && _state.pairingScanAvailable, 23);
+            if (!_state.pairingScanAvailable) Note(panel, "지금은 QR 스캔을 사용할 수 없어요. 아래에 직접 입력해 주세요.");
+            Copy(panel, "세션 ID", 24); Field(panel, _sessionId, "차량에 표시된 세션 ID", text => _sessionId = text, 160);
+            Copy(panel, "페어링 코드", 24); Field(panel, _pairCode, "차량에 표시된 코드", text => _pairCode = text, 32);
+            LiveEnable(Button(panel, "차량과 연결하기", () => Send("pair", new AppAction { sessionId = _sessionId.Trim(), pairCode = _pairCode.Trim() }), Yellow, 60, false, 23), () => CanAct && !string.IsNullOrWhiteSpace(_sessionId) && !string.IsNullOrWhiteSpace(_pairCode), Yellow);
+        }
+
         void BuildSettings()
         {
             var left = Sheet(_content, 0, .53f);
             var right = Sheet(_content, .53f, 1);
-            Heading(left, _state.connected ? "차량과 연결되어 있어요" : "차량과 함께 시작해요");
-            Copy(left, _state.sessionEnded ? "이전 여행이 끝났어요. 차량에서 새로운 연결 정보를 확인해 주세요." : "차량 화면의 세션 ID와 페어링 코드를 입력해 주세요.");
-            Copy(left, "세션 ID", 24); Field(left, _sessionId, "차량에 표시된 세션 ID", text => _sessionId = text, 160);
-            Copy(left, "페어링 코드", 24); Field(left, _pairCode, "차량에 표시된 코드", text => _pairCode = text, 32);
-            LiveEnable(Button(left, "차량과 연결하기", () => Send("pair", new AppAction { sessionId = _sessionId.Trim(), pairCode = _pairCode.Trim() }), Yellow, 72, CanAct && !string.IsNullOrWhiteSpace(_sessionId) && !string.IsNullOrWhiteSpace(_pairCode)), () => CanAct && !string.IsNullOrWhiteSpace(_sessionId) && !string.IsNullOrWhiteSpace(_pairCode), Yellow);
+            BuildPairingForm(left);
             if (_state.connected) Button(left, "차량 연결 끊기", () => Confirm("차량 연결을 끊을까요?", "차량에서 오는 정보를 더 이상 받지 않아요. 함께한 친구와 보급품은 그대로예요.", () => Send("disconnect")), Cream, 66, CanAct);
             Heading(right, "편안하게 즐기기");
             Button(right, "기울여 둘러보기  ·  " + (_state.gyro ? "켜짐" : "꺼짐"), () => Send("settings", new AppAction { gyro = !_state.gyro, reducedMotion = _state.reducedMotion }), _state.gyro ? Mint : Cream, 72, CanAct, 25);

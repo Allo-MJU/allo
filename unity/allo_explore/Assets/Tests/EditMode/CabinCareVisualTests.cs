@@ -61,7 +61,7 @@ public class CabinCareVisualTests
 
     static AppState State(long sequence, string action) => new AppState
     {
-        ready = true, view = "cabin", reducedMotion = true,
+        ready = true, connected = true, view = "cabin", reducedMotion = true,
         egg = new EggState { id = "current", active = true, score = 42 },
         learning = new LearningState { active = true, careSequence = sequence, careActionId = action }
     };

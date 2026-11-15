@@ -1,5 +1,7 @@
 # 개인 스토리 교육 동행 최신화 확인
 
+> 이 기록은 아래 커밋의 당시 검증이다. 이후 여행당 알 1개·서버 대화·캐릭터 탭 UI 변경의 최신 결과는 `2026-11-14-trip-egg-companion-invitation.md`를 따른다.
+
 2026-11-14 · `fix/companion-learning-latest`
 
 ## 반영 내용

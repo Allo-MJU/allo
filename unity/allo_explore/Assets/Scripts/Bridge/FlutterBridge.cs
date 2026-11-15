@@ -13,6 +13,7 @@ namespace Allo.Bridge
     /// - 마지막 상태를 Last* 로 들고 있어 늦게 구독한 쪽도 읽을 수 있다
     public sealed class FlutterBridge : MonoBehaviour
     {
+        public static event Action<Allo.App.StoryVoiceConfig> StoryVoiceConfigured;
         public static event Action<SceneState> SceneChanged;
         public static event Action<CastState> CastChanged;
         public static event Action<string> Jolted;
@@ -50,6 +51,8 @@ namespace Allo.Bridge
 
         public static void HandleBack()
         {
+            var appUi = UnityEngine.Object.FindFirstObjectByType<Allo.App.AppUi>();
+            if (appUi != null && appUi.CloseVillageCharacterDetail()) return;
             switch (Allo.App.AppSession.BackActionFor(Allo.App.AppSession.State))
             {
                 case Allo.App.AppBackAction.PauseStory:
@@ -93,6 +96,9 @@ namespace Allo.Bridge
         {
             switch (payload)
             {
+                case Allo.App.StoryVoiceConfig voice:
+                    StoryVoiceConfigured?.Invoke(voice);
+                    break;
                 case Allo.App.AppState app:
                     Allo.App.AppSession.Receive(app);
                     ClearLegacyEggForApp();

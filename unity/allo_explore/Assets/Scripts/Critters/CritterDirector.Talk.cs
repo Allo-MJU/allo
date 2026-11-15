@@ -53,7 +53,8 @@ namespace Allo.Critters
         public string Speak(string evt, string context = null, float seconds = 3.4f, CritterView who = null)
         {
             if (Mute) return null;
-            if (Allo.App.AppSession.DialogueOwned && evt != "hatch") return null;
+            // Full application dialogue and persona content are supplied by the backend.
+            if (Allo.App.AppSession.State != null || (Allo.App.AppSession.DialogueOwned && evt != "hatch")) return null;
             who ??= Companion;
             if (who == null || !Dialogue.Ready) return null;
             var line = Dialogue.Pick(evt, who.Id, AttrOf(who), context ?? SceneContext, _play);
@@ -75,7 +76,7 @@ namespace Allo.Critters
 
         void OnSceneTalk()
         {
-            if (Allo.App.AppSession.DialogueOwned) { _lastSceneKey = SceneContext; return; }
+            if (Allo.App.AppSession.State != null || Allo.App.AppSession.DialogueOwned) { _lastSceneKey = SceneContext; return; }
             var key = SceneContext;
             if (key == _lastSceneKey) return;
             _lastSceneKey = key;
@@ -88,7 +89,7 @@ namespace Allo.Critters
 
         void TalkTick(float dt)
         {
-            if (Allo.App.AppSession.DialogueOwned)
+            if (Allo.App.AppSession.State != null || Allo.App.AppSession.DialogueOwned)
             {
                 foreach (var bubble in _speech.Values) if (bubble != null) bubble.Hide();
                 _chatTimer = 28f;

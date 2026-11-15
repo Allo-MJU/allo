@@ -82,6 +82,7 @@ void main() {
         tier: 1);
     await dex.add(entry);
     await c.pair(sessionA, pairCode: '123456');
+    final tripEggId = c.eggId;
     expect(await c.selectCarCompanion(entry), isTrue);
     Future<void> settle() async {
       await c.fishing.settled;
@@ -137,8 +138,8 @@ void main() {
     feed.carEvents.add(request);
     await settle();
     expect(lastFishing()['totalRecords'], 1);
-    expect(c.game.stage, Stage.idle,
-        reason: 'fishing must not start/reset an egg');
+    expect(c.game.stage, Stage.incubating);
+    expect(c.eggId, tripEggId, reason: 'fishing must not reset the trip egg');
     final revisions = feed.published
         .map((g) => g.toJson()['gameRevision'])
         .whereType<int>()

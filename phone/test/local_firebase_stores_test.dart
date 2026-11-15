@@ -107,6 +107,30 @@ void main() {
     expect((await PairingStore().read())?.code, pair.code);
   });
 
+  test(
+      'real-trip migration retries a demo copy cached after a failed disk write',
+      () async {
+    final platform = FailingPreferences();
+    SharedPreferencesStorePlatform.instance = platform;
+    final store = DexStore();
+    await store.saveIncubationProgress(
+        EggTier.small,
+        const IncubationProgress(
+            carriedM: 1500,
+            round: {'eggId': 'legacy-demo', 'sessionId': null}));
+    platform.failSuffix = 'hatch.demo.v1.small';
+    await expectLater(
+        store.tripProgress(false, EggTier.small), throwsStateError);
+    platform.failSuffix = null;
+    final real = await store.tripProgress(false, EggTier.small);
+    expect(real.round, isNull);
+    await store.saveTripProgress(
+        false, EggTier.small, const IncubationProgress());
+    await (await SharedPreferences.getInstance()).reload();
+    expect((await store.tripProgress(true, EggTier.small)).round?['eggId'],
+        'legacy-demo');
+  });
+
   for (final failing in ['dex.entries.v1', 'samples.seeded.v1']) {
     test('failed $failing write is surfaced and retry has no duplicates',
         () async {

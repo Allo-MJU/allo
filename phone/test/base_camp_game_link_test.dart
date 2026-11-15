@@ -73,8 +73,7 @@ void main() {
     feed.sample(distance: 1000);
     await drain();
     expect(camp.state.materials[CampMaterial.wood], 1);
-    // Pairing observes materials even before an egg starts; egg start replaces that subscription.
-    expect(feed.watches, 2);
+    expect(feed.watches, 1);
     await game.setAppActive(false);
     now = 10000;
     feed.sample(distance: 9000);
@@ -87,8 +86,7 @@ void main() {
     feed.sample(distance: 11000);
     await drain();
     expect(camp.state.materials[CampMaterial.wood], 2);
-    // Pairing observes materials even before an egg starts; egg start replaces that subscription.
-    expect(feed.watches, 2);
+    expect(feed.watches, 1);
   });
   test(
       'saved hatch becomes owned and lookOut earns only a bounded activity bonus',

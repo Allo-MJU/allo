@@ -113,7 +113,7 @@ public class CabinEggTests
             var component = host.AddComponent<CabinEgg>();
             component.SetView("home");
             component.Apply(new AppState { view = "home" });
-            var state = new AppState { view = "cabin", ready = true, egg = new EggState { id = "current", active = true } };
+            var state = new AppState { view = "cabin", ready = true, connected = true, egg = new EggState { id = "current", active = true } };
             component.SetView("cabin");
             component.Apply(state);
             var visuals = host.transform.Find("Cabin egg visuals");
@@ -142,7 +142,7 @@ public class CabinEggTests
     [Test]
     public void GestureRequiresCurrentEggIdentityAndCabin()
     {
-        var state = new AppState { ready = true, egg = new EggState { id = "current", active = true } };
+        var state = new AppState { ready = true, connected = true, egg = new EggState { id = "current", active = true } };
         Assert.IsTrue(CabinEgg.CanInteract(state, "cabin", "current"));
         Assert.IsFalse(CabinEgg.CanInteract(state, "home", "current"));
         Assert.IsFalse(CabinEgg.CanInteract(state, "cabin", "previous"));
@@ -153,7 +153,7 @@ public class CabinEggTests
     [Test]
     public void IntentCarriesTheCurrentEggIdAndValidatedZone()
     {
-        var state = new AppState { ready = true, egg = new EggState { id = "current", active = true } };
+        var state = new AppState { ready = true, connected = true, egg = new EggState { id = "current", active = true } };
         var action = CabinEgg.EggIntent(state, "cabin", "current", "placeEgg", 3);
         Assert.AreEqual("current", action.eggId);
         Assert.AreEqual("placeEgg", action.action);

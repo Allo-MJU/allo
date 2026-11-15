@@ -92,7 +92,7 @@ public class AppVillagePanTests
         Assert.AreEqual(content, first.parent);
         Assert.IsTrue(first.Find("Friend avatar/Missing friend artwork").gameObject.activeSelf, "missing art must be explicit, without substituting a different species");
         retained.GetComponent<Button>().onClick.Invoke();
-        Assert.AreEqual("owned-1", Get<string>("_selectedCreature")); Assert.AreEqual("species-1", Get<string>("_selectedDex"));
+        Assert.AreEqual("owned-1", Get<string>("_selectedCreature")); Assert.AreEqual("owned-1", Get<string>("_villageCreatureId"));
         var next = State(3, "home"); next.creatures = state.creatures.Select(c => new CreatureState { id = c.id, speciesId = c.speciesId, name = c.id == "owned-0" ? "바뀐 이름" : c.name, sprite = c.sprite }).ToArray();
         AppSession.Receive(next); Call("OnState", AppSession.State); Render();
         Assert.AreSame(first, content.Find("Village friend owned-0"), "unchanged IDs must keep their real GameObjects across snapshots");

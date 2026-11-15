@@ -6,11 +6,11 @@ void main() {
     final cases = <int, List<int>>{
       11: [5, 6],
       80: [40, 40],
-      81: [40, 30, 5, 6],
-      90: [40, 30, 10, 10],
-      150: [40, 30, 40, 40],
-      151: [40, 30, 40, 30, 5, 6],
-      300: [40, 30, 40, 30, 40, 30, 40, 30, 10, 10],
+      81: [40, 41],
+      90: [40, 50],
+      150: [40, 110],
+      151: [40, 111],
+      300: [40, 260],
     };
     for (final entry in cases.entries) {
       final rounds = incubationSchedule(entry.key * 60);
@@ -26,7 +26,7 @@ void main() {
           [...List.filled(rounds.length - 1, true), false]);
     }
     expect(incubationSchedule(300 * 60).map((r) => r.eggGrantedSec),
-        [0, 70 * 60, 140 * 60, 210 * 60, 280 * 60]);
+        [0]);
   });
 
   test('80분 경계 전후에서 초를 보존한다', () {
@@ -45,8 +45,7 @@ void main() {
               r.grantsNextEgg
             ]),
         [
-          [0, 2400, 4200, true],
-          [4200, 4500, 4801, false],
+          [0, 2400, 4801, false],
         ]);
   });
 

@@ -36,11 +36,13 @@ void main() {
     await settle();
   }
 
-  test('empty collection is known and summary survives care and another egg',
+  test(
+      'empty collection is known and summary survives care, hatch and a long trip',
       () async {
     await start();
     expect(c.game.regionCollectionKnown, isTrue);
     expect(c.game.uncollectedRegions, ['coast', 'mountain', 'city']);
+    final eggId = c.eggId;
     feed.sample();
     c.care();
     now = 40 * 60000;
@@ -49,7 +51,9 @@ void main() {
     now = 70 * 60000;
     feed.sample(eta: 1200);
     await settle();
-    expect(c.game.stage, Stage.incubating);
+    expect(c.game.stage, Stage.hatched);
+    expect(c.eggId, eggId);
+    expect((await c.dex.all()).single.sourceEggId, eggId);
     expect(c.game.regionCollectionKnown, isTrue);
     expect(feed.wire, isNotEmpty);
     expect(feed.wire.every((s) => s['regionCollectionKnown'] == true), isTrue);

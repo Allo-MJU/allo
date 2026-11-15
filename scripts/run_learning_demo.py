@@ -18,12 +18,17 @@ def main():
     if sys.argv[1:] == ['--check']:
         print('Local emulator configuration valid. No provider call was made.')
         return
-    if sys.argv[1:]:
-        raise SystemExit('Usage: run_learning_demo.py [--check]')
-    key = os.environ.get('OPENAI_API_KEY') or getpass.getpass('OpenAI API key (hidden, not saved): ').strip()
-    if not key:
+    keyless = sys.argv[1:] == ['--without-ai']
+    if sys.argv[1:] and not keyless:
+        raise SystemExit('Usage: run_learning_demo.py [--check|--without-ai]')
+    key = None if keyless else (os.environ.get('OPENAI_API_KEY') or getpass.getpass('OpenAI API key (hidden, not saved): ').strip())
+    if not keyless and not key:
         raise SystemExit('No API key supplied.')
-    os.environ.update(OPENAI_API_KEY=key, ALLO_DEMO_TOKEN=token,
+    if keyless:
+        os.environ.pop('OPENAI_API_KEY', None)
+    else:
+        os.environ['OPENAI_API_KEY'] = key
+    os.environ.update(ALLO_DEMO_TOKEN=token,
                       ALLO_DEMO_HOST='127.0.0.1', ALLO_DEMO_PORT='8787')
     sys.path.insert(0, str(root / 'server/affinity'))
     try:
@@ -31,6 +36,8 @@ def main():
     except ModuleNotFoundError:
         raise SystemExit('Run with server/affinity/.venv/bin/python after installing requirements.') from None
     print('Starting emulator API on 127.0.0.1:8787. Keep this terminal open; Ctrl+C stops it.')
+    if keyless:
+        print('Keyless mode: pairing/legacy authored API checks work; new direct greet/chat requires an API key.')
     app.main()
 
 

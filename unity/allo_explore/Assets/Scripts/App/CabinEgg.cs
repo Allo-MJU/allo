@@ -68,9 +68,7 @@ namespace Allo.App
             new Vector3(surface.center.x, surface.max.y + EggHeight * 0.5f, surface.center.z);
 
         public static bool CanInteract(AppState state, string view, string startedEggId) =>
-            state != null && state.ready && !state.busy && !state.sessionEnded &&
-            string.IsNullOrEmpty(state.learning?.creatureId) &&
-            !(state.story != null && state.story.active && !state.story.paused) &&
+            !CabinInteraction.IsCapturing && state != null && state.ready && state.connected && !state.busy && !state.sessionEnded &&
             ShowEgg(view, state.egg) && state.egg.id == startedEggId && !state.egg.photoBusy && !state.egg.speechBusy;
 
         public static bool ShouldPlayCare(AppState previous, AppState next) => previous?.learning != null && next?.learning != null &&
@@ -270,9 +268,10 @@ namespace Allo.App
         {
             if (_visuals == null) return;
             var egg = _state != null ? _state.egg : null;
-            var active = ShowEgg(_view, egg);
-            var reveal = ShowReveal(_view, egg) && !AppUi.HasSelectedCompanion(_state);
-            _visuals.gameObject.SetActive(_view == "cabin" && (active || reveal || _ending > 0));
+            var connected = _state != null && _state.connected;
+            var active = connected && ShowEgg(_view, egg);
+            var reveal = connected && ShowReveal(_view, egg) && !AppUi.HasSelectedCompanion(_state);
+            _visuals.gameObject.SetActive(_view == "cabin" && connected && (active || reveal || _ending > 0));
             _egg.gameObject.SetActive(active && _available[Mathf.Clamp(egg.zone, 0, 3)]);
             _reveal.gameObject.SetActive(reveal);
             if (reveal && !string.IsNullOrEmpty(egg.sprite) && _revealSprite != egg.sprite)
@@ -327,6 +326,7 @@ namespace Allo.App
             }
             if (_reveal.gameObject.activeSelf && _camera != null)
                 _reveal.rotation = Quaternion.LookRotation(_reveal.position - _camera.transform.position);
+            if (CabinInteraction.IsCapturing) return;
             if (AppSession.StoryActive || StoryOverlay.CapturingInput) { CancelGesture(); return; }
             if (Input.touchCount > 1) { CancelGesture(); return; }
             if (Input.touchCount == 1)

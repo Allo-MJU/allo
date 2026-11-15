@@ -23,6 +23,7 @@ namespace Allo.App
         void OpenVillageFacility(string id)
         {
             if (!CanAct || _confirmAction != null) return;
+            CloseVillageCharacterDetail();
             if (_facility != id || !_campDetail) _scrollPositions.Remove("camp:view:0");
             _facility = id;
             var facility = Items(_state.facilities).FirstOrDefault(f => f.id == id);
@@ -43,6 +44,7 @@ namespace Allo.App
             if (_confirmAction != null) _villageScroll.StopMovement();
             foreach (var entry in _facilityNodes) UpdateFacilityNode(entry.Value, entry.Key);
             UpdateVillageFriend();
+            if (_confirmAction == null) BuildVillageCharacterDetail();
         }
 
         void EnsureVillageWorld()
@@ -143,16 +145,23 @@ namespace Allo.App
                 {
                     marker = Rect("Village friend " + friend.id, _villageContent);
                     marker.pivot = new Vector2(.5f, 0); marker.sizeDelta = new Vector2(136, 150);
+                    var ground = Rect("Walking ground shadow", marker);
+                    ground.anchorMin = ground.anchorMax = new Vector2(.5f, 0); ground.anchoredPosition = new Vector2(0, 29); ground.sizeDelta = new Vector2(76, 10);
+                    var groundImage = ground.gameObject.AddComponent<Image>(); groundImage.sprite = ActionCircleSprite(); groundImage.color = new Color(.05f, .12f, .07f, .24f); groundImage.raycastTarget = false;
                     var portrait = Rect("Friend avatar", marker); Stretch(portrait, 6, 24, -6, 0);
-                    VillageFriendPortrait(portrait, friend.sprite);
+                    var animation = VillageFriendPortrait(portrait, friend.speciesId, friend.sprite);
                     var badge = Surface("Friend name", marker, new Color(.08f, .14f, .11f, .84f), false);
                     Stretch(badge, -15, 0, 15, 24, Vector2.zero, new Vector2(1, 0));
                     var name = Label(badge, friend.name, 17, TextAnchor.MiddleCenter); name.color = Cream; Stretch(name.rectTransform, 4, 0, -4, 0);
                     var hit = marker.gameObject.AddComponent<Image>(); hit.color = Color.clear;
-                    marker.gameObject.AddComponent<Button>().onClick.AddListener(() => { _selectedDex = friend.speciesId; _selectedCreature = friend.id; Navigate("dex"); });
+                    var creatureId = friend.id;
+                    marker.gameObject.AddComponent<Button>().onClick.AddListener(() => OpenVillageFriend(creatureId));
+                    marker.anchorMin = marker.anchorMax = places.First(place => !_villageFriends.Values.Any(other => other.anchorMin == place));
+                    marker.anchoredPosition = Vector2.zero;
+                    _villageWalking[friend.id] = CreateVillageWalk(friend.id, animation);
                     _villageFriends[friend.id] = marker; _villageFriendArt[friend.id] = artKey;
                 }
-                marker.anchorMin = marker.anchorMax = places[i];
+                marker.GetComponent<Button>().interactable = CanAct && _confirmAction == null;
                 marker.Find("Friend name").GetComponentInChildren<Text>().text = friend.name;
             }
         }
@@ -162,9 +171,10 @@ namespace Allo.App
             var marker = _villageFriends[id]; marker.gameObject.SetActive(false);
             if (Application.isPlaying) Destroy(marker.gameObject); else DestroyImmediate(marker.gameObject);
             _villageFriends.Remove(id); _villageFriendArt.Remove(id);
+            _villageWalking.Remove(id);
         }
 
-        void VillageFriendPortrait(RectTransform parent, string sprite)
+        VillageCharacterArt VillageFriendPortrait(RectTransform parent, string speciesId, string sprite)
         {
             var artwork = Rect("Canonical friend artwork", parent); Stretch(artwork);
             var image = artwork.gameObject.AddComponent<RawImage>(); image.color = Color.clear; image.raycastTarget = false;
@@ -174,13 +184,10 @@ namespace Allo.App
             var silhouette = icon.gameObject.AddComponent<Image>(); silhouette.sprite = NavigationIcon("dex"); silhouette.color = Cream; silhouette.raycastTarget = false;
             var hint = Label(fallback, "그림 준비 중", 15, TextAnchor.MiddleCenter); hint.color = Cream;
             Stretch(hint.rectTransform, 0, 6, 0, 28, Vector2.zero, new Vector2(1, 0));
-            if (string.IsNullOrEmpty(sprite)) return;
-            StartCoroutine(SpriteLoader.Load(sprite, art =>
-            {
-                if (image == null) return;
-                image.texture = art[ArtPose.Idle]; image.color = Color.white; fit.aspectRatio = art.Aspect;
-                fallback.gameObject.SetActive(false);
-            }));
+            var animation = artwork.gameObject.AddComponent<VillageCharacterArt>();
+            animation.Bind(speciesId, sprite, fallback.gameObject);
+            animation.SetMotion(false, true, _state?.reducedMotion == true);
+            return animation;
         }
 
         Sprite VillageSprite(string kind)

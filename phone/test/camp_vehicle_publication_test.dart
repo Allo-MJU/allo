@@ -74,7 +74,9 @@ void main() {
 
   test('pairing alone publishes observed kilometer without hatch or selection',
       () async {
-    expect(game.game.stage, Stage.idle);
+    final egg = game.eggId;
+    expect(egg, isNotNull);
+    expect(game.game.stage, Stage.incubating);
     expect(game.fishing.selectedSpeciesId, isNull);
     expect(feed.watches, 1);
     expect(feed.collection['wood'], 0);
@@ -87,7 +89,8 @@ void main() {
     expect(feed.collection['speciesIds'], isEmpty);
     expect(feed.collection['speciesCount'], 0);
     expect(feed.revision, greaterThan(before));
-    expect(game.game.stage, Stage.idle);
+    expect(game.eggId, egg);
+    expect(game.game.stage, Stage.incubating);
     expect(game.fishing.selectedSpeciesId, isNull);
     expect(feed.watches, 1);
   });
@@ -105,7 +108,7 @@ void main() {
     await game.pair(sessionA, pairCode: '123456');
     expect(game.paired, isTrue);
     expect(camp.ready, isFalse);
-    expect(feed.watches, 0);
+    expect(feed.watches, 1);
     retryStore.failLoad = false;
     expect(await camp.load(), isTrue);
     await flushPublication();

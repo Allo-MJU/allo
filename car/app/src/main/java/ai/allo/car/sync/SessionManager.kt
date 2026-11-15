@@ -41,6 +41,14 @@ class SessionManager(private val context: Context) {
     private val rest = FirebaseRest(if (sessionApi.configured) endpoints.databaseUrl else "", tokens = identity,
         databaseNamespace = endpoints.databaseNamespace)
 
+    init {
+        val voice = ai.allo.car.voice.PlazaCloudVoice
+        voice.configure(BuildConfig.ALLO_TTS_BASE_URL, BuildConfig.ALLO_TTS_VOICE_REVISION, BuildConfig.DEBUG,
+            voice.tokenSupplier(BuildConfig.ALLO_TTS_BASE_URL, BuildConfig.DEBUG, BuildConfig.ALLO_TTS_DEV_TOKEN) {
+                identity.token()
+            })
+    }
+
     val caps = CapabilityChecker()
     private val derivation = SignalDerivation()
     private val envTagger = EnvTagger()

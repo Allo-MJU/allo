@@ -114,6 +114,7 @@ public static class AlloBuild
 
         var camGo = new GameObject("Main Camera") { tag = "MainCamera" };
         var cam = camGo.AddComponent<Camera>();
+        camGo.AddComponent<AudioListener>();
         cam.fieldOfView = 72;
         cam.nearClipPlane = 0.02f;
         cam.farClipPlane = 800;
@@ -1261,6 +1262,11 @@ public static class AlloBuild
         PlayerSettings.allowedAutorotateToLandscapeLeft = true;
         PlayerSettings.allowedAutorotateToLandscapeRight = true;
         PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, "ai.allo.explore");
+        // Local cloud-voice testing only (loopback http gateway). Default exports keep http blocked;
+        // the host's debug network config and StoryStreamVoice.ValidEndpoint still limit it to loopback.
+        var allowLocalHttp = System.Environment.GetEnvironmentVariable("ALLO_UNITY_LOCAL_HTTP") == "1";
+        PlayerSettings.insecureHttpOption = allowLocalHttp ? InsecureHttpOption.AlwaysAllowed : InsecureHttpOption.NotAllowed;
+        if (allowLocalHttp) Debug.LogWarning("[AlloBuild] ALLO_UNITY_LOCAL_HTTP=1: local testing export, do not ship");
 
         var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
         {
