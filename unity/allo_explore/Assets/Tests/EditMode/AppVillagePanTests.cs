@@ -1,11 +1,9 @@
 using System;
 using System.Linq;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using Allo.App;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
@@ -108,10 +106,5 @@ public class AppVillagePanTests
     static AppState State(int revision, string view) => new AppState { revision = revision, view = view, ready = true, facilities = new[] { new FacilityState { id = "workshop", label = "작업장", level = 1 }, new FacilityState { id = "kitchen", label = "주방", level = 1 }, new FacilityState { id = "training", label = "훈련장", level = 1 } } };
     T Get<T>(string name) => (T)typeof(AppUi).GetField(name, Private).GetValue(_ui);
     void Call(string name, params object[] args) => typeof(AppUi).GetMethod(name, Private).Invoke(_ui, args);
-    void Render()
-    {
-        var content = Get<RectTransform>("_content"); var old = content.Cast<Transform>().ToArray();
-        foreach (var child in old) LogAssert.Expect(LogType.Error, new Regex("^Destroy may not be called from edit mode! Use DestroyImmediate instead\\."));
-        Call("Render"); foreach (var child in old) if (child != null && !child.gameObject.activeSelf) Object.DestroyImmediate(child.gameObject);
-    }
+    void Render() => Call("Render");
 }

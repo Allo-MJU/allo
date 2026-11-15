@@ -9,6 +9,7 @@ import ai.allo.car.vehicle.GeoPoint
  * ⚠️ 좌표는 이 파일과 NaviHelper 사이에서만 쓰인다. Firebase 로는 지역 태그만 나간다 (절대 규칙 2).
  */
 data class Destination(val region: String, val name: String, val latitude: Double, val longitude: Double) {
+    val placeId: String get() = "place_" + java.security.MessageDigest.getInstance("SHA-256").digest("$region\n$name".toByteArray(Charsets.UTF_8)).take(8).joinToString("") { "%02x".format(it) }
     val point get() = GeoPoint(latitude, longitude)
 }
 

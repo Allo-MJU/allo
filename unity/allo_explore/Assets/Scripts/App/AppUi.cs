@@ -13,7 +13,8 @@ namespace Allo.App
         StoryOverlay _storyOverlay;
         bool _lastStoryUiBlocked, _lastLearningUiBlocked;
         public bool CabinGesturesBlocked => StoryUiBlocked || StoryOverlay.OwnsInput(_state) || _nativeSpeechHidden || _state?.learning?.recording == true;
-        public bool StoryUiBlocked => View == "cabin" && (_speechDrawer || _zoneDrawer || _confirmAction != null);
+        public bool StoryUiBlocked => (View == "cabin" && (_speechDrawer || _zoneDrawer || _confirmAction != null)) ||
+            !string.IsNullOrEmpty(_questId) || _villageSelectionOpen;
         Text _title, _connection, _status;
         Button _pairingTitle;
         Image _statusSurface;
@@ -64,6 +65,8 @@ namespace Allo.App
             OnLearningTargetChanged(state);
             SyncNativeCompanionSpeech(state);
             SyncVillageCharacter(state);
+            SyncVillageSelection(state);
+            SyncQuestCard(state);
             _state = state; _dirty = true;
             _storyOverlay?.Apply(state, StoryUiBlocked || _nativeSpeechHidden);
             if (_villageLayer != null) _villageLayer.gameObject.SetActive(state != null && state.ready && (state.view == "home" || state.view == "camp"));
@@ -235,7 +238,12 @@ namespace Allo.App
             Canvas.ForceUpdateCanvases();
             foreach (var panel in _scrolls)
                 if (panel.Value != null) _scrollPositions[panel.Key] = panel.Value.verticalNormalizedPosition;
-            foreach (Transform child in _content) { child.gameObject.SetActive(false); Destroy(child.gameObject); }
+            for (var i = _content.childCount - 1; i >= 0; i--)
+            {
+                var child = _content.GetChild(i).gameObject;
+                child.SetActive(false);
+                if (Application.isPlaying) Destroy(child); else DestroyImmediate(child);
+            }
             _scrolls.Clear();
             if (_renderedView != View) { _confirmAction = null; _confirmTitle = null; }
             _renderedView = View;
@@ -288,6 +296,7 @@ namespace Allo.App
         void Navigate(string view)
         {
             _confirmAction = null; _confirmTitle = null; _dirty = true;
+            CloseQuestCard(true);
             if (!CanAct) return;
             if (view == "home" || (view == "camp" && View != "camp")) _campDetail = false;
             Send("navigate", new AppAction { view = view });

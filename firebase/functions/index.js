@@ -139,3 +139,50 @@ exports.renewVehiclePairing = onCall(options, async request => {
       value.meta?.paired !== false || !live(value, Date.now()) || ended(value)) throw unavailable();
   return response(sid, value);
 });
+
+exports.recordDestinationVisit = onCall(options, async request => {
+  const uid = identity(request), data = request.data, sid = sessionId(data), now = Date.now();
+  const fields = ['sessionId', 'visitId', 'routeRevision', 'placeId', 'placeName', 'regionTag', 'arrivedAtMs', 'companionIds'];
+  const key = /^[a-zA-Z0-9_-]{1,100}$/;
+  if (Object.keys(data).some(k => !fields.includes(k)) || fields.some(k => !(k in data)) ||
+      !/^visit_[0-9a-f]{16}$/.test(data.visitId) || !/^route_[0-9a-f]{16,32}$/.test(data.routeRevision) ||
+      !/^(place|poi|unknown)_[0-9a-f]{16}$/.test(data.placeId) ||
+      typeof data.placeName !== 'string' || data.placeName.trim() !== data.placeName || !data.placeName.length || data.placeName.length > 120 ||
+      !['coast', 'mountain', 'city', 'unknown'].includes(data.regionTag) ||
+      !Number.isSafeInteger(data.arrivedAtMs) || data.arrivedAtMs <= 0 || data.arrivedAtMs > now + 300000 ||
+      !Array.isArray(data.companionIds) || data.companionIds.length > 1 ||
+      data.companionIds.some(id => typeof id !== 'string' || !key.test(id) || ['__proto__', 'prototype', 'constructor'].includes(id))) {
+    throw new HttpsError('invalid-argument', 'Invalid visit.');
+  }
+  const db = getDatabase(), session = (await db.ref(`sessions/${sid}`).get()).val();
+  if (!session?.acl?.phoneUid || session.acl.carUid !== uid || !Number.isSafeInteger(session.meta?.createdAt) ||
+      data.arrivedAtMs < session.meta.createdAt || data.arrivedAtMs >= session.meta.createdAt + SESSION_TTL) throw unavailable();
+  const visit = {sessionId: sid, routeRevision: data.routeRevision, placeId: data.placeId,
+    placeName: data.placeName, regionTag: data.regionTag, arrivedAtMs: data.arrivedAtMs,
+    companionIds: data.companionIds, evidence: 'destination-arrived'};
+  const comparable = v => JSON.stringify([v.sessionId, v.routeRevision, v.placeId, v.placeName, v.regionTag, v.arrivedAtMs, v.companionIds || [], v.evidence]);
+  let conflict = false;
+  await db.ref(`travelHistory/${session.acl.phoneUid}`).transaction(current => {
+    conflict = false;
+    current ||= {}; current.visits ||= {}; current.places ||= {};
+    const previous = current.visits[data.visitId];
+    if (previous) { conflict = comparable(previous) !== comparable(visit); return; }
+    const storedVisit = {...visit, receivedAtMs: now};
+    current.visits[data.visitId] = storedVisit;
+    for (const companionId of data.companionIds) {
+      current.companions ||= {};
+      const companion = current.companions[companionId] ||= {};
+      companion.places ||= {};
+      const latest = companion.places[data.placeId];
+      if (!latest || data.arrivedAtMs > latest.arrivedAtMs) {
+        companion.places[data.placeId] = {...storedVisit, visitId: data.visitId};
+      }
+    }
+    const place = current.places[data.placeId];
+    current.places[data.placeId] = {placeId: data.placeId, placeName: data.placeName, regionTag: data.regionTag,
+      visitCount: (place?.visitCount || 0) + 1, lastArrivedAtMs: Math.max(place?.lastArrivedAtMs || 0, data.arrivedAtMs)};
+    return current;
+  });
+  if (conflict) throw new HttpsError('already-exists', 'Visit identifier conflict.');
+  return {visitId: data.visitId, recorded: true};
+});

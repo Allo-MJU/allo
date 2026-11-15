@@ -37,6 +37,13 @@
           }
         }
       }
+    },
+    "travelHistory": {
+      "$phoneUid": {
+        ".read": "auth != null && auth.uid == $phoneUid",
+        ".write": false,
+        "visits": { ".indexOn": ["arrivedAtMs"] }
+      }
     }
   }
 }

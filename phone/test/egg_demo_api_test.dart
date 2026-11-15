@@ -56,6 +56,31 @@ void main() {
     });
     expect(await api.companionTurn(body), output);
   });
+  test(
+      'quest templates reuse authenticated transport and preserve nullable targets',
+      () async {
+    final body = {'speciesId': 'bridge_hopper', 'kind': 'story', 'variant': 0};
+    final output = {
+      'schemaVersion': 1,
+      'templateId': 'bridge_hopper_food_0',
+      'templateVersion': 1,
+      'speciesId': 'bridge_hopper',
+      'kind': 'food',
+      'title': '간식 부탁',
+      'text': '베리 간식 하나 나눠 줄래?',
+      'storyId': null,
+      'targetFoodId': 'berry_snack',
+      'targetRegion': null,
+    };
+    server.listen((req) async {
+      expect(req.method, 'POST');
+      expect(req.uri.path, '/v1/companion/quest-template');
+      expect(req.headers.value('authorization'), 'Bearer private-token');
+      expect(jsonDecode(await utf8.decoder.bind(req).join()), body);
+      await reply(req, output);
+    });
+    expect(await api.companionQuestTemplate(body), output);
+  });
   for (final sentiment in SpeechSentiment.values) {
     test('authenticated evaluation ${sentiment.name}', () async {
       server.listen((req) async {

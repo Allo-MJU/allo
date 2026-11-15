@@ -55,6 +55,31 @@ public class AppUiTestPairingTests
         Assert.IsNull(TestConnectionButton());
     }
 
+    [Test]
+    public void RealHostCanOfferAnExplicitTestConnection()
+    {
+        var next = new AppState { revision = 2, view = "pairing", ready = true, testConnectionAvailable = true };
+        AppSession.Receive(next);
+        Call("OnState", next); Call("BuildPairing");
+        Assert.IsFalse(next.isDemo);
+        Assert.NotNull(TestConnectionButton());
+        Assert.IsTrue(TestConnectionButton().interactable);
+    }
+
+    [Test]
+    public void RuntimeTestModeOffersReturnInsteadOfFakeRealVehiclePairing()
+    {
+        var next = new AppState { revision = 2, view = "pairing", ready = true, isDemo = true, connected = true, canReturnToVehicle = true };
+        AppSession.Receive(next);
+        Call("OnState", next); Call("BuildPairing");
+        var buttons = _root.GetComponentsInChildren<Button>();
+        var back = buttons.SingleOrDefault(b => b.GetComponentInChildren<Text>()?.text == "실제 차량 연결로 돌아가기");
+        Assert.NotNull(back);
+        Assert.IsFalse(buttons.Any(b => b.GetComponentInChildren<Text>()?.text == "차량 QR 스캔"));
+        LogAssert.Expect(LogType.Log, "[AndroidHost] Unity intent sent");
+        back.onClick.Invoke();
+    }
+
     [TestCase(true, true)]
     [TestCase(false, false)]
     public void UnavailableActionsDisableTestConnectionAndRejectItsIntent(bool ready, bool busy)

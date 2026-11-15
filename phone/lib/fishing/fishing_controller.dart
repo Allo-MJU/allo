@@ -52,6 +52,8 @@ class FishingController {
   bool get hasPendingWrite => _pending != null;
   bool get initialized => _profile != null && _session != null;
   String? get selectedSpeciesId => _entry?['speciesId'] as String?;
+  String? get selectedOwnedCreatureId =>
+      _profile?['selectedOwnedCreatureId'] as String?;
   int get totalRecords => (_entry?['totalRecords'] as int?) ?? 0;
 
   /// Read committed per-acquisition state; same-species records remain distinct.
@@ -214,6 +216,7 @@ class FishingController {
         'revisionHigh': 0,
         'session': null,
         'selected': null,
+        'selectedOwnedCreatureId': null,
         'displayId': _newId(),
         'displayRevision': 0,
         'location': 'car',
@@ -235,6 +238,11 @@ class FishingController {
         p['entries'] is! Map ||
         p['requests'] is! Map ||
         p['transferReceipts'] is! Map ||
+        (p['selectedOwnedCreatureId'] != null &&
+            (p['selected'] == null ||
+                p['selectedOwnedCreatureId'] is! String ||
+                !RegExp(r'^[A-Za-z0-9_-]{1,128}$')
+                    .hasMatch(p['selectedOwnedCreatureId'] as String))) ||
         (p['selected'] != null &&
             !(p['entries'] as Map).containsKey(p['selected']))) {
       throw const FormatException('Invalid profile');
@@ -257,10 +265,17 @@ class FishingController {
     return p;
   }
 
-  Future<void> select(DexEntry entry) => _queue(() async {
+  Future<void> select(DexEntry entry, {String? ownedCreatureId}) =>
+      _queue(() async {
+        if (ownedCreatureId != null &&
+            !RegExp(r'^[A-Za-z0-9_-]{1,128}$').hasMatch(ownedCreatureId)) {
+          throw ArgumentError.value(ownedCreatureId, 'ownedCreatureId');
+        }
         if (!initialized || _pending != null) return;
         final key = jsonEncode(entry.toJson());
-        if (_profile!['selected'] == key && _profile!['location'] == 'car') {
+        if (_profile!['selected'] == key &&
+            _profile!['location'] == 'car' &&
+            selectedOwnedCreatureId == ownedCreatureId) {
           return;
         }
         final p = _clone(_profile!);
@@ -279,6 +294,7 @@ class FishingController {
           },
         );
         p['selected'] = key;
+        p['selectedOwnedCreatureId'] = ownedCreatureId;
         p['location'] = 'car';
         p['displayId'] = _newId();
         p['displayRevision'] = (p['displayRevision'] as int) + 1;

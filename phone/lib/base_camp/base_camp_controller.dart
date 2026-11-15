@@ -120,6 +120,13 @@ class BaseCampController extends ChangeNotifier {
         return true;
       });
 
+  /// The receipt and food inventory share the same camp write.
+  Future<bool> grantCollectionReward(String tripId) =>
+      _mutate((camp, registry, at) {
+        camp.grantCollectionReward(tripId, atMs: at);
+        return true;
+      });
+
   Future<bool> tick() => _mutate((camp, registry, at) => true);
 
   Future<bool> assign(CampRole role, String? creatureId) =>
@@ -159,6 +166,37 @@ class BaseCampController extends ChangeNotifier {
         camp.feedFood(recipeId: recipeId, creatureId: creatureId, atMs: at);
         return true;
       });
+
+  Future<bool> questDue(String creatureId) async {
+    if (!_ready || _disposed) return false;
+    try {
+      return _camp.questDue(creatureId, atMs: max(_camp.nowMs, _clock()));
+    } on CampException {
+      return false;
+    }
+  }
+
+  Future<bool> offerQuest(CompanionQuest quest) =>
+      _mutate((camp, registry, at) => camp.offerQuest(quest, atMs: at));
+  Future<bool> acceptQuest(String creatureId, String questId,
+          {String? targetPlaceId}) =>
+      _mutate((camp, registry, at) => camp.acceptQuest(creatureId, questId,
+          atMs: at, targetPlaceId: targetPlaceId));
+  Future<bool> completeStoryQuest(String creatureId, String questId) =>
+      _mutate((camp, registry, at) =>
+          camp.completeStoryQuest(creatureId, questId, atMs: at));
+  Future<bool> completeTravelQuest(String creatureId, String questId,
+          {required String placeId,
+          required String visitId,
+          required int arrivedAtMs,
+          required List<String> companionIds}) =>
+      _mutate((camp, registry, at) => camp.completeTravelQuest(
+          creatureId, questId,
+          atMs: at,
+          placeId: placeId,
+          visitId: visitId,
+          arrivedAtMs: arrivedAtMs,
+          companionIds: companionIds));
 
   /// Call whenever the existing vehicle stream attaches or resumes.
   /// A stale sample cannot consume the requirement for a fresh baseline.

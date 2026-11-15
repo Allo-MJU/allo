@@ -1,11 +1,9 @@
 using System;
 using System.Linq;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using Allo.App;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
@@ -223,11 +221,5 @@ public class AppVillageCharacterTests
         method.Invoke(_ui, args);
     }
     void Receive(AppState state) { AppSession.Receive(state); Call("OnState", AppSession.State); Render(); }
-    void Render()
-    {
-        var old = Get<RectTransform>("_content").Cast<Transform>().ToArray();
-        foreach (var child in old) LogAssert.Expect(LogType.Error, new Regex("^Destroy may not be called from edit mode! Use DestroyImmediate instead\\."));
-        Call("Render");
-        foreach (var child in old) if (child != null && !child.gameObject.activeSelf) Object.DestroyImmediate(child.gameObject);
-    }
+    void Render() => Call("Render");
 }

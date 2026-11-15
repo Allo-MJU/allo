@@ -287,6 +287,14 @@ void main() {
     snapshot['version'] = 2;
     expect(() => BaseCamp.fromJson(snapshot), throwsA(isA<CampException>()));
   });
+  test('collection reward persists and is idempotent per trip', () {
+    final camp = BaseCamp.empty(nowMs: 0);
+    expect(camp.grantCollectionReward('trip-a', atMs: 0), isTrue);
+    final restored = BaseCamp.fromJson(camp.toJson());
+    expect(restored.grantCollectionReward('trip-a', atMs: 0), isFalse);
+    expect(restored.grantCollectionReward('trip-b', atMs: 0), isTrue);
+    expect(restored.foodInventory['berry_snack'], 6);
+  });
 }
 
 void earn(BaseCamp c, int count) {

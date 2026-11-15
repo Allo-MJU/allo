@@ -24,6 +24,7 @@ void main() {
     rootBundle.evict('assets/data/window_stories_ko.json');
     rootBundle.evict('assets/data/companion_learning.json');
     Map<String, dynamic>? current;
+    Map<String, dynamic>? lastMessage;
     await tester.pumpWidget(AlloApp(
         feed: feed,
         useUnityApp: true,
@@ -32,6 +33,7 @@ void main() {
           receive = onMessage;
           onCreated((json) {
             final message = jsonDecode(json) as Map<String, dynamic>;
+            if (message['type'] == 'app') lastMessage = message;
             if (message['type'] == 'app' &&
                 ((message['ready'] == true && message['busy'] == false) ||
                     message['error'] != '')) {
@@ -49,7 +51,7 @@ void main() {
       await tester.pump();
     }
     expect(current, isNotNull,
-        reason: 'Unity app did not finish automatic trip preparation');
+        reason: 'Unity app did not finish automatic trip preparation: ${jsonEncode(lastMessage)}');
     expect(current!['ready'], isTrue, reason: current!['error'] as String);
     await tester.pump();
     return current!;

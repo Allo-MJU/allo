@@ -10,7 +10,11 @@ namespace Allo.App
         public long revision;
         public string view = "home";
         public bool ready, busy, connected, pairingScanAvailable, isDemo, canStart, sessionEnded, speechAvailable, photoAvailable;
+        public bool testConnectionAvailable, canReturnToVehicle;
         public bool gyro = true, reducedMotion;
+        public bool villageSelectionReady, collectionRewardForTrip;
+        public string villageSelectionRequestId;
+        public string[] villageCreatureIds;
         public string error, notice, rewardStatus;
         public int fishingRecords;
         public string fishingError;
@@ -25,6 +29,15 @@ namespace Allo.App
         public FoodState[] foods = Array.Empty<FoodState>();
         public TrainingState[] training = Array.Empty<TrainingState>();
         public DexState[] dex = Array.Empty<DexState>();
+        public QuestState[] quests = Array.Empty<QuestState>();
+    }
+
+    [Serializable] public sealed class QuestCandidateState { public string placeId, name, region; }
+    [Serializable] public sealed class QuestState
+    {
+        public string creatureId, questId, status, kind, title, text, error, requirement, targetPlaceId;
+        public bool available, opened, busy;
+        public QuestCandidateState[] candidates = Array.Empty<QuestCandidateState>();
     }
 
     [Serializable] public sealed class StoryChoice { public string id, label; }
@@ -77,7 +90,8 @@ namespace Allo.App
         public int v = 1;
         public string type = "appAction";
         public string requestId, action, view, eggId, tier, role, creatureId, targetId, facility, recipeId, actionId, text, sessionId, pairCode;
-        public string instanceId, nodeId, topicId, speciesId;
+        public string instanceId, nodeId, topicId, speciesId, questId, placeId;
+        public string[] creatureIds;
         public int storyRevision, storyPresentationRevision;
         public bool blocked, open;
         public int zone;

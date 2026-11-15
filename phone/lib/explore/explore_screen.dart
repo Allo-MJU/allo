@@ -138,7 +138,8 @@ class _ExploreScreenState extends State<ExploreScreen>
     _link.post(
         'route',
         routeMessage(c.vehicle?.turns ?? const [],
-            headingDeg: c.vehicle?.headingDeg));
+            headingDeg: c.vehicle?.headingDeg,
+            cornering: c.vehicle?.cornering));
     final g = c.game;
     if (g.stage == Stage.incubating) {
       _hatchShown = false;

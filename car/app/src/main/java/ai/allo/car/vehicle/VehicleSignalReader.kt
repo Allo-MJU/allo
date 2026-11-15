@@ -50,6 +50,8 @@ class VehicleSignalReader(context: Context, private val caps: CapabilityChecker)
 
     private val unregisters = mutableListOf<() -> Unit>()
     @Volatile private var started = false
+    private val cornering = CorneringSignal()
+    @Volatile private var steeringEpoch = 0L
 
     fun start() {
         if (started) return
@@ -60,6 +62,7 @@ class VehicleSignalReader(context: Context, private val caps: CapabilityChecker)
             return
         }
         started = true
+        steeringEpoch++
         startWiper()
         startLowBeam()
         startSeatRow2()
@@ -70,6 +73,9 @@ class VehicleSignalReader(context: Context, private val caps: CapabilityChecker)
 
     fun stop() {
         if (!started) return
+        started = false
+        steeringEpoch++
+        invalidateCornering()
         synchronized(unregisters) {
             unregisters.forEach { runCatching(it).onFailure { e -> Log.w(TAG, "unregister failed", e) } }
             unregisters.clear()
@@ -169,9 +175,16 @@ class VehicleSignalReader(context: Context, private val caps: CapabilityChecker)
 
     private val steeringListener = object : SteeringWheelAngleListener {
         override fun onSteeringWheelAngleUpdated(deg: Float?) {
-            _raw.update { it.copy(steerDeg = deg?.toDouble()) }
+            synchronized(cornering) {
+                if (!started) return
+                _raw.update { it.copy(steerDeg = deg?.toDouble()) }
+                cornering.receive(deg?.toDouble())
+            }
         }
-        override fun onFailed(e: Exception) = logFail(Capability.STEERING, e)
+        override fun onFailed(e: Exception) {
+            invalidateCornering()
+            logFail(Capability.STEERING, e)
+        }
     }
 
     private fun startSteering() {
@@ -180,8 +193,42 @@ class VehicleSignalReader(context: Context, private val caps: CapabilityChecker)
             caps.mark(Capability.STEERING, true)
             register({ wheel.registerSteeringWheelAngle(steeringListener) },
                 { wheel.unregisterSteeringWheelAngle(steeringListener) })
-        }, { unsupported(Capability.STEERING, it) })
+            pollSteering()
+        }, { invalidateCornering(); unsupported(Capability.STEERING, it) })
     }
+
+    private fun invalidateCornering() = synchronized(cornering) {
+        cornering.invalidate()
+    }
+
+    /** Read-only refresh for a held wheel angle. SDK success does not guarantee a new hardware sample. */
+    fun pollSteering() {
+        if (!started || !caps.has(Capability.STEERING)) return
+        val epoch = steeringEpoch
+        val request = cornering.beginRead()
+        try {
+            vehicle.getSteeringWheel().getCurrentSteeringWheelAngle({ degrees ->
+                synchronized(cornering) {
+                    if (started && epoch == steeringEpoch) cornering.completeRead(request, degrees?.toDouble())
+                }
+            }, { error ->
+                synchronized(cornering) {
+                    if (started && epoch == steeringEpoch) {
+                        cornering.failRead(request)
+                        logFail(Capability.STEERING, error)
+                    }
+                }
+            })
+        } catch (error: Exception) {
+            synchronized(cornering) {
+                if (started && epoch == steeringEpoch) cornering.failRead(request)
+            }
+            logFail(Capability.STEERING, error)
+        }
+    }
+
+    fun corneringSnapshot(gear: String, speedKph: Double, speedFresh: Boolean) =
+        cornering.snapshotCurrent(gear, speedKph, caps.has(Capability.STEERING), speedFresh)
 
     // --- 브레이크 페달 ---
 

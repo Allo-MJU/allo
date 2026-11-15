@@ -37,6 +37,7 @@ namespace Allo.App
         {
             if (!CanAct || _confirmAction != null || (View != "home" && View != "camp") ||
                 !Items(_state.creatures).Any(c => c.id == creatureId)) return;
+            CloseQuestCard(true);
             _villagePreviewElapsed = 0;
             _villageCreatureId = creatureId;
             _selectedCreature = creatureId;
@@ -48,6 +49,13 @@ namespace Allo.App
 
         public bool CloseVillageCharacterDetail()
         {
+            if (_villageSelectionOpen) { CloseVillageSelection(); return true; }
+            if (_confirmAction != null && !string.IsNullOrEmpty(_questId))
+            {
+                _confirmAction = null; _confirmTitle = null; _confirmDescription = null;
+                _dirty = true; return true;
+            }
+            if (_confirmAction == null && CloseQuestCard(true)) return true;
             if (string.IsNullOrEmpty(_villageCreatureId)) return false;
             if (_confirmAction != null) { _confirmAction = null; _confirmTitle = null; }
             else _villageCreatureId = null;
@@ -90,7 +98,7 @@ namespace Allo.App
             if (_state == null) return;
             var dt = Mathf.Max(0, deltaTime);
             var village = View == "home" || View == "camp";
-            var protectedInput = !CanAct || !village || _state.reducedMotion || _confirmAction != null ||
+            var protectedInput = !CanAct || !village || _villageSelectionOpen || _state.reducedMotion || _confirmAction != null ||
                 (View == "camp" && _campDetail) || !string.IsNullOrEmpty(_villageCreatureId) ||
                 Input.GetMouseButton(0) || Input.touchCount > 0 ||
                 (_villageScroll != null && _villageScroll.velocity.sqrMagnitude > 4);
@@ -155,9 +163,10 @@ namespace Allo.App
             var header = NewRow(panel, 48);
             header.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = false;
             var title = Copy(header, creature.name, 31); title.GetComponent<LayoutElement>().flexibleWidth = 1;
-            var close = Button(header, "상세 닫기", () => CloseVillageCharacterDetail(), Cream, 44, true, 19);
+            var close = Button(header, "상세 닫기", () => { CloseQuestCard(true); CloseVillageCharacterDetail(); }, Cream, 44, true, 19);
             var closeSize = close.GetComponent<LayoutElement>(); closeSize.flexibleWidth = 0; closeSize.minWidth = closeSize.preferredWidth = 110;
             var role = Copy(panel, RoleLabel(creature.role), 22); role.color = Hex("53765B");
+            BuildQuestSection(panel, creature.id);
 
             var stage = Surface("Character animation stage", panel, Hex("E2E9DC"), false);
             var stageSize = stage.gameObject.AddComponent<LayoutElement>(); stageSize.minHeight = stageSize.preferredHeight = 202;

@@ -39,7 +39,7 @@ class StoryStoreOwner {
   final StoryStore _store;
   final _StoryWriteQueue _queue;
   bool get owns => identical(_queue.owner, this);
-  Future<void> flush() => _queue.tail;
+  Future<void> flush() => _queue.tail ?? Future<void>.value();
   Future<String?> read() async {
     await flush();
     if (!owns) return null;
@@ -58,7 +58,7 @@ class StoryStoreOwner {
 
   Future<void> write(String value) {
     if (!owns) return Future.error(StateError('Story owner replaced'));
-    final next = _queue.tail.then((_) async {
+    final next = (_queue.tail ?? Future<void>.value()).then((_) async {
       try {
         await _store.write(value);
         _queue.committedValue = value;
@@ -71,7 +71,11 @@ class StoryStoreOwner {
         rethrow;
       }
     });
-    _queue.tail = next.catchError((Object _) {});
+    final tail = next.catchError((Object _) {});
+    _queue.tail = tail;
+    tail.whenComplete(() {
+      if (identical(_queue.tail, tail)) _queue.tail = null;
+    });
     return next;
   }
 
@@ -84,5 +88,5 @@ class _StoryWriteQueue {
   StoryStoreOwner? owner;
   String? committedValue;
   bool hasCommittedValue = false, failedWrite = false;
-  Future<void> tail = Future.value();
+  Future<void>? tail;
 }

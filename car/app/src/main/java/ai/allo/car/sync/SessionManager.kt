@@ -10,12 +10,16 @@ import ai.allo.car.dialogue.DialogueBank
 import ai.allo.car.gleo.AcceptResult
 import ai.allo.car.gleo.DestinationFlow
 import ai.allo.car.gleo.DestinationSuggester
+import ai.allo.car.gleo.Destination
 import ai.allo.car.gleo.GleoFunctions
 import ai.allo.car.gleo.TravelRequestFlow
 import ai.allo.car.mirror.ParkedMirrorGate
 import ai.allo.car.gleo.RegionSummary
 import ai.allo.car.voice.DriverVoice
 import ai.allo.car.navi.NaviEtaReader
+import ai.allo.car.navi.DestinationVisitTracker
+import ai.allo.car.navi.VisitOutbox
+import ai.allo.car.navi.DestinationVisit
 import ai.allo.car.voice.HatchAnnouncement
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -89,6 +93,35 @@ class SessionManager(private val context: Context) {
     val vehicle: StateFlow<VehicleSnapshot?> = _vehicle
     /** 내비 ETA. 경로 안내 중이 아니면 null → 폰은 거리 폴백 */
     val naviEta = NaviEtaReader(context)
+    private val visitTracker = DestinationVisitTracker()
+    private val visitPrefs = context.getSharedPreferences("destination_visits", Context.MODE_PRIVATE)
+    private val visitOutbox = VisitOutbox({ visitPrefs.getString("pending", "[]") ?: "[]" },
+        { visitPrefs.edit().putString("pending", it).commit() })
+    private val unpersistedVisits = mutableListOf<DestinationVisit>()
+
+    private fun requestDestination(destination: Destination): Boolean {
+        visitTracker.expect(destination)
+        val accepted = naviEta.requestRoute(destination.latitude, destination.longitude, destination.name)
+        if (!accepted) visitTracker.cancel()
+        return accepted
+    }
+
+    @Synchronized private fun queueVisit(visit: DestinationVisit) {
+        if (!runCatching { visitOutbox.add(visit) }.getOrDefault(false)) unpersistedVisits.add(visit)
+    }
+
+    private suspend fun retryVisits() {
+        while (currentCoroutineContext().isActive) {
+            synchronized(this) {
+                unpersistedVisits.removeAll { runCatching { visitOutbox.add(it) }.getOrDefault(false) }
+            }
+            for (visit in runCatching { visitOutbox.pending() }.getOrDefault(emptyList())) {
+                if (runCatching { sessionApi.recordVisit(visit) }.isSuccess) visitOutbox.remove(visit.visitId)
+            }
+            delay(15_000)
+        }
+    }
+
     /** Gleo 목적지 제안 → 수락 */
     val destinations = DestinationFlow()
     /** 폰 도감의 지역 수집 요약. /game raw JSON 에서 정규화한다. 바뀌면 제안 캐시를 비운다 */
@@ -210,7 +243,7 @@ class SessionManager(private val context: Context) {
     fun acceptTravel(token: Long, index: Int) {
         syncFeatureState()
         val result = travel.accept(token, index, travelContext(), naviEta.guidance.value) { d ->
-            naviEta.requestRoute(d.latitude, d.longitude, d.name)
+            requestDestination(d)
         }
         _travelMessage.value = when (result) {
             is AcceptResult.Started -> "내비 요청이 접수됐어요. 방문 확인은 폰에서 해 주세요."
@@ -311,7 +344,25 @@ class SessionManager(private val context: Context) {
         if (!aaos.start()) caps.mark(Capability.SPEED, false) // 권한 허용 후 onSpeedPermissionGranted 에서 다시 true
         vehicleReader.start()
         voice.start()
+        naviEta.onVisitRouteStarted = {
+            if (_gameConnected.value && _meta.value.paired && !_ended.value) visitTracker.start(sessionId)
+            else visitTracker.cancel()
+        }
+        naviEta.onVisitDestination = { name, provider, poi, sub, lat, lon ->
+            visitTracker.destination(sessionId, name, provider, poi, sub, lat, lon)
+        }
+        naviEta.onVisitRouteCancelled = { visitTracker.cancel() }
+        naviEta.onVisitRouteEnded = { visitTracker.end() }
+        naviEta.onVisitArrived = { name, at ->
+            val game = _game.value
+            val companionId = game.companion?.ownedCreatureId?.takeIf {
+                _gameConnected.value && _meta.value.paired && game.hasV2Contract &&
+                    game.companion.location in setOf("car", "phone")
+            }
+            visitTracker.arrive(sessionId, name, at, listOfNotNull(companionId))?.let(::queueVisit)
+        }
         naviEta.start { ok -> caps.mark(Capability.ETA, ok); caps.mark(Capability.TURNS, ok) }
+        scope.launch { retryVisits() }
         scope.launch { announceHatch() }
         beginSession()
         scope.launch { publishLoop() }
@@ -355,7 +406,7 @@ class SessionManager(private val context: Context) {
         // 수락 직전 확인: 제안 뒤에 그 지역을 수집했으면 그 제안은 더 유효하지 않다
         val r = destinations.accept(naviEta.guidance.value,
             stillValid = { d -> d.region in DestinationSuggester.allowedRegions(_regions.value) },
-        ) { d -> naviEta.requestRoute(d.latitude, d.longitude, d.name) }
+        ) { d -> requestDestination(d) }
         if (r is AcceptResult.Started) {
             val d = r.destination
             scope.launch { runCatching { emitEvent("destinationSuggest", mapOf("region" to d.region, "status" to "accepted")) } }
@@ -381,15 +432,24 @@ class SessionManager(private val context: Context) {
         val request = pairingRefresh.begin(sessionId, _meta.value.paired, hasParkingPermission(),
             _ended.value, rest.isConfigured && sessionReady.isCompleted) ?: return
         _pairingRefreshUi.value = pairingRefresh.ui
+        val requestedMeta = _meta.value
         scope.launch {
-            val result = runCatching { sessionApi.renew(request.sessionId, _meta.value.carAppVersion, request.requestId) }
+            val result = runCatching {
+                sessionApi.renewOrCheckExpired(request.sessionId, requestedMeta, request.requestId, System.currentTimeMillis())
+            }
             synchronized(this@SessionManager) {
                 if (request.sessionId != sessionId) return@synchronized
-                // Do not regress a paired SSE update arriving while the callable returns.
-                if (result.isSuccess) _meta.update { current ->
-                    if (current.paired) current else result.getOrThrow()
+                val renewed = result.getOrNull()
+                if (result.isSuccess && renewed == null && canReplaceExpiredPairing(request.sessionId, sessionId,
+                        _meta.value, System.currentTimeMillis(), hasParkingPermission(), _ended.value)) {
+                    beginSession()
+                    return@synchronized
                 }
-                pairingRefresh.complete(request, result.isSuccess)
+                // Do not regress a paired SSE update arriving while the callable returns.
+                if (renewed != null) _meta.update { current ->
+                    if (current.paired) current else renewed
+                }
+                pairingRefresh.complete(request, renewed != null || _meta.value.paired)
                 _pairingRefreshUi.value = pairingRefresh.ui
             }
         }
@@ -422,7 +482,7 @@ class SessionManager(private val context: Context) {
         pairingRefresh.reset(); _pairingRefreshUi.value = pairingRefresh.ui
         val id = UUID.randomUUID().toString()
         val ready = CompletableDeferred<Unit>()
-        derivation.reset(); endDetector.reset(); destinations.reset(); travel.reset(); gameReducer.reset()
+        derivation.reset(); endDetector.reset(); destinations.reset(); travel.reset(); gameReducer.reset(); visitTracker.cancel()
         gameRaw = JsonObject(emptyMap())
         fishingFreshness = FishingFreshness()
         fishingEpoch = UUID.randomUUID().toString(); fishingSequence = 0
@@ -531,6 +591,7 @@ class SessionManager(private val context: Context) {
         while (currentCoroutineContext().isActive) {
             val now = System.currentTimeMillis()
             if (tick++ % 10 == 0L) naviEta.poll() // 남은 시간 이벤트가 뜸한 구간 보강 (10초)
+            vehicleReader.pollSteering()
             val a = aaos.state.value
             val r = vehicleReader.raw.value
             derivation.update(now, a.speedKph, r.steerDeg, r.odometerM)
@@ -550,6 +611,7 @@ class SessionManager(private val context: Context) {
                 headingDeg = routeSim?.headingDeg(derivation.distanceM) ?: naviEta.headingDeg.value,
                 capabilities = caps.snapshot(),
                 fishingPresence = fishingPresence(),
+                cornering = vehicleReader.corneringSnapshot(a.gear, a.speedKph, aaos.motion.value.fresh),
             )
             if (BuildConfig.DEBUG && snap.copy(ts = 0) != _vehicle.value?.copy(ts = 0)) {
                 android.util.Log.d("SessionManager", "vehicle $snap") // 디버그 빌드만. 값이 바뀔 때만
@@ -631,11 +693,13 @@ class SessionManager(private val context: Context) {
         while (currentCoroutineContext().isActive) {
             runCatching {
                 rest.stream("sessions/$id/meta").collect { ev ->
-                    if (id != sessionId) return@collect   // 이미 다음 세션
-                    if (ev.data is JsonObject && (ev.data as JsonObject)["paired"]?.jsonPrimitive?.booleanOrNull == true)
-                        _meta.update { it.copy(paired = true) }
-                    if (ev.path == "/paired" && ev.data.jsonPrimitive.booleanOrNull == true)
-                        _meta.update { it.copy(paired = true) }
+                    synchronized(this@SessionManager) {
+                        if (id != sessionId) return@collect   // 이미 다음 세션
+                        if (ev.data is JsonObject && (ev.data as JsonObject)["paired"]?.jsonPrimitive?.booleanOrNull == true)
+                            _meta.update { it.copy(paired = true) }
+                        if (ev.path == "/paired" && ev.data.jsonPrimitive.booleanOrNull == true)
+                            _meta.update { it.copy(paired = true) }
+                    }
                 }
             }
             delay(2_000)

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../explore/explore_screen.dart';
 import '../explore/unity_channel.dart';
@@ -24,6 +25,8 @@ class UnityAppScreen extends StatefulWidget {
 class _UnityAppScreenState extends State<UnityAppScreen>
     with WidgetsBindingObserver {
   VoidCallback? _resume;
+  void Function(String)? _send;
+  bool _bridgeReady = false, _unityActive = true;
   Completer<PairingCredentials?>? _scanCancellation;
   MaterialPageRoute<PairingCredentials>? _scannerRoute;
   NavigatorState? _scannerNavigator;
@@ -53,7 +56,37 @@ class _UnityAppScreenState extends State<UnityAppScreen>
       _unregisterScanner(oldWidget.controller);
       _cancelScanner();
       _registerScanner();
+      final send = _send;
+      if (send != null) {
+        widget.controller.attach(send, replacing: oldWidget.controller);
+        unawaited(_restoreBridge(widget.controller));
+      } else {
+        oldWidget.controller.detach();
+      }
     }
+  }
+
+  Future<void> _restoreBridge(UnityAppController controller) async {
+    await controller.handleMessage(
+        jsonEncode({'v': 1, 'type': 'appLifecycle', 'active': _unityActive}));
+    if (mounted && widget.controller == controller && _bridgeReady) {
+      await controller.handleMessage('{"type":"ready"}');
+    }
+  }
+
+  void _onUnityMessage(String message) {
+    try {
+      final value = jsonDecode(message);
+      if (value is Map) {
+        if (value['type'] == 'ready') _bridgeReady = true;
+        if (value['v'] == 1 &&
+            value['type'] == 'appLifecycle' &&
+            value['active'] is bool) {
+          _unityActive = value['active'];
+        }
+      }
+    } on FormatException {/* The controller rejects malformed messages. */}
+    unawaited(widget.controller.handleMessage(message));
   }
 
   Future<PairingCredentials?> _scanPairingQr() async {
@@ -129,6 +162,7 @@ class _UnityAppScreenState extends State<UnityAppScreen>
   @override
   void dispose() {
     _unregisterScanner(widget.controller);
+    widget.controller.detach();
     _cancelScanner();
     WidgetsBinding.instance.removeObserver(this);
     unityExploreOpen.value = false;
@@ -140,11 +174,10 @@ class _UnityAppScreenState extends State<UnityAppScreen>
       color: Colors.black,
       child: widget.unityView(
         onCreated: (send, [resume]) {
+          _send = send;
           _resume = resume;
           widget.controller.attach(send);
         },
-        onMessage: (message) {
-          unawaited(widget.controller.handleMessage(message));
-        },
+        onMessage: _onUnityMessage,
       ));
 }

@@ -15,8 +15,10 @@ import '../learning/learning_catalog.dart';
 import '../learning/learning_store.dart';
 import '../explore/explore_messages.dart';
 import '../game/game_controller.dart';
+import '../quests/companion_quest_coordinator.dart';
 import '../pairing/pairing_credentials.dart';
 import 'unity_demo_creatures.dart';
+import 'village_selection_store.dart';
 import '../scene/window_scene.dart';
 import '../story/story_voice_config.dart';
 import '../story/story_director.dart';
@@ -30,12 +32,18 @@ class UnityAppController extends ChangeNotifier {
       {required this.game,
       required this.camp,
       this.demoCreatures = false,
+      VillageSelectionStore? villageSelectionStore,
+      CompanionQuestCoordinator? quests,
       CompanionLearningController? learning,
       StoryDirector? story,
       this.pairingScanner,
+      this.onStartTestConnection,
+      this.onReturnToVehicle,
       Future<String?> Function()? speechInput,
       Future<Uint8List?> Function()? photoInput})
-      : _speechInput =
+      : _villageSelectionStore =
+            villageSelectionStore ?? PreferencesVillageSelectionStore(),
+        _speechInput =
             speechInput ?? (() => _nativeInput.invokeMethod<String>('speech')),
         _photoInput = photoInput ??
             (() => _nativeInput.invokeMethod<Uint8List>('photo')) {
@@ -46,11 +54,59 @@ class UnityAppController extends ChangeNotifier {
     _learning?.addListener(_learningChanged);
     _story = story;
     _story?.addListener(_storyChanged);
+    _quests = quests ??
+        CompanionQuestCoordinator(
+            game: game, camp: camp, onTravelRequest: _proposeQuestTravel);
+    _quests.addListener(_changed);
   }
 
   final GameController game;
   final BaseCampController camp;
+  final Future<bool> Function()? onStartTestConnection;
+  final Future<bool> Function()? onReturnToVehicle;
+  late final CompanionQuestCoordinator _quests;
+
+  Future<bool> _proposeQuestTravel(
+      String creatureId, String questId, String region, String placeId) async {
+    if (_disposed || !game.paired || game.sessionEnded || game.endingSession)
+      return false;
+    final entry = await camp.ownedEntryForCreature(creatureId);
+    if (entry == null ||
+        _disposed ||
+        !await game.selectCarCompanion(entry, creatureId: creatureId))
+      return false;
+    return game.proposeQuestTravel(questId, region, placeId);
+  }
+
   final bool demoCreatures;
+  final VillageSelectionStore _villageSelectionStore;
+  List<String>? _villageCreatureIds;
+  String _villageSelectionRequestId = '';
+  bool _villageSelectionReady = false;
+  String get _villageProfile =>
+      '${game.isFake ? 'demo' : 'real'}:${game.dex.namespace}:${game.dex.profile}';
+  List<String> get _visibleVillageIds => !_villageSelectionReady
+      ? const []
+      : (_villageCreatureIds ?? camp.state.creatures.keys.take(4).toList())
+          .where(camp.state.creatures.containsKey)
+          .toList();
+
+  Future<bool> _loadVillageSelection() async {
+    try {
+      final ids = await _villageSelectionStore.read(_villageProfile);
+      if (_disposed) return false;
+      _villageCreatureIds = ids;
+      _villageSelectionReady = true;
+      return true;
+    } catch (_) {
+      if (!_disposed) {
+        _villageSelectionReady = false;
+        _error = '마을 친구 선택을 불러오지 못했어요. 새로고침해 주세요.';
+      }
+      return false;
+    }
+  }
+
   Future<PairingCredentials?> Function()? pairingScanner;
   bool _scanningPairing = false;
   int _pairingGeneration = 0, _navigationGeneration = 0;
@@ -93,7 +149,8 @@ class UnityAppController extends ChangeNotifier {
   bool _bindingHatchTarget = false, _retryHatchBinding = false;
   Future<void> _tail = Future.value();
   void Function(String)? _send;
-  bool _unityReady = false;
+  bool _unityReady = false, _bridgeDetached = false;
+  int _bridgeGeneration = 0;
 
   WindowScene _shownScene = WindowScene.initial;
   bool _learningUiBlocked = false;
@@ -107,27 +164,35 @@ class UnityAppController extends ChangeNotifier {
   bool _unityActive = true;
   AppLifecycleState _hostLifecycle = AppLifecycleState.resumed;
 
-  Future<void> setHostLifecycle(AppLifecycleState state) async {
-    if (state == AppLifecycleState.detached) _pairingGeneration++;
+  Future<bool> setHostLifecycle(AppLifecycleState state) async {
+    if (state == AppLifecycleState.detached) {
+      _pairingGeneration++;
+      _bridgeGeneration++;
+    }
     if (_hostLifecycle != state &&
         state != AppLifecycleState.resumed &&
         !_nativeCompanionSpeech) {
       _learning?.invalidate();
     }
     _hostLifecycle = state;
-    await _syncGameActive();
+    if (state != AppLifecycleState.detached) _bridgeDetached = false;
+    if (state == AppLifecycleState.detached) _pauseStory();
+    _quests
+        .setActive(!(_bridgeDetached || state == AppLifecycleState.detached));
+    final saved = await _syncGameActive();
     _changed();
+    return saved;
   }
 
-  Future<void> _syncGameActive() async {
-    if (_disposed) return;
+  Future<bool> _syncGameActive() async {
+    if (_disposed) return false;
     final active = _hostLifecycle != AppLifecycleState.detached &&
         (_hostLifecycle == AppLifecycleState.resumed ||
             _unityActive ||
             _nativeSpeech ||
             _nativePhoto ||
             _nativeCompanionSpeech);
-    await game.setAppActive(active);
+    return game.setAppActive(active);
   }
 
   Future<bool> initialize() async {
@@ -152,6 +217,7 @@ class UnityAppController extends ChangeNotifier {
       final loaded =
           camp.ready ? await camp.refreshOwnership() : await camp.load();
       await _readCounts();
+      await _loadVillageSelection();
       if (_disposed) return false;
       if (_learning == null) {
         final catalog = LearningCatalog.fromJson(jsonDecode(await rootBundle
@@ -171,6 +237,8 @@ class UnityAppController extends ChangeNotifier {
       _ready = loaded;
       await _initializeStory();
       _changed();
+      // Optional history and quest preparation must not hold the village startup.
+      unawaited(_quests.initialize());
       return loaded;
     } catch (_) {
       _error = '앱 정보를 불러오지 못했어요. 새로고침해 주세요.';
@@ -190,7 +258,8 @@ class UnityAppController extends ChangeNotifier {
         if (_disposed) return;
         _story = StoryDirector(
             packs: packs,
-            store: SharedPreferencesStoryStore(),
+            // Preserve installed pilot saves while isolating test-trip progress.
+            store: SharedPreferencesStoryStore(prefix: game.dex.profile == 'test-connection' ? '${game.dex.namespace}profile.test-connection.unityApp.story.v1' : 'unityApp.story.v1'),
             playableTopics: const {'coast_sail'});
         _story!.addListener(_storyChanged);
       }
@@ -206,6 +275,15 @@ class UnityAppController extends ChangeNotifier {
     }
   }
 
+  Future<void> reloadSettings() async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.reload();
+    if (_disposed) return;
+    gyro = preferences.getBool('unityApp.gyro') ?? true;
+    reducedMotion = preferences.getBool('unityApp.reducedMotion') ?? false;
+    _changed();
+  }
+
   Future<void> _readCounts() async {
     final counts = <String, int>{};
     for (final entry in await game.dex.all()) {
@@ -214,9 +292,32 @@ class UnityAppController extends ChangeNotifier {
     if (!_disposed) _counts = counts;
   }
 
-  void attach(void Function(String) send) {
+  void attach(void Function(String) send, {UnityAppController? replacing}) {
+    if (_disposed) return;
+    if (replacing != null && !identical(replacing, this)) {
+      replacing.detach();
+      // One Unity engine retains its last accepted revision across mode switches.
+      _revision = math.max(_revision, replacing._revision) + 1;
+    }
+    _bridgeDetached = false;
+    _quests.setActive(_hostLifecycle != AppLifecycleState.detached);
     _send = send;
     _publish();
+  }
+
+  void detach() {
+    if (_disposed) return;
+    _send = null;
+    _unityReady = false;
+    _unityActive = false;
+    _bridgeDetached = true;
+    _quests.setActive(false);
+    _pauseStory();
+    _bridgeGeneration++;
+    _pairingGeneration++;
+    _companionInputGeneration++;
+    _learning?.invalidate();
+    _changed();
   }
 
   Map<String, dynamic> _readEgg() {
@@ -278,10 +379,16 @@ class UnityAppController extends ChangeNotifier {
           _error.isNotEmpty ? _error : game.error ?? _campError(camp.error),
       'notice': _notice.isNotEmpty ? _notice : game.pairingNotice ?? '',
       'connected': game.paired && !_disconnected && !game.sessionEnded,
-      'pairingScanAvailable': pairingScanner != null,
+      'pairingScanAvailable':
+          pairingScanner != null && onReturnToVehicle == null,
       'isDemo': game.isFake,
+      'testConnectionAvailable':
+          game.isFake || (onStartTestConnection != null && !game.paired),
+      'canReturnToVehicle': onReturnToVehicle != null,
       'canStart': false,
       'sessionEnded': game.sessionEnded,
+      'collectionRewardForTrip': game.collectionRewardForTrip,
+      'quests': _quests.snapshot,
       'speechAvailable': game.eggApi != null,
       'photoAvailable': game.eggApi != null,
       'gyro': gyro,
@@ -324,6 +431,9 @@ class UnityAppController extends ChangeNotifier {
         for (final facility in CampFacility.values)
           _facility(c, facility, affordable)
       ],
+      'villageCreatureIds': _visibleVillageIds,
+      'villageSelectionReady': _villageSelectionReady,
+      'villageSelectionRequestId': _villageSelectionRequestId,
       'creatures': [
         for (final creature in c.creatures.values)
           {
@@ -492,6 +602,7 @@ class UnityAppController extends ChangeNotifier {
       !game.busy &&
       _pending == 0 &&
       !_storyUiBlocked &&
+      !_quests.snapshot.any((quest) => quest['busy'] == true) &&
       !_nativeSpeech &&
       !_nativePhoto &&
       !_nativeCompanionSpeech &&
@@ -561,6 +672,8 @@ class UnityAppController extends ChangeNotifier {
         ],
         active: _learningActive ||
             (_nativeCompanionSpeech &&
+                !_bridgeDetached &&
+                _hostLifecycle != AppLifecycleState.detached &&
                 !_learningUiBlocked &&
                 view == 'cabin' &&
                 !_disconnected &&
@@ -680,7 +793,8 @@ class UnityAppController extends ChangeNotifier {
     _send?.call(jsonEncode(snapshot));
     _send?.call(sceneMessage(_shownScene));
     _send?.call(routeMessage(game.vehicle?.turns ?? const [],
-        headingDeg: game.vehicle?.headingDeg));
+        headingDeg: game.vehicle?.headingDeg,
+        cornering: game.vehicle?.cornering));
     _send?.call(jsonEncode({
       ...jsonDecode(settingsMessage(
           gyro: gyro,
@@ -711,9 +825,11 @@ class UnityAppController extends ChangeNotifier {
     'discardEgg'
   };
   static const _actions = {
+    ..._questActions,
     'navigate',
     'pair',
     'testPair',
+    'returnToVehicle',
     'scanPairingQr',
     'disconnect',
     'refresh',
@@ -733,6 +849,7 @@ class UnityAppController extends ChangeNotifier {
     'feedFood',
     'performAction',
     'selectCarCompanion',
+    'setVillageFriends',
     'retryFishingSave',
     'settings',
     ..._learningActions,
@@ -744,6 +861,14 @@ class UnityAppController extends ChangeNotifier {
   };
   static bool _string(Object? value, [int max = 256]) =>
       value is String && value.trim().isNotEmpty && value.length <= max;
+  static const _questActions = {
+    'openQuest',
+    'laterQuest',
+    'acceptQuest',
+    'observeQuest',
+    'requestQuestTravel'
+  };
+
   bool _currentEgg(Map<String, dynamic> m) =>
       !_storyCapturing &&
       !_disconnected &&
@@ -766,6 +891,14 @@ class UnityAppController extends ChangeNotifier {
     if (_eggActions.contains(m['action']) &&
         (!_string(m['eggId'], 200) || !_currentEgg(m))) {
       return false;
+    }
+    if (_questActions.contains(m['action'])) {
+      return _string(m['creatureId']) &&
+          _string(m['questId'], 200) &&
+          (m['placeId'] == null ||
+              m['placeId'] == '' ||
+              _string(m['placeId'], 128)) &&
+          camp.state.creatures.containsKey(m['creatureId']);
     }
     return switch (m['action']) {
       'storyNotebook' => m['open'] is bool,
@@ -805,6 +938,11 @@ class UnityAppController extends ChangeNotifier {
         _string(m['creatureId']) && _string(m['speciesId']),
       'learningMute' => m['value'] == null || m['value'] is bool,
       'commonCare' => _commonActions.contains(m['actionId']) && view == 'cabin',
+      'setVillageFriends' => m['creatureIds'] is List &&
+          (m['creatureIds'] as List).length <= 4 &&
+          (m['creatureIds'] as List).every((id) => _string(id)) &&
+          (m['creatureIds'] as List).toSet().length ==
+              (m['creatureIds'] as List).length,
       'selectCarCompanion' => _string(m['creatureId']),
       'performAction' => CampCatalog.lessons.containsKey(m['actionId']) &&
           _string(m['creatureId']),
@@ -814,7 +952,7 @@ class UnityAppController extends ChangeNotifier {
   }
 
   Future<bool> handleMessage(String json) async {
-    if (_disposed || json.length > 8192) return false;
+    if (_disposed || _bridgeDetached || json.length > 8192) return false;
     Object? decoded;
     try {
       decoded = jsonDecode(json);
@@ -850,6 +988,7 @@ class UnityAppController extends ChangeNotifier {
       _publish();
       return true;
     }
+    if (_hostLifecycle == AppLifecycleState.detached) return false;
     if (m['type'] != 'appAction') {
       if (view != 'cabin' ||
           _storyCapturing ||
@@ -919,13 +1058,39 @@ class UnityAppController extends ChangeNotifier {
       return true;
     }
     if (_learningActions.contains(m['action'])) return _dispatchLearning(m);
+    if (_questActions.contains(m['action'])) {
+      if (_storyCapturing) return false;
+      final id = m['creatureId'] as String, questId = m['questId'] as String;
+      switch (m['action']) {
+        case 'openQuest':
+          await _quests.open(id, questId: questId);
+        case 'laterQuest':
+          if (!_quests.snapshot
+              .any((q) => q['creatureId'] == id && q['questId'] == questId))
+            return false;
+          _quests.later(id);
+        case 'acceptQuest':
+          await _quests.accept(id, questId,
+              placeId: m['placeId'] == '' ? null : m['placeId'] as String?);
+        case 'observeQuest':
+          await _quests.observe(id, questId);
+        case 'requestQuestTravel':
+          await _quests.requestTravel(id, questId);
+      }
+      if (!_disposed) _changed();
+      return true;
+    }
     if (m['action'] == 'scanPairingQr') return _scanPairingQr();
     // Native dialogs must not block navigation; validate again when they return.
     if (m['action'] == 'speech' || m['action'] == 'photo') return _capture(m);
     _pending++;
     _changed();
+    final bridgeGeneration = _bridgeGeneration;
     final result = _tail.then((_) async {
-      if (_disposed || (_eggActions.contains(m['action']) && !_currentEgg(m))) {
+      if (_disposed ||
+          _hostLifecycle == AppLifecycleState.detached ||
+          bridgeGeneration != _bridgeGeneration ||
+          (_eggActions.contains(m['action']) && !_currentEgg(m))) {
         return false;
       }
       _error = '';
@@ -1319,7 +1484,7 @@ class UnityAppController extends ChangeNotifier {
     if (!game.isFake ||
         !game.paired ||
         game.sessionEnded ||
-        game.eggId == null) {
+        (game.eggId == null && !game.collectionRewardForTrip)) {
       await game.pair(credentials.sessionId, pairCode: credentials.code);
       if (game.error != null) return false;
     }
@@ -1330,6 +1495,8 @@ class UnityAppController extends ChangeNotifier {
     }
     _disconnected = false;
     _stoppedRoundTier = null;
+    await _quests.refresh();
+    if (_disposed) return false;
     if (enterCabin &&
         view == pairingView &&
         navigationGeneration == _navigationGeneration) {
@@ -1340,10 +1507,13 @@ class UnityAppController extends ChangeNotifier {
   }
 
   Future<bool> _testPair() async {
-    if (!game.isFake ||
-        _scanningPairing ||
-        !{'pairing', 'settings'}.contains(view)) {
+    if (_scanningPairing || !{'pairing', 'settings'}.contains(view)) {
       return false;
+    }
+    if (!game.isFake) {
+      return !game.paired && onStartTestConnection != null
+          ? onStartTestConnection!()
+          : false;
     }
     final generation = _navigationGeneration;
     final credentials = PairingCredentials.parseFields(
@@ -1353,10 +1523,11 @@ class UnityAppController extends ChangeNotifier {
     }
     if (_disposed || generation != _navigationGeneration) return false;
     if (!await _pair(credentials, enterCabin: false)) return false;
-    final terminal = game.eggId == null ||
-        game.game.stage == Stage.failed ||
-        game.game.stage == Stage.hatched ||
-        game.affinityRound?.isTerminal == true;
+    final terminal = !game.collectionRewardForTrip &&
+        (game.eggId == null ||
+            game.game.stage == Stage.failed ||
+            game.game.stage == Stage.hatched ||
+            game.affinityRound?.isTerminal == true);
     if (!terminal) {
       if (generation == _navigationGeneration) {
         view = 'cabin';
@@ -1376,6 +1547,7 @@ class UnityAppController extends ChangeNotifier {
   }
 
   Future<bool> _scanPairingQr() async {
+    if (onReturnToVehicle != null) return false;
     final scan = pairingScanner;
     final scanView = view;
     if (_disposed ||
@@ -1419,8 +1591,15 @@ class UnityAppController extends ChangeNotifier {
     switch (m['action']) {
       case 'testPair':
         return _testPair();
+      case 'returnToVehicle':
+        if (_scanningPairing ||
+            !{'pairing', 'settings'}.contains(view) ||
+            onReturnToVehicle == null) {
+          return false;
+        }
+        return onReturnToVehicle!();
       case 'pair':
-        if (_scanningPairing) return false;
+        if (_scanningPairing || onReturnToVehicle != null) return false;
         final p = PairingCredentials.parseFields(m['sessionId'], m['pairCode']);
         return _pair(p);
       case 'disconnect':
@@ -1437,6 +1616,8 @@ class UnityAppController extends ChangeNotifier {
         final ok =
             camp.ready ? await camp.refreshOwnership() : await camp.load();
         await _readCounts();
+        await _loadVillageSelection();
+        await _quests.refresh();
         _ready = ok;
         return ok;
       case 'endTrip':
@@ -1480,6 +1661,25 @@ class UnityAppController extends ChangeNotifier {
         return camp.cancel(CampRole.values.byName(m['role']));
       case 'feedFood':
         return camp.feedFood(m['recipeId'], m['creatureId']);
+      case 'setVillageFriends':
+        final ids = List<String>.from(m['creatureIds'] as List);
+        if (!_villageSelectionReady ||
+            !camp.ready ||
+            !ids.every(camp.state.creatures.containsKey)) {
+          _error = '도감을 새로고침한 뒤 소유한 친구를 다시 골라 주세요.';
+          return false;
+        }
+        try {
+          await _villageSelectionStore.write(_villageProfile, ids);
+        } catch (_) {
+          _error = '마을 친구 선택을 저장하지 못했어요. 다시 시도해 주세요.';
+          return false;
+        }
+        if (_disposed) return false;
+        _villageCreatureIds = ids;
+        _villageSelectionRequestId = m['requestId'] as String;
+        _notice = '마을 친구 선택을 저장했어요.';
+        return true;
       case 'selectCarCompanion':
         final inputGeneration = ++_companionInputGeneration;
         final selectionView = view;
@@ -1504,7 +1704,7 @@ class UnityAppController extends ChangeNotifier {
           if (!_disposed) _error = '도감을 새로고침한 뒤 소유한 친구를 다시 골라 주세요.';
           return false;
         }
-        final selected = await game.selectCarCompanion(entry);
+        final selected = await game.selectCarCompanion(entry, creatureId: id);
         if (!selected ||
             _disposed ||
             inputGeneration != _companionInputGeneration ||
@@ -1573,6 +1773,8 @@ class UnityAppController extends ChangeNotifier {
     _learning?.dispose();
     _story?.removeListener(_storyChanged);
     _story?.dispose();
+    _quests.removeListener(_changed);
+    _quests.dispose();
     game.removeListener(_changed);
     camp.removeListener(_changed);
     _send = null;

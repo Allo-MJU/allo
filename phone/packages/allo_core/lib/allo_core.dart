@@ -10,5 +10,6 @@ export 'src/region_collection.dart';
 export 'src/region_duration_accumulator.dart';
 export 'src/base_camp_catalog.dart';
 export 'src/base_camp.dart';
+export 'src/companion_quest.dart';
 
 export 'src/affinity_round.dart';
