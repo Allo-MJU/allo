@@ -5,8 +5,8 @@ import 'package:allo_phone/base_camp/camp_vehicle_snapshot.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 BaseCamp restored(BaseCamp camp) => BaseCamp.fromJson(
-  jsonDecode(jsonEncode(camp.toJson())) as Map<String, dynamic>,
-);
+      jsonDecode(jsonEncode(camp.toJson())) as Map<String, dynamic>,
+    );
 
 void main() {
   test(
@@ -40,6 +40,31 @@ void main() {
       expect(saved.materials[CampMaterial.wood], 1);
     },
   );
+
+  test(
+      'village projection excludes unknown ownership and preserves choice order',
+      () {
+    final camp = BaseCamp.empty(nowMs: 0, creatures: [
+      CampCreature(id: 'a', speciesId: 'road_sprout'),
+      CampCreature(id: 'a2', speciesId: 'road_sprout'),
+      CampCreature(id: 'b', speciesId: 'tide_keeper'),
+    ]);
+    final summary = campVehicleSnapshot(camp, villageCreatureIds: [
+      'b',
+      'missing',
+      'a2',
+      'a'
+    ])['collectionSummary'] as Map;
+    expect(summary['villageSpeciesIds'], ['tide_keeper', 'road_sprout']);
+    expect(summary['villageSpeciesCount'], 2);
+    expect(campVehicleSnapshot(camp)['collectionSummary'],
+        isNot(contains('villageSpeciesCount')));
+    final empty =
+        campVehicleSnapshot(camp, villageCreatureIds: [])['collectionSummary']
+            as Map;
+    expect(empty['villageSpeciesCount'], 0);
+    expect(empty['villageSpeciesIds'], isEmpty);
+  });
 
   test(
     'saved assignments facilities and all concurrent jobs survive projection',

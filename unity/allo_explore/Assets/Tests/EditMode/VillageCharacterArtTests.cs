@@ -1,6 +1,7 @@
 using System;
 using System.Reflection;
 using Allo.App;
+using Allo.Critters;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.UI;
@@ -192,6 +193,64 @@ public class VillageCharacterArtTests
         Assert.AreEqual("poses/road_sprout/run-sheet.png", _image.texture.name);
         Assert.AreEqual(1, Get<int>("FrameIndex"));
         Assert.That(_image.uvRect.width, Is.EqualTo(444f / 1774).Within(.000001f));
+    }
+
+    [TestCase("bridge_hopper")]
+    [TestCase("mountain_sprite")]
+    [TestCase("river_glider")]
+    [TestCase("tide_keeper")]
+    [TestCase("tunnel_moth")]
+    [TestCase("star_owl")]
+    public void CanonicalSpeciesWithoutStandalonePortraitUseTheirOwnActionAtlas(string species)
+    {
+        Bind(species);
+        Assert.NotNull(_image.texture, "saved canonical species must have visible village artwork");
+        Assert.AreEqual("poses/" + species + "/actions.png", _image.texture.name);
+        Assert.IsFalse(_fallback.activeSelf);
+        Assert.That(Mathf.Abs(_image.uvRect.width), Is.EqualTo(.25f).Within(.000001f));
+        Assert.That(_image.uvRect.height, Is.EqualTo(1f / 6).Within(.000001f));
+        Assert.That(_root.GetComponent<AspectRatioFitter>().aspectRatio, Is.EqualTo(1).Within(.001f));
+
+        Motion(true, false); Advance(.17f);
+        Assert.AreEqual(1, Get<int>("FrameIndex"));
+        Assert.That(_image.uvRect.y, Is.EqualTo(5f / 6).Within(.000001f));
+        Advance(.48f);
+        Assert.AreEqual(4, Get<int>("FrameIndex"));
+        Assert.That(_image.uvRect.y, Is.EqualTo(4f / 6).Within(.000001f));
+
+        Motion(true, false, true); Advance(2);
+        Assert.AreEqual(0, Get<int>("FrameIndex"));
+        Assert.IsFalse(Get<bool>("IsAnimated"));
+        Assert.IsFalse(_fallback.activeSelf);
+
+        Reaction(species); Motion(true, false); Advance(.601f);
+        Assert.AreEqual("poses/" + species + "/actions.png", _image.texture.name);
+        Assert.IsFalse(Get<bool>("IsAnimated"), "no joy animation is authored in this atlas");
+        Assert.AreEqual(0, Get<int>("FrameIndex"));
+        Assert.That(_image.uvRect.height, Is.EqualTo(1f / 6).Within(.000001f));
+        Assert.IsFalse(_fallback.activeSelf);
+    }
+
+    [TestCase("bridge_hopper")]
+    [TestCase("mountain_sprite")]
+    [TestCase("river_glider")]
+    [TestCase("tide_keeper")]
+    [TestCase("tunnel_moth")]
+    [TestCase("star_owl")]
+    public void CanonicalAtlasAlsoLoadsForCabinAndDexWithoutReturningTheWholeSheet(string species)
+    {
+        var path = "species/" + species + ".png";
+        var art = SpriteLoader.LoadNow(path);
+        Assert.NotNull(art, "cabin and dex use SpriteLoader, not VillageCharacterArt");
+        Assert.AreEqual(256, art[ArtPose.Idle].width);
+        Assert.AreEqual(256, art[ArtPose.Idle].height);
+        Assert.AreEqual("poses/" + species + "/actions.png#0", art[ArtPose.Idle].name);
+        Assert.AreEqual("poses/" + species + "/actions.png#1", art[ArtPose.Move].name);
+        Assert.AreEqual("poses/" + species + "/actions.png#16", art[ArtPose.Sleep].name);
+        Assert.AreSame(art[ArtPose.Idle], art[ArtPose.Happy], "no happy pose is invented");
+        Assert.AreEqual(1, art.Aspect);
+        Assert.AreSame(art, SpriteLoader.LoadNow(path));
+        Assert.IsFalse(art[ArtPose.Idle].isReadable);
     }
 
     void Bind(string species) => Call("Bind", species, "species/" + species + ".png", _fallback);

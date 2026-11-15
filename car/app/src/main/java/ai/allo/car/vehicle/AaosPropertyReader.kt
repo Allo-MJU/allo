@@ -98,8 +98,13 @@ class AaosPropertyReader(private val context: Context) {
     fun start(): Boolean {
         if (active) return startSpeed()
         val c = Car.createCar(context) ?: run { Log.e(TAG, "Car.createCar returned null"); return false }
+        val manager = c.getCarManager(Car.PROPERTY_SERVICE) as? CarPropertyManager
+        if (manager == null) {
+            Log.e(TAG, "Car property service unavailable")
+            c.disconnect()
+            return false
+        }
         car = c
-        val manager = c.getCarManager(Car.PROPERTY_SERVICE) as CarPropertyManager
         pm = manager
         active = true
         main.post(refreshMotion)

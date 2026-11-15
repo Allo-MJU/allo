@@ -5,13 +5,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 
-/** Existing six loops plus six loops authored from the supplied identities. */
+/** Each collected identity uses its own supplied walking sheet or gameplay action atlas. */
 internal object PlazaWalkArt {
     val existing = setOf("road_sprout", "puddle_pip", "lamp_moth", "storm_lantern", "highway_comet", "sea_mist")
     fun spec(id: String?): PetSpriteSpec? = id?.takeIf { it in SuppliedCharacters.ids }?.let {
         PetSpriteSpec(if (it in existing) "poses/$it/run-sheet.png" else "plaza_walk/$it/walk.png",
             frameMs = 160, timeline = (0..7).toList(), alphaCutoff = 32)
-    }
+    } ?: PetSpriteSheets.forDisplay(id, PetPose.Move, parked = false, runningMotion = true)
     fun mirror(id: String?, moving: Boolean, facingLeft: Boolean): Boolean {
         val sourceLeft = id in if (moving) setOf("road_sprout", "puddle_pip", "dune_roller") else setOf("road_sprout", "puddle_pip", "dune_roller")
         return sourceLeft != facingLeft

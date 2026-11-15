@@ -56,7 +56,7 @@ internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride
     dock: @Composable () -> Unit = {}) {
     val catalog = rememberSpeciesCatalog()
     val dialogue = remember { PlazaDialogue() }
-    val available = PlazaPopulation.residents(game).filter { it in SuppliedCharacters.ids && catalog[it] != null }
+    val available = catalog.plazaResidents(game)
     val residents = selectedResidents?.let { PlazaPopulation.selected(available, it) } ?: available
     var page by rememberSaveable(residents) { mutableIntStateOf(0) }
     val visible = PlazaPopulation.page(residents, page)
@@ -116,6 +116,7 @@ internal fun PlazaScene(game: GameState, connected: Boolean, sceneHeightOverride
                         ParkedInfoCard("광장에서 만날 친구를 기다려요", when {
                             !connected -> "폰 연결을 확인해 주세요."
                             game.collectionSummary == null || "collectionSummary" in game.invalidBlocks -> "폰의 수집 정보를 기다리고 있어요."
+                            game.collectionSummary.villageSpeciesIds != null -> "폰의 마을 친구 선택에서 광장에 나올 친구를 골라 주세요."
                             available.isNotEmpty() -> "아래 친구들에서 광장에 나올 친구를 골라 주세요."
                             else -> "폰에서 수집한 친구들이 이곳에 찾아와요."
                         })

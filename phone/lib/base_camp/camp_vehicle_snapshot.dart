@@ -3,7 +3,16 @@ import 'package:allo_core/allo_core.dart';
 /// Read-only display projection of a successfully stored camp snapshot.
 /// This neither advances time nor grants rewards. Callers publish only state
 /// exposed after BaseCampController has completed its save.
-Map<String, dynamic> campVehicleSnapshot(BaseCamp state) {
+Map<String, dynamic> campVehicleSnapshot(BaseCamp state,
+    {List<String>? villageCreatureIds}) {
+  // Null means no loaded choice. Count preserves an explicitly empty choice
+  // when Realtime Database removes empty arrays from the wire snapshot.
+  final villageSpecies = villageCreatureIds
+      ?.take(4)
+      .map((id) => state.creatures[id]?.speciesId)
+      .whereType<String>()
+      .toSet()
+      .toList();
   final speciesIds = state.creatures.values
       .map((creature) => creature.speciesId)
       .toSet()
@@ -28,6 +37,10 @@ Map<String, dynamic> campVehicleSnapshot(BaseCamp state) {
       'ingredient': state.materials[CampMaterial.ingredient]!,
       'speciesIds': speciesIds,
       'speciesCount': speciesIds.length,
+      if (villageSpecies != null) ...{
+        'villageSpeciesIds': villageSpecies,
+        'villageSpeciesCount': villageSpecies.length,
+      },
     },
     'baseSummary': {
       'builderSpeciesId': assignedSpecies(CampRole.builder),

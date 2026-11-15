@@ -138,4 +138,5 @@ object Capability {
 /** Optional read-only phone inventory, published after storage succeeds. Not trip earnings. */
 @Serializable
 data class CollectionSummary(val version: Int = 1, val wood: Long, val stone: Long,
-    val ingredient: Long, val speciesIds: List<String>)
+    val ingredient: Long, val speciesIds: List<String>,
+    val villageSpeciesIds: List<String>? = null)
