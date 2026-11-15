@@ -35,7 +35,7 @@ namespace Allo.App
             {
                 if (hint != null) hint.text = !string.IsNullOrEmpty(CabinInteraction.SelectedItem) ? "원하는 방향으로 밀어 던지기" :
                     CabinInteraction.MoveArmed ? "친구를 원하는 자리에 놓아 주세요" :
-                    buddy ? "친구를 두 번 누르고 원하는 자리로 끌어 보세요" : "알을 부드럽게 문질러 주세요";
+                    buddy ? "친구를 두 번 누르고 원하는 자리로 끌어 보세요" : "알을 문질러 쓰다듬거나 다른 자리로 끌어 옮겨 주세요";
             });
         }
 
@@ -116,32 +116,35 @@ namespace Allo.App
 
         void BuildEggHud(EggState egg)
         {
-            var hud = Surface("Cabin affinity HUD", _content, new Color(.949f, .933f, .898f, .90f));
-            Stretch(hud, 12, -112, 414, -10, new Vector2(0, 1), new Vector2(0, 1));
-            var score = Label(hud, "친밀도  " + Mathf.FloorToInt(egg.score) + " / 100", 23, TextAnchor.MiddleLeft); Stretch(score.rectTransform, 14, -38, -14, -6, new Vector2(0, 1), Vector2.one);
-            var track = Surface("Affinity track", hud, Disabled, false); Stretch(track, 14, 41, -14, 49, Vector2.zero, new Vector2(1, 0));
+            var hud = Rect("Cabin affinity HUD", _content);
+            Stretch(hud, 12, -40, 414, -16, new Vector2(0, 1), new Vector2(0, 1));
+            var track = Surface("Affinity track", hud, new Color(.07f, .12f, .10f, .82f), false); Stretch(track);
             var fill = Surface("Confirmed affinity", track, Hex("53765B"), false); Stretch(fill, 0, 0, 0, 0, Vector2.zero, new Vector2(Mathf.Clamp01(egg.score / 100), 1));
-            var hint = Label(hud, egg.photoRequired ? "함께 사진을 찍으면 다시 가까워져요" : !string.IsNullOrEmpty(egg.remainingLabel) ? egg.remainingLabel : "알을 부드럽게 문질러 주세요", 19, TextAnchor.MiddleLeft); Stretch(hint.rectTransform, 14, 6, -14, 37, Vector2.zero, new Vector2(1, 0));
+            track.GetComponent<Image>().raycastTarget = false; fill.GetComponent<Image>().raycastTarget = false;
+            var score = Label(track, Mathf.FloorToInt(egg.score) + " / 100", 19, TextAnchor.MiddleCenter); Stretch(score.rectTransform);
+            score.color = Color.white;
+            var shadow = score.gameObject.AddComponent<Shadow>(); shadow.effectColor = new Color(0, 0, 0, .75f); shadow.effectDistance = new Vector2(1, -1);
             var tools = Rect("Egg care tools", _content);
-            Stretch(tools, 12, -155, 414, -120, new Vector2(0, 1), new Vector2(0, 1)); Row(tools, 6);
+            Stretch(tools, 12, -100, 414, -52, new Vector2(0, 1), new Vector2(0, 1)); Row(tools, 6);
             var eggId = egg.id;
-            Button(tools, "말 걸기", () => Send("speech", new AppAction { eggId = eggId }), Cream, 35,
+            Button(tools, "말 걸기", () => Send("speech", new AppAction { eggId = eggId }), Cream, 48,
                 CanAct && _state.speechAvailable && !egg.photoRequired && !egg.speechBusy && egg.speechCooldown <= 0, 17);
-            Button(tools, "글로 말하기", () => OpenEggDrawer(true), Cream, 35, CanAct, 17);
-            Button(tools, "자리와 돌보기", () => OpenEggDrawer(false), Cream, 35, CanAct, 17);
+            Button(tools, "글로 말하기", () => OpenEggDrawer(true), Cream, 48, CanAct, 17);
+            Button(tools, "자리와 돌보기", () => OpenEggDrawer(false), Cream, 48, CanAct, 17);
             var feedback = EggFeedbackLabel(egg.feedback);
             if (egg.photoRequired)
             {
                 var photos = Rect("Photo quest tools", _content);
-                Stretch(photos, 12, -201, 414, -163, new Vector2(0, 1), new Vector2(0, 1)); Row(photos, 6);
-                Button(photos, egg.photoBusy ? "사진 보내는 중" : "함께 사진 찍기", () => Send("photo", new AppAction { eggId = eggId }), Yellow, 38,
+                Stretch(photos, 12, -156, 414, -108, new Vector2(0, 1), new Vector2(0, 1)); Row(photos, 6);
+                Button(photos, egg.photoBusy ? "사진 보내는 중" : "함께 사진 찍기", () => Send("photo", new AppAction { eggId = eggId }), Yellow, 48,
                     CanAct && _state.photoAvailable && !egg.photoBusy, 18);
-                Button(photos, "보류한 사진 확인", () => Send("recoverPhoto", new AppAction { eggId = eggId }), Cream, 38, CanAct && !egg.photoBusy, 17);
+                Button(photos, "보류한 사진 확인", () => Send("recoverPhoto", new AppAction { eggId = eggId }), Cream, 48, CanAct && !egg.photoBusy, 17);
             }
             else if (!string.IsNullOrEmpty(feedback))
             {
-                var bubble = Surface("Egg feedback", _content, Cream, false); Stretch(bubble, 12, -198, 414, -163, new Vector2(0, 1), new Vector2(0, 1));
-                var text = Label(bubble, feedback, 18, TextAnchor.MiddleCenter); Stretch(text.rectTransform, 8, 0, -8, 0);
+                var text = Label(_content, feedback, 18, TextAnchor.MiddleCenter); text.name = "Egg feedback";
+                text.color = Cream; Stretch(text.rectTransform, 12, -143, 414, -108, new Vector2(0, 1), new Vector2(0, 1));
+                var feedbackShadow = text.gameObject.AddComponent<Shadow>(); feedbackShadow.effectColor = new Color(0, 0, 0, .8f); feedbackShadow.effectDistance = new Vector2(1, -1);
             }
         }
 
@@ -159,7 +162,7 @@ namespace Allo.App
             {
                 var zones = DockSheet(260);
                 Button(zones, "자리 메뉴 닫기", () => { _zoneDrawer = false; _dirty = true; }, Cream, 44, true, 20);
-                string[] names = { "대시보드", "왼쪽 창턱", "오른쪽 창턱", "앞 바닥" };
+                string[] names = { "앞자리 사이", "왼쪽 창턱", "오른쪽 창턱", "앞 바닥" };
                 for (var i = 0; i < names.Length; i++)
                 {
                     var zone = i;

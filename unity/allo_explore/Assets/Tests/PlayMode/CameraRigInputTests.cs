@@ -27,6 +27,7 @@ public class CameraRigInputTests
             input.SetView("cabin");
             input.Apply(new AppState { view = "cabin", ready = true, connected = true, egg = new EggState { id = "test", active = true } });
             typeof(CabinEgg).GetField("_egg", fields).SetValue(input, egg.transform);
+            typeof(CabinEgg).GetField("_eggRenderer", fields).SetValue(input, egg.GetComponent<Renderer>());
             typeof(CabinEgg).GetField("_camera", fields).SetValue(input, camera);
             var neutral = Quaternion.Euler(25f, 40f, -80f);
             var calibration = typeof(Rig).GetField("_neutral", fields);

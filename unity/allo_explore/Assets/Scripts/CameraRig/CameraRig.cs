@@ -48,6 +48,7 @@ namespace Allo.CameraRig
             FlutterBridge.SettingsChanged -= OnSettings;
             _velocity = Vector2.zero;
             _lastPinch = null;
+            _uiTouch = false;
             if (!CabinInteraction.IsCapturing || AppSession.State?.view != "cabin") SetSensorEnabled(false);
             if (_intro) { EndIntro(); Apply(); }
         }
@@ -92,7 +93,19 @@ namespace Allo.CameraRig
 
         /// 쓰다듬기·던지기·유리 그림처럼 손가락이 다른 일을 하는 동안 둘러보기를 멈춘다 (TapInput 이 켠다)
         public static bool Locked;
-        internal bool EggOwnsPointer { get; set; }
+        bool _eggOwnsPointer;
+        internal bool EggOwnsPointer
+        {
+            get => _eggOwnsPointer;
+            set
+            {
+                _eggOwnsPointer = value;
+                if (!value) return;
+                _velocity = Vector2.zero;
+                _lastPinch = null;
+                _uiTouch = false;
+            }
+        }
 
         /// 현재 자세를 새 정면으로 삼는다. 센서가 없어도 같은 자리에서 대시보드를 바라본다.
         public static void Recenter()
@@ -125,9 +138,9 @@ namespace Allo.CameraRig
         void Update()
         {
             if (_paused || _unfocused) return;
-            if (!EggOwnsPointer && IntroTick()) return;
+            if (!EggOwnsPointer && !CabinEgg.IsCapturing && IntroTick()) return;
             if (_ui == null && AppSession.State != null) _ui = FindFirstObjectByType<AppUi>();
-            if (EggOwnsPointer || CabinInteraction.IsCapturing || AppSession.StoryActive || StoryOverlay.CapturingInput ||
+            if (EggOwnsPointer || CabinEgg.IsCapturing || CabinInteraction.IsCapturing || AppSession.StoryActive || StoryOverlay.CapturingInput ||
                 (_ui != null && _ui.CabinGesturesBlocked))
             {
                 _velocity = Vector2.zero;

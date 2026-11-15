@@ -145,7 +145,7 @@ public class AppUiLearningTests
         Assert.IsTrue(_root.GetComponentsInChildren<Transform>().Any(t => t.name == "Cabin affinity HUD"));
         Assert.NotNull(ButtonNamed("함께 사진 찍기"));
         Assert.NotNull(ButtonNamed("자리와 돌보기"));
-        Assert.IsTrue(CabinEgg.CanInteract(state, "cabin", "new-egg"));
+        Assert.IsFalse(CabinEgg.CanInteract(state, "cabin", "new-egg"), "photo quest gates egg care while companion care stays independent");
         var intent = AppUi.CommonCareIntent(state, "pet");
         Assert.AreEqual("owned-a", intent.creatureId);
         Assert.IsNotNull(ButtonNamed("간식"));
