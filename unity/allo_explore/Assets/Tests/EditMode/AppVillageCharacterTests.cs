@@ -47,10 +47,21 @@ public class AppVillageCharacterTests
         var preview = detail.GetComponentsInChildren<RectTransform>().Single(t => t.name == "Enlarged character");
         var inspector = detail.Find("Character inspector");
         Assert.NotNull(inspector);
-        Assert.IsTrue(preview.IsChildOf(inspector), "animated preview belongs inside the right inspector");
+        Assert.IsFalse(preview.IsChildOf(inspector), "character art stays separate from right-hand explanation and actions");
+        Assert.Less(preview.position.x, inspector.position.x, "large character preview belongs on the left");
         Assert.That(((RectTransform)inspector).anchorMin.x, Is.GreaterThanOrEqualTo(.55f));
         Assert.IsTrue(Get<RectTransform>("_villageLayer").gameObject.activeSelf);
         Assert.AreEqual("camp", AppSession.CurrentView);
+    }
+
+    [Test]
+    public void DetailUsesTheExistingJoyActionInsteadOfTheWalkingSheet()
+    {
+        Marker("first").GetComponent<Button>().onClick.Invoke(); Render();
+        var detail = Get<RectTransform>("_content").Find("Village character detail");
+        var art = detail.GetComponentInChildren<VillageCharacterArt>();
+        Assert.NotNull(art);
+        Assert.AreEqual("poses/road_sprout/joy-sheet.png", art.GetComponent<RawImage>().texture.name);
     }
 
     [Test]

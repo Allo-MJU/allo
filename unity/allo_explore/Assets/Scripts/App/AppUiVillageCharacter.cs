@@ -132,7 +132,7 @@ namespace Allo.App
             var creature = Items(_state.creatures).FirstOrDefault(c => c.id == _villageCreatureId);
             if (creature == null) { CloseVillageCharacterDetail(); return; }
             var detail = Rect("Village character detail", _content); Stretch(detail);
-            detail.gameObject.AddComponent<Image>().color = new Color(.04f, .09f, .06f, .22f);
+            detail.gameObject.AddComponent<Image>().color = new Color(.04f, .09f, .06f, .35f);
             var inspector = Rect("Character inspector", detail);
             Stretch(inspector, 0, 0, 0, 0, new Vector2(.58f, 0), Vector2.one);
             var panel = Sheet(inspector);
@@ -159,13 +159,13 @@ namespace Allo.App
             var closeSize = close.GetComponent<LayoutElement>(); closeSize.flexibleWidth = 0; closeSize.minWidth = closeSize.preferredWidth = 110;
             var role = Copy(panel, RoleLabel(creature.role), 22); role.color = Hex("53765B");
 
-            var stage = Surface("Character animation stage", panel, Hex("E2E9DC"), false);
-            var stageSize = stage.gameObject.AddComponent<LayoutElement>(); stageSize.minHeight = stageSize.preferredHeight = 202;
+            var stage = Rect("Character animation stage", detail);
+            Stretch(stage, 16, 28, -24, -20, Vector2.zero, new Vector2(.56f, 1));
             var shadow = Rect("Character ground shadow", stage);
-            shadow.anchorMin = shadow.anchorMax = new Vector2(.5f, 0); shadow.anchoredPosition = new Vector2(0, 20); shadow.sizeDelta = new Vector2(140, 15);
+            shadow.anchorMin = shadow.anchorMax = new Vector2(.5f, .10f); shadow.anchoredPosition = Vector2.zero; shadow.sizeDelta = new Vector2(260, 24);
             var shadowImage = shadow.gameObject.AddComponent<Image>(); shadowImage.sprite = ActionCircleSprite(); shadowImage.color = new Color(.15f, .24f, .16f, .16f); shadowImage.raycastTarget = false;
             var preview = Rect("Enlarged character", stage); Stretch(preview, 8, 0, -8, 0);
-            _villageDetailArt = VillageFriendPortrait(preview, creature.speciesId, creature.sprite);
+            _villageDetailArt = VillageFriendPortrait(preview, creature.speciesId, creature.sprite, true);
             _villageDetailArt.SetMotion(CanAct, true, _state.reducedMotion);
             _villageDetailArt.Advance(_villagePreviewElapsed);
 

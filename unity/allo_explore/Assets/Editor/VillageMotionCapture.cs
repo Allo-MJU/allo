@@ -28,7 +28,8 @@ public static class VillageMotionCapture
         public ActorEvidence[] actors;
         public int previewDistinctFrames, previewFrameBeforeSnapshot, previewFrameAfterSnapshot;
         public float snapshotPositionDelta, inspectorMapPositionDelta, reducedMotionPositionDelta;
-        public bool reducedMotionPreviewFrozen;
+        public bool reducedMotionPreviewFrozen, previewLeftOfInspector;
+        public string previewTexture;
     }
     [Serializable] sealed class Evidence
     {
@@ -146,8 +147,19 @@ public static class VillageMotionCapture
             result.actors = friends.Keys.Select(id => new ActorEvidence { id = id, travelled = travelled[id], distinctFrames = frames[id].Count }).ToArray();
             Require(result.actors.All(a => a.travelled > 10 && a.distinctFrames >= 4), "Every actor must actually travel and advance its atlas frames.");
             Call(ui, "OpenVillageFriend", "capture-road_sprout"); Call(ui, "Render"); Canvas.ForceUpdateCanvases();
-            Require(root.GetComponentsInChildren<RectTransform>().Any(t => t.name == "Character inspector"), "Right inspector is missing.");
-            Require(root.GetComponentsInChildren<RectTransform>().Any(t => t.name == "Enlarged character"), "Enlarged character preview is missing.");
+            var inspector = root.GetComponentsInChildren<RectTransform>().Single(t => t.name == "Character inspector");
+            var stage = root.GetComponentsInChildren<RectTransform>().Single(t => t.name == "Character animation stage");
+            var enlarged = root.GetComponentsInChildren<RectTransform>().Single(t => t.name == "Enlarged character");
+            var artwork = Get<VillageCharacterArt>(ui, "_villageDetailArt");
+            result.previewTexture = artwork.GetComponent<RawImage>().texture?.name;
+            Require(result.previewTexture != null && result.previewTexture.EndsWith("/joy-sheet.png", StringComparison.Ordinal), "Enlarged character must use the original Joy reaction strip.");
+            var characterBounds = new Vector3[4]; var inspectorBounds = new Vector3[4]; var stageBounds = new Vector3[4];
+            ((RectTransform)artwork.transform).GetWorldCorners(characterBounds); inspector.GetWorldCorners(inspectorBounds); stage.GetWorldCorners(stageBounds);
+            result.previewLeftOfInspector = characterBounds[2].x < inspectorBounds[0].x;
+            Require(result.previewLeftOfInspector, "Enlarged character must remain left of the text inspector.");
+            Require(characterBounds[0].x >= stageBounds[0].x - .01f && characterBounds[2].x <= stageBounds[2].x + .01f &&
+                characterBounds[0].y >= stageBounds[0].y - .01f && characterBounds[2].y <= stageBounds[2].y + .01f,
+                "Reaction artwork must fit inside the left preview stage.");
             var held = Positions(friends); var previewFrames = new HashSet<int>();
             var detailDir = Path.Combine("/tmp/allo-village-motion-frames/detail", size.x + "x" + size.y); Directory.CreateDirectory(detailDir);
             for (var i = 0; i < result.detailFrames; i++)
@@ -164,7 +176,7 @@ public static class VillageMotionCapture
                 if (i == 12) Save(camera, size, Path.Combine(_output, "detail-" + size.x + "x" + size.y + ".png"));
             }
             result.inspectorMapPositionDelta = MaxDelta(held, friends); result.previewDistinctFrames = previewFrames.Count;
-            Require(result.inspectorMapPositionDelta < .001f && previewFrames.Count == 8, "Inspector must pause map travel while showing all eight actual preview frames.");
+            Require(result.inspectorMapPositionDelta < .001f && previewFrames.Count >= 4, "Inspector must pause map travel while showing the actual Joy reaction frames.");
             fixture.reducedMotion = true; Snapshot(ui, fixture); var frozen = Positions(friends);
             for (var i = 0; i < 18; i++) Step(ui, root);
             result.reducedMotionPositionDelta = MaxDelta(frozen, friends);

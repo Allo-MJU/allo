@@ -174,7 +174,7 @@ namespace Allo.App
             _villageWalking.Remove(id);
         }
 
-        VillageCharacterArt VillageFriendPortrait(RectTransform parent, string speciesId, string sprite)
+        VillageCharacterArt VillageFriendPortrait(RectTransform parent, string speciesId, string sprite, bool reaction = false)
         {
             var artwork = Rect("Canonical friend artwork", parent); Stretch(artwork);
             var image = artwork.gameObject.AddComponent<RawImage>(); image.color = Color.clear; image.raycastTarget = false;
@@ -185,7 +185,8 @@ namespace Allo.App
             var hint = Label(fallback, "그림 준비 중", 15, TextAnchor.MiddleCenter); hint.color = Cream;
             Stretch(hint.rectTransform, 0, 6, 0, 28, Vector2.zero, new Vector2(1, 0));
             var animation = artwork.gameObject.AddComponent<VillageCharacterArt>();
-            animation.Bind(speciesId, sprite, fallback.gameObject);
+            if (reaction) animation.BindReaction(speciesId, sprite, fallback.gameObject);
+            else animation.Bind(speciesId, sprite, fallback.gameObject);
             animation.SetMotion(false, true, _state?.reducedMotion == true);
             return animation;
         }

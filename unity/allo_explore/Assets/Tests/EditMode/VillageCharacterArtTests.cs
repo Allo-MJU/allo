@@ -141,7 +141,66 @@ public class VillageCharacterArtTests
         Assert.AreEqual(frame, Get<int>("FrameIndex"));
     }
 
+    [TestCase("road_sprout")]
+    [TestCase("puddle_pip")]
+    [TestCase("lamp_moth")]
+    [TestCase("storm_lantern")]
+    [TestCase("highway_comet")]
+    [TestCase("sea_mist")]
+    public void ReactionUsesOriginalFiveFrameJoyStripAndGifDurationsWithoutMirroring(string species)
+    {
+        Reaction(species); Motion(true, true);
+        Assert.AreEqual("poses/" + species + "/joy-sheet.png", _image.texture.name);
+        Assert.AreEqual(1920, _image.texture.width);
+        Assert.AreEqual(384, _image.texture.height);
+        Assert.AreEqual(new Rect(0, 0, .2f, 1), _image.uvRect);
+        Motion(true, false);
+        Assert.AreEqual(new Rect(0, 0, .2f, 1), _image.uvRect, "reaction must preserve the original GIF composition");
+        Assert.That(_root.GetComponent<AspectRatioFitter>().aspectRatio, Is.EqualTo(1).Within(.001f));
+        // The authored GIF holds frames for 230, 110, 260, 170, 450 ms.
+        Advance(.229f); Assert.AreEqual(0, Get<int>("FrameIndex"), "must not use the run loop's 160 ms clock");
+        Advance(.002f); Assert.AreEqual(1, Get<int>("FrameIndex"));
+        Advance(.11f); Assert.AreEqual(2, Get<int>("FrameIndex"));
+        Advance(.26f); Assert.AreEqual(3, Get<int>("FrameIndex"));
+        Assert.That(_image.uvRect.x, Is.EqualTo(.6f).Within(.000001f));
+        Assert.AreEqual(.2f, _image.uvRect.width);
+        Advance(.17f); Assert.AreEqual(4, Get<int>("FrameIndex"));
+        Advance(.45f); Assert.AreEqual(0, Get<int>("FrameIndex"));
+    }
+
+    [Test]
+    public void ReactionPreservesPhaseAcrossUpdatesAndReactivationAndRespectsReducedMotion()
+    {
+        Reaction("road_sprout"); var idle = _image.texture;
+        Motion(true, true); Advance(.601f); Motion(true, false);
+        Assert.AreEqual(3, Get<int>("FrameIndex"));
+        _root.SetActive(false); Lifecycle("OnDisable"); Advance(3);
+        _root.SetActive(true); Lifecycle("OnEnable");
+        Assert.AreEqual(3, Get<int>("FrameIndex"));
+        Motion(true, true, true); Advance(3);
+        Assert.AreSame(idle, _image.texture);
+        Assert.IsFalse(Get<bool>("IsAnimated"));
+        Assert.AreEqual(new Rect(0, 0, 1, 1), _image.uvRect);
+        Assert.AreEqual(0, Get<int>("FrameIndex"));
+    }
+
+    [Test]
+    public void RebindingReactionToVillageRestoresTheExistingWalkLoop()
+    {
+        Reaction("road_sprout"); Motion(true, true); Advance(.601f);
+        Bind("road_sprout"); Motion(true, true); Advance(.17f);
+        Assert.AreEqual("poses/road_sprout/run-sheet.png", _image.texture.name);
+        Assert.AreEqual(1, Get<int>("FrameIndex"));
+        Assert.That(_image.uvRect.width, Is.EqualTo(444f / 1774).Within(.000001f));
+    }
+
     void Bind(string species) => Call("Bind", species, "species/" + species + ".png", _fallback);
+    void Reaction(string species)
+    {
+        var method = _type.GetMethod("BindReaction");
+        Assert.NotNull(method, "inspector needs the existing authored reaction instead of the run loop");
+        method.Invoke(_art, new object[] { species, "species/" + species + ".png", _fallback });
+    }
     void Motion(bool moving, bool left, bool reduced = false) => Call("SetMotion", moving, left, reduced);
     void Advance(float delta) => Call("Advance", delta);
     T Get<T>(string property) => (T)_type.GetProperty(property).GetValue(_art);
