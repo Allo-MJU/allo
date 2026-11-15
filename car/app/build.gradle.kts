@@ -58,6 +58,8 @@ android {
         }
         release {
             isMinifyEnabled = true
+            // 공모전 제출용 APK: 별도 키스토어 없이 설치되도록 디버그 키로 서명한다 (폰 앱과 같은 방식).
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }

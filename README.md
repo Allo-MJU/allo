@@ -38,11 +38,34 @@
 
 ```bash
 cd car
-# Firebase 콘솔에서 받은 google-services.json 을 car/app/ 에 둡니다 (git 미추적)
+cp local.properties.example local.properties   # Firebase 설정값을 채웁니다 (git 미추적)
 JAVA_HOME=/path/to/jdk-17 ./gradlew installDebug
 ```
 
 Android Studio, SDK Platform 35, JDK 17, Pleos Connect Emulator가 필요합니다. 자세한 내용은 [`car/README.md`](./car/README.md).
+
+### 제출용 APK
+
+차량 앱 release APK는 [`apk/team-allo_allo_release.apk`](./apk/team-allo_allo_release.apk) 에 있습니다.
+
+```bash
+adb -s emulator-5554 install -r apk/team-allo_allo_release.apk
+adb -s emulator-5554 shell monkey -p ai.allo.car -c android.intent.category.LAUNCHER 1
+```
+
+직접 빌드하려면 `cd car && JAVA_HOME=/path/to/jdk-17 ./gradlew assembleRelease` 를 실행합니다. 결과물은 `car/app/build/outputs/apk/release/app-release.apk` 입니다.
+
+### 테스트 환경
+
+| 항목 | 값 |
+| --- | --- |
+| 에뮬레이터 | Pleos Connect Emulator v2.1.0 (Android 14, API 34, arm64) |
+| 화면 규격 | 2560 × 1440, 12.8인치, 160dpi (mdpi) |
+| 차량 앱 | minSdk 28, targetSdk 35, Pleos Vehicle SDK 2.3.2 |
+| 필요한 설정 | `car/local.properties` 의 Firebase 설정값 (`local.properties.example` 참고). 권한은 읽기 권한만 사용 |
+| 폰 앱 | Flutter, Android 폰 또는 에뮬레이터. 설정 없이 실행하면 차 없이 도는 체험 모드로 시작 |
+
+에뮬레이터 설치와 AVD 생성 절차는 [`docs/setup.md`](./docs/setup.md) 에 있습니다.
 
 ### 폰 앱
 
