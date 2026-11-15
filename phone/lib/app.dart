@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:allo_core/allo_core.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -143,13 +142,8 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
 
   Future<bool> _modeAction(UnityAppController target, String action,
           {String? view}) =>
-      target.handleMessage(jsonEncode({
-        'v': 1,
-        'type': 'appAction',
-        'requestId': 'host-mode-${++_modeRequest}',
-        'action': action,
-        if (view != null) 'view': view,
-      }));
+      target.prepareConnectionAction(action,
+          requestId: 'host-mode-${++_modeRequest}', view: view);
 
   Future<void> _restoreTestOdometer(UnityAppController test) async {
     final trip = await test.game.dex.tripEggLedger(true);
@@ -202,7 +196,8 @@ class _AlloAppState extends State<AlloApp> with WidgetsBindingObserver {
       await next.reloadSettings();
       if (!currentRequest()) return false;
       resuming = next;
-      if (!await next.setHostLifecycle(_lastLifecycle) || !currentRequest()) {
+      if (!await next.prepareConnectionLifecycle(_lastLifecycle) ||
+          !currentRequest()) {
         return false;
       }
       if (!await _modeAction(next, 'navigate', view: 'pairing') ||

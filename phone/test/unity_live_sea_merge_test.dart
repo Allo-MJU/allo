@@ -23,7 +23,7 @@ void main() {
   late UnityAppController app;
   late Completer<Map<String, dynamic>> template;
   late String creatureId, questId;
-  var serial = 0, requests = 0;
+  var serial = 0, requests = 0, placeReads = 0;
   Map<String, dynamic> story() => app.snapshot['story'] as Map<String, dynamic>;
   Future<bool> action(String name, [Map<String, dynamic> fields = const {}]) =>
       app.handleMessage(jsonEncode({
@@ -52,7 +52,7 @@ void main() {
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
-    serial = requests = 0;
+    serial = requests = placeReads = 0;
     template = Completer<Map<String, dynamic>>();
     final dex = DexStore();
     await dex.add(DexEntry(
@@ -69,6 +69,10 @@ void main() {
     final quests = CompanionQuestCoordinator(
         game: game,
         camp: camp,
+        loadPlaces: () async {
+          placeReads++;
+          return [];
+        },
         templateRequest: (_) {
           requests++;
           return template.future;
@@ -217,4 +221,26 @@ void main() {
           'cards': ['coast_sail']
         }));
   });
+
+  for (final state in [AppLifecycleState.resumed, AppLifecycleState.paused]) {
+    test('detached bridge stays detached after host ${state.name}', () async {
+      await Future<void>.delayed(Duration.zero);
+      final priorReads = placeReads;
+      app.detach();
+      await app.setHostLifecycle(state);
+      expect(await app.handleMessage('{"type":"ready"}'), false);
+      expect(
+          await app
+              .handleMessage('{"v":1,"type":"appLifecycle","active":true}'),
+          false);
+      final rejected = action('openQuest');
+      if (requests > 0) template.complete(response());
+      expect(await rejected, false);
+      expect(requests, 0);
+      await Future<void>.delayed(Duration.zero);
+      expect(placeReads, priorReads,
+          reason: 'Flutter lifecycle alone must not resume quest polling');
+      expect(story()['canOpen'], false);
+    });
+  }
 }

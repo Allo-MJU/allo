@@ -164,7 +164,14 @@ class UnityAppController extends ChangeNotifier {
   bool _unityActive = true;
   AppLifecycleState _hostLifecycle = AppLifecycleState.resumed;
 
-  Future<bool> setHostLifecycle(AppLifecycleState state) async {
+  Future<bool> setHostLifecycle(AppLifecycleState state) =>
+      _setHostLifecycle(state);
+
+  Future<bool> prepareConnectionLifecycle(AppLifecycleState state) =>
+      _setHostLifecycle(state, hostPreparation: true);
+
+  Future<bool> _setHostLifecycle(AppLifecycleState state,
+      {bool hostPreparation = false}) async {
     if (state == AppLifecycleState.detached) {
       _pairingGeneration++;
       _bridgeGeneration++;
@@ -175,18 +182,18 @@ class UnityAppController extends ChangeNotifier {
       _learning?.invalidate();
     }
     _hostLifecycle = state;
-    if (state != AppLifecycleState.detached) _bridgeDetached = false;
     if (state == AppLifecycleState.detached) _pauseStory();
     _quests
         .setActive(!(_bridgeDetached || state == AppLifecycleState.detached));
-    final saved = await _syncGameActive();
+    final saved = await _syncGameActive(hostPreparation: hostPreparation);
     _changed();
     return saved;
   }
 
-  Future<bool> _syncGameActive() async {
+  Future<bool> _syncGameActive({bool hostPreparation = false}) async {
     if (_disposed) return false;
-    final active = _hostLifecycle != AppLifecycleState.detached &&
+    final active = (!_bridgeDetached || hostPreparation) &&
+        _hostLifecycle != AppLifecycleState.detached &&
         (_hostLifecycle == AppLifecycleState.resumed ||
             _unityActive ||
             _nativeSpeech ||
@@ -951,8 +958,32 @@ class UnityAppController extends ChangeNotifier {
     };
   }
 
-  Future<bool> handleMessage(String json) async {
-    if (_disposed || _bridgeDetached || json.length > 8192) return false;
+  /// Prepare a connection before Unity rebinds; this never revives its old bridge.
+  Future<bool> prepareConnectionAction(String action,
+      {required String requestId, String? view}) {
+    if (!{'navigate', 'testPair'}.contains(action)) return Future.value(false);
+    return _handleMessage(
+        jsonEncode({
+          'v': 1,
+          'type': 'appAction',
+          'requestId': requestId,
+          'action': action,
+          if (view != null) 'view': view,
+        }),
+        hostPreparation: true);
+  }
+
+  Future<bool> handleMessage(String json) => _handleMessage(json);
+
+  Future<bool> _handleMessage(String json,
+      {bool hostPreparation = false, int? expectedBridgeGeneration}) async {
+    if (_disposed ||
+        (_bridgeDetached && !hostPreparation) ||
+        (expectedBridgeGeneration != null &&
+            expectedBridgeGeneration != _bridgeGeneration) ||
+        json.length > 8192) {
+      return false;
+    }
     Object? decoded;
     try {
       decoded = jsonDecode(json);
@@ -1085,7 +1116,7 @@ class UnityAppController extends ChangeNotifier {
     if (m['action'] == 'speech' || m['action'] == 'photo') return _capture(m);
     _pending++;
     _changed();
-    final bridgeGeneration = _bridgeGeneration;
+    final bridgeGeneration = expectedBridgeGeneration ?? _bridgeGeneration;
     final result = _tail.then((_) async {
       if (_disposed ||
           _hostLifecycle == AppLifecycleState.detached ||
@@ -1385,6 +1416,13 @@ class UnityAppController extends ChangeNotifier {
 
   Future<bool> _capture(Map<String, dynamic> m) async {
     final speech = m['action'] == 'speech';
+    final bridgeGeneration = _bridgeGeneration;
+    bool current() =>
+        !_disposed &&
+        !_bridgeDetached &&
+        _hostLifecycle != AppLifecycleState.detached &&
+        bridgeGeneration == _bridgeGeneration &&
+        _currentEgg(m);
     if (game.eggApi == null) {
       _error = '음성·사진 서버 설정이 필요해요. 연결 설정을 확인해 주세요.';
       _changed();
@@ -1409,25 +1447,26 @@ class UnityAppController extends ChangeNotifier {
     _changed();
     await _syncGameActive();
     try {
+      if (!current()) return false;
       if (speech) {
         final text = await _speechInput();
-        if (_disposed ||
-            !_currentEgg(m) ||
+        if (!current() ||
             text == null ||
             !_string(text, 1000) ||
             text.runes.length > 500) {
           return false;
         }
-        return await handleMessage(jsonEncode({
-          ...m,
-          'requestId': '${m['requestId']}:result',
-          'action': 'submitSpeech',
-          'text': text
-        }));
+        return await _handleMessage(
+            jsonEncode({
+              ...m,
+              'requestId': '${m['requestId']}:result',
+              'action': 'submitSpeech',
+              'text': text
+            }),
+            expectedBridgeGeneration: bridgeGeneration);
       }
       final bytes = await _photoInput();
-      if (_disposed ||
-          !_currentEgg(m) ||
+      if (!current() ||
           bytes == null ||
           bytes.isEmpty ||
           bytes.length > 5 * 1024 * 1024) {
@@ -1437,7 +1476,7 @@ class UnityAppController extends ChangeNotifier {
       _pending++;
       _changed();
       final result = _tail.then((_) async {
-        if (_disposed || !_currentEgg(m)) return false;
+        if (!current()) return false;
         return await game.uploadEggPhoto(bytes) != EggFeedback.none &&
             game.error == null;
       });
