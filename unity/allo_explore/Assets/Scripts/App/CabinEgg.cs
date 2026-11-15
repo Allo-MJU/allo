@@ -68,7 +68,7 @@ namespace Allo.App
             new Vector3(surface.center.x, surface.max.y + EggHeight * 0.5f, surface.center.z);
 
         public static bool CanInteract(AppState state, string view, string startedEggId) =>
-            !CabinInteraction.IsCapturing && state != null && state.ready && state.connected && !state.busy && !state.sessionEnded &&
+            !CabinInteraction.IsCapturing && !StoryOverlay.OwnsInput(state) && state != null && state.ready && state.connected && !state.busy && !state.sessionEnded &&
             ShowEgg(view, state.egg) && state.egg.id == startedEggId && !state.egg.photoBusy && !state.egg.speechBusy;
 
         public static bool ShouldPlayCare(AppState previous, AppState next) => previous?.learning != null && next?.learning != null &&

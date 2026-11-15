@@ -56,7 +56,7 @@ namespace Allo.Bridge
             switch (Allo.App.AppSession.BackActionFor(Allo.App.AppSession.State))
             {
                 case Allo.App.AppBackAction.PauseStory:
-                    Allo.App.AppSession.Request("storyPause");
+                    Allo.App.AppSession.Request("storyNotebook", new Allo.App.AppAction { open = false });
                     break;
                 case Allo.App.AppBackAction.NavigateHome:
                     Allo.App.AppSession.Request("navigate", new Allo.App.AppAction { view = "home" });

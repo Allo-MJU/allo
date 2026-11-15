@@ -14,14 +14,15 @@ namespace Allo.App
         CabinEgg _egg;
         public static AppState State { get; private set; }
         public static event Action<AppState> Changed;
-        // Experimental story snapshots do not own input in the phone application.
-        public static bool StoryActive => false;
+        // Only a host-opened manual pilot owns the phone story presentation.
+        public static bool StoryActive => StoryOverlay.ShowsStory(State);
         public static bool LearningActive => State?.view == "cabin" && State.learning != null && !string.IsNullOrEmpty(State.learning.creatureId);
         public static bool DialogueOwned => StoryActive || LearningActive || StoryOverlay.CapturingInput;
         public static string CurrentView => State?.view ?? "home";
 
         public static AppBackAction BackActionFor(AppState state) => state == null
             ? AppBackAction.CloseExplore
+            : StoryOverlay.OwnsInput(state) ? AppBackAction.PauseStory
             : state.view == "home" ? AppBackAction.BackgroundApp : AppBackAction.NavigateHome;
 
         public static bool Accepts(AppState current, AppState next) =>

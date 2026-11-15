@@ -192,7 +192,7 @@
     },
     {
       "id": "coast_sail",
-      "version": 1,
+      "version": 2,
       "title": "바닷바람 우편배",
       "environment": "coast",
       "invitation": "바다에 띄울 작은 편지가 있어. 배달을 도와줄래?",
@@ -208,6 +208,23 @@
             {
               "id": "next",
               "label": "다음",
+              "next": "prediction"
+            }
+          ],
+          "variant": "neutral"
+        },
+        {
+          "id": "prediction",
+          "line": "같은 바람이면 어느 배가 더 멀리 갈까?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "돛 펼친 배",
+              "next": "choose"
+            },
+            {
+              "id": "b",
+              "label": "돛 접은 배",
               "next": "choose"
             }
           ],
@@ -215,7 +232,7 @@
         },
         {
           "id": "choose",
-          "line": "뒤에서 바람이 불어. 돛을 어떻게 할까?",
+          "line": "어느 쪽부터 해 볼까?",
           "choices": [
             {
               "id": "a",
@@ -310,18 +327,13 @@
               "id": "why",
               "label": "왜 그럴까?",
               "next": "explain"
-            },
-            {
-              "id": "finish",
-              "label": "편지 보내기",
-              "next": "ending"
             }
           ],
           "variant": "both"
         },
         {
           "id": "explain",
-          "line": "바람이 펼쳐진 돛을 밀어서 배를 움직인 거야.",
+          "line": "바람이 펼쳐진 돛을 밀어 배를 움직였어.",
           "choices": [
             {
               "id": "finish",
@@ -337,13 +349,13 @@
           "choices": [
             {
               "id": "save",
-              "label": "카드 담기",
+              "label": "발견 카드 담기",
               "next": "@save"
             },
             {
               "id": "replay",
               "label": "한 번 더",
-              "next": "choose"
+              "next": "prediction"
             }
           ],
           "variant": "both"

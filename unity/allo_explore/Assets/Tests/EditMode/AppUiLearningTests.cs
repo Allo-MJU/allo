@@ -355,8 +355,30 @@ public class AppUiLearningTests
         Assert.IsNull(ButtonNamed("여행 노트"));
         Assert.IsNull(ButtonNamed("이야기 시작"));
         Assert.IsFalse(StoryOverlay.CapturingInput);
-        Assert.IsNull(_root.GetComponent<StoryOverlay>());
+        Assert.IsNotNull(_root.GetComponent<StoryOverlay>());
         Assert.IsTrue(CabinEgg.CanInteract(state, "cabin", "new-egg"));
+    }
+
+    [Test]
+    public void NotebookEntryRequiresConnectedCabinAndHostAllowsOpening()
+    {
+        var state=State(); state.story=new StoryState{ready=true,canOpen=true,canPlay=true};
+        Apply(state); Call("BuildCabin"); Assert.IsTrue(ButtonNamed("탐험 노트").interactable);
+        state.story.canOpen=false; RebuildCabin(); Assert.IsFalse(ButtonNamed("탐험 노트").interactable);
+        state.connected=false; RebuildCabin(); Assert.IsNull(ButtonNamed("탐험 노트"));
+    }
+
+    [Test]
+    public void OpenNotebookBlocksCareCompanionChatAndNativeSpeech()
+    {
+        var state=State(); SelectFriend(state);
+        state.story=new StoryState{ready=true,canOpen=true,canPlay=true,notebookOpen=true};
+        Apply(state); Call("BuildCabin");
+        Assert.IsTrue(_ui.CabinGesturesBlocked);
+        Assert.IsFalse(AppUi.CanCompanionTalk(state)); Assert.IsFalse(AppUi.CanInviteCompanion(state,"road_sprout"));
+        Assert.IsFalse(AppUi.CanCommonCare(state,"pet"));
+        Assert.IsFalse(CabinEgg.CanInteract(state,"cabin",state.egg.id));
+        Assert.AreEqual(AppBackAction.PauseStory,AppSession.BackActionFor(state));
     }
 
     [Test]

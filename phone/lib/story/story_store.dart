@@ -19,3 +19,41 @@ class SharedPreferencesStoryStore implements StoryStore {
     }
   }
 }
+
+/// Queues writes for the storage key, including writes from a retiring owner.
+class StoryStoreOwner {
+  StoryStoreOwner(StoryStore store)
+      : _store = store,
+        _queue = store is SharedPreferencesStoryStore
+            ? _preferences.putIfAbsent(store.prefix, _StoryWriteQueue.new)
+            : (_stores[store] ??= _StoryWriteQueue()) {
+    _queue.owner = this;
+  }
+  static final _preferences = <String, _StoryWriteQueue>{};
+  static final _stores = Expando<_StoryWriteQueue>();
+  final StoryStore _store;
+  final _StoryWriteQueue _queue;
+  bool get owns => identical(_queue.owner, this);
+  Future<void> flush() => _queue.tail;
+  Future<String?> read() async {
+    await flush();
+    if (!owns) return null;
+    return _store.read();
+  }
+
+  Future<void> write(String value) {
+    if (!owns) return Future.error(StateError('Story owner replaced'));
+    final next = _queue.tail.then((_) => _store.write(value));
+    _queue.tail = next.catchError((Object _) {});
+    return next;
+  }
+
+  void release() {
+    if (owns) _queue.owner = null;
+  }
+}
+
+class _StoryWriteQueue {
+  StoryStoreOwner? owner;
+  Future<void> tail = Future.value();
+}

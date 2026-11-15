@@ -239,7 +239,8 @@ void main() {
     await summon(id);
     expect(await openChat(id), true);
     expect(await action('storyStart', {'topicId': 'coast_sail'}), false);
-    expect(app.snapshot['story'], isNull);
+    expect((app.snapshot['story'] as Map)['active'], false);
+    expect((app.snapshot['story'] as Map)['notebookOpen'], false);
     expect(learning.active, true);
     expect(await action('storyNext', {'creatureId': id}), false);
     expect(await action('storyRepeat', {'creatureId': id}), false);
@@ -309,7 +310,8 @@ void main() {
     expect(camp.state.creatures[friend.id]?.speciesId, 'breeze_wyrm');
   });
 
-  test('opening notebook invalidates an in-flight companion answer', () async {
+  test('blocking native modal invalidates an in-flight companion answer',
+      () async {
     final gate = Completer<Map<String, dynamic>>();
     late Map<String, dynamic> sent;
     app.dispose();
@@ -340,7 +342,40 @@ void main() {
     expect(await pending, false);
     expect(spoken.length, count);
     expect(learning.history, isEmpty);
-    expect(app.snapshot['story'], isNull);
+    expect((app.snapshot['story'] as Map)['active'], false);
+    expect((app.snapshot['story'] as Map)['notebookOpen'], false);
+  });
+
+  test('pilot cannot open or cancel a companion answer already in flight',
+      () async {
+    final gate = Completer<Map<String, dynamic>>();
+    late Map<String, dynamic> sent;
+    app.dispose();
+    learning = CompanionLearningController(
+        catalog: catalog(),
+        store: MemoryLearningStore(),
+        request: (r) {
+          if (r['action'] != 'chat') return Future.value(reply(r));
+          sent = r;
+          return gate.future;
+        },
+        speak: (s) async => spoken.add(s),
+        stop: () async {});
+    app = UnityAppController(game: game, camp: camp, learning: learning);
+    await app.initialize();
+    await action('navigate', {'view': 'cabin'});
+    final id = getTarget();
+    await summon(id);
+    await openChat(id);
+    final pending = action('companionChat', {'creatureId': id, 'text': '질문'});
+    await Future<void>.delayed(Duration.zero);
+    expect((app.snapshot['story'] as Map)['canOpen'], false);
+    expect(await action('storyNotebook', {'open': true}), false);
+    gate.complete(reply(sent));
+    expect(await pending, true);
+    expect(learning.history, isNotEmpty);
+    expect(await action('storyNotebook', {'open': true}), true);
+    expect(learning.conversationMode, 'closed');
   });
 
   test('action names cannot be used as navigation destinations', () async {

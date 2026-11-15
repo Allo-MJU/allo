@@ -8,18 +8,39 @@ export 'story_store.dart';
 
 /// Local educational state only: never modifies affinity, materials or ownership.
 class StoryDirector extends ChangeNotifier {
-  StoryDirector({required List<StoryPack> packs, required this.store})
-      : packs = {for (final p in packs) p.id: p};
+  StoryDirector(
+      {required List<StoryPack> packs,
+      required this.store,
+      this.playableTopics})
+      : packs = {for (final p in packs) p.id: p},
+        _owner = StoryStoreOwner(store);
+  final Set<String>? playableTopics;
+  final StoryStoreOwner _owner;
+  bool _playable(String id) => playableTopics?.contains(id) ?? true;
   final Map<String, StoryPack> packs;
   final StoryStore store;
   final _cards = <String>{}, _completed = <String>{}, _handled = <String>{};
+  final _records = <String, Map<String, String>>{};
+  Map<String, dynamic>? _retainedSession;
+  Map<String, String> _evidence = {};
+  bool _observedA = false, _observedB = false, _explained = false;
+  bool get _writable => !_disposed && _owner.owns;
+  static const _evidenceFields = [
+    'prediction',
+    'firstAction',
+    'observation',
+    'principle',
+    'nextQuestion'
+  ];
+  static Map<String, String> _readEvidence(dynamic value) => {
+        if (value is Map)
+          for (final field in _evidenceFields)
+            if (value[field] is String) field: value[field] as String
+      };
   String? _current, _candidate;
   String _node = 'intro', _instance = '', _notice = '';
-  int _revision = 0,
-      _now = 0,
-      _lastOffer = -90000,
-      _quietUntil = 0,
-      _serial = 0;
+  int _revision = 0, _now = 0, _lastOffer = -90000, _quietUntil = 0;
+  static int _serial = 0;
   bool _paused = false,
       _pending = false,
       _canPlay = false,
@@ -29,13 +50,14 @@ class StoryDirector extends ChangeNotifier {
   String? _visibleOffer, _weatherKey, _stableWeather;
   int _weatherSince = 0;
   WindowScene? _lastScene;
-  Future<void> _writes = Future.value();
+  Future<void> flush() => _owner.flush();
   bool get active => _current != null && !_paused;
   bool get paused => _current != null && _paused;
   bool get pending => _pending;
   StoryPack? get _pack => packs[_current];
   bool get _eligible =>
       _candidate != null &&
+      _playable(_candidate!) &&
       _canOffer &&
       _connected &&
       _now >= _quietUntil &&
@@ -64,6 +86,7 @@ class StoryDirector extends ChangeNotifier {
       'cardTitle': pack?.cardTitle ?? '',
       'cardText': pack?.cardText ?? '',
       'notice': _notice,
+      ..._evidence,
       'cardCount': _cards.length,
       'savedCards': _cards
           .where(packs.containsKey)
@@ -71,7 +94,8 @@ class StoryDirector extends ChangeNotifier {
                 'id': id,
                 'topicId': id,
                 'title': packs[id]!.cardTitle,
-                'text': packs[id]!.cardText
+                'text': packs[id]!.cardText,
+                ...?_records[id]
               })
           .toList(),
       'library': packs.values
@@ -79,30 +103,62 @@ class StoryDirector extends ChangeNotifier {
                 'id': p.id,
                 'topicId': p.id,
                 'title': p.title,
-                'text': p.invitation
+                'text': p.invitation,
+                'playable': _playable(p.id)
               })
           .toList()
     };
   }
 
   Future<void> initialize() async {
+    final String? raw;
     try {
-      final raw = await store.read();
-      if (raw == null || _disposed) return;
+      raw = await _owner.read();
+    } catch (_) {
+      _notice = '이전 이야기를 불러오지 못했어요. 다시 시도해 줘.';
+      _emit();
+      rethrow;
+    }
+    if (!_writable) return;
+    _notice = '';
+    if (raw == null) {
+      _emit();
+      return;
+    }
+    try {
       final data = jsonDecode(raw) as Map<String, dynamic>;
       if (data['version'] != 1) return;
       for (final id in data['cards'] as List? ?? []) {
         if (id is String && packs.containsKey(id)) _cards.add(id);
       }
+      final records = data['records'];
+      if (records is Map) {
+        for (final id in _cards) {
+          final evidence = _readEvidence(records[id]);
+          if (evidence.isNotEmpty) _records[id] = evidence;
+        }
+      }
       final saved = data['session'];
       if (saved is Map && packs.containsKey(saved['topicId'])) {
         final pack = packs[saved['topicId']]!;
-        if (saved['packVersion'] == pack.version &&
-            pack.nodes.containsKey(saved['nodeId'])) {
+        if (!_playable(pack.id)) {
+          _retainedSession = Map<String, dynamic>.from(saved);
+          _notice = '바다 탐험을 시작하면 이전 미완료 탐험 대신 새로 시작해.';
+        } else {
           _current = pack.id;
-          _node = saved['nodeId'] as String;
           _paused = true;
           _instance = 'restored-${DateTime.now().microsecondsSinceEpoch}';
+          if (saved['packVersion'] == pack.version &&
+              pack.nodes.containsKey(saved['nodeId'])) {
+            _node = saved['nodeId'] as String;
+            _evidence = _readEvidence(saved['evidence']);
+            _observedA = saved['observedA'] == true;
+            _observedB = saved['observedB'] == true;
+            _explained = saved['explained'] == true;
+          } else {
+            _node = 'intro';
+            _notice = '탐험이 새로워져 처음부터 시작해. 저장한 카드는 그대로야.';
+          }
         }
       }
     } catch (_) {
@@ -118,6 +174,7 @@ class StoryDirector extends ChangeNotifier {
       required bool canOffer,
       required bool canPlay,
       required bool connected}) {
+    if (!_writable) return;
     final before = jsonEncode(snapshot);
     _now = nowMs;
     _canOffer = canOffer;
@@ -184,7 +241,7 @@ class StoryDirector extends ChangeNotifier {
         _ => p.environment == s.kind.name
       };
   void pause() {
-    if (!active) return;
+    if (!_writable || !active) return;
     _paused = true;
     _emit();
     _persistLater();
@@ -195,7 +252,7 @@ class StoryDirector extends ChangeNotifier {
       m['nodeId'] == _node &&
       m['storyRevision'] == _revision;
   Future<bool> handle(String action, Map<String, dynamic> intent) async {
-    if (_disposed) return false;
+    if (!_writable) return false;
     final request = intent['requestId'];
     if (request is! String ||
         request.isEmpty ||
@@ -229,14 +286,24 @@ class StoryDirector extends ChangeNotifier {
       final target = intent['topicId'];
       final explicit = target is String && target.isNotEmpty;
       final id = explicit ? target : _candidate;
-      if (id == null || !packs.containsKey(id) || (!explicit && !_available)) {
+      if (id == null ||
+          !packs.containsKey(id) ||
+          !_playable(id) ||
+          (!explicit && !_available)) {
         return false;
       }
+      final replaced = _retainedSession != null;
+      _retainedSession = null;
+      _resetEvidence();
       _current = id;
       _node = 'intro';
       _paused = false;
       _instance = 'story-$_now-${++_serial}';
-      _notice = explicit && !_connected ? '지금은 상상 탐험이야. 준비된 이야기로 놀아 보자.' : '';
+      _notice = replaced
+          ? '이전 미완료 탐험 대신 바다 탐험을 시작했어.'
+          : explicit && !_connected
+              ? '지금은 상상 탐험이야. 준비된 이야기로 놀아 보자.'
+              : '';
     } else if (action == 'storyDismiss') {
       if (_current != null) return false;
       _quietUntil = _now + 180000;
@@ -258,12 +325,33 @@ class StoryDirector extends ChangeNotifier {
           return _save(request);
         }
         if (action == 'storyReplay') {
-          _node = 'choose';
+          _resetEvidence();
+          _node = _current == 'coast_sail' ? 'prediction' : 'choose';
         } else {
           final choices = _pack!.nodes[_node]!.choices
               .where((c) => c.id == intent['actionId']);
           if (choices.isEmpty) return false;
           final next = choices.first.next;
+          if (_current == 'coast_sail') {
+            if (_node == 'prediction') {
+              _evidence['prediction'] = choices.first.id == 'a'
+                  ? '돛을 펼친 배가 더 멀리 갈 것 같았어.'
+                  : '돛을 접은 배가 더 멀리 갈 것 같았어.';
+            } else if (_node == 'choose') {
+              _evidence['firstAction'] = choices.first.label;
+            }
+            if (next == 'prediction') _resetEvidence();
+            if (next == 'react_a' || next == 'second_a') _observedA = true;
+            if (next == 'react_b' || next == 'second_b') _observedB = true;
+            if (next == 'discovery' && _observedA && _observedB) {
+              _evidence['observation'] = '같은 시간 동안 돛을 펼친 배가 더 멀리 갔어.';
+            }
+            if (next == 'explain') {
+              _explained = true;
+              _evidence['principle'] = '바람이 펼쳐진 돛을 밀어 배를 움직일 수 있어.';
+              _evidence['nextQuestion'] = '바람으로 움직이는 다른 물건도 있을까?';
+            }
+          }
           if (next == '@save') return _save(request);
           if (next == '@close') {
             _current = null;
@@ -283,14 +371,25 @@ class StoryDirector extends ChangeNotifier {
 
   Future<bool> _save(String request) async {
     final id = _current!;
+    if (id == 'coast_sail' &&
+        (!_observedA ||
+            !_observedB ||
+            !_explained ||
+            !_evidenceFields.every(_evidence.containsKey))) {
+      return false;
+    }
+    final record = Map<String, String>.from(_evidence);
+    final records = {..._records, if (record.isNotEmpty) id: record};
     _remember(request);
     _pending = true;
     _notice = '';
     _emit();
     try {
-      await _enqueue(_encoded(cards: {..._cards, id}, node: 'saved'));
-      if (_disposed) return false;
+      await _enqueue(
+          _encoded(cards: {..._cards, id}, node: 'saved', records: records));
+      if (!_writable) return false;
       _cards.add(id);
+      if (record.isNotEmpty) _records[id] = record;
       _completed.add(id);
       _node = 'saved';
       _notice = '오늘의 발견을 여행 노트에 담았어.';
@@ -309,27 +408,37 @@ class StoryDirector extends ChangeNotifier {
     if (_handled.length > 256) _handled.remove(_handled.first);
   }
 
-  String _encoded({Set<String>? cards, String? node}) => jsonEncode({
+  void _resetEvidence() {
+    _evidence = {};
+    _observedA = _observedB = _explained = false;
+  }
+
+  String _encoded(
+          {Set<String>? cards,
+          String? node,
+          Map<String, Map<String, String>>? records}) =>
+      jsonEncode({
         'version': 1,
         'cards': (cards ?? _cards).toList(),
+        'records': records ?? _records,
         'session': _current == null
-            ? null
+            ? _retainedSession
             : {
                 'topicId': _current,
                 'packVersion': _pack!.version,
-                'nodeId': node ?? _node
+                'nodeId': node ?? _node,
+                'evidence': _evidence,
+                'observedA': _observedA,
+                'observedB': _observedB,
+                'explained': _explained
               }
       });
-  Future<void> _enqueue(String value) {
-    final next = _writes.then((_) => store.write(value));
-    _writes = next.catchError((Object _) {});
-    return next;
-  }
+  Future<void> _enqueue(String value) => _owner.write(value);
 
   void _persistLater() {
     // The pending card transaction already persists this node. Do not enqueue
     // a stale pre-save card set when navigation pauses it during the write.
-    if (_pending) return;
+    if (_pending || !_writable) return;
     _enqueue(_encoded()).catchError((Object _) {
       if (!_disposed && !_pending) {
         _notice = '진행을 저장하지 못했어. 다시 시도해 줘.';
@@ -348,6 +457,7 @@ class StoryDirector extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _owner.release();
     super.dispose();
   }
 }

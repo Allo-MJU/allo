@@ -19,6 +19,7 @@ import '../pairing/pairing_credentials.dart';
 import 'unity_demo_creatures.dart';
 import '../scene/window_scene.dart';
 import '../story/story_voice_config.dart';
+import '../story/story_director.dart';
 
 const _nativeInput = MethodChannel('allo/egg-input');
 const _companionVoice = MethodChannel('allo/companion-voice');
@@ -30,6 +31,7 @@ class UnityAppController extends ChangeNotifier {
       required this.camp,
       this.demoCreatures = false,
       CompanionLearningController? learning,
+      StoryDirector? story,
       this.pairingScanner,
       Future<String?> Function()? speechInput,
       Future<Uint8List?> Function()? photoInput})
@@ -42,6 +44,8 @@ class UnityAppController extends ChangeNotifier {
     _egg = _readEgg();
     _learning = learning;
     _learning?.addListener(_learningChanged);
+    _story = story;
+    _story?.addListener(_storyChanged);
   }
 
   final GameController game;
@@ -52,6 +56,12 @@ class UnityAppController extends ChangeNotifier {
   int _pairingGeneration = 0, _navigationGeneration = 0;
   CompanionLearningController? _learning;
   CompanionLearningController? get learning => _learning;
+  StoryDirector? _story;
+  bool _storyReady = false, _storyLoading = false;
+  bool _storyNotebookOpen = false, _storyUiBlocked = false;
+  String _storyError = '', _storyAckRequest = '';
+  bool _storyAckAccepted = false;
+  String? _storyEggState;
   final _learningRandom = math.Random.secure();
   String _careActionId = '';
   int _careSequence = 0;
@@ -158,12 +168,40 @@ class UnityAppController extends ChangeNotifier {
         _learning!.addListener(_learningChanged);
       }
       _ready = loaded;
+      await _initializeStory();
       _changed();
       return loaded;
     } catch (_) {
       _error = '앱 정보를 불러오지 못했어요. 새로고침해 주세요.';
       _changed();
       return false;
+    }
+  }
+
+  Future<void> _initializeStory() async {
+    if (_storyLoading || _disposed) return;
+    _storyLoading = true;
+    _storyError = '';
+    try {
+      if (_story == null) {
+        final packs = StoryPack.decodeList(
+            await rootBundle.loadString('assets/data/window_stories_ko.json'));
+        if (_disposed) return;
+        _story = StoryDirector(
+            packs: packs,
+            store: SharedPreferencesStoryStore(),
+            playableTopics: const {'coast_sail'});
+        _story!.addListener(_storyChanged);
+      }
+      await _story!.initialize();
+      if (!_disposed) _storyReady = true;
+    } catch (_) {
+      if (!_disposed) {
+        _storyReady = false;
+        _storyError = '탐험 노트를 불러오지 못했어요. 다시 시도해 주세요.';
+      }
+    } finally {
+      _storyLoading = false;
     }
   }
 
@@ -254,7 +292,15 @@ class UnityAppController extends ChangeNotifier {
         'careActionId': _careActionId,
         'careSequence': _careSequence,
       },
-      'story': null,
+      'story': {
+        ...?_story?.snapshot,
+        'ready': _storyReady,
+        'error': _storyError,
+        'canOpen': _canOpenStory,
+        'notebookOpen': _storyNotebookOpen,
+        'ackRequestId': _storyAckRequest,
+        'ackAccepted': _storyAckAccepted,
+      },
       'egg': {
         ..._egg,
         'speechBusy': game.speechBusy || _nativeSpeech,
@@ -422,6 +468,58 @@ class UnityAppController extends ChangeNotifier {
 
   void _learningChanged() {
     if (_disposed) return;
+    _syncStory();
+    _revision++;
+    notifyListeners();
+    _publish();
+  }
+
+  bool get _storyCapturing =>
+      _storyNotebookOpen || (_storyReady && _story?.active == true);
+
+  bool get _canOpenStory =>
+      !_disposed &&
+      _ready &&
+      view == 'cabin' &&
+      _hostLifecycle == AppLifecycleState.resumed &&
+      _unityActive &&
+      !_disconnected &&
+      game.paired &&
+      !game.sessionEnded &&
+      !game.endingSession &&
+      !game.busy &&
+      _pending == 0 &&
+      !_storyUiBlocked &&
+      !_nativeSpeech &&
+      !_nativePhoto &&
+      !_nativeCompanionSpeech &&
+      !game.speechBusy &&
+      !game.photoBusy &&
+      game.affinityRound?.phase != AffinityPhase.photoRequired &&
+      _learning?.snapshot['busy'] != true &&
+      _learning?.recording != true;
+
+  void _pauseStory() {
+    _storyNotebookOpen = false;
+    if (_story?.active == true) _story!.pause();
+  }
+
+  void _syncStory() {
+    final eggState = '${game.eggId}:${game.game.stage.name}';
+    final replaced = _storyEggState != null && _storyEggState != eggState;
+    _storyEggState = eggState;
+    if (!_canOpenStory || replaced) _pauseStory();
+    _story?.updateContext(
+        scene: _shownScene,
+        nowMs: DateTime.now().millisecondsSinceEpoch,
+        canPlay: _storyReady && _canOpenStory,
+        canOffer: false,
+        connected: game.paired && !_disconnected && !game.sessionEnded);
+  }
+
+  void _storyChanged() {
+    if (_disposed) return;
+    _syncLearning();
     _revision++;
     notifyListeners();
     _publish();
@@ -429,6 +527,7 @@ class UnityAppController extends ChangeNotifier {
 
   bool get _learningActive =>
       view == 'cabin' &&
+      !_storyCapturing &&
       _unityActive &&
       !_learningUiBlocked &&
       !_nativeSpeech &&
@@ -478,6 +577,8 @@ class UnityAppController extends ChangeNotifier {
       _learning?.invalidate();
     }
     _learningConnection = connection;
+    _updateScene();
+    _syncStory();
     _syncLearning();
     if (_pending == 0 && game.error == null) _egg = _readEgg();
     final hatch = game.game.stage == Stage.hatched ? game.eggId : null;
@@ -504,7 +605,6 @@ class UnityAppController extends ChangeNotifier {
       _countedHatch = hatch;
       unawaited(_readCounts().then((_) => _changed()));
     }
-    _updateScene();
     _revision++;
     notifyListeners();
     _publish();
@@ -633,12 +733,16 @@ class UnityAppController extends ChangeNotifier {
     'retryFishingSave',
     'settings',
     ..._learningActions,
+    ..._storyActions,
+    'storyNotebook',
+    'storyRetry',
     'storyUiBlocked',
     'learningUiBlocked'
   };
   static bool _string(Object? value, [int max = 256]) =>
       value is String && value.trim().isNotEmpty && value.length <= max;
   bool _currentEgg(Map<String, dynamic> m) =>
+      !_storyCapturing &&
       !_disconnected &&
       game.paired &&
       _stoppedRoundTier == null &&
@@ -661,6 +765,18 @@ class UnityAppController extends ChangeNotifier {
       return false;
     }
     return switch (m['action']) {
+      'storyNotebook' => m['open'] is bool,
+      'storyStart' => m['topicId'] == 'coast_sail',
+      'storyChoose' ||
+      'storyPause' ||
+      'storyClose' ||
+      'storyResume' ||
+      'storyReplay' ||
+      'storySave' =>
+        _string(m['instanceId']) &&
+            _string(m['nodeId']) &&
+            m['storyRevision'] is int &&
+            (m['action'] != 'storyChoose' || _string(m['actionId'])),
       'storyUiBlocked' || 'learningUiBlocked' => m['blocked'] is bool,
       'navigate' => _views.contains(m['view']),
       'pair' => _string(m['sessionId'], 36) &&
@@ -733,6 +849,7 @@ class UnityAppController extends ChangeNotifier {
     }
     if (m['type'] != 'appAction') {
       if (view != 'cabin' ||
+          _storyCapturing ||
           game.sessionEnded ||
           _disconnected ||
           !game.paired) {
@@ -775,17 +892,25 @@ class UnityAppController extends ChangeNotifier {
       return true;
     }
     if (m['action'] == 'storyUiBlocked') {
-      // Legacy experiment signals cannot capture the direct cabin surface.
+      _storyUiBlocked = m['blocked'] as bool;
+      _changed();
       return true;
+    }
+    if (m['action'] == 'storyNotebook' ||
+        m['action'] == 'storyRetry' ||
+        _storyActions.contains(m['action'])) {
+      return _dispatchStory(m);
     }
     if (m['action'] == 'navigate') {
       if (view != m['view']) {
+        _pauseStory();
         _navigationGeneration++;
         _pairingGeneration++;
         _companionInputGeneration++;
         _learning?.invalidate();
       }
       _learningUiBlocked = false;
+      _storyUiBlocked = false;
       view = m['view'] as String;
       _changed();
       return true;
@@ -820,6 +945,58 @@ class UnityAppController extends ChangeNotifier {
         _revision++;
         notifyListeners();
         _publish();
+      }
+    }
+  }
+
+  static const _storyActions = {
+    'storyStart',
+    'storyChoose',
+    'storyPause',
+    'storyClose',
+    'storyResume',
+    'storyReplay',
+    'storySave'
+  };
+
+  Future<bool> _dispatchStory(Map<String, dynamic> m) async {
+    final action = m['action'];
+    var accepted = false;
+    try {
+      if (action == 'storyNotebook') {
+        if (m['open'] == false) {
+          _pauseStory();
+          accepted = true;
+        } else if (_canOpenStory && _story?.active != true) {
+          _storyNotebookOpen = true;
+          _learning?.closeInvitation();
+          accepted = true;
+        }
+      } else if (action == 'storyRetry') {
+        if (_storyNotebookOpen && _canOpenStory && !_storyReady) {
+          await _initializeStory();
+          accepted = _storyReady;
+        }
+      } else {
+        final director = _story;
+        final entry = action == 'storyStart' || action == 'storyResume';
+        final exiting = action == 'storyPause' || action == 'storyClose';
+        if (director == null ||
+            !_storyReady ||
+            (entry && !_storyNotebookOpen) ||
+            (!entry && !_storyCapturing && !exiting) ||
+            (!exiting && !_canOpenStory)) {
+          return false;
+        }
+        accepted = await director.handle(action as String, m);
+        if (accepted && (entry || exiting)) _storyNotebookOpen = false;
+      }
+      return accepted;
+    } finally {
+      if (!_disposed) {
+        _storyAckRequest = m['requestId'] as String;
+        _storyAckAccepted = accepted;
+        _changed();
       }
     }
   }
@@ -1375,6 +1552,8 @@ class UnityAppController extends ChangeNotifier {
     _companionInputGeneration++;
     _learning?.removeListener(_learningChanged);
     _learning?.dispose();
+    _story?.removeListener(_storyChanged);
+    _story?.dispose();
     game.removeListener(_changed);
     camp.removeListener(_changed);
     _send = null;

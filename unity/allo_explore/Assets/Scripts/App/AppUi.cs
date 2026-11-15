@@ -10,8 +10,9 @@ namespace Allo.App
     public sealed partial class AppUi : MonoBehaviour
     {
         RectTransform _safe, _content, _bookBackdrop;
+        StoryOverlay _storyOverlay;
         bool _lastStoryUiBlocked, _lastLearningUiBlocked;
-        public bool CabinGesturesBlocked => StoryUiBlocked || _nativeSpeechHidden || _state?.learning?.recording == true;
+        public bool CabinGesturesBlocked => StoryUiBlocked || StoryOverlay.OwnsInput(_state) || _nativeSpeechHidden || _state?.learning?.recording == true;
         public bool StoryUiBlocked => View == "cabin" && (_speechDrawer || _zoneDrawer || _confirmAction != null);
         Text _title, _connection, _status;
         Button _pairingTitle;
@@ -64,20 +65,21 @@ namespace Allo.App
             SyncNativeCompanionSpeech(state);
             SyncVillageCharacter(state);
             _state = state; _dirty = true;
+            _storyOverlay?.Apply(state, StoryUiBlocked || _nativeSpeechHidden);
             if (_villageLayer != null) _villageLayer.gameObject.SetActive(state != null && state.ready && (state.view == "home" || state.view == "camp"));
         }
 
         void LateUpdate()
         {
             ApplySafeArea();
-            // Window-story experiments remain standalone; this app owns direct conversation only.
             var storyBlocked = StoryUiBlocked;
             if (storyBlocked != _lastStoryUiBlocked)
             {
                 _lastStoryUiBlocked = storyBlocked;
+                _storyOverlay?.Apply(_state, storyBlocked || _nativeSpeechHidden);
                 AppSession.Request("storyUiBlocked", new AppAction { blocked = storyBlocked });
             }
-            var learningBlocked = StoryUiBlocked;
+            var learningBlocked = StoryUiBlocked || StoryOverlay.OwnsInput(_state);
             if (learningBlocked != _lastLearningUiBlocked)
             {
                 _lastLearningUiBlocked = learningBlocked;
@@ -173,6 +175,8 @@ namespace Allo.App
             _statusSurface = status.GetComponent<Image>();
             _status = Label(status, "", 21, TextAnchor.MiddleCenter); Stretch(_status.rectTransform, 16, 2, -16, -2);
             status.gameObject.SetActive(false);
+            _storyOverlay = gameObject.AddComponent<StoryOverlay>();
+            _storyOverlay.Initialize(_safe, _font, _round);
             ApplySafeArea();
         }
 

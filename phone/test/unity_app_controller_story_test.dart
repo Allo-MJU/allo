@@ -82,9 +82,10 @@ void main() {
         isFalse);
   });
 
-  test('window story experiment never initializes or offers in the new cabin',
+  test('window story experiment never automatically starts or offers in cabin',
       () async {
-    expect(app.snapshot['story'], isNull);
+    expect((app.snapshot['story'] as Map)['active'], false);
+    expect((app.snapshot['story'] as Map)['notebookOpen'], false);
     for (final tags in [
       ['coast'],
       ['rain'],
@@ -93,7 +94,9 @@ void main() {
     ]) {
       now += 60000;
       feed.sample(tags: tags);
-      expect(app.snapshot['story'], isNull);
+      expect((app.snapshot['story'] as Map)['active'], false);
+      expect((app.snapshot['story'] as Map)['available'], false);
+      expect((app.snapshot['story'] as Map)['notebookOpen'], false);
     }
   });
   test('legacy experiment intents cannot start or resume over egg care',
@@ -134,7 +137,8 @@ void main() {
     await app.handleMessage('{"v":1,"type":"appLifecycle","active":false}');
     await app.setHostLifecycle(AppLifecycleState.resumed);
     await app.handleMessage('{"v":1,"type":"appLifecycle","active":true}');
-    expect(app.snapshot['story'], isNull);
+    expect((app.snapshot['story'] as Map)['active'], false);
+    expect((app.snapshot['story'] as Map)['notebookOpen'], false);
     expect(await action('navigate', {'view': 'storyStart'}), false);
     expect(app.view, 'cabin');
   });

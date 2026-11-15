@@ -28,10 +28,11 @@ namespace Allo.App
     }
 
     [Serializable] public sealed class StoryChoice { public string id, label; }
-    [Serializable] public sealed class StoryCard { public string id, title, text, topicId; }
+    [Serializable] public sealed class StoryCard { public string id, title, text, topicId, prediction, firstAction, observation, principle, nextQuestion; }
     [Serializable] public sealed class StoryState
     {
-        public bool available, active, paused, pending, canPlay, ackAccepted;
+        public bool ready, canOpen, notebookOpen, available, active, paused, pending, canPlay, ackAccepted;
+        public string error, prediction, firstAction, observation, principle, nextQuestion;
         public string ackRequestId;
         public string instanceId, topicId, title, nodeId, line, visual, variant, cardTitle, cardText, notice, invitation;
         public int revision, cardCount;
@@ -78,7 +79,7 @@ namespace Allo.App
         public string requestId, action, view, eggId, tier, role, creatureId, targetId, facility, recipeId, actionId, text, sessionId, pairCode;
         public string instanceId, nodeId, topicId, speciesId;
         public int storyRevision;
-        public bool blocked;
+        public bool blocked, open;
         public int zone;
         public bool gyro, reducedMotion;
     }

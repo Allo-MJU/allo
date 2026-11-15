@@ -53,10 +53,12 @@ void main() {
   Future<void> ending({String first = 'a'}) async {
     for (final id in [
       'next',
+      'a',
       first,
       'compare',
       'other',
       'discover',
+      'why',
       'finish'
     ]) {
       expect(await choose(id), isTrue);
@@ -80,6 +82,7 @@ void main() {
         await start(pack.id);
         for (final id in [
           'next',
+          if (pack.id == 'coast_sail') 'a',
           first,
           'compare',
           'other',
@@ -138,7 +141,7 @@ void main() {
     expect(
         await d.handle('storyChoose', {...request, 'requestId': 'different'}),
         isFalse);
-    expect(d.snapshot['nodeId'], 'choose');
+    expect(d.snapshot['nodeId'], 'prediction');
   });
   test('care preemption pauses and rejects already-issued choice', () async {
     await start();
@@ -163,7 +166,16 @@ void main() {
     expect(await choose('save'), isTrue);
     expect(d.snapshot['cardCount'], 1);
     expect(await d.handle('storyReplay', intent()), isTrue);
-    for (final id in ['b', 'compare', 'other', 'discover', 'finish', 'save']) {
+    for (final id in [
+      'a',
+      'b',
+      'compare',
+      'other',
+      'discover',
+      'why',
+      'finish',
+      'save'
+    ]) {
       expect(await choose(id), isTrue);
     }
     expect(d.snapshot['cardCount'], 1);

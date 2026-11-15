@@ -22,11 +22,11 @@ namespace Allo.App
         }
 
         public static bool CanCompanionTalk(AppState state) => state != null && state.ready && state.connected && !state.busy &&
-            state.view == "cabin" && !state.sessionEnded && HasSelectedCompanion(state) &&
+            state.view == "cabin" && !state.sessionEnded && !StoryOverlay.OwnsInput(state) && HasSelectedCompanion(state) &&
             state.learning.active && state.learning.available && !state.learning.busy && !state.learning.recording;
 
         public static bool CanCommonCare(AppState state, string actionId) => state != null && state.ready &&
-            !state.busy && state.connected && !state.sessionEnded && state.view == "cabin" && (state.learning == null || state.learning.active) && Array.IndexOf(CareIds, actionId) >= 0 &&
+            !state.busy && state.connected && !state.sessionEnded && !StoryOverlay.OwnsInput(state) && state.view == "cabin" && (state.learning == null || state.learning.active) && Array.IndexOf(CareIds, actionId) >= 0 &&
             (!string.IsNullOrEmpty(state.learning?.creatureId) ? HasSelectedCompanion(state) :
                 state.egg != null && state.egg.active && !string.IsNullOrEmpty(state.egg.id));
 
@@ -52,7 +52,7 @@ namespace Allo.App
         }
 
         public static bool CanInviteCompanion(AppState state, string speciesId) =>
-            state != null && state.ready && state.connected && !state.busy && state.view == "cabin" && !state.sessionEnded &&
+            state != null && state.ready && state.connected && !state.busy && state.view == "cabin" && !state.sessionEnded && !StoryOverlay.OwnsInput(state) &&
             HasSelectedCompanion(state) &&
             state.learning.active && !state.learning.busy && !state.learning.recording && state.learning.speciesId == speciesId;
 
@@ -86,7 +86,7 @@ namespace Allo.App
 
         void OnCompanionTapped(string speciesId)
         {
-            if (StoryUiBlocked) return;
+            if (StoryUiBlocked || StoryOverlay.OwnsInput(_state)) return;
             var intent = CompanionInvitationIntent(_state, speciesId);
             if (intent == null) return;
             _invitationDismissed = false;
@@ -107,7 +107,7 @@ namespace Allo.App
         {
             _companionBubble = null;
             var learning = _state.learning;
-            if (_nativeSpeechHidden || _invitationDismissed || learning.conversationMode == "closed" || string.IsNullOrEmpty(learning.conversationMode)) return;
+            if (StoryOverlay.OwnsInput(_state) || _nativeSpeechHidden || _invitationDismissed || learning.conversationMode == "closed" || string.IsNullOrEmpty(learning.conversationMode)) return;
             if (!HasSelectedCompanion(_state) || !learning.active || _state.sessionEnded) return;
             if (learning.conversationMode != "chat") return;
             _companionBubble = Rect("Companion head bubble", _content);
@@ -141,7 +141,7 @@ namespace Allo.App
         void PlaceCompanionBubble()
         {
             if (_companionBubble == null) return;
-            if (_nativeSpeechHidden) { _companionBubble.gameObject.SetActive(false); return; }
+            if (_nativeSpeechHidden || StoryOverlay.OwnsInput(_state)) { _companionBubble.gameObject.SetActive(false); return; }
             if (_state?.view != "cabin" || _state.sessionEnded || !_state.learning.active || StoryUiBlocked)
             { CloseCompanionInvitation(); return; }
             var director = FindFirstObjectByType<CritterDirector>();

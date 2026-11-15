@@ -14,6 +14,8 @@ namespace Allo.App
         void BuildCabin()
         {
             if (!_state.connected) return;
+            if (StoryOverlay.OwnsInput(_state) && !StoryUiBlocked) return;
+            BuildNotebookEntry();
             var buddy = HasSelectedCompanion(_state);
             var egg = _state.egg;
             if (buddy) BuildCompanionLearning();
@@ -35,6 +37,24 @@ namespace Allo.App
                     buddy ? "친구를 두 번 누르고 원하는 자리로 끌어 보세요" : "알을 부드럽게 문질러 주세요";
             });
         }
+
+        void BuildNotebookEntry()
+        {
+            if (_state.story == null || StoryUiBlocked) return;
+            var entry = Button(_content, "탐험 노트", () =>
+            {
+                if (!CanOpenNotebook) return;
+                CloseCompanionInvitation();
+                _storyOverlay.ToggleNotebook();
+            }, Cream, 58, CanOpenNotebook, 22);
+            Stretch((RectTransform)entry.transform, -180, 8, 0, 66, new Vector2(1, 0), new Vector2(1, 0));
+            _liveChecks.Add(() => { if (entry != null) entry.interactable = CanOpenNotebook; });
+        }
+
+        bool CanOpenNotebook => CanAct && _state.connected && !_state.sessionEnded &&
+            _state.story?.canOpen == true && !_nativeSpeechHidden && (!_nativeSpeechExpected || Time.realtimeSinceStartup > _nativeSpeechDeadline) &&
+            _state.learning?.busy != true && _state.learning?.recording != true &&
+            _state.egg?.photoRequired != true && _state.egg?.photoBusy != true && _state.egg?.speechBusy != true && !StoryUiBlocked;
 
         void BuildCabinItemRail()
         {
@@ -110,6 +130,7 @@ namespace Allo.App
 
         void OpenEggDrawer(bool speech)
         {
+            if (StoryOverlay.OwnsInput(_state)) return;
             CloseCompanionInvitation();
             _speechDrawer = speech; _zoneDrawer = !speech; _dirty = true;
         }
