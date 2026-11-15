@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 using Allo.Critters;
@@ -10,9 +11,9 @@ namespace Allo.App
     /// Persistent, presentation-only story surface. Never rebuilt by vehicle snapshot ticks.
     public sealed class StoryOverlay : MonoBehaviour
     {
-        static readonly Color Ink = new Color(.12f, .22f, .23f);
-        static readonly Color Paper = new Color(.98f, .96f, .87f);
-        static readonly Color Gold = new Color(1f, .78f, .32f);
+        static readonly Color Ink = new Color(.149f, .227f, .196f);
+        static readonly Color Paper = new Color(.949f, .933f, .898f);
+        static readonly Color Gold = new Color(.835f, .651f, .290f);
         static readonly Color Green = new Color(.37f, .60f, .43f);
         static readonly Color Water = new Color(.33f, .69f, .83f);
         RectTransform _root, _play, _stage, _art, _choices, _notebook;
@@ -24,45 +25,58 @@ namespace Allo.App
         Font _font;
         Sprite _round;
         AppState _state;
-        bool _blocked, _bookOpen, _waiting;
-        string _key, _bookKey, _waitingRequest;
+        bool _blocked, _waiting;
+        string _key, _bookKey, _waitingRequest, _selectedCardTopic;
         float _waitingSince;
         float _started;
         readonly List<Action<float>> _motions = new List<Action<float>>();
         readonly List<Button> _choiceButtons = new List<Button>();
         public event Action LayoutChanged;
         public static bool CapturingInput { get; private set; }
-        public bool ShowingNotebook => _bookOpen;
+        public bool ShowingNotebook => HasManualNotebook(_state) && !ShowsStory(_state) && !_blocked;
         public void ToggleNotebook()
         {
-            if (_state?.story == null || !_state.story.canPlay || _blocked) return;
-            _bookOpen = !_bookOpen; _bookKey = null;
-            LayoutChanged?.Invoke(); Refresh();
+            var story = _state?.story;
+            if (story == null || _blocked || (!story.notebookOpen && !story.canOpen)) return;
+            AppSession.Request("storyNotebook", new AppAction { open = !story.notebookOpen });
         }
 
         public void StartAvailableStory()
         {
             var story = _state?.story;
-            if (_blocked || story == null || !story.canPlay || story.pending || _state.busy) return;
-            if (story.available || story.paused) Request("storyStart");
+            if (_blocked || !HasManualNotebook(_state) || !story.ready || !story.canPlay || story.pending || _state.busy) return;
+            if (story.paused && story.topicId == "coast_sail") Request("storyResume");
+            else Request("storyStart", null, "coast_sail");
         }
 
-        public void DismissInvitation()
-        {
-            if (!_blocked && _state?.story != null && _state.story.available && !_state.story.paused)
-                Request("storyDismiss");
-        }
-
-        public static bool ShowsStory(AppState state) => state != null && state.ready && state.view == "cabin" && state.story != null && state.story.active && !state.story.paused;
+        static bool CanPresent(AppState state) => state != null && state.ready && state.connected &&
+            state.view == "cabin" && !state.sessionEnded && state.story != null &&
+            state.egg?.photoRequired != true && state.egg?.photoBusy != true && state.egg?.speechBusy != true &&
+            state.learning?.busy != true && state.learning?.recording != true;
+        public static bool HasManualNotebook(AppState state) => CanPresent(state) && state.story.notebookOpen;
+        public static bool ShowsStory(AppState state) => CanPresent(state) && state.story.ready &&
+            state.story.active && !state.story.paused && state.story.topicId == "coast_sail";
+        public static bool OwnsInput(AppState state) => HasManualNotebook(state) || ShowsStory(state);
         public static string RenderKey(StoryState story) => story == null ? "" : story.instanceId + ":" + story.nodeId + ":" + story.variant;
+
+        static string NotebookKey(StoryState story)
+        {
+            if (story == null) return "";
+            var key = new StringBuilder().Append(story.ready).Append(story.canPlay).Append(story.pending)
+                .Append(story.paused).Append(story.instanceId).Append(story.error).Append(story.notice);
+            foreach (var card in story.savedCards ?? Array.Empty<StoryCard>()) key.Append(JsonUtility.ToJson(card));
+            foreach (var card in story.library ?? Array.Empty<StoryCard>()) key.Append(JsonUtility.ToJson(card));
+            return key.ToString();
+        }
 
         public void Initialize(RectTransform safe, Font font, Sprite round)
         {
             _font = font; _round = round;
             _voice = gameObject.AddComponent<StoryVoice>();
             _root = Box("Story presentation", safe, Vector2.zero, Vector2.one, new Vector2(14, 20), new Vector2(-126, -78));
-            _book = Button(_root, "노트 닫기", ToggleNotebook, new Color(.949f, .933f, .898f, .96f));
-            Place(_book.transform, new Vector2(.5f, 0), new Vector2(.5f, 0), new Vector2(-110, 8), new Vector2(110, 64));
+            _root.gameObject.AddComponent<Image>().color = new Color(.07f,.12f,.10f,.82f);
+            _book = Button(_root, "돌봄으로", ToggleNotebook, Paper);
+            Place(_book.transform, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-216, -64), new Vector2(-8, -8));
             _play = Box("Story play", _root, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             var heading = Box("Story heading", _play, new Vector2(.35f, 1), Vector2.one, new Vector2(0, -110), new Vector2(-8, 0));
             _title = Text(heading, "", 25, TextAnchor.MiddleLeft, Paper);
@@ -91,37 +105,40 @@ namespace Allo.App
             var guideLabel = Box("Story guide label", _play, new Vector2(0,0), new Vector2(.29f,0), new Vector2(8,300),new Vector2(-12,338));
             var labelBg = guideLabel.gameObject.AddComponent<Image>(); labelBg.sprite=_round; labelBg.type=Image.Type.Sliced; labelBg.color=new Color(.08f,.17f,.19f,.92f); labelBg.raycastTarget=false;
             _guideText = Text(guideLabel,"길싹이 · 이야기 안내",23,TextAnchor.MiddleCenter,Paper);
-            _notebook = Box("Travel notebook", _root, Vector2.zero, Vector2.one, new Vector2(8, 80), new Vector2(-8, -118));
+            _notebook = Box("Travel notebook", _root, Vector2.zero, Vector2.one, new Vector2(8, 8), new Vector2(-8, -76));
             var bookBg = _notebook.gameObject.AddComponent<Image>(); bookBg.sprite = _round; bookBg.type = Image.Type.Sliced; bookBg.color = Paper;
-            _play.gameObject.SetActive(false); _notebook.gameObject.SetActive(false);
+            _play.gameObject.SetActive(false); _notebook.gameObject.SetActive(false); _root.gameObject.SetActive(false);
         }
 
         public void Apply(AppState state, bool blocked)
         {
+            var wasNotebook = ShowingNotebook;
             _state = state; _blocked = blocked;
-            if (_bookOpen && (state == null || state.view != "cabin" || blocked || state.story == null || !state.story.canPlay))
-            { _bookOpen = false; LayoutChanged?.Invoke(); }
-            if (ShowsStory(state)) _bookOpen = false;
+            if (!HasManualNotebook(state)) { _selectedCardTopic = null; _bookKey = null; }
             Refresh();
+            if (wasNotebook != ShowingNotebook) LayoutChanged?.Invoke();
         }
 
         void Refresh()
         {
             if (_root == null) return;
-            var visible = _state != null && _state.ready && _state.view == "cabin";
+            var visible = OwnsInput(_state) && !_blocked;
             _root.gameObject.SetActive(visible);
-            CapturingInput = visible && (ShowsStory(_state) || _bookOpen);
-            _voice.Present(_state?.story, visible && ShowsStory(_state) && !_blocked);
+            CapturingInput = visible;
+            var playing = visible && ShowsStory(_state);
+            _voice.Present(_state?.story, playing);
+            _play.gameObject.SetActive(playing);
+            _notebook.gameObject.SetActive(visible && !playing);
             if (!visible) return;
             var s = _state.story;
-            var playing = ShowsStory(_state) && !_blocked;
-            _play.gameObject.SetActive(playing);
-            _notebook.gameObject.SetActive(_bookOpen && !_blocked);
-            if (s == null) return;
             if (_waiting && !string.IsNullOrEmpty(_waitingRequest) && s.ackRequestId == _waitingRequest) { _waiting=false; _waitingRequest=null; }
-            _book.interactable = !_state.busy && s.canPlay;
-            _book.gameObject.SetActive(_bookOpen && !_blocked);
-            if (_bookOpen && _bookKey != s.cardCount + ":" + s.canPlay + ":" + s.paused) BuildNotebook();
+            _book.interactable = true;
+            _book.gameObject.SetActive(!playing);
+            if (!playing && _bookKey != NotebookKey(s))
+            {
+                var card = Array.Find(s.savedCards ?? Array.Empty<StoryCard>(), c => c.topicId == _selectedCardTopic);
+                if (card != null) ShowCard(card); else BuildNotebook();
+            }
             if (!playing) return;
             UpdateGuide();
             var key = RenderKey(s);
@@ -133,10 +150,10 @@ namespace Allo.App
                 BuildArt(s.visual, s.variant);
             }
             _title.gameObject.SetActive(string.IsNullOrEmpty(_state.error) && string.IsNullOrEmpty(_state.notice) && !_state.busy);
-            _title.text = s.title + "\n<size=18>이야기 속 실험</size>";
+            _title.text = s.title + (s.nodeId == "prediction" ? "\n<size=18>내 예상 고르기</size>" : "\n<size=18>상상 탐험 · 화면 속 실험</size>");
             _line.text = s.line;
-            _notice.text = !string.IsNullOrEmpty(s.notice) ? s.notice : !string.IsNullOrEmpty(s.cardTitle) && (s.nodeId == "saved" || s.nodeId == "more") ? s.cardTitle + "\n\n" + s.cardText : "버튼으로 바꾸고\n변화를 살펴보자.";
-            foreach (var button in _choiceButtons) button.interactable = !_waiting && !s.pending;
+            _notice.text = !string.IsNullOrEmpty(s.notice) ? s.notice : !string.IsNullOrEmpty(s.cardTitle) && (s.nodeId == "saved" || s.nodeId == "more") ? s.cardTitle + "\n\n" + s.cardText : !string.IsNullOrEmpty(s.prediction) ? "내 예상\n" + s.prediction : "같은 배·바람·시간,\n돛만 바꾸어 보자.";
+            foreach (var button in _choiceButtons) button.interactable = !_waiting && !s.pending && s.canPlay;
             _resume.interactable = true;
         }
 
@@ -156,7 +173,10 @@ namespace Allo.App
         void Request(string action, string actionId = null, string topicId = null)
         {
             var s = _state?.story;
-            if (s == null) return;
+            if (s == null || _blocked || !OwnsInput(_state)) return;
+            if ((action == "storyStart" || action == "storyReplay") && topicId != "coast_sail") return;
+            if (action == "storyResume" && s.topicId != "coast_sail") return;
+            if (action != "storyPause" && action != "storyClose" && (!s.ready || !s.canPlay || s.pending || _state.busy)) return;
             if (action == "storyStart" && s.paused && topicId == null) action = "storyResume";
             if (action == "storyChoose")
             {
@@ -165,7 +185,6 @@ namespace Allo.App
                 foreach (var b in _choiceButtons) b.interactable = false;
             }
             if (action == "storyChoose" || action == "storyPause" || action == "storyClose") _voice.Stop();
-            if (_bookOpen) { _bookOpen = false; LayoutChanged?.Invoke(); }
             var requestId = AppSession.Request(action, new AppAction { instanceId = s.instanceId, nodeId = s.nodeId, storyRevision = s.revision, actionId = actionId, topicId = topicId ?? s.topicId });
             if(action == "storyChoose") _waitingRequest=requestId;
             Refresh();
@@ -229,43 +248,108 @@ namespace Allo.App
 
         void BuildNotebook()
         {
-            Clear(_notebook); _bookKey = _state.story.cardCount + ":" + _state.story.canPlay + ":" + _state.story.paused;
-            var title = Text(_notebook, "여행 노트 · 이야기 골라 보기", 28, TextAnchor.MiddleLeft, Ink);
-            Place(title.transform, new Vector2(0,1), Vector2.one, new Vector2(22,-50), new Vector2(-22,-8));
-            if (_state.story.paused)
+            Clear(_notebook); _selectedCardTopic=null; _bookKey=NotebookKey(_state.story);
+            var s=_state.story;
+            var title=Text(_notebook,"탐험 노트",28,TextAnchor.MiddleLeft,Ink);
+            Place(title.transform,new Vector2(0,1),Vector2.one,new Vector2(22,-54),new Vector2(-22,-8));
+            var content=ScrollContent(_notebook,60,12);
+            if (!s.ready)
             {
-                title.text="다른 이야기는 진행 중인 이야기를 마친 뒤 골라 줘.";
-                title.fontSize=23;
-                Place(title.transform,new Vector2(0,1),Vector2.one,new Vector2(22,-44),new Vector2(-22,-8));
-                var resume=Button(_notebook,"이어 하기",()=>Request("storyResume"),Gold);
-                Place(resume.transform,new Vector2(0,1),new Vector2(.5f,1),new Vector2(20,-158),new Vector2(-8,-46));
-                var close=Button(_notebook,"이야기 마치기",()=>Request("storyClose"),new Color(.78f,.88f,.79f));
-                Place(close.transform,new Vector2(.5f,1),Vector2.one,new Vector2(8,-158),new Vector2(-20,-46));
+                NotebookRow(content,string.IsNullOrEmpty(s.error) ? "탐험 노트를 불러오고 있어요." : "탐험 노트를 불러오지 못했어요. 다시 불러와 주세요.");
+                var retry=Button(content,"다시 불러오기",()=>AppSession.Request("storyRetry"),Gold);
+                RowHeight(retry.transform,64); retry.interactable=!string.IsNullOrEmpty(s.error);
+                return;
             }
-            var library = _state.story.library ?? Array.Empty<StoryCard>();
-            var grid = Box("Notebook stories", _notebook, Vector2.zero, Vector2.one, new Vector2(16,12), new Vector2(-16,_state.story.paused ? -168 : -58));
-            for (var i = 0; i < library.Length; i++)
+            NotebookRow(content,"같은 바람에서 돛을 바꾸어 보는 상상 실험이에요.");
+            if (s.paused && s.topicId == "coast_sail")
             {
-                var id = library[i].topicId; var row = i / 4; var col = i % 4;
-                var card = Array.Find(_state.story.savedCards ?? Array.Empty<StoryCard>(), c => c.topicId == id);
-                var button = Button(grid, (card != null ? "발견 · " : "상상 탐험 · ") + library[i].title, () => { if (card != null) ShowCard(card); else Request("storyStart", null, id); }, card != null ? new Color(.78f,.88f,.79f) : new Color(.91f,.90f,.83f));
-                Place(button.transform, new Vector2(col*.25f, 1-(row+1)*.5f), new Vector2((col+1)*.25f,1-row*.5f), new Vector2(5,5), new Vector2(-5,-5));
-                button.interactable = card != null || (_state.story.canPlay && !_state.story.paused && !_state.busy);
+                var resume=Button(content,"이어 하기",()=>Request("storyResume"),Gold);
+                RowHeight(resume.transform,64); resume.interactable=s.canPlay && !s.pending;
+                var close=Button(content,"탐험 마치기",()=>Request("storyClose"),new Color(.78f,.88f,.79f));
+                RowHeight(close.transform,64);
             }
+            if (!string.IsNullOrEmpty(s.notice)) NotebookRow(content,s.notice);
+            var saved=s.savedCards ?? Array.Empty<StoryCard>();
+            foreach (var item in s.library ?? Array.Empty<StoryCard>())
+            {
+                if (item.topicId != "coast_sail") continue;
+                var card=Array.Find(saved,c=>c.topicId==item.topicId);
+                AddNotebookCard(content,item,card,s);
+            }
+            foreach (var card in saved)
+            {
+                if (Array.Exists(s.library ?? Array.Empty<StoryCard>(), item=>item.topicId==card.topicId && item.topicId=="coast_sail")) continue;
+                AddNotebookCard(content,card,card,s);
+            }
+        }
+
+        void AddNotebookCard(RectTransform content,StoryCard item,StoryCard card,StoryState s)
+        {
+            var button=Button(content,(card != null ? "발견 · " : "상상 탐험 · ")+item.title,
+                ()=>{if(card != null) ShowCard(card); else Request("storyStart",null,item.topicId);},
+                card != null ? new Color(.78f,.88f,.79f) : Gold);
+            RowHeight(button.transform,76);
+            button.interactable=card != null || (item.topicId=="coast_sail" && s.canPlay && !s.paused && !s.pending && !_state.busy);
         }
 
         void ShowCard(StoryCard card)
         {
-            Clear(_notebook);
-            var title = Text(_notebook, "발견 카드 · " + card.title, 32, TextAnchor.MiddleCenter, Ink);
-            Place(title.transform, new Vector2(0,.65f), Vector2.one, new Vector2(25,0), new Vector2(-25,-12));
-            var body = Text(_notebook, card.text, 30, TextAnchor.MiddleCenter, Ink);
-            Place(body.transform, new Vector2(0,.3f), new Vector2(1,.68f), new Vector2(40,0), new Vector2(-40,0));
-            var back = Button(_notebook, "목록으로", BuildNotebook, new Color(.78f,.88f,.79f));
-            Place(back.transform, new Vector2(0,0), new Vector2(.5f,.28f), new Vector2(20,12), new Vector2(-8,-5));
-            var replay = Button(_notebook, "다시 실험하기", () => Request("storyStart", null, card.topicId), Gold);
-            Place(replay.transform, new Vector2(.5f,0), new Vector2(1,.28f), new Vector2(8,12), new Vector2(-20,-5));
-            replay.interactable = _state.story.canPlay && !_state.story.paused && !_state.busy;
+            Clear(_notebook); _selectedCardTopic=card.topicId; _bookKey=NotebookKey(_state.story);
+            var title=Text(_notebook,"발견 카드 · "+card.title,28,TextAnchor.MiddleLeft,Ink);
+            Place(title.transform,new Vector2(0,1),Vector2.one,new Vector2(22,-54),new Vector2(-22,-8));
+            var content=ScrollContent(_notebook,60,92);
+            bool personal=!string.IsNullOrEmpty(card.prediction) || !string.IsNullOrEmpty(card.firstAction) || !string.IsNullOrEmpty(card.observation) || !string.IsNullOrEmpty(card.principle) || !string.IsNullOrEmpty(card.nextQuestion);
+            if (!personal) NotebookRow(content,card.text);
+            else
+            {
+                EvidenceRow(content,"내 예상",card.prediction);
+                EvidenceRow(content,"먼저 해본 것",card.firstAction);
+                EvidenceRow(content,"비교한 결과",card.observation);
+                EvidenceRow(content,"알아본 원리",string.IsNullOrEmpty(card.principle) ? card.text : card.principle);
+                EvidenceRow(content,"다음에 생각해 볼 것",card.nextQuestion);
+            }
+            var back=Button(_notebook,"목록으로",BuildNotebook,new Color(.78f,.88f,.79f));
+            Place(back.transform,Vector2.zero,new Vector2(.5f,0),new Vector2(20,12),new Vector2(-8,80));
+            var replay=Button(_notebook,"다시 실험하기",()=>
+            {
+                var intent=CardReplayIntent(_state,card);
+                if (intent != null) Request(intent.action,null,intent.topicId);
+            },Gold);
+            Place(replay.transform,new Vector2(.5f,0),new Vector2(1,0),new Vector2(8,12),new Vector2(-20,80));
+            replay.interactable=CardReplayIntent(_state,card) != null;
+        }
+
+        public static AppAction CardReplayIntent(AppState state,StoryCard card) =>
+            !HasManualNotebook(state) || card?.topicId != "coast_sail" || !state.story.ready ||
+            !state.story.canPlay || state.story.paused || state.story.pending || state.busy ? null :
+            new AppAction { action="storyStart", topicId=card.topicId };
+
+        void EvidenceRow(RectTransform content,string label,string value)
+        { if (!string.IsNullOrEmpty(value)) NotebookRow(content,label+": "+value); }
+        void NotebookRow(RectTransform content,string value)
+        {
+            var text=Text(content,value,27,TextAnchor.UpperLeft,Ink); text.lineSpacing=1.15f;
+            text.gameObject.AddComponent<LayoutElement>().minHeight=64;
+        }
+        static void RowHeight(Transform item,float height)
+        { var layout=item.gameObject.AddComponent<LayoutElement>();layout.minHeight=layout.preferredHeight=height; }
+        RectTransform ScrollContent(RectTransform parent,float top,float bottom)
+        {
+            var scrollRoot=Box("Notebook scroll",parent,Vector2.zero,Vector2.one,new Vector2(18,bottom),new Vector2(-18,-top));
+            var scroll=scrollRoot.gameObject.AddComponent<ScrollRect>(); scroll.horizontal=false;scroll.movementType=ScrollRect.MovementType.Clamped;
+            var viewport=Box("Notebook viewport",scrollRoot,Vector2.zero,Vector2.one,Vector2.zero,new Vector2(-22,0));
+            viewport.gameObject.AddComponent<Image>().color=Color.clear;viewport.gameObject.AddComponent<RectMask2D>();
+            var content=Box("Notebook rows",viewport,new Vector2(0,1),Vector2.one,Vector2.zero,Vector2.zero);content.pivot=new Vector2(.5f,1);
+            var layout=content.gameObject.AddComponent<VerticalLayoutGroup>();layout.spacing=16;layout.padding=new RectOffset(8,12,12,12);
+            layout.childControlWidth=true;layout.childControlHeight=true;layout.childForceExpandWidth=true;layout.childForceExpandHeight=false;
+            var fit=content.gameObject.AddComponent<ContentSizeFitter>();fit.verticalFit=ContentSizeFitter.FitMode.PreferredSize;
+            scroll.viewport=viewport;scroll.content=content;
+            var track=Box("Notebook scrollbar",scrollRoot,new Vector2(1,0),Vector2.one,new Vector2(-12,0),Vector2.zero);
+            track.gameObject.AddComponent<Image>().color=new Color(.72f,.72f,.65f,.45f);
+            var handle=Box("Notebook scroll handle",track,Vector2.zero,Vector2.one,Vector2.zero,Vector2.zero);handle.gameObject.AddComponent<Image>().color=Green;
+            var bar=track.gameObject.AddComponent<Scrollbar>();bar.handleRect=handle;bar.targetGraphic=handle.GetComponent<Image>();bar.direction=Scrollbar.Direction.BottomToTop;
+            scroll.verticalScrollbar=bar;scroll.verticalScrollbarVisibility=ScrollRect.ScrollbarVisibility.AutoHide;
+            return content;
         }
 
         // Flat toy theatre. All movement is normalized, deterministic presentation of the authored result.
@@ -291,14 +375,7 @@ namespace Allo.App
             switch(topic)
             {
                 case "coast_sail":
-                    Shape(p, "Sea", 0,-68,640,45,Water);
-                    var boat=Group(p,"Mail boat",-210,-15);
-                    Shape(boat,"Hull",0,-23,108,34,new Color(.68f,.38f,.21f));
-                    Shape(boat,"Mast",0,22,6,90,Paper);
-                    Shape(boat,"Sail",28,35,a?67:12,65,Gold,2);
-                    Shape(boat,"Letter",-22,2,28,20,Paper);
-                    _motions.Add(t=>boat.anchoredPosition=new Vector2(Mathf.Lerp(-210,a?200:-100,t),-15));
-                    Caption(p,a?"돛 펼치기 · 같은 바람":"돛 접기 · 같은 바람",0,95); break;
+                    DrawSeaExperiment(p,a); break;
                 case "road_seed":
                     Shape(p,"Ground",0,-88,640,16,Green);
                     var seed=Group(p,"Seed",-160,60); Shape(seed,"Seed body",0,0,24,32,Gold,1);
@@ -346,6 +423,29 @@ namespace Allo.App
                 default: Caption(p,"작은 실험을 준비했어",0,0); break;
             }
         }
+        void DrawSeaExperiment(RectTransform parent,bool openSail)
+        {
+            var atlas=Resources.Load<Texture2D>("StoryArt/Sea/boat-states");
+            var ocean=Resources.Load<Texture2D>("StoryArt/Sea/ocean-stage");
+            if (atlas == null || ocean == null)
+            {
+                Caption(parent,"바다 실험 그림을 불러오지 못했어",0,0,23);
+                return;
+            }
+            var backdrop=Box("Ocean illustration viewport",parent,new Vector2(.5f,.5f),new Vector2(.5f,.5f),new Vector2(-340,-115),new Vector2(340,85));
+            backdrop.gameObject.AddComponent<RectMask2D>();
+            var sea=Box("Ocean illustration",backdrop,Vector2.zero,Vector2.one,Vector2.zero,Vector2.zero);
+            var seaImage=sea.gameObject.AddComponent<RawImage>();seaImage.texture=ocean;seaImage.raycastTarget=false;
+            var fit=sea.gameObject.AddComponent<AspectRatioFitter>();fit.aspectMode=AspectRatioFitter.AspectMode.FitInParent;fit.aspectRatio=ocean.width/(float)ocean.height;
+            var boat=Group(parent,"Mail boat",-210,-15);
+            var aspect=atlas.width*.5f/atlas.height;
+            var height=Mathf.Min(220,220/aspect);var width=height*aspect;
+            var artwork=Box("Boat illustration",boat,new Vector2(.5f,.5f),new Vector2(.5f,.5f),new Vector2(-width/2,-height/2),new Vector2(width/2,height/2));
+            var image=artwork.gameObject.AddComponent<RawImage>();image.texture=atlas;image.uvRect=new Rect(openSail?0:.5f,0,.5f,1);image.raycastTarget=false;
+            _motions.Add(t=>boat.anchoredPosition=new Vector2(Mathf.Lerp(-210,openSail?200:-100,t),-15));
+            Caption(parent,openSail?"돛 펼치기 · 같은 바람":"돛 접기 · 같은 바람",0,110);
+        }
+
         void Rain(RectTransform p,float x,float y,int count)
         { for(int i=0;i<count;i++){var d=Shape(p,"Raindrop",x+i*43,y,7,16,Water,1);var origin=d.anchoredPosition;_motions.Add(t=>d.anchoredPosition=origin+new Vector2(0,-t*110));} }
         void Bunny(RectTransform p,float x,float y,float scale,Color c)

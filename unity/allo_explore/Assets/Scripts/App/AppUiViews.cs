@@ -14,9 +14,12 @@ namespace Allo.App
         void BuildCabin()
         {
             if (!_state.connected) return;
+            if (StoryOverlay.OwnsInput(_state) && !StoryUiBlocked) return;
+            BuildNotebookEntry();
             var buddy = HasSelectedCompanion(_state);
             var egg = _state.egg;
             if (buddy) BuildCompanionLearning();
+            if (_state.collectionRewardForTrip) BuildCollectionRewardNotice();
             if (egg != null && egg.active)
             {
                 BuildEggHud(egg);
@@ -34,6 +37,40 @@ namespace Allo.App
                     CabinInteraction.MoveArmed ? "친구를 원하는 자리에 놓아 주세요" :
                     buddy ? "친구를 두 번 누르고 원하는 자리로 끌어 보세요" : "알을 부드럽게 문질러 주세요";
             });
+        }
+
+        void BuildNotebookEntry()
+        {
+            if (_state.story == null || StoryUiBlocked) return;
+            var entry = Button(_content, "탐험 노트", () =>
+            {
+                if (!CanOpenNotebook) return;
+                _storyOverlay.ToggleNotebook();
+            }, Cream, 58, CanOpenNotebook, 22);
+            Stretch((RectTransform)entry.transform, -180, 8, 0, 66, new Vector2(1, 0), new Vector2(1, 0));
+            _liveChecks.Add(() => { if (entry != null) entry.interactable = CanOpenNotebook; });
+        }
+
+        bool CanOpenNotebook => CanAct && _state.connected && !_state.sessionEnded &&
+            _state.story?.canOpen == true && !_nativeSpeechHidden && (!_nativeSpeechExpected || Time.realtimeSinceStartup > _nativeSpeechDeadline) &&
+            _state.learning?.busy != true && _state.learning?.recording != true &&
+            _state.egg?.photoRequired != true && _state.egg?.photoBusy != true && _state.egg?.speechBusy != true && !StoryUiBlocked;
+
+        void BuildCollectionRewardNotice()
+        {
+            var panel = Surface("Collection completion gift", _content, Cream);
+            Stretch(panel, 12, -218, 472, -10, new Vector2(0, 1), new Vector2(0, 1));
+            var body = Rect("Gift content", panel); Stretch(body, 16, 12, -16, -12); Column(body, 10);
+            Copy(body, "모든 친구를 만났어요!", 26);
+            Copy(body, "이번 여행 선물로 베리 간식 3개를 받았어요.", 20);
+            if (Items(_state.creatures).Length > 0)
+                Button(body, "친구 데려오기", () => Navigate("dex"), Yellow, 42, CanAct, 20);
+            Button(body, "간식 확인", () =>
+            {
+                _supplyTab = "foods";
+                _selectedSupply = "berry_snack";
+                Navigate("inventory");
+            }, Cream, 42, CanAct, 20);
         }
 
         void BuildCabinItemRail()
@@ -110,6 +147,7 @@ namespace Allo.App
 
         void OpenEggDrawer(bool speech)
         {
+            if (StoryOverlay.OwnsInput(_state)) return;
             CloseCompanionInvitation();
             _speechDrawer = speech; _zoneDrawer = !speech; _dirty = true;
         }
@@ -279,7 +317,7 @@ namespace Allo.App
             {
                 var selected = entry;
                 var portrait = BookSlot(grid, entry.name, entry.collected ? entry.name : "???", _selectedDex == entry.id,
-                    () => { _selectedDex = selected.id; _selectedCreature = null; _dirty = true; });
+                    () => { CloseQuestCard(true); _selectedDex = selected.id; _selectedCreature = null; _dirty = true; });
                 if (entry.collected) BookPortrait(portrait, entry.sprite, entry.id, cellSize, true);
                 else
                 {
@@ -303,9 +341,10 @@ namespace Allo.App
             if (owned.Length > 1) foreach (var creature in owned)
             {
                 var selected = creature;
-                BookButton(left, creature.name + " · " + ShortId(creature.id), () => { _selectedCreature = selected.id; _dirty = true; }, _selectedCreature == creature.id, CanAct);
+                BookButton(left, creature.name + " · " + ShortId(creature.id), () => { CloseQuestCard(true); _selectedCreature = selected.id; _dirty = true; }, _selectedCreature == creature.id, CanAct);
             }
             var friend = owned.First(c => c.id == _selectedCreature);
+            BuildQuestSection(left, friend.id, true);
             var companionId = friend.id;
             BookButton(left, "차 안으로 데리고 오기", () =>
             {
@@ -428,9 +467,17 @@ namespace Allo.App
 
         void BuildPairingForm(Transform panel)
         {
+            if (_state.canReturnToVehicle)
+            {
+                Heading(panel, "테스트 주행을 사용하고 있어요");
+                Copy(panel, "실제 차량 없이 가짜 주행 신호로 체험해요. 테스트 기록은 실제 기록과 따로 저장해요.");
+                Button(panel, "테스트 연결", () => Send("testPair"), Mint, 54, CanAct, 23);
+                Button(panel, "실제 차량 연결로 돌아가기", () => Send("returnToVehicle"), Cream, 60, CanAct, 23);
+                return;
+            }
             Heading(panel, _state.connected ? "차량과 연결되어 있어요" : "차량과 함께 시작해요");
             Copy(panel, _state.sessionEnded ? "이전 여행이 끝났어요. 차량에서 새로운 연결 정보를 확인해 주세요." : "차량 QR을 스캔하거나 세션 ID와 코드를 입력해 주세요.");
-            if (_state.isDemo)
+            if (_state.isDemo || _state.testConnectionAvailable)
             {
                 Button(panel, "테스트 연결", () => Send("testPair"), Mint, 54, CanAct, 23);
                 Note(panel, "실제 차량 없이 가상 주행으로 연결해요.");
@@ -447,10 +494,12 @@ namespace Allo.App
             var left = Sheet(_content, 0, .53f);
             var right = Sheet(_content, .53f, 1);
             BuildPairingForm(left);
-            if (_state.connected) Button(left, "차량 연결 끊기", () => Confirm("차량 연결을 끊을까요?", "차량에서 오는 정보를 더 이상 받지 않아요. 함께한 친구와 보급품은 그대로예요.", () => Send("disconnect")), Cream, 66, CanAct);
+            if (_state.connected) Button(left, _state.canReturnToVehicle ? "테스트 연결 끊기" : "차량 연결 끊기", () => Confirm(_state.canReturnToVehicle ? "테스트 연결을 끊을까요?" : "차량 연결을 끊을까요?", "주행 신호를 더 이상 받지 않아요. 함께한 친구와 보급품은 그대로예요.", () => Send("disconnect")), Cream, 66, CanAct);
             Heading(right, "편안하게 즐기기");
             Button(right, "기울여 둘러보기  ·  " + (_state.gyro ? "켜짐" : "꺼짐"), () => Send("settings", new AppAction { gyro = !_state.gyro, reducedMotion = _state.reducedMotion }), _state.gyro ? Mint : Cream, 72, CanAct, 25);
             Note(right, "기기의 움직임으로 차 안을 둘러봐요.");
+            Button(right, "정면 다시 맞추기", () => Allo.CameraRig.CameraRig.Recenter(), Cream, 66, CanAct, 25);
+            Note(right, "휴대폰을 편하게 든 자세를 정면으로 맞춰요.");
             Button(right, "움직임 줄이기  ·  " + (_state.reducedMotion ? "켜짐" : "꺼짐"), () => Send("settings", new AppAction { gyro = _state.gyro, reducedMotion = !_state.reducedMotion }), _state.reducedMotion ? Mint : Cream, 72, CanAct, 25);
             Note(right, "자동으로 흔들리거나 움직이는 연출을 줄여요.");
             Space(right); Button(right, "다시 확인하기", () => Send("refresh"), Cream, 66, CanAct);

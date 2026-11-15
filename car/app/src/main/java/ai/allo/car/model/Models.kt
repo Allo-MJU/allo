@@ -1,6 +1,8 @@
 package ai.allo.car.model
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 
 /** 차 화면 모드. CarUxRestrictions + 기어로 결정한다. */
 enum class CarScreen { Pairing, Driving, Parked }
@@ -36,7 +38,14 @@ data class VehicleSnapshot(
     val headingDeg: Double? = null,   // 차 진행 방향(도, 0~360, 북쪽 0·시계 방향). 모르면 null. 좌표는 보내지 않는다
     val capabilities: List<String>,
     val fishingPresence: FishingPresence? = null,
+    @OptIn(ExperimentalSerializationApi::class)
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val cornering: Cornering? = null,
 )
+
+/** Visual cue only; receivedAtMs is SDK delivery time, not a hardware sample timestamp. */
+@Serializable
+data class Cornering(val version: Int = 1, val bend: Double, val receivedAtMs: Long)
 
 /**
  * /vehicle/turns 원소 — docs/schema.md 3.3. 차 창밖이 회전을 그리는 데만 쓴다 (판정 아님).
@@ -89,7 +98,7 @@ data class AffinitySummary(
     val scoreText: String get() = java.math.BigDecimal.valueOf(score).stripTrailingZeros().toPlainString()
 }
 @Serializable
-data class CompanionDisplay(val displayId: String, val displayRevision: Long, val speciesId: String, val location: String)
+data class CompanionDisplay(val displayId: String, val displayRevision: Long, val speciesId: String, val location: String, val ownedCreatureId: String? = null)
 @Serializable
 data class TransferResult(val requestId: String, val displayId: String, val requestRevision: Long,
     val status: String, val resultLocation: String?)
@@ -100,7 +109,7 @@ data class BaseSummary(val builderSpeciesId: String? = null, val cookSpeciesId: 
     val facilityLevels: Map<String, Int> = emptyMap(), val activeTaskKinds: List<String> = emptyList(),
     val foodInventory: Map<String, Long> = emptyMap(), val recipeBook: Map<String, Long> = emptyMap())
 @Serializable
-data class TravelRequest(val wishId: String, val targetRegion: String)
+data class TravelRequest(val wishId: String, val targetRegion: String, val targetPlaceId: String? = null)
 
 
 /** /sessions/{sid}/events/{pushId} — docs/schema.md 3.5 */

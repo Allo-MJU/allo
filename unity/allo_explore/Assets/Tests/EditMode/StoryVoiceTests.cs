@@ -37,6 +37,13 @@ public class StoryVoiceTests
         Assert.IsNull(catalog.Find(new StoryState {topicId="night_stars",nodeId="ending",line="별이 숨은 게 아니라 빛에 가려 보였구나."}));
         foreach (var entry in catalog.entries) Assert.NotNull(Resources.Load<AudioClip>(entry.resource), entry.resource);
     }
+    [Test] public void PilotTextChangesNeverFallBackToAnUnrelatedBundledVoice()
+    {
+        var catalog=JsonUtility.FromJson<StoryVoiceCatalog>(Resources.Load<TextAsset>("StoryVoice/catalog").text);
+        Assert.IsNull(catalog.Find(new StoryState{topicId="coast_sail",nodeId="prediction",line="같은 바람이면 어느 배가 더 멀리 갈까?"}));
+        Assert.IsNull(catalog.Find(new StoryState{topicId="coast_sail",nodeId="choose",line="어느 쪽부터 해 볼까?"}));
+        Assert.IsNull(catalog.Find(new StoryState{topicId="coast_sail",nodeId="explain",line="바람이 펼쳐진 돛을 밀어 배를 움직였어."}));
+    }
     [Test] public void VehicleUpdatesDoNotReplayButResumeAndNewSessionsDo()
     {
         var cursor = new StoryVoiceCursor();

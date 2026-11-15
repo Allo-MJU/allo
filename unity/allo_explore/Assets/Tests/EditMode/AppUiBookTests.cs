@@ -1,8 +1,6 @@
 using System;
 using System.Linq;
 using System.Reflection;
-using System.Text.RegularExpressions;
-using UnityEngine.TestTools;
 using Allo.App;
 using NUnit.Framework;
 using UnityEngine;
@@ -156,11 +154,7 @@ public class AppUiBookTests
 
     void RenderSnapshot()
     {
-        var content = Get<RectTransform>("_content");
-        foreach (Transform child in content)
-            LogAssert.Expect(LogType.Error, new Regex("^Destroy may not be called from edit mode! Use DestroyImmediate instead\\."));
         Call("Render");
-        foreach (var child in content.Cast<Transform>().Where(c => !c.gameObject.activeSelf).ToArray()) Object.DestroyImmediate(child.gameObject);
         Canvas.ForceUpdateCanvases();
     }
 

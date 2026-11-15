@@ -66,7 +66,9 @@ void main() {
     expect(game.paired, false);
     expect(game.eggId, isNull);
     expect((app.snapshot['egg'] as Map)['active'], false);
-    expect(app.snapshot['story'], isNull);
+    expect((app.snapshot['story'] as Map)['notebookOpen'], false);
+    expect((app.snapshot['story'] as Map)['active'], false);
+    expect((app.snapshot['story'] as Map)['canOpen'], false);
     final cast = messages.lastWhere((m) => m['type'] == 'cast');
     expect(cast['companion'], isNull);
     expect(cast['friends'], isEmpty);
@@ -106,7 +108,8 @@ void main() {
           false);
     }
     expect(await action('storyUiBlocked', {'blocked': true}), true);
-    expect(app.snapshot['story'], isNull);
+    expect((app.snapshot['story'] as Map)['notebookOpen'], false);
+    expect((app.snapshot['story'] as Map)['active'], false);
   });
   test('QR cancel and scanner failure never pair or grant an egg', () async {
     await action('navigate', {'view': 'pairing'});

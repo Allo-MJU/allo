@@ -23,7 +23,9 @@ namespace Allo.App
         void OpenVillageFacility(string id)
         {
             if (!CanAct || _confirmAction != null) return;
+            CloseQuestCard(true);
             CloseVillageCharacterDetail();
+            CloseVillageSelection();
             if (_facility != id || !_campDetail) _scrollPositions.Remove("camp:view:0");
             _facility = id;
             var facility = Items(_state.facilities).FirstOrDefault(f => f.id == id);
@@ -39,12 +41,16 @@ namespace Allo.App
             _villageLayer.gameObject.SetActive(true);
             UpdateVillageGeometry();
             var interaction = _villageLayer.GetComponent<CanvasGroup>();
-            interaction.interactable = interaction.blocksRaycasts = _confirmAction == null;
-            _villageScroll.enabled = _confirmAction == null;
-            if (_confirmAction != null) _villageScroll.StopMovement();
+            interaction.interactable = interaction.blocksRaycasts = _confirmAction == null && !_villageSelectionOpen;
+            _villageScroll.enabled = _confirmAction == null && !_villageSelectionOpen;
+            if (_confirmAction != null || _villageSelectionOpen) _villageScroll.StopMovement();
             foreach (var entry in _facilityNodes) UpdateFacilityNode(entry.Value, entry.Key);
             UpdateVillageFriend();
-            if (_confirmAction == null) BuildVillageCharacterDetail();
+            if (_confirmAction == null)
+            {
+                if (_villageSelectionOpen) BuildVillageSelection();
+                else { BuildVillageCharacterDetail(); BuildVillageSelectionEntry(); }
+            }
         }
 
         void EnsureVillageWorld()
@@ -131,7 +137,9 @@ namespace Allo.App
 
         void UpdateVillageFriend()
         {
-            var friends = Items(_state.creatures).Take(4).ToArray();
+            var selected = _state.villageCreatureIds;
+            var friends = selected == null ? Items(_state.creatures).Take(4).ToArray() :
+                selected.Distinct().Select(id => Items(_state.creatures).FirstOrDefault(c => c.id == id)).Where(c => c != null).Take(4).ToArray();
             var owned = new HashSet<string>(friends.Select(c => c.id));
             foreach (var id in _villageFriends.Keys.ToArray())
                 if (!owned.Contains(id)) RemoveVillageFriend(id);
@@ -163,6 +171,7 @@ namespace Allo.App
                 }
                 marker.GetComponent<Button>().interactable = CanAct && _confirmAction == null;
                 marker.Find("Friend name").GetComponentInChildren<Text>().text = friend.name;
+                UpdateQuestMarker(marker, friend.id);
             }
         }
 

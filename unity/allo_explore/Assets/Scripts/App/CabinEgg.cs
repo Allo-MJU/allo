@@ -25,7 +25,7 @@ namespace Allo.App
         Camera _camera;
         Rig _rig;
         TapInput _tap;
-        bool _ownsPointer, _rigEnabled, _tapEnabled, _previousLock, _markerStart;
+        bool _ownsPointer, _tapEnabled, _previousLock, _markerStart;
         int _finger, _targetZone = -1;
         Vector2 _down, _last;
         float _travel, _bounce, _ending;
@@ -68,7 +68,7 @@ namespace Allo.App
             new Vector3(surface.center.x, surface.max.y + EggHeight * 0.5f, surface.center.z);
 
         public static bool CanInteract(AppState state, string view, string startedEggId) =>
-            !CabinInteraction.IsCapturing && state != null && state.ready && state.connected && !state.busy && !state.sessionEnded &&
+            !CabinInteraction.IsCapturing && !StoryOverlay.OwnsInput(state) && state != null && state.ready && state.connected && !state.busy && !state.sessionEnded &&
             ShowEgg(view, state.egg) && state.egg.id == startedEggId && !state.egg.photoBusy && !state.egg.speechBusy;
 
         public static bool ShouldPlayCare(AppState previous, AppState next) => previous?.learning != null && next?.learning != null &&
@@ -367,9 +367,8 @@ namespace Allo.App
             Rig.Locked = true;
             _rig = _camera.GetComponent<Rig>();
             _tap = _camera.GetComponent<TapInput>();
-            _rigEnabled = _rig != null && _rig.enabled;
             _tapEnabled = _tap != null && _tap.enabled;
-            if (_rig != null) _rig.enabled = false;
+            if (_rig != null) _rig.EggOwnsPointer = true;
             if (_tap != null) _tap.enabled = false;
         }
 
@@ -410,7 +409,7 @@ namespace Allo.App
             if (!_ownsPointer) return;
             _ownsPointer = false;
             _targetZone = -1;
-            if (_rig != null) _rig.enabled = _rigEnabled;
+            if (_rig != null) _rig.EggOwnsPointer = false;
             if (_tap != null) _tap.enabled = _tapEnabled;
             Rig.Locked = _previousLock;
         }

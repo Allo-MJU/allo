@@ -44,6 +44,31 @@ class SpeciesTable {
         orElse: () => all.first);
   }
 
+  Species? pickUnseen(RarityResult r, Set<String> seenTags, Set<String> owned,
+      {Random? random}) {
+    final remaining = all.where((s) => !owned.contains(s.id)).toList();
+    if (remaining.isEmpty) return null;
+    final rng = random ?? Random();
+    final rare = remaining
+        .where((s) => s.requiredTags.length >= 2 && _meets(s, r, seenTags))
+        .toList();
+    if (rare.isNotEmpty) return rare[rng.nextInt(rare.length)];
+    for (var t = r.tier; t >= 1; t--) {
+      final candidates = remaining
+          .where((s) =>
+              s.requiredTags.length < 2 &&
+              s.attribute == r.attribute &&
+              s.tier == t &&
+              _meets(s, r, seenTags))
+          .toList();
+      if (candidates.isNotEmpty)
+        return candidates[rng.nextInt(candidates.length)];
+    }
+    final eligible = remaining.where((s) => _meets(s, r, seenTags)).toList();
+    final candidates = eligible.isNotEmpty ? eligible : remaining;
+    return candidates[rng.nextInt(candidates.length)];
+  }
+
   bool _meets(Species s, RarityResult r, Set<String> seenTags) {
     if (!s.requiredTags.every(seenTags.contains)) return false;
     if (r.supportedTags != null &&

@@ -379,6 +379,35 @@ namespace Allo.World
         /// 차이가 3도 안쪽이면 null
         public (ChunkInfo bent, List<ChunkInfo> moved)? SteerTo(float desiredYaw)
         {
+            var target = UpcomingStraight();
+            if (target == null) return null;
+            var endYaw = PoseIn(target, target.length).yaw;
+            var delta = Mathf.DeltaAngle(endYaw, desiredYaw);
+            if (Mathf.Abs(delta) < 3) return null;
+            return ChangeBend(target, Mathf.Clamp(target.bend + delta * SteerGain, -MaxBend, MaxBend));
+        }
+
+        public bool HasCommittedManeuver
+        {
+            get
+            {
+                foreach (var c in _live.Values)
+                    if (c.End > Offset && c.start < Offset + _commit &&
+                        (c.turn != null || c.keep != null || c.keepTail))
+                        return true;
+                return false;
+            }
+        }
+
+        public (ChunkInfo bent, List<ChunkInfo> moved)? SetCorneringBend(float bend)
+        {
+            if (HasCommittedManeuver) return null;
+            var target = UpcomingStraight();
+            return target == null ? null : ChangeBend(target, Mathf.Clamp(bend, -1, 1) * MaxBend);
+        }
+
+        ChunkInfo UpcomingStraight()
+        {
             ChunkInfo target = null;
             foreach (var c in _live.Values)
                 if (c.start >= Offset + _commit && (target == null || c.index < target.index)) target = c;
@@ -387,12 +416,14 @@ namespace Allo.World
             // 뒤 조각은 통째로 옮길 뿐이라 교차로가 있어도 된다. 유턴 뒤 되짚는 조각은 지나온 자리에 묶여 있어 옮길 수 없다
             foreach (var c in _live.Values)
                 if (c.index > target.index && c.reuseOf >= 0) return null;
-            var endYaw = PoseIn(target, target.length).yaw;
-            var delta = Mathf.DeltaAngle(endYaw, desiredYaw);
-            if (Mathf.Abs(delta) < 3) return null;
-            var nb = Mathf.Clamp(target.bend + delta * SteerGain, -MaxBend, MaxBend);
-            if (Mathf.Approximately(nb, target.bend)) return null;
-            target.bend = nb;
+            return target;
+        }
+
+        (ChunkInfo bent, List<ChunkInfo> moved)? ChangeBend(ChunkInfo target, float bend)
+        {
+            // Sub-degree input jitter does not warrant rebuilding the mesh. Always allow an exact neutral.
+            if (Mathf.Approximately(bend, target.bend) || bend != 0 && Mathf.Abs(bend - target.bend) < .15f) return null;
+            target.bend = bend;
             var moved = new List<ChunkInfo>();
             var prev = target;
             for (var i = target.index + 1; _live.TryGetValue(i, out var c); i++)

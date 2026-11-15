@@ -4,6 +4,28 @@ using NUnit.Framework;
 public class MessageParserTests
 {
     [Test]
+    public void RouteKeepsSignedCorneringAndOriginalSampleTime()
+    {
+        Assert.IsTrue(MessageParser.TryParse(
+            "{\"type\":\"route\",\"heading\":45,\"cornering\":{\"version\":1,\"bend\":-0.5,\"receivedAtMs\":1700000000123}}",
+            out _, out var payload));
+        var route = UnityEngine.JsonUtility.ToJson((RouteState)payload);
+        StringAssert.Contains("\"bend\":-0.5", route);
+        StringAssert.Contains("\"receivedAtMs\":1700000000123", route);
+    }
+
+    [TestCase("{\"type\":\"route\",\"turns\":[{\"type\":\"left\",\"inM\":70}]}")]
+    [TestCase("{\"type\":\"route\",\"cornering\":null}")]
+    [TestCase("{\"type\":\"route\",\"cornering\":{\"version\":1,\"receivedAtMs\":1700000000123}}")]
+    public void LegacyOrIncompleteRouteDoesNotAcquireCorneringAuthority(string json)
+    {
+        Assert.IsTrue(MessageParser.TryParse(json, out _, out var payload));
+        var motion = new Allo.World.CorneringMotion();
+        motion.Receive(((RouteState)payload).cornering, 1700000000123, 0);
+        Assert.IsFalse(motion.Active(0, true));
+    }
+
+    [Test]
     public void ParsesScene()
     {
         Assert.IsTrue(MessageParser.TryParse(

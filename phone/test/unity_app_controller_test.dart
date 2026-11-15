@@ -8,6 +8,7 @@ import 'package:allo_phone/game/game_controller.dart';
 import 'package:allo_phone/feed/fake_feed.dart';
 import 'package:allo_phone/storage/dex_store.dart';
 import 'package:allo_phone/unity_app/unity_app_controller.dart';
+import 'package:allo_phone/unity_app/village_selection_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -59,6 +60,12 @@ class CampMemory extends BaseCampStore {
     if (fail) throw StateError('disk full');
     saved = jsonDecode(jsonEncode(value)) as Map<String, dynamic>;
   }
+}
+
+class BlockingVillageStore extends PreferencesVillageSelectionStore {
+  final saving = Completer<void>();
+  @override
+  Future<void> write(String profile, List<String> ids) => saving.future;
 }
 
 void main() {
@@ -300,9 +307,13 @@ void main() {
       'notice',
       'connected',
       'pairingScanAvailable',
+      'testConnectionAvailable',
+      'canReturnToVehicle',
       'isDemo',
       'canStart',
       'sessionEnded',
+      'collectionRewardForTrip',
+      'quests',
       'speechAvailable',
       'photoAvailable',
       'story',
@@ -311,6 +322,9 @@ void main() {
       'materials',
       'facilities',
       'creatures',
+      'villageCreatureIds',
+      'villageSelectionReady',
+      'villageSelectionRequestId',
       'jobs',
       'foods',
       'training',
@@ -456,6 +470,102 @@ void main() {
     expect(game.affinityRound!.speechRemainingMs, 180000);
     expect(await action('petEgg', {'eggId': game.eggId}), isFalse);
   });
+
+  for (final kind in ['speech', 'photo']) {
+    test('native $kind from an old bridge cannot submit to the same egg',
+        () async {
+      final speech = Completer<String?>();
+      final photo = Completer<Uint8List?>();
+      app.dispose();
+      app = UnityAppController(
+          game: game,
+          camp: camp,
+          speechInput: () => speech.future,
+          photoInput: () => photo.future);
+      await app.initialize();
+      await action('navigate', {'view': 'cabin'});
+      if (kind == 'photo') {
+        for (var i = 0; i < 17; i++) {
+          await game.petEgg();
+          now += 10000;
+          feed.sample();
+        }
+        expect(game.affinityRound!.phase, AffinityPhase.photoRequired);
+      }
+      final egg = game.eggId;
+      final capture = action(kind, {'eggId': egg});
+      await Future<void>.delayed(Duration.zero);
+      app.detach();
+      app.attach((_) {});
+      await app.handleMessage('{"v":1,"type":"appLifecycle","active":true}');
+      expect(game.eggId, egg);
+      if (kind == 'speech') {
+        speech.complete('hello from the old bridge');
+      } else {
+        photo.complete(Uint8List.fromList([1]));
+      }
+      expect(await capture, false);
+      expect(api.speechCalls, 0);
+      expect(api.photoRequests, isEmpty);
+    });
+  }
+
+  test('photo queued before bridge handoff cannot upload after reattachment',
+      () async {
+    final photo = Completer<Uint8List?>();
+    final village = BlockingVillageStore();
+    app.dispose();
+    app = UnityAppController(
+        game: game,
+        camp: camp,
+        villageSelectionStore: village,
+        photoInput: () => photo.future);
+    await app.initialize();
+    await action('navigate', {'view': 'cabin'});
+    for (var i = 0; i < 17; i++) {
+      await game.petEgg();
+      now += 10000;
+      feed.sample();
+    }
+    expect(game.affinityRound!.phase, AffinityPhase.photoRequired);
+    final capture = action('photo', {'eggId': game.eggId});
+    await Future<void>.delayed(Duration.zero);
+    final blocker = action('setVillageFriends', {'creatureIds': []});
+    await Future<void>.delayed(Duration.zero);
+    photo.complete(Uint8List.fromList([1]));
+    await Future<void>.delayed(Duration.zero);
+    expect(api.photoRequests, isEmpty);
+    app.detach();
+    app.attach((_) {});
+    await app.handleMessage('{"v":1,"type":"appLifecycle","active":true}');
+    village.saving.complete();
+    await blocker;
+    expect(await capture, false);
+    expect(api.photoRequests, isEmpty);
+  });
+
+  test('native photo still submits across its own host pause', () async {
+    final photo = Completer<Uint8List?>();
+    app.dispose();
+    app = UnityAppController(
+        game: game, camp: camp, photoInput: () => photo.future);
+    await app.initialize();
+    await action('navigate', {'view': 'cabin'});
+    for (var i = 0; i < 17; i++) {
+      await game.petEgg();
+      now += 10000;
+      feed.sample();
+    }
+    expect(game.affinityRound!.phase, AffinityPhase.photoRequired);
+    final capture = action('photo', {'eggId': game.eggId});
+    await Future<void>.delayed(Duration.zero);
+    await app.setHostLifecycle(AppLifecycleState.paused);
+    await app.handleMessage('{"v":1,"type":"appLifecycle","active":false}');
+    photo.complete(Uint8List.fromList([1]));
+    expect(await capture, true);
+    expect(api.photoRequests, hasLength(1));
+  });
+
   test('active egg cannot be replaced manually by changing tier', () async {
     final egg = game.eggId;
     expect(app.snapshot['canStart'], isFalse);

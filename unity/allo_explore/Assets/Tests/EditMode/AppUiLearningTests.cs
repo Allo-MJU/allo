@@ -355,8 +355,60 @@ public class AppUiLearningTests
         Assert.IsNull(ButtonNamed("여행 노트"));
         Assert.IsNull(ButtonNamed("이야기 시작"));
         Assert.IsFalse(StoryOverlay.CapturingInput);
-        Assert.IsNull(_root.GetComponent<StoryOverlay>());
+        Assert.IsNotNull(_root.GetComponent<StoryOverlay>());
         Assert.IsTrue(CabinEgg.CanInteract(state, "cabin", "new-egg"));
+    }
+
+    [Test]
+    public void NotebookEntryRequiresConnectedCabinAndHostAllowsOpening()
+    {
+        var state=State(); state.story=new StoryState{ready=true,canOpen=true,canPlay=true};
+        Apply(state); Call("BuildCabin"); Assert.IsTrue(ButtonNamed("탐험 노트").interactable);
+        state.story.canOpen=false; RebuildCabin(); Assert.IsFalse(ButtonNamed("탐험 노트").interactable);
+        state.connected=false; RebuildCabin(); Assert.IsNull(ButtonNamed("탐험 노트"));
+    }
+
+    [Test]
+    public void NotebookClickKeepsCompanionInvitationVisibleUntilHostApprovesOpening()
+    {
+        var state = State(); SelectFriend(state);
+        state.learning.conversationMode = "chat";
+        state.learning.invitationOpen = true;
+        state.story = new StoryState { ready = true, canOpen = true, canPlay = true };
+        Apply(state); Call("BuildCabin");
+        var bubble = (RectTransform)typeof(AppUi).GetField("_companionBubble", Private).GetValue(_ui);
+        var overlay = _root.GetComponent<StoryOverlay>();
+        Assert.IsTrue(bubble.gameObject.activeSelf);
+
+        ButtonNamed("탐험 노트").onClick.Invoke();
+
+        Assert.IsTrue(bubble.gameObject.activeSelf, "requesting a notebook must not dismiss the current invitation");
+        Assert.IsTrue(AppSession.State.learning.invitationOpen);
+        Assert.IsFalse(overlay.ShowingNotebook, "the host has not approved notebook presentation");
+        RebuildCabin();
+        Assert.IsTrue(HasText(state.learning.text), "an unchanged or rejected host snapshot keeps companion dialogue available");
+
+        var approved = JsonUtility.FromJson<AppState>(JsonUtility.ToJson(AppSession.State));
+        approved.story.notebookOpen = true;
+        approved.learning.invitationOpen = false;
+        approved.learning.conversationMode = "closed";
+        Apply(approved); RebuildCabin();
+        Assert.IsTrue(overlay.ShowingNotebook);
+        Assert.IsFalse(HasText(state.learning.text));
+        Assert.IsFalse(AppSession.State.learning.invitationOpen);
+    }
+
+    [Test]
+    public void OpenNotebookBlocksCareCompanionChatAndNativeSpeech()
+    {
+        var state=State(); SelectFriend(state);
+        state.story=new StoryState{ready=true,canOpen=true,canPlay=true,notebookOpen=true};
+        Apply(state); Call("BuildCabin");
+        Assert.IsTrue(_ui.CabinGesturesBlocked);
+        Assert.IsFalse(AppUi.CanCompanionTalk(state)); Assert.IsFalse(AppUi.CanInviteCompanion(state,"road_sprout"));
+        Assert.IsFalse(AppUi.CanCommonCare(state,"pet"));
+        Assert.IsFalse(CabinEgg.CanInteract(state,"cabin",state.egg.id));
+        Assert.AreEqual(AppBackAction.PauseStory,AppSession.BackActionFor(state));
     }
 
     [Test]

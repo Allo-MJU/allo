@@ -201,3 +201,48 @@ test('authenticated session lifecycle and server-enforced writer isolation', asy
   });
 
 });
+
+test('destination visit is owner-scoped, idempotent, and survives ended session', async () => {
+  const car = await identity(), phone = await identity(), stranger = await identity(), sid = randomUUID();
+  const created = await call('createVehicleSession', car.idToken, {sessionId: sid, carAppVersion: 'test'}); ok(created);
+  ok(await call('joinVehicleSession', phone.idToken, {sessionId: sid, pairCode: created.result.pairCode}));
+  const visit = {sessionId: sid, visitId: 'visit_1234567890abcdef', routeRevision: 'route_1234567890abcdef',
+    placeId: 'place_1234567890abcdef', placeName: '해변', regionTag: 'coast', arrivedAtMs: Date.now(), companionIds: ['friend_1']};
+  assert.equal((await call('recordDestinationVisit', stranger.idToken, visit)).error.status, 'PERMISSION_DENIED');
+  assert.equal((await call('recordDestinationVisit', phone.idToken, visit)).error.status, 'PERMISSION_DENIED');
+  assert.equal((await call('recordDestinationVisit', car.idToken, {...visit, latitude: 37})).error.status, 'INVALID_ARGUMENT');
+  ok(await db(`sessions/${sid}/events/end`, car.idToken, 'PUT', {ts: Date.now(), by:'car', type:'sessionEnd'}));
+  const saved = await call('recordDestinationVisit', car.idToken, visit); ok(saved);
+  assert.deepEqual(saved.result, {visitId: visit.visitId, recorded: true});
+  const retries = await Promise.all(Array.from({length: 4}, () => call('recordDestinationVisit', car.idToken, visit)));
+  retries.forEach(ok);
+  assert.equal((await call('recordDestinationVisit', car.idToken, {...visit, placeName:'다른 장소'})).error.status, 'ALREADY_EXISTS');
+  assert.equal((await call('recordDestinationVisit', car.idToken, {...visit, arrivedAtMs: 1})).error.status, 'PERMISSION_DENIED');
+  assert.equal((await call('recordDestinationVisit', car.idToken, {...visit, companionIds:['x','y']})).error.status, 'INVALID_ARGUMENT');
+  const path = `travelHistory/${phone.localId}`;
+  const history = await db(path, phone.idToken); ok(history);
+  assert.equal(history.value.places[visit.placeId].visitCount, 1);
+  assert.equal(history.value.visits[visit.visitId].evidence, 'destination-arrived');
+  const indexed = history.value.companions.friend_1.places[visit.placeId];
+  assert.deepEqual(indexed, {...history.value.visits[visit.visitId], visitId: visit.visitId});
+  assert.equal(history.value.companions.other, undefined);
+  const older = {...visit, visitId: 'visit_abcdef1234567890', arrivedAtMs: visit.arrivedAtMs - 1};
+  ok(await call('recordDestinationVisit', car.idToken, older));
+  ok(await call('recordDestinationVisit', car.idToken, visit));
+  const after = (await db(path, phone.idToken)).value;
+  assert.deepEqual(after.companions.friend_1.places[visit.placeId], indexed);
+  assert.equal(after.places[visit.placeId].visitCount, 2);
+  const newer = {...visit, visitId: 'visit_1111111111111111', arrivedAtMs: visit.arrivedAtMs + 1};
+  ok(await call('recordDestinationVisit', car.idToken, newer));
+  const latest = (await db(path, phone.idToken)).value;
+  assert.equal(latest.companions.friend_1.places[visit.placeId].visitId, newer.visitId);
+  assert.equal(latest.companions.friend_1.places[visit.placeId].arrivedAtMs, newer.arrivedAtMs);
+  const noCompanion = {...newer, visitId: 'visit_2222222222222222', companionIds: [], arrivedAtMs: newer.arrivedAtMs + 1};
+  ok(await call('recordDestinationVisit', car.idToken, noCompanion));
+  assert.deepEqual((await db(path, phone.idToken)).value.companions, latest.companions);
+  const companionPath = `${path}/companions/friend_1/places`;
+  ok(await db(companionPath, phone.idToken));
+  denied(await db(companionPath, car.idToken)); denied(await db(companionPath, stranger.idToken));
+  denied(await db(path, car.idToken)); denied(await db(path, stranger.idToken)); denied(await db(path, null));
+  denied(await db(path, phone.idToken, 'PUT', {})); denied(await db('travelHistory', phone.idToken));
+});

@@ -121,6 +121,37 @@ void main() {
     expect(c.isSelected(second), isFalse);
     expect(c.error, isNotNull);
   });
+  test('owned identity and selected entry commit together after a failed save',
+      () async {
+    final first = entry('road_sprout', 1);
+    final second = entry('puddle_pip', 2);
+    await c.select(first, ownedCreatureId: 'creature-1');
+    store.fail = true;
+    await c.select(second, ownedCreatureId: 'creature-2');
+    expect(c.isSelected(first), true);
+    expect(c.selectedOwnedCreatureId, 'creature-1');
+    c.dispose();
+    store.fail = false;
+    c = create();
+    await c.attach('session');
+    expect(c.isSelected(first), true);
+    expect(c.selectedOwnedCreatureId, 'creature-1');
+    await c.select(second, ownedCreatureId: 'creature-2');
+    c.dispose();
+    c = create();
+    await c.attach('session');
+    expect(c.isSelected(second), true);
+    expect(c.selectedOwnedCreatureId, 'creature-2');
+  });
+  test(
+      'invalid owned identity is rejected without changing committed selection',
+      () async {
+    await c.select(entry('road_sprout', 1), ownedCreatureId: 'creature-1');
+    await expectLater(c.select(entry('puddle_pip', 2), ownedCreatureId: ''),
+        throwsArgumentError);
+    expect(c.isSelected(entry('road_sprout', 1)), true);
+    expect(c.selectedOwnedCreatureId, 'creature-1');
+  });
 
   test(
       '60 valid seconds atomically grants one reward, duplicates do not repeat',
