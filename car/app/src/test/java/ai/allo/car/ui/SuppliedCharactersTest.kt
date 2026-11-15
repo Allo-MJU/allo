@@ -8,9 +8,9 @@ class SuppliedCharactersTest {
     @Test fun `canonical display catalog contains exactly supplied identities and original poses`() {
         val catalog = SpeciesCatalog.parse(File("../../data/characters.json").readText())
         assertEquals(12, catalog.entries.size)
-        assertEquals(SuppliedCharacters.ids, catalog.entries.keys)
+        assertEquals(SuppliedPoseCharacters.ids, catalog.entries.keys)
         for (id in catalog.entries.keys) for (pose in PetPose.entries) {
-            val path = assertNotNull(SuppliedCharacters.path(id, pose))
+            val path = assertNotNull(SuppliedPoseCharacters.path(id, pose))
             assertFalse(path.contains("sheet")); assertFalse(path.contains("actions"))
             DataInputStream(File("../../phone/assets/$path").inputStream()).use {
                 assertEquals(-8552249625308161526L, it.readLong())
@@ -21,9 +21,9 @@ class SuppliedCharactersTest {
     }
     @Test fun `legacy game identities cannot silently become a different supplied character`() {
         listOf("bridge_hopper", "mountain_sprite", "river_glider", "tide_keeper", "tunnel_moth", "star_owl", "../road_sprout").forEach {
-            assertNull(SuppliedCharacters.path(it, PetPose.Idle))
+            assertNull(SuppliedPoseCharacters.path(it, PetPose.Idle))
         }
-        assertEquals("poses/dewcap/idle.png", SuppliedCharacters.path("dewcap", PetPose.Fishing))
-        assertEquals("poses/ember_crab/sleep.png", SuppliedCharacters.path("ember_crab", PetPose.Sleep))
+        assertEquals("poses/dewcap/idle.png", SuppliedPoseCharacters.path("dewcap", PetPose.Fishing))
+        assertEquals("poses/ember_crab/sleep.png", SuppliedPoseCharacters.path("ember_crab", PetPose.Sleep))
     }
 }

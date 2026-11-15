@@ -14,7 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 
 /** Literal copies of Desktop/assets. These IDs are artwork identities, not gameplay aliases. */
-object SuppliedCharacters {
+object SuppliedPoseCharacters {
     val ids = setOf("road_sprout", "puddle_pip", "lamp_moth", "storm_lantern", "highway_comet", "sea_mist",
         "breeze_wyrm", "cloud_strider", "dewcap", "dune_roller", "ember_crab", "pebble_orbit")
     fun path(id: String?, pose: PetPose): String? {
@@ -32,7 +32,7 @@ object SuppliedCharacters {
 @Composable
 internal fun SuppliedCharacterArt(summary: PetSummary, size: Dp, modifier: Modifier, pose: PetPose) {
     val assets = LocalContext.current.assets
-    val path = SuppliedCharacters.path(summary.species?.id, pose)
+    val path = SuppliedPoseCharacters.path(summary.species?.id, pose)
     val bitmap = remember(assets, path) {
         path?.let { runCatching {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }

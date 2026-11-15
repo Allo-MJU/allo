@@ -19,7 +19,7 @@ object PetPoses {
         else -> PetPose.Idle
     }
 
-    fun assetPath(speciesId: String?, pose: PetPose): String? = SuppliedCharacters.path(speciesId, pose)
+    fun assetPath(speciesId: String?, pose: PetPose): String? = SuppliedPoseCharacters.path(speciesId, pose)
 
     fun animates(pose: PetPose, parked: Boolean, connected: Boolean, resumed: Boolean, motionEnabled: Boolean, runningMotion: Boolean = false, drivingFishing: Boolean = false): Boolean =
         connected && resumed && motionEnabled && (

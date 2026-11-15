@@ -70,7 +70,7 @@ fun PetArt(
         return
     }
     val assets = LocalContext.current.assets
-    val sprite = LocalSuppliedCharacters.path(summary.species?.id, pose)
+    val sprite = SuppliedCharacters.path(summary.species?.id, pose)
     val bitmap = remember(assets, sprite) {
         sprite?.let { path -> runCatching {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
