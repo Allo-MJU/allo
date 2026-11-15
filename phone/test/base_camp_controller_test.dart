@@ -42,6 +42,36 @@ void main() {
         .setMockMethodCallHandler(channel, null);
   });
 
+  test('failed food save leaves quest accepted and food untouched', () async {
+    var now = epoch;
+    final store = MemoryCampStore();
+    final controller = BaseCampController(
+        store: store, dex: TestDex([entry('road_sprout')]), nowMs: () => now);
+    addTearDown(controller.dispose);
+    expect(await controller.load(), isTrue);
+    final id = controller.state.creatures.keys.single;
+    final quest = CompanionQuest(
+        creatureId: id,
+        questId: 'q',
+        kind: CompanionQuestKind.food,
+        templateId: 't',
+        templateVersion: 1,
+        issuedAtMs: now,
+        nextEligibleAtMs: now + BaseCamp.questIntervalMs,
+        targetFoodId: 'berry_snack');
+    expect(await controller.offerQuest(quest), isTrue);
+    expect(await controller.acceptQuest(id, 'q'), isTrue);
+    expect(await controller.grantCollectionReward('trip'), isTrue);
+    store.failSave = true;
+    expect(await controller.feedFood('berry_snack', id), isFalse);
+    expect(controller.state.foodInventory['berry_snack'], 3);
+    expect(controller.state.quests[id]!.status, CompanionQuestStatus.accepted);
+    store.failSave = false;
+    expect(await controller.feedFood('berry_snack', id), isTrue);
+    expect(controller.state.foodInventory['berry_snack'], 2);
+    expect(controller.state.quests[id]!.status, CompanionQuestStatus.completed);
+  });
+
   test('preferences failed writes reload durable value and isolate demo',
       () async {
     final real = SharedPreferencesBaseCampStore();

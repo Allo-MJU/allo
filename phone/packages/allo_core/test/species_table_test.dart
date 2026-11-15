@@ -124,4 +124,20 @@ void main() {
     expect(result.harshTotal, 3);
     expect(table.pick(result, tags, random: Random(1)).id, 'river_glider');
   });
+  test('unseen priority, fallback, final species and complete catalog', () {
+    const result =
+        RarityResult(attribute: Attribute.water, tier: 3, harshTotal: 0);
+    final tags = {'rain', 'tunnel'};
+    final allIds = table.all.map((s) => s.id).toSet();
+    expect(table.pickUnseen(result, tags, {}, random: Random(1))!.id,
+        'storm_lantern');
+    expect(
+        table
+            .pickUnseen(result, tags, {'storm_lantern'}, random: Random(1))!
+            .id,
+        'tide_keeper');
+    expect(table.pickUnseen(result, tags, allIds.difference({'sea_mist'}))!.id,
+        'sea_mist');
+    expect(table.pickUnseen(result, tags, allIds), isNull);
+  });
 }

@@ -63,6 +63,8 @@ namespace Allo.App
             OnLearningTargetChanged(state);
             SyncNativeCompanionSpeech(state);
             SyncVillageCharacter(state);
+            SyncVillageSelection(state);
+            SyncQuestCard(state);
             _state = state; _dirty = true;
             if (_villageLayer != null) _villageLayer.gameObject.SetActive(state != null && state.ready && (state.view == "home" || state.view == "camp"));
         }
@@ -284,6 +286,7 @@ namespace Allo.App
         void Navigate(string view)
         {
             _confirmAction = null; _confirmTitle = null; _dirty = true;
+            CloseQuestCard(true);
             if (!CanAct) return;
             if (view == "home" || (view == "camp" && View != "camp")) _campDetail = false;
             Send("navigate", new AppAction { view = view });

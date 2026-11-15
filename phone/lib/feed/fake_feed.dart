@@ -162,8 +162,19 @@ class FakeScenario {
       ].firstWhere((s) => s.name == n, orElse: () => rainyHighway);
 }
 
+typedef _DriveOrigin = ({String sessionId, double distanceM, int ts});
+
 class FakeVehicleFeed implements VehicleFeed {
-  FakeVehicleFeed({required this.scenario, this.timeScale = 20});
+  FakeVehicleFeed({
+    required this.scenario,
+    this.timeScale = 20,
+    this.simulateCornering = false,
+    this.retainTripOdometer = false,
+  });
+
+  /// Test-drive visual cues only; existing scenarios keep their original signals by default.
+  final bool simulateCornering;
+  final bool retainTripOdometer;
 
   final FakeScenario scenario;
 
@@ -174,28 +185,64 @@ class FakeVehicleFeed implements VehicleFeed {
   Timer? _timer;
   VehicleState? _latest;
   bool _ended = false;
+  bool _paused = false;
   double _dist = 0;
   double _road = 0; // 창밖 기준으로 달린 거리 (timeScale 을 곱하지 않는다)
   int _harshBrake = 0;
   int _harshSteer = 0;
   int _elapsed = 0;
+  _DriveOrigin? _savedOrigin, _tripOrigin;
+  String? _pairedSession;
+
+  double get odometerOriginM => _tripOrigin?.distanceM ?? 0;
+
+  /// Only the first pairing with the saved demo trip can reuse its odometer.
+  void restoreTripOrigin(String sessionId,
+      {required double distanceM, required int ts}) {
+    if (sessionId.isEmpty ||
+        !distanceM.isFinite ||
+        distanceM < 0 ||
+        ts <= 0 ||
+        !timeScale.isFinite ||
+        timeScale <= 0) {
+      return;
+    }
+    _savedOrigin = (sessionId: sessionId, distanceM: distanceM, ts: ts);
+  }
+
+  /// Inactive test drives retain their logical clock and latest snapshot until resumed.
+  void setPaused(bool paused) => _paused = paused;
 
   @override
-  Future<void> pair(String sessionId, {String? pairCode}) async {}
+  Future<void> pair(String sessionId, {String? pairCode}) async {
+    if (retainTripOdometer && sessionId == _pairedSession) {
+      final last = _latest;
+      if (last != null) {
+        _tripOrigin =
+            (sessionId: sessionId, distanceM: last.distanceM, ts: last.ts);
+      }
+    } else {
+      _tripOrigin = _savedOrigin?.sessionId == sessionId ? _savedOrigin : null;
+    }
+    _pairedSession = sessionId;
+    _savedOrigin = null;
+  }
 
   @override
   Stream<VehicleState> watch() {
     final ctrl = StreamController<VehicleState>();
     _timer?.cancel();
-    _dist = 0;
-    _road = 0;
+    _dist = odometerOriginM;
+    _road = _tripOrigin == null ? 0 : _dist / timeScale;
     _elapsed = 0;
     _harshBrake = 0;
     _harshSteer = 0;
     _latest = null;
     _ended = false;
-    final startedAt = DateTime.now().millisecondsSinceEpoch;
+    final startedAt =
+        math.max(DateTime.now().millisecondsSinceEpoch, _tripOrigin?.ts ?? 0);
     final timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_paused) return;
       _elapsed++;
       // 창밖 거리(실제 시간 기준)를 속도대로 쌓는다. 교차로에서는 감속한다
       final kph = scenario.speedAt(_road);
@@ -224,6 +271,12 @@ class FakeVehicleFeed implements VehicleFeed {
         envTags: stage.tags,
         turns: scenario.turnsAt(_road),
         headingDeg: scenario.headingAt(_road),
+        cornering: simulateCornering
+            ? Cornering(
+                bend: const [0.0, 0.65, 0.0, -0.65][(_elapsed ~/ 6) % 4],
+                // Game timestamps are accelerated; cue freshness follows real delivery time.
+                receivedAtMs: DateTime.now().millisecondsSinceEpoch)
+            : null,
         capabilities: [
           'wiper',
           'light',
@@ -233,6 +286,7 @@ class FakeVehicleFeed implements VehicleFeed {
           'gear',
           if (scenario.etaSec != null) 'eta',
           if (scenario.route.isNotEmpty) 'turns',
+          if (simulateCornering) 'steering',
         ],
       );
       _latest = snapshot;
@@ -248,7 +302,7 @@ class FakeVehicleFeed implements VehicleFeed {
     if (_ended || _events.isClosed) return;
     _ended = true;
     _timer?.cancel();
-    _latest = _latest?.copyWith(gear: 'P', speedKph: 0);
+    _latest = _latest?.copyWith(gear: 'P', speedKph: 0, clearCornering: true);
     _events.add({
       'ts': _latest?.ts ?? DateTime.now().millisecondsSinceEpoch,
       'type': 'sessionEnd',

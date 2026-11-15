@@ -36,10 +36,19 @@ namespace Allo.Bridge
     }
 
     [Serializable]
+    public sealed class CorneringState
+    {
+        public int version;
+        public float bend = float.NaN; // signed visual bend, not steering-wheel degrees
+        public long receivedAtMs;
+    }
+
+    [Serializable]
     public sealed class RouteState
     {
         public TurnInfo[] turns; // 가까운 순 최대 3개. 없으면 빈 배열
         public float heading = -1; // 차 진행 방향(도, 0~360). 모르면 -1
+        public CorneringState cornering;
     }
 
     [Serializable]

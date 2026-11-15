@@ -59,7 +59,7 @@ class TravelRequestFlow(
         val target = context.request!!.targetRegion
         // Reuse the fixed POIs and the same straight-line distance calculation/limit.
         // Collection history deliberately does not participate in this selection.
-        val pool = DestinationSuggester.CANDIDATES.filter { it.region == target }
+        val pool = DestinationSuggester.CANDIDATES.filter { it.region == target && (context.request.targetPlaceId == null || it.placeId == context.request.targetPlaceId) }
         val suggestions = if (here == null) {
             pool.take(3).map { Suggestion(it, uncollected = false) }
         } else {
@@ -113,7 +113,7 @@ class TravelRequestFlow(
         context.request == null -> Reason.NO_REQUEST
         context.request.wishId.isBlank() || context.request.targetRegion !in DestinationSuggester.ORDER -> Reason.INVALID_REQUEST
         !context.parked -> Reason.PARK_REQUIRED
-        context.currentRegion == context.request.targetRegion -> Reason.CONFIRM_VISIT_ON_PHONE
+        context.request.targetPlaceId == null && context.currentRegion == context.request.targetRegion -> Reason.CONFIRM_VISIT_ON_PHONE
         else -> null
     }
 }

@@ -45,7 +45,7 @@ object GameSnapshotReader {
                 AffinitySummary(score, 100, phase = phase, photoCompleted = photo)
             }
         }
-        val companion = block("companion") { CompanionDisplay(it.word("displayId"), it.number("displayRevision"), it.word("speciesId"), it.word("location").also { v -> require(v in setOf("car", "phone")) }) }
+        val companion = block("companion") { CompanionDisplay(it.word("displayId"), it.number("displayRevision"), it.word("speciesId"), it.word("location").also { v -> require(v in setOf("car", "phone")) }, it.optional("ownedCreatureId").also { id -> require(id == null || Regex("[a-zA-Z0-9_-]{1,100}").matches(id)) }) }
         val transfer = block("transferResult") { TransferResult(it.word("requestId"), it.word("displayId"), it.number("requestRevision"), it.word("status").also { v -> require(v in setOf("accepted", "alreadyOnPhone", "busy", "staleSelection")) }, it.optional("resultLocation").also { v -> require(v == null || v in setOf("car", "phone")) }) }
         val home = block("baseSummary") {
             val structures = if (it["structureIds"] == null) emptyList() else (it["structureIds"] as JsonArray).map { item ->
@@ -82,7 +82,7 @@ object GameSnapshotReader {
             require(ids.size <= 1000 && ids.distinct().size == ids.size)
             CollectionSummary(1, it.number("wood"), it.number("stone"), it.number("ingredient"), ids)
         }
-        val travel = block("travelRequest") { TravelRequest(it.word("wishId"), it.word("targetRegion").also { v -> require(v in setOf("coast", "mountain", "city")) }) }
+        val travel = block("travelRequest") { TravelRequest(it.word("wishId"), it.word("targetRegion").also { v -> require(v in setOf("coast", "mountain", "city")) }, it.optional("targetPlaceId").also { id -> require(id == null || Regex("place_[0-9a-f]{16}").matches(id)) }) }
         val fishing = block("fishing") {
             require(it.int("version") == 1)
             val activity = (it["activityId"] as? JsonPrimitive)?.takeIf { p -> p.isString }?.content ?: error("activityId")

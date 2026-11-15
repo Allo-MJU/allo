@@ -26,6 +26,11 @@ import kotlinx.coroutines.flow.StateFlow
  */
 class NaviEtaReader(context: Context) {
     private val navi = NaviHelper(context.applicationContext)
+    var onVisitRouteStarted: (() -> Unit)? = null
+    var onVisitDestination: ((String?, String?, String?, String?, Double, Double) -> Unit)? = null
+    var onVisitRouteCancelled: (() -> Unit)? = null
+    var onVisitRouteEnded: (() -> Unit)? = null
+    var onVisitArrived: ((String?, Long) -> Unit)? = null
 
     private val _etaSec = MutableStateFlow<Long?>(null)
     val etaSec: StateFlow<Long?> = _etaSec
@@ -65,6 +70,7 @@ class NaviEtaReader(context: Context) {
             publish("status=${s.name}")
         }
         override fun onDestinationInfo(info: DestinationInfo) {
+            onVisitDestination?.invoke(info.name, info.poiProvider, info.poiId, info.poiSubId, info.latitude, info.longitude)
             remainSec = info.remainTime
             publish("destination remainTime=${info.remainTime} remainDistance=${info.remainDistance}")
         }
@@ -74,11 +80,12 @@ class NaviEtaReader(context: Context) {
         override fun onTripInfo(info: TripInfo) {
             Log.d(TAG, "tripInfo eta=${info.eta} distance=${info.distance}")
         }
-        override fun onRouteStarted(info: ai.pleos.playground.navi.data.RouteStartInfo) { setGuidance(Guidance.GUIDING); Log.d(TAG, "route started") }
-        override fun onRouteEnded() { status = null; remainSec = null; clearTurns(); setGuidance(Guidance.IDLE); publish("route ended") }
-        override fun onRouteCancelled() { status = null; remainSec = null; clearTurns(); setGuidance(Guidance.IDLE); publish("route cancelled") }
+        override fun onRouteStarted(info: ai.pleos.playground.navi.data.RouteStartInfo) { onVisitRouteStarted?.invoke(); setGuidance(Guidance.GUIDING); Log.d(TAG, "route started") }
+        override fun onRouteEnded() { onVisitRouteEnded?.invoke(); status = null; remainSec = null; clearTurns(); setGuidance(Guidance.IDLE); publish("route ended") }
+        override fun onRouteCancelled() { onVisitRouteCancelled?.invoke(); status = null; remainSec = null; clearTurns(); setGuidance(Guidance.IDLE); publish("route cancelled") }
         override fun onDestinationArrived(info: ai.pleos.playground.navi.data.DestinationArrivedInfo) {
-            remainSec = null; clearTurns(); _arrivedAt.value = System.currentTimeMillis(); publish("arrived")
+            val at = System.currentTimeMillis(); onVisitArrived?.invoke(info.name, at)
+            remainSec = null; clearTurns(); _arrivedAt.value = at; publish("arrived")
         }
         /** 회전 안내. description(도로명·교차로명)은 여기서 버린다 — 저장·로그 모두 하지 않는다 */
         override fun onTBTInfo(list: List<TBTInfo>) {

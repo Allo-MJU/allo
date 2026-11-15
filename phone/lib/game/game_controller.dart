@@ -90,7 +90,41 @@ class GameController extends ChangeNotifier {
         sessionEnded) {
       return;
     }
+    await _restoreOwnedCompanionIdentity(camp, connection, session);
+    if (_disposed ||
+        connection != _connection ||
+        session != _sessionId ||
+        sessionEnded) return;
     _activateCampForTrip(camp);
+  }
+
+  Future<void> _restoreOwnedCompanionIdentity(
+      BaseCampController camp, int connection, String? session) async {
+    _ownedCompanionCreatureId = null;
+    _ownedCompanionEntry = null;
+    if (!fishing.initialized || fishing.selectedSpeciesId == null) return;
+    final selectedId = fishing.selectedOwnedCreatureId;
+    String? matchingId;
+    DexEntry? matchingEntry;
+    for (final creature in camp.state.creatures.values) {
+      if (selectedId != null && creature.id != selectedId) continue;
+      if (creature.speciesId != fishing.selectedSpeciesId) continue;
+      final entry = await camp.ownedEntryForCreature(creature.id);
+      if (_disposed ||
+          connection != _connection ||
+          session != _sessionId ||
+          sessionEnded) {
+        return;
+      }
+      if (entry != null && fishing.isSelected(entry)) {
+        // Old profiles cannot distinguish identical legacy acquisitions.
+        if (matchingId != null) return;
+        matchingId = creature.id;
+        matchingEntry = entry;
+      }
+    }
+    _ownedCompanionCreatureId = matchingId;
+    _ownedCompanionEntry = matchingEntry;
   }
 
   bool _activateCampForTrip(BaseCampController camp) {
@@ -122,7 +156,11 @@ class GameController extends ChangeNotifier {
   }
 
   /// Selection is only from this phone's persisted collection, never a species ID alone.
-  Future<bool> selectCarCompanion(DexEntry entry) async {
+  String? _ownedCompanionCreatureId;
+  DexEntry? _ownedCompanionEntry;
+  Map<String, dynamic>? _questTravelRequest;
+
+  Future<bool> selectCarCompanion(DexEntry entry, {String? creatureId}) async {
     if (!paired || sessionEnded || endingSession || busy) return false;
     final connection = _connection;
     busy = true;
@@ -138,7 +176,15 @@ class GameController extends ChangeNotifier {
         error = '이 폰의 도감에 있는 친구를 선택해 주세요.';
         return false;
       }
-      await fishing.select(entry);
+      if (creatureId != null) {
+        final owned = await baseCamp?.ownedEntryForCreature(creatureId);
+        if (owned == null ||
+            jsonEncode(owned.toJson()) != jsonEncode(entry.toJson())) {
+          error = '이 폰에 있는 친구를 다시 골라 주세요.';
+          return false;
+        }
+      }
+      await fishing.select(entry, ownedCreatureId: creatureId);
       if (_disposed ||
           connection != _connection ||
           !paired ||
@@ -150,6 +196,8 @@ class GameController extends ChangeNotifier {
         error = fishing.error;
         return false;
       }
+      _ownedCompanionCreatureId = creatureId;
+      _ownedCompanionEntry = entry;
       _ensureCompanionVehicleSubscription();
       _publish();
       return true;
@@ -160,6 +208,31 @@ class GameController extends ChangeNotifier {
       busy = false;
       notifyListeners();
     }
+  }
+
+  /// Publishes a proposal for the parked driver's existing confirmation UI.
+  Future<bool> proposeQuestTravel(
+      String wishId, String region, String placeId) async {
+    if (_disposed ||
+        !paired ||
+        sessionEnded ||
+        endingSession ||
+        !RegExp(r'^[A-Za-z0-9_-]{1,128}$').hasMatch(wishId) ||
+        !const {'coast', 'mountain', 'city'}.contains(region) ||
+        !RegExp(r'^place_[a-f0-9]{16}$').hasMatch(placeId)) return false;
+    final connection = _connection;
+    _questTravelRequest = {
+      'wishId': wishId,
+      'targetRegion': region,
+      'targetPlaceId': placeId
+    };
+    _publish();
+    await _publishTail;
+    return !_disposed &&
+        connection == _connection &&
+        paired &&
+        !sessionEnded &&
+        error == null;
   }
 
   void _ensureCompanionVehicleSubscription() {
@@ -762,9 +835,15 @@ class GameController extends ChangeNotifier {
   String? error;
 
   Future<void> loadSpecies() async {
-    _table ??= SpeciesTable.fromJson(
+    if (_table != null) return;
+    final table = SpeciesTable.fromJson(
         jsonDecode(await rootBundle.loadString('assets/data/species.json'))
             as Map<String, dynamic>);
+    if (table.all.length != 12 ||
+        table.all.map((s) => s.id).toSet().length != 12) {
+      throw const FormatException('Invalid species catalog');
+    }
+    _table = table;
   }
 
   Future<void> restorePairing() async {
@@ -956,6 +1035,10 @@ class GameController extends ChangeNotifier {
 
   Future<bool>? _preparingEgg;
   String? _readyTrip;
+  bool _collectionRewardForTrip = false;
+  bool _collectionExhaustedEgg = false;
+  static const _exhaustedNotice = '도감을 모두 모아 남은 알을 마무리했어요. 다음 여행부터 간식을 받아요.';
+  bool get collectionRewardForTrip => _collectionRewardForTrip;
   bool _tripOpen(int connection) =>
       !_disposed &&
       connection == _connection &&
@@ -965,6 +1048,7 @@ class GameController extends ChangeNotifier {
 
   Future<bool> _prepareTripEgg(EggTier tier, bool useAffinity) async {
     final connection = _connection;
+    var collectionReadFailed = false;
     try {
       await _pendingSave;
       if (!_tripOpen(connection)) return false;
@@ -1034,6 +1118,22 @@ class GameController extends ChangeNotifier {
           checkpoints[size] = await dex.tripProgress(isFake, size);
         }
 
+        // A failed or malformed dex cannot be treated as empty ownership.
+        late final List<DexEntry> entries;
+        try {
+          entries = await dex.all();
+          if (!RegionCollection.fromEntries(entries).known) {
+            throw StateError('Invalid collection');
+          }
+        } catch (_) {
+          collectionReadFailed = true;
+          if (_tripOpen(connection)) _invalidateCollection();
+          rethrow;
+        }
+        final owned = entries.map((e) => e.speciesId).toSet();
+        _collectedIds = owned.toList();
+        if (!_tripOpen(connection)) return false;
+
         var saved = checkpoints[selectedTier]!;
         final claim = ledger.claims[session];
         final initialMigration = ledger.eggId == null;
@@ -1075,11 +1175,40 @@ class GameController extends ChangeNotifier {
           _publish();
           return true;
         }
-        if (egg == null ||
-            (claim == null &&
-                terminal &&
-                source != null &&
-                source != session)) {
+        final needsNewEgg = egg == null ||
+            (claim == null && terminal && source != null && source != session);
+        if (claim == null && needsNewEgg) {
+          // Read validated current ownership after interrupted hatches settle.
+          if (_table!.all.every((species) => owned.contains(species.id))) {
+            final camp = baseCamp;
+            if (camp == null || !await camp.load()) {
+              throw StateError('Camp unavailable');
+            }
+            if (!_tripOpen(connection)) return false;
+            // Persist the demo identity before the independently stored camp
+            // receipt, so either write can be retried with the same ID.
+            if (isFake) {
+              await dex.saveTripEggLedger(true, ledger);
+              if (!_tripOpen(connection)) return false;
+            }
+            if (!await camp.grantCollectionReward(
+                '${isFake ? 'demo' : 'vehicle'}:$session')) {
+              throw StateError('Reward save failed');
+            }
+            if (!_tripOpen(connection)) return false;
+            _timer = null;
+            _clearTripDisplay();
+            _collectionRewardForTrip = true;
+            _readyTrip = session;
+            await _prepareCampForTrip();
+            if (!_tripOpen(connection)) return false;
+            _ensureCompanionVehicleSubscription();
+            _publish();
+            notifyListeners();
+            return true;
+          }
+        }
+        if (needsNewEgg) {
           if (terminal) {
             selectedTier = tier;
             saved = IncubationProgress(
@@ -1102,6 +1231,18 @@ class GameController extends ChangeNotifier {
         if (!_tripOpen(connection)) return false;
         _installTripEgg(selectedTier, saved, egg, affinity);
         if (round != null) _restoreRound(round, selectedTier);
+        // An older unfinished egg can outlive completion of the catalog.
+        // Close it in its claimed trip; a later trip can earn the reward.
+        if (!terminal &&
+            !needsNewEgg &&
+            _table!.all.every((species) => owned.contains(species.id))) {
+          _affinity = null;
+          _collectionExhaustedEgg = true;
+          game = game.copyWith(stage: Stage.failed);
+          await _writeCheckpoint(selectedTier, _checkpoint());
+          if (!_tripOpen(connection)) return false;
+          pairingNotice = _exhaustedNotice;
+        }
         _readyTrip = session;
         await _prepareCampForTrip();
         if (!_tripOpen(connection)) return false;
@@ -1111,7 +1252,12 @@ class GameController extends ChangeNotifier {
         return true;
       });
     } catch (_) {
-      error = '알의 주행 기록을 저장하지 못했어요. 다시 시도해 주세요.';
+      if (_tripOpen(connection)) {
+        error = '알의 주행 기록을 저장하지 못했어요. 다시 시도해 주세요.';
+        // An unreadable collection still needs an unknown summary on the car.
+        if (collectionReadFailed) _publish();
+        notifyListeners();
+      }
       return false;
     }
   }
@@ -1122,6 +1268,10 @@ class GameController extends ChangeNotifier {
   }
 
   void _clearTripDisplay() {
+    _questTravelRequest = null;
+    _collectionRewardForTrip = false;
+    _collectionExhaustedEgg = false;
+    if (pairingNotice == _exhaustedNotice) pairingNotice = null;
     _affinityTimer?.cancel();
     _invalidateInputs();
     _affinity = null;
@@ -1142,7 +1292,9 @@ class GameController extends ChangeNotifier {
   void _installTripEgg(
       EggTier tier, IncubationProgress saved, String id, bool affinity) {
     _sessionDistances = Map.of(saved.sessionDistances);
-    _distanceBaseline = isFake ? 0 : _sessionDistances[_activeSessionId] ?? 0;
+    _distanceBaseline = feed is FakeVehicleFeed
+        ? (feed as FakeVehicleFeed).odometerOriginM
+        : _sessionDistances[_activeSessionId] ?? 0;
     _lastDistance = _distanceBaseline;
     _needsLegacyBaseline =
         !isFake && saved.sessionDistances.isEmpty && saved.carriedM > 0;
@@ -1155,6 +1307,8 @@ class GameController extends ChangeNotifier {
   }
 
   void _resetEgg(EggTier tier, String id) {
+    _collectionExhaustedEgg = false;
+    if (pairingNotice == _exhaustedNotice) pairingNotice = null;
     _affinityTimer?.cancel();
     _invalidateInputs();
     _affinity = null;
@@ -1375,6 +1529,17 @@ class GameController extends ChangeNotifier {
         vehicleFeatures: fishing.initialized
             ? {
                 ...fishing.snapshotFields,
+                if (fishing.snapshotFields['companion'] is Map &&
+                    _ownedCompanionCreatureId != null &&
+                    _ownedCompanionEntry != null &&
+                    fishing.isSelected(_ownedCompanionEntry!))
+                  'companion': {
+                    ...Map<String, dynamic>.from(
+                        fishing.snapshotFields['companion'] as Map),
+                    'ownedCreatureId': _ownedCompanionCreatureId,
+                  },
+                if (_questTravelRequest != null)
+                  'travelRequest': _questTravelRequest,
                 if (baseCamp?.ready == true)
                   ...campVehicleSnapshot(baseCamp!.state),
               }
@@ -1433,7 +1598,14 @@ class GameController extends ChangeNotifier {
         capabilities: v.capabilities);
     final demo =
         isFake && demoSpeciesId != null ? _table!.byId(demoSpeciesId!) : null;
-    final s = demo ?? _table!.pick(r, seenTags);
+    final owned = _collectedIds.toSet();
+    final s = demo != null && !owned.contains(demo.id)
+        ? demo
+        : _table!.pickUnseen(r, seenTags, owned);
+    if (s == null) {
+      error = '새 친구를 선택하지 못했어요. 다시 시도해 주세요.';
+      return;
+    }
     hatched = s;
     game = game.copyWith(
         stage: Stage.hatched,
@@ -1472,7 +1644,11 @@ class GameController extends ChangeNotifier {
         harshSteer: evidence.harshSteer,
         careCount: careCount,
         capabilities: evidence.capabilities);
-    final species = _table!.pick(result, seenTags);
+    final species = _table!.pickUnseen(result, seenTags, _collectedIds.toSet());
+    if (species == null) {
+      error = '새 친구를 선택하지 못했어요. 다시 시도해 주세요.';
+      return;
+    }
     final entry = DexEntry(
         speciesId: species.id,
         obtainedAt: DateTime.now(),
@@ -1712,6 +1888,7 @@ class GameController extends ChangeNotifier {
 
   Map<String, dynamic> _roundSnapshot() => {
         'eggId': _eggId,
+        if (_collectionExhaustedEgg) 'collectionExhaustedEgg': true,
         'number': _roundNumber,
         'sessionId': _roundSessionId,
         'elapsedMs': _elapsedMs,
@@ -1753,16 +1930,19 @@ class GameController extends ChangeNotifier {
       };
 
   IncubationProgress _checkpoint() => IncubationProgress(
-        carriedM:
-            game.stage == Stage.hatched || (_affinity?.isTerminal ?? false)
-                ? 0
-                : (_timer?.carryOver(hatched: false) ?? 0),
+        carriedM: game.stage == Stage.hatched ||
+                game.stage == Stage.failed ||
+                (_affinity?.isTerminal ?? false)
+            ? 0
+            : (_timer?.carryOver(hatched: false) ?? 0),
         sessionDistances: Map.of(_sessionDistances),
         round: _roundSnapshot(),
       );
 
   void _restoreRound(Map<String, dynamic> round, EggTier tier) {
     final g = Map<String, dynamic>.from(round['game'] as Map);
+    _collectionExhaustedEgg = round['collectionExhaustedEgg'] == true;
+    if (_collectionExhaustedEgg) pairingNotice = _exhaustedNotice;
     _useAffinityForNewEggs =
         _useAffinityForNewEggs || round['useAffinityForNewEggs'] == true;
     _affinityForCurrentEgg = _useAffinityForNewEggs;

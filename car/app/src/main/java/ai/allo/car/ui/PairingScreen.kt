@@ -62,6 +62,10 @@ fun PairingScreen(meta: SessionMeta, dbUrl: String, sessionId: String = "",
                                     fontSize = codeSize, lineHeight = codeSize * 1.2f,
                                     fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
                                     color = MaterialTheme.colorScheme.onPrimaryContainer, maxLines = 1)
+                                Text("직접 입력할 세션 ID", style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                Text(sessionId, style = MaterialTheme.typography.bodyMedium,
+                                    textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onPrimaryContainer)
                             }
                         }
                     }

@@ -28,11 +28,49 @@ public class LookMathTests
     }
 
     [Test]
-    public void GyroOffDoesNothingAndOnIsScaled()
+    public void HoldingTheSameGyroPoseKeepsTheSameView()
     {
-        var s = new LookState { yaw = 10 };
-        Assert.AreEqual(10f, LookMath.AddGyro(s, new Vector2(5, 5), false).yaw);
-        Assert.AreEqual(10f + 5f * LookMath.GyroScale, LookMath.AddGyro(s, new Vector2(5, 0), true).yaw, 1e-4);
+        var neutral = Quaternion.Euler(23, -49, 72);
+        var turned = neutral * Quaternion.Euler(-12, 30, 0);
+        var s = LookMath.GyroTarget(new LookState { rail = .6f }, neutral, turned);
+        var held = LookMath.GyroTarget(s, neutral, turned);
+        Assert.AreEqual(30f, held.yaw, .001f);
+        Assert.AreEqual(12f, held.pitch, .001f);
+        Assert.AreEqual(.6f, held.rail);
+        var back = LookMath.GyroTarget(held, neutral, neutral);
+        Assert.AreEqual(0f, Mathf.DeltaAngle(0, back.yaw), .001f);
+        Assert.AreEqual(0f, back.pitch, .001f);
+    }
+
+    [TestCase(-90)]
+    [TestCase(90)]
+    public void TurningLeftAndLookingDownWorksFromEitherLandscapeNeutral(float roll)
+    {
+        var neutral = Quaternion.Euler(51, 29, roll);
+        var moved = neutral * Quaternion.Euler(58, -33, 72);
+        var look = LookMath.GyroTarget(default, neutral, moved);
+        Assert.AreEqual(-33f, Mathf.DeltaAngle(0, look.yaw), .001f);
+        Assert.AreEqual(-35f, look.pitch, .001f);
+    }
+
+    [Test]
+    public void RollingWithoutTurningKeepsTheHorizonLevel()
+    {
+        var neutral = Quaternion.Euler(12, -51, 90);
+        var look = LookMath.GyroTarget(default, neutral, neutral * Quaternion.Euler(0, 0, -85));
+        Assert.AreEqual(0f, Mathf.DeltaAngle(0, look.yaw), .001f);
+        Assert.AreEqual(0f, look.pitch, .001f);
+    }
+
+    [Test]
+    public void SensorRotationUsesUnityHandednessAndRejectsInvalidSamples()
+    {
+        Assert.IsTrue(LookMath.TryAttitude(new Quaternion(0f, -.258819f, 0f, .965926f), out var attitude));
+        var target = LookMath.GyroTarget(default, Quaternion.identity, attitude);
+        Assert.AreEqual(30f, target.yaw, .001f);
+        Assert.IsFalse(LookMath.TryAttitude(default, out _));
+        Assert.IsFalse(LookMath.TryAttitude(new Quaternion(0f, float.NaN, 0f, 1f), out _));
+        Assert.IsFalse(LookMath.TryAttitude(new Quaternion(float.PositiveInfinity, 0f, 0f, 1f), out _));
     }
 
     [Test]

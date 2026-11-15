@@ -234,6 +234,43 @@ public class ChunkTrackTests
         Assert.AreEqual(ChunkTrack.MaxBend, res.Value.bent.bend, 0.01f);
     }
 
+    [Test]
+    public void SensorCanReverseOrCenterTheSameUpcomingBendWithoutMovingTheCar()
+    {
+        var t = T();
+        t.SetScene("city");
+        t.Advance(8);
+        var before = t.CarPose;
+        var right = t.SetCorneringBend(1).Value.bent;
+        Assert.Greater(right.bend, 0);
+        Assert.GreaterOrEqual(right.start, t.Offset + 25);
+        var left = t.SetCorneringBend(-.5f).Value.bent;
+        Assert.AreSame(right, left);
+        Assert.Less(left.bend, 0);
+        PathContinuous(t);
+        Assert.AreEqual(0, t.SetCorneringBend(0).Value.bent.bend, .001);
+        Assert.AreEqual(before.pos, t.CarPose.pos);
+        Assert.AreEqual(before.yaw, t.CarPose.yaw);
+        PathContinuous(t);
+    }
+
+    [Test]
+    public void SensorDoesNotOverlayNavigationTurnAlreadyCommittedToTheRoad()
+    {
+        var t = T();
+        t.SetScene("road");
+        t.SetTurns(new[] { ("right", 120f) });
+        var junction = Junction(t);
+        t.Advance(junction.start - 10);
+        t.SetTurns(new (string, float)[0]);
+        Assert.IsTrue(t.HasCommittedManeuver);
+        Assert.IsNull(t.SetCorneringBend(-1));
+        t.Advance(junction.End - t.Offset + 1);
+        Assert.IsFalse(t.HasCommittedManeuver);
+        Assert.Less(t.SetCorneringBend(-1).Value.bent.bend, 0);
+        PathContinuous(t);
+    }
+
     static void PathContinuous(ChunkTrack t)
     {
         var chunks = t.Live.Values.OrderBy(c => c.index).ToList();

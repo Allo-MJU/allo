@@ -23,6 +23,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 from learning import BODY_LIMIT as LEARNING_BODY_LIMIT, LearningError, LearningService, OpenAILearning
 from provider import ProviderError, request_json
+from quests import BODY_LIMIT as QUEST_BODY_LIMIT, QuestTemplates
 
 JSON_LIMIT = 16 * 1024
 PHOTO_HTTP_LIMIT = 7 * 1024 * 1024
@@ -290,6 +291,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.command == 'GET' and self.path == '/health':
             return self.reply(200, {'status': 'ok'})
         self.authenticate()
+        if self.command == 'POST' and self.path == '/v1/companion/quest-template':
+            value = self.read_json(QUEST_BODY_LIMIT)
+            return self.reply(200, self.server.quests(value))
         if self.command == 'POST' and self.path == '/v1/companion/turn':
             value = self.read_json(LEARNING_BODY_LIMIT)
             return self.reply(200, self.server.learning.turn(value))
@@ -355,6 +359,7 @@ def create_server(token, data_directory, evaluate=None, host='127.0.0.1', port=0
     server = DemoServer((host, port), Handler)
     server.authorization = ('Bearer ' + token).encode()
     server.store = store
+    server.quests = QuestTemplates()
     server.evaluate = evaluate
     server.learning = learning if learning is not None else LearningService()
     return server
