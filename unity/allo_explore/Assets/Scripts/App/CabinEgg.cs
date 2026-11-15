@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Allo.Critters;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using Rig = Allo.CameraRig.CameraRig;
 
 namespace Allo.App
@@ -12,7 +11,9 @@ namespace Allo.App
     public sealed class CabinEgg : MonoBehaviour
     {
         public const float EggHeight = 0.24f;
-        static readonly string[] Surfaces = { "Walk_Dashboard", "Walk_DoorSill_L", "Walk_DoorSill_R", "Walk_Floor" };
+        static CabinEgg _instance;
+        public static bool IsCapturing => _instance != null && (_instance._ownsPointer || _instance._releasedFrame == Time.frameCount);
+        static readonly string[] Surfaces = { "Walk_Console", "Walk_DoorSill_L", "Walk_DoorSill_R", "Walk_Floor" };
         readonly Transform[] _zones = new Transform[4];
         readonly Renderer[] _zoneRenderers = new Renderer[4];
         readonly bool[] _available = new bool[4];
@@ -26,14 +27,18 @@ namespace Allo.App
         Rig _rig;
         TapInput _tap;
         bool _ownsPointer, _rigEnabled, _tapEnabled, _previousLock, _markerStart;
-        int _finger, _targetZone = -1;
+        int _targetZone = -1, _releasedFrame = -1;
+        float _pointerDepth, _gestureSize, _dragScale;
+        Vector3 _dragOffset, _originalScale;
+        bool _previewing;
         Vector2 _down, _last;
-        float _travel, _bounce, _ending;
+        float _travel, _maxExcursion, _bounce, _ending;
         Transform _careToy;
         CritterDirector _careDirector;
         float _careTime;
         string _careAction;
         Color _eggColor;
+        bool _authoredEgg;
 
         public static bool ShowEgg(string view, EggState egg) =>
             view == "cabin" && egg != null && egg.active && !string.IsNullOrEmpty(egg.id);
@@ -69,7 +74,8 @@ namespace Allo.App
 
         public static bool CanInteract(AppState state, string view, string startedEggId) =>
             !CabinInteraction.IsCapturing && state != null && state.ready && state.connected && !state.busy && !state.sessionEnded &&
-            ShowEgg(view, state.egg) && state.egg.id == startedEggId && !state.egg.photoBusy && !state.egg.speechBusy;
+            ShowEgg(view, state.egg) && state.egg.id == startedEggId && !state.egg.photoRequired &&
+            !state.egg.photoBusy && !state.egg.speechBusy && state.learning?.recording != true;
 
         public static bool ShouldPlayCare(AppState previous, AppState next) => previous?.learning != null && next?.learning != null &&
             previous.view == "cabin" && next.view == "cabin" && previous.isDemo == next.isDemo &&
@@ -87,11 +93,13 @@ namespace Allo.App
             return null;
         }
 
-        // A back-and-forth rub has travel but little displacement; a move ends in another zone.
-        public static string GestureAction(float travel, float displacement, bool changedZone, float height)
+        // Scale the gesture to the visible egg, so a short rub also works on a distant egg.
+        public static string GestureAction(float travel, float displacement, bool changedZone, float height, float maxExcursion = 0)
         {
-            if (changedZone && displacement > height * 0.12f) return "placeEgg";
-            if (travel >= height * 0.18f && displacement <= height * 0.12f && travel > displacement * 2f) return "petEgg";
+            if (height <= 0) return "";
+            if (changedZone && displacement > height * .25f) return "placeEgg";
+            if (Mathf.Max(displacement, maxExcursion) <= height * .75f && travel >= height * .65f &&
+                travel > displacement * 1.6f) return "petEgg";
             return "";
         }
 
@@ -102,8 +110,15 @@ namespace Allo.App
             RefreshVisibility();
         }
 
+        public void BeforeWorldChange(AppState state)
+        {
+            if (_ownsPointer && (_state?.isDemo != state?.isDemo || _state?.egg?.zone != state?.egg?.zone ||
+                state?.view != "cabin" || !CanInteract(state, _view, _gestureId))) CancelGesture();
+        }
+
         public void Apply(AppState state)
         {
+            BeforeWorldChange(state);
             var playCare = ShouldPlayCare(_state, state);
             if (_state?.learning?.creatureId != state?.learning?.creatureId || _state?.learning?.speciesId != state?.learning?.speciesId ||
                 _state?.isDemo != state?.isDemo || (_state?.egg?.id != state?.egg?.id && string.IsNullOrEmpty(state?.learning?.creatureId))) CancelCare();
@@ -122,10 +137,10 @@ namespace Allo.App
             if (_egg != null && egg != null)
             {
                 var zone = Mathf.Clamp(egg.zone, 0, 3);
-                if (_available[zone]) _egg.position = _zones[zone].position + Vector3.up * (EggHeight * 0.5f + 0.005f);
-                _eggColor = egg.photoRequired ? new Color(1f, 0.84f, 0.34f) :
+                if (!_ownsPointer && _available[zone]) _egg.position = _zones[zone].position + Vector3.up * (EggHeight * 0.5f + 0.005f);
+                _eggColor = egg.photoRequired ? new Color(1f, 0.84f, 0.34f) : _authoredEgg ? Color.white :
                     Color.Lerp(new Color(1f, 0.92f, 0.73f), new Color(0.64f, 0.9f, 0.76f), Mathf.Clamp01(egg.score / 100f));
-                _eggRenderer.sharedMaterial.color = _careTime > 0 ? Color.Lerp(_eggColor, Color.white, .35f) : _eggColor;
+                _eggRenderer.sharedMaterial.color = _careTime > 0 ? Color.Lerp(_eggColor, new Color(1f, .88f, .58f), .35f) : _eggColor;
                 _reveal.position = _egg.position;
                 _shells.position = _egg.position;
 
@@ -145,7 +160,7 @@ namespace Allo.App
             if (_egg == null || !_egg.gameObject.activeSelf) return;
             CancelCare();
             _careTime = 3f; _careAction = actionId; _bounce = _state.reducedMotion ? 0 : 0.7f;
-            _eggRenderer.sharedMaterial.color = Color.Lerp(_eggColor, Color.white, .35f);
+            _eggRenderer.sharedMaterial.color = Color.Lerp(_eggColor, new Color(1f, .88f, .58f), .35f);
             if (!_state.reducedMotion) Fx.Burst(_egg.position + Vector3.up * EggHeight * 0.6f, Fx.Spark, _revealRenderer.sharedMaterial, 5, 0.025f, 0.04f);
             if (actionId == "pet") return;
             var kind = CareToyKind(actionId);
@@ -208,23 +223,7 @@ namespace Allo.App
                 }
                 marker.SetActive(_available[i]);
             }
-            var body = Primitive("Cabin egg", PrimitiveType.Sphere, _visuals, new Color(1f, 0.92f, 0.73f));
-            _egg = body.transform;
-            _egg.localScale = new Vector3(0.18f, EggHeight, 0.18f);
-            _eggRenderer = body.GetComponent<Renderer>();
-            var bodyFilter = body.GetComponent<MeshFilter>();
-            _eggMesh = Instantiate(bodyFilter.sharedMesh);
-            bodyFilter.sharedMesh = _eggMesh;
-            var vertices = _eggMesh.vertices;
-            for (var i = 0; i < vertices.Length; i++)
-            {
-                var taper = 1f - vertices[i].y * 0.45f;
-                vertices[i].x *= taper;
-                vertices[i].z *= taper;
-            }
-            _eggMesh.vertices = vertices;
-            _eggMesh.RecalculateNormals();
-            _eggMesh.RecalculateBounds();
+            CreateEggBody();
             var reveal = Primitive("Saved hatch reveal", PrimitiveType.Quad, _visuals, Color.white);
             RemoveCollider(reveal);
             _reveal = reveal.transform;
@@ -243,6 +242,57 @@ namespace Allo.App
                 shell.transform.localScale = new Vector3(0.085f, 0.035f, 0.1f);
                 shell.transform.localRotation = Quaternion.Euler(0, 0, i == 0 ? -30 : 30);
             }
+        }
+
+        void CreateEggBody()
+        {
+            var prefab = Toys.PropModel(Toys.Kind.Egg);
+            if (prefab != null)
+            {
+                _egg = new GameObject("Cabin egg").transform;
+                _egg.SetParent(_visuals, false);
+                var model = Instantiate(prefab, _egg, false).transform;
+                model.name = "Authored egg design";
+                var renderers = model.GetComponentsInChildren<Renderer>();
+                var bounds = SurfaceBounds(renderers[0]);
+                foreach (var renderer in renderers) bounds.Encapsulate(SurfaceBounds(renderer));
+                model.localScale *= EggHeight / Mathf.Max(.001f, bounds.size.y);
+                bounds = SurfaceBounds(renderers[0]);
+                foreach (var renderer in renderers) bounds.Encapsulate(SurfaceBounds(renderer));
+                model.position += _egg.position - bounds.center;
+                var collider = _egg.gameObject.AddComponent<BoxCollider>();
+                collider.size = bounds.size * 1.08f;
+                foreach (var renderer in renderers)
+                {
+                    var materials = renderer.sharedMaterials;
+                    for (var i = 0; i < materials.Length; i++)
+                    {
+                        materials[i] = new Material(materials[i]);
+                        _materials.Add(materials[i]);
+                    }
+                    renderer.sharedMaterials = materials;
+                }
+                _eggRenderer = renderers[0];
+                _authoredEgg = true;
+                return;
+            }
+            var body = Primitive("Cabin egg", PrimitiveType.Sphere, _visuals, new Color(1f, 0.92f, 0.73f));
+            _egg = body.transform;
+            _egg.localScale = new Vector3(0.18f, EggHeight, 0.18f);
+            _eggRenderer = body.GetComponent<Renderer>();
+            var bodyFilter = body.GetComponent<MeshFilter>();
+            _eggMesh = Instantiate(bodyFilter.sharedMesh);
+            bodyFilter.sharedMesh = _eggMesh;
+            var vertices = _eggMesh.vertices;
+            for (var i = 0; i < vertices.Length; i++)
+            {
+                var taper = 1f - vertices[i].y * 0.45f;
+                vertices[i].x *= taper;
+                vertices[i].z *= taper;
+            }
+            _eggMesh.vertices = vertices;
+            _eggMesh.RecalculateNormals();
+            _eggMesh.RecalculateBounds();
         }
 
         GameObject Primitive(string name, PrimitiveType type, Transform parent, Color color)
@@ -319,15 +369,15 @@ namespace Allo.App
             {
                 var hop = _state.reducedMotion ? 0 : Mathf.Sin((0.7f - _bounce) * Mathf.PI / 0.7f) * _bounce * 0.06f;
                 var zone = Mathf.Clamp(egg.zone, 0, 3);
-                _egg.position = _zones[zone].position + Vector3.up * (EggHeight * 0.5f + 0.005f + Mathf.Max(0, hop));
+                if (!_ownsPointer) _egg.position = _zones[zone].position + Vector3.up * (EggHeight * 0.5f + 0.005f + Mathf.Max(0, hop));
                 for (var i = 0; i < 4; i++)
                     _zoneRenderers[i].sharedMaterial.color = i == _targetZone && _ownsPointer ? Color.white :
                         i == egg.preferredZone ? new Color(1f, 0.81f, 0.25f) : new Color(0.55f, 0.82f, 0.74f);
             }
             if (_reveal.gameObject.activeSelf && _camera != null)
                 _reveal.rotation = Quaternion.LookRotation(_reveal.position - _camera.transform.position);
-            if (CabinInteraction.IsCapturing) return;
-            if (AppSession.StoryActive || StoryOverlay.CapturingInput) { CancelGesture(); return; }
+            if (CabinInteraction.IsCapturing) { CancelGesture(); return; }
+            if (Blocked || AppSession.StoryActive || StoryOverlay.CapturingInput) { CancelGesture(); return; }
             if (Input.touchCount > 1) { CancelGesture(); return; }
             if (Input.touchCount == 1)
             {
@@ -347,18 +397,29 @@ namespace Allo.App
 #endif
         }
 
-        bool OverUi(int finger) => EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(finger);
+        void Awake() => _instance = this;
+        bool Blocked => FindFirstObjectByType<AppUi>() is { } ui && ui.CabinGesturesBlocked;
 
         void Begin(Vector2 position, int finger)
         {
-            if (_camera == null || OverUi(finger) || !CanInteract(_state, _view, _state?.egg?.id)) return;
+            if (_ownsPointer || _camera == null || Blocked || CabinInteraction.IsOverUi(position) ||
+                !CanInteract(_state, _view, _state?.egg?.id)) return;
             if (!Physics.Raycast(_camera.ScreenPointToRay(position), out var hit, 80f)) return;
-            var hitEgg = hit.transform == _egg;
+            var hitEgg = hit.transform == _egg || hit.transform.IsChildOf(_egg);
             var zone = Array.IndexOf(_zones, hit.transform);
             if (!hitEgg && zone < 0) return;
-            _finger = finger;
             _down = _last = position;
-            _travel = 0;
+            _travel = _maxExcursion = 0;
+            _previewing = false;
+            var sourceDepth = _camera.WorldToScreenPoint(_egg.position).z;
+            // Keep the held preview in front of the seats without changing its apparent size.
+            _pointerDepth = Mathf.Min(sourceDepth, Mathf.Max(_camera.nearClipPlane * 2, .55f));
+            _dragScale = _camera.orthographic ? 1 : _pointerDepth / sourceDepth;
+            _originalScale = _egg.localScale;
+            _dragOffset = (_egg.position - _camera.ScreenToWorldPoint(new Vector3(position.x, position.y, sourceDepth))) * _dragScale;
+            var bounds = _eggRenderer.bounds;
+            _gestureSize = Mathf.Max(12f, Mathf.Abs(_camera.WorldToScreenPoint(bounds.center + _camera.transform.up * bounds.extents.y).y -
+                _camera.WorldToScreenPoint(bounds.center - _camera.transform.up * bounds.extents.y).y));
             _targetZone = zone;
             _markerStart = !hitEgg;
             _gestureId = _state.egg.id;
@@ -376,10 +437,12 @@ namespace Allo.App
         void Move(Vector2 position)
         {
             if (!_ownsPointer) return;
+            if (_camera == null || Blocked || !CanInteract(_state, _view, _gestureId)) { CancelGesture(); return; }
             _travel += Vector2.Distance(_last, position);
+            _maxExcursion = Mathf.Max(_maxExcursion, Vector2.Distance(_down, position));
             _last = position;
             _targetZone = -1;
-            var nearest = Screen.height * 0.14f;
+            var nearest = Mathf.Max(24f, _gestureSize * 1.25f);
             for (var i = 0; i < 4; i++)
             {
                 if (!_available[i]) continue;
@@ -390,17 +453,28 @@ namespace Allo.App
                 nearest = distance;
                 _targetZone = i;
             }
+            if (!_markerStart && (_previewing || Vector2.Distance(_down, position) >= _gestureSize * .1f))
+            {
+                _previewing = true;
+                _egg.localScale = _originalScale * _dragScale;
+                _egg.position = _camera.ScreenToWorldPoint(new Vector3(position.x, position.y, _pointerDepth)) + _dragOffset;
+            }
         }
 
         void End(Vector2 position)
         {
             if (!_ownsPointer) return;
             Move(position);
+            if (!_ownsPointer) return;
             var displacement = Vector2.Distance(_down, position);
             var changed = _targetZone >= 0 && _targetZone != _state.egg.zone;
-            var action = _markerStart && changed && displacement < Screen.height * 0.05f ? "placeEgg" :
-                GestureAction(_travel, displacement, changed, Screen.height);
-            var intent = OverUi(_finger) ? null : EggIntent(_state, _view, _gestureId, action, _targetZone);
+            var action = "";
+            if (_markerStart)
+            {
+                if (changed && _travel < _gestureSize * .25f) action = "placeEgg";
+            }
+            else action = GestureAction(_travel, displacement, changed, _gestureSize, _maxExcursion);
+            var intent = Blocked || CabinInteraction.IsOverUi(position) ? null : EggIntent(_state, _view, _gestureId, action, _targetZone);
             CancelGesture();
             if (intent != null) AppSession.Request(intent.action, intent);
         }
@@ -409,7 +483,15 @@ namespace Allo.App
         {
             if (!_ownsPointer) return;
             _ownsPointer = false;
+            _releasedFrame = Time.frameCount;
+            _previewing = false;
             _targetZone = -1;
+            if (_egg != null && _state?.egg != null)
+            {
+                _egg.localScale = _originalScale;
+                var zone = Mathf.Clamp(_state.egg.zone, 0, 3);
+                if (_available[zone]) _egg.position = _zones[zone].position + Vector3.up * (EggHeight * .5f + .005f);
+            }
             if (_rig != null) _rig.enabled = _rigEnabled;
             if (_tap != null) _tap.enabled = _tapEnabled;
             Rig.Locked = _previousLock;
@@ -420,6 +502,7 @@ namespace Allo.App
         {
             CancelGesture();
             CancelCare();
+            if (_instance == this) _instance = null;
             foreach (var material in _materials)
                 if (Application.isPlaying) Destroy(material); else DestroyImmediate(material);
             if (_eggMesh != null)

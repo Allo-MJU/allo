@@ -24,7 +24,13 @@ namespace Allo.CameraRig
         float? _lastPinch;
 
         void OnEnable() => FlutterBridge.SettingsChanged += OnSettings;
-        void OnDisable() => FlutterBridge.SettingsChanged -= OnSettings;
+        void OnDisable()
+        {
+            FlutterBridge.SettingsChanged -= OnSettings;
+            _velocity = Vector2.zero;
+            _lastPinch = null;
+            _uiTouch = false;
+        }
 
         void OnSettings(SettingsState s) => _gyro = s.gyro && !s.reducedMotion;
 
@@ -47,7 +53,7 @@ namespace Allo.CameraRig
 
         void Update()
         {
-            if (Allo.App.CabinInteraction.IsCapturing || Allo.App.AppSession.StoryActive || Allo.App.StoryOverlay.CapturingInput)
+            if (Allo.App.CabinInteraction.IsCapturing || Allo.App.CabinEgg.IsCapturing || Allo.App.AppSession.StoryActive || Allo.App.StoryOverlay.CapturingInput)
             {
                 _velocity = Vector2.zero;
                 _lastPinch = null;

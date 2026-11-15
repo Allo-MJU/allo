@@ -57,7 +57,7 @@ namespace Allo
 
         void Update()
         {
-            if (Allo.App.CabinInteraction.IsCapturing) return;
+            if (Allo.App.CabinInteraction.IsCapturing || Allo.App.CabinEgg.IsCapturing) return;
             if (Allo.App.AppSession.StoryActive || Allo.App.StoryOverlay.CapturingInput) { Cancel(); return; }
             FogGlass.Raining = world != null && world.Scene != null && world.Scene.rain > 0 && world.Scene.kind != "tunnel";
 #if UNITY_EDITOR

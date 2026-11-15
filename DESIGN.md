@@ -8,7 +8,7 @@ A persistent full-canvas UGUI layer contains the 2D terrain, sprites, labels, jo
 
 UI palette: dark sage ink #263A32, forest accent #53765B, neutral paper #F2EEE5, fine border #B8B7A7, amber primary #D5A64A. Typography is embedded Do Hyeon; height-based 1600×720 canvas with safe-area scaling. Keep the world dominant, with compact controls.
 
-Cabin preserves the existing immersive 3D car with a thin affinity/remaining HUD, compact action dock, optional text/zone drawers and a start/failure sheet. Egg visuals exist only there. Preserve focused text and independent scroll positions across authoritative snapshots. Missing character art uses an explicit small placeholder without changing canonical IDs.
+Cabin preserves the existing immersive 3D car with a background-free affinity gauge, compact action dock, optional text/zone drawers and a start/failure sheet. Egg visuals exist only there. Preserve focused text and independent scroll positions across authoritative snapshots. Missing character art uses an explicit small placeholder without changing canonical IDs.
 
 Dart controllers own all costs, affinity, ownership, saves and offline jobs. Latest dev authenticated companion selection, driving auto-fishing presentation and saved collection/base summary publication are retained. Existing distance/lookout camp material rules remain authoritative. Project-bound image assets/prompts are recorded in docs/village-art-provenance.md. Verification is recorded in docs/work-results/unity-phone/README.md.
 
@@ -17,3 +17,5 @@ For the requested collected-character preview, enable only the isolated fake-fee
 The Unity phone dex and inventory use a separate, scoped book treatment documented in [docs/design/book-ui/DESIGN.md](docs/design/book-ui/DESIGN.md). Its tokens and components are also recorded in `.impeccable/design.json`.
 
 Village friends use their own eight-frame walking sheets with bounded destinations and short rests. Movement and facing follow actual travel; the name label stays upright. Input, inertia, inspectors, confirmations and reduced motion pause roaming. Selecting a friend opens a right-side inspector with an animated preview, real role/activity and the existing learned-action and food controls. Snapshot refreshes preserve actor position and preview phase.
+
+Active cabin eggs reuse the existing textured `Resources/Props/P_egg` model. Zone 0 is the visible center console between the front seats; other zones are the two window sills and front floor. Dragging uses a constant-size foreground preview and host-confirmed placement. Gentle local rubs pet the egg; egg gestures own input through their release frame.
