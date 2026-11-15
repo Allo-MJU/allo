@@ -338,3 +338,9 @@ PR #93의 `affinity {score, target, phase, photoCompleted}` 요약은 낚시·�
 [차량 연결 진입과 직접 대화](superpowers/specs/2026-11-14-cabin-pairing-direct-conversation-design.md)에 따라 최초 미연결 차 안은 연결 버튼 하나를 표시한다. QR 또는 직접 입력으로 성공한 페어링에서만 기존 여행당 알 준비를 수행하고 fake 초기화는 자동 연결/지급하지 않는다. 알/친구 상태·호감도·사진·시간/거리 진행은 독립 유지한다. 캐릭터 클릭은 서버 `greet`/`chat`으로 곧바로 연결하며 새 UI에 메뉴·챕터 낭독·다음 장면 버튼을 표시하지 않는다. 기존 작성형 API는 구버전 호환용이다. 서버 고유 페르소나와 고정 배경·학습자료는 앱에 포함하지 않는다. 게임 wire와 기존 지급/승계 계약은 바꾸지 않는다.
 
 후속 [직접 조작 변경](superpowers/specs/2026-11-14-cabin-toss-and-rest-design.md)에서 연결 버튼은 차량 제목 자리에 배치한다. 간식·물·공·인형은 원형 버튼으로 고른 뒤 방향 스와이프로 던지며, 유효한 동작 뒤 기존 `commonCare`를 보낸다. 캐릭터 더블 탭 후 자유 배치는 로컬 표현이고 새 보상이나 서버 좌표 저장을 추가하지 않는다. 쿠션·담요에 놓을 때는 기존 돌봄 승인 경로를 사용한다.
+
+### Unity 캐릭터 상세의 표시용 소개 (2026-11-15)
+
+캐릭터 정보 화면에는 `phone/assets/data/character_profiles.json`의 한 줄 소개와 성격 태그만 제공한다. 서버 persona·지식·스토리 본문이나 프롬프트를 배포하는 것이 아니며, AI 대화의 권위 있는 자료도 여전히 서버 소유다. 표시용 문구는 원문을 요약한 정적 메타데이터이며 원문이 바뀌면 출처 기록과 함께 검토한다.
+
+앱-local v1 Unity snapshot의 `creatures[]`는 optional `personaSummary:string`과 `personaTraits:string[]`를 추가한다. 정확한 `speciesId`로 연결하고, 등록되지 않은 종은 빈 문자열과 빈 배열을 전달한다. 구형 snapshot에서 누락되어도 기본 설명으로 표시한다. RTDB `/game`, 비용·보상·소유권 및 서버 대화 요청 계약은 변경하지 않는다.

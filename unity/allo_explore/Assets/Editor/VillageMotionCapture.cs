@@ -21,6 +21,8 @@ public static class VillageMotionCapture
     static readonly string[] SpeciesIds = { "road_sprout", "puddle_pip", "lamp_moth", "highway_comet" };
     [Serializable] sealed class Catalog { public Species[] species; }
     [Serializable] sealed class Species { public string id, nameKo, attribute, hint, sprite; }
+    [Serializable] sealed class ProfileCatalog { public Profile[] profiles; }
+    [Serializable] sealed class Profile { public string id, summary; public string[] traits; }
     [Serializable] sealed class ActorEvidence { public string id; public float travelled; public int distinctFrames; }
     [Serializable] sealed class SizeEvidence
     {
@@ -38,6 +40,7 @@ public static class VillageMotionCapture
         public SizeEvidence[] captures;
     }
     static Species[] _species;
+    static Profile[] _profiles;
     static string _output;
 
     [InitializeOnLoadMethod]
@@ -71,6 +74,7 @@ public static class VillageMotionCapture
         _output = Environment.GetEnvironmentVariable("ALLO_VILLAGE_CAPTURE_DIR") ?? Path.Combine(repo, "docs/work-results/unity-phone/village-motion");
         Directory.CreateDirectory(_output);
         _species = JsonUtility.FromJson<Catalog>(File.ReadAllText(Path.Combine(repo, "phone/assets/data/species.json"))).species;
+        _profiles = JsonUtility.FromJson<ProfileCatalog>(File.ReadAllText(Path.Combine(repo, "phone/assets/data/character_profiles.json"))).profiles;
         foreach (var species in _species.Where(s => SpeciesIds.Contains(s.id))) SpriteLoader.LoadNow(species.sprite);
         var previous = AppSession.State;
         try
@@ -85,8 +89,8 @@ public static class VillageMotionCapture
     static AppState Fixture() => new AppState
     {
         revision = 1, ready = true, isDemo = true, view = "camp",
-        creatures = SpeciesIds.Select(id => { var s = _species.Single(v => v.id == id); return new CreatureState
-            { id = "capture-" + id, speciesId = id, name = s.nameKo, sprite = s.sprite, role = Role(id), actions = id == "road_sprout" ? new[] { "greeting" } : Array.Empty<string>() }; }).ToArray(),
+        creatures = SpeciesIds.Select(id => { var s = _species.Single(v => v.id == id); var p = _profiles.FirstOrDefault(v => v.id == id); return new CreatureState
+            { id = "capture-" + id, speciesId = id, name = s.nameKo, sprite = s.sprite, role = Role(id), personaSummary = p?.summary ?? "", personaTraits = p?.traits ?? Array.Empty<string>(), actions = id == "road_sprout" ? new[] { "greeting" } : Array.Empty<string>() }; }).ToArray(),
         dex = _species.Select(s => new DexState { id = s.id, name = s.nameKo, sprite = s.sprite, attribute = s.attribute, role = Role(s.id), description = s.hint, collected = SpeciesIds.Contains(s.id), count = SpeciesIds.Contains(s.id) ? 1 : 0 }).ToArray(),
         materials = new[] { new MaterialState { id = "wood", label = "나무", count = 28 }, new MaterialState { id = "stone", label = "돌", count = 17 }, new MaterialState { id = "ingredient", label = "식재료", count = 12 } },
         foods = new[] { new FoodState { id = "berry_snack", label = "베리 간식", count = 4, unlocked = true, requiredLevel = 1, costIngredient = 2 } },
@@ -183,10 +187,30 @@ public static class VillageMotionCapture
             var reduced = Get<VillageCharacterArt>(ui, "_villageDetailArt"); result.reducedMotionPreviewFrozen = reduced.FrameIndex == 0 && !reduced.IsAnimated;
             Require(result.reducedMotionPositionDelta < .001f && result.reducedMotionPreviewFrozen, "Reduced motion must freeze map and preview.");
             Save(camera, size, Path.Combine(_output, "reduced-motion-" + size.x + "x" + size.y + ".png"));
+            fixture.reducedMotion = false; Snapshot(ui, fixture);
+            CaptureDetailVariant(ui, root, camera, size, "capture-puddle_pip", "detail-puddle-personality");
+            fixture.creatures.Single(c => c.speciesId == "road_sprout").actions = Array.Empty<string>();
+            fixture.foods = Array.Empty<FoodState>(); Snapshot(ui, fixture);
+            CaptureDetailVariant(ui, root, camera, size, "capture-road_sprout", "detail-empty-actions-foods");
             Debug.Log("[VillageMotionCapture] Captured " + size + ": " + JsonUtility.ToJson(result));
             return result;
         }
         finally { Object.DestroyImmediate(root); DropCamera(camera); }
+    }
+
+    static void CaptureDetailVariant(AppUi ui, GameObject root, Camera camera, Vector2Int size, string ownedId, string filename)
+    {
+        Call(ui, "OpenVillageFriend", ownedId); Call(ui, "Render");
+        for (var i = 0; i < 6; i++) Step(ui, root);
+        var inspector = root.GetComponentsInChildren<RectTransform>().Single(t => t.name == "Character inspector");
+        var scroll = inspector.GetComponentInChildren<ScrollRect>();
+        scroll.verticalNormalizedPosition = 1;
+        Save(camera, size, Path.Combine(_output, filename + "-" + size.x + "x" + size.y + ".png"));
+        if (scroll.content.rect.height > scroll.viewport.rect.height + .01f)
+        {
+            scroll.verticalNormalizedPosition = 0;
+            Save(camera, size, Path.Combine(_output, filename + "-bottom-" + size.x + "x" + size.y + ".png"));
+        }
     }
 
     static void Step(AppUi ui, GameObject root)
@@ -220,7 +244,13 @@ public static class VillageMotionCapture
             Require(scroll.verticalScrollbar.gameObject.activeSelf == overflow, "Scrollbar must match actual inspector overflow.");
             Require(!overflow || scroll.verticalScrollbar.size < .999f, "Overflow must show a proportional scrollbar thumb.");
         }
-        Canvas.ForceUpdateCanvases(); camera.Render(); var previous = RenderTexture.active; RenderTexture.active = camera.targetTexture;
+        Canvas.ForceUpdateCanvases(); camera.Render();
+        foreach (var label in Object.FindObjectsByType<Text>(FindObjectsSortMode.None).Where(t => t.transform.parent.name.StartsWith("Profile tag ", StringComparison.Ordinal)))
+        {
+            Require(label.rectTransform.rect.height >= label.preferredHeight - .01f, "Profile tag label must fit its actual text height.");
+            Require(label.cachedTextGenerator.characterCountVisible >= label.text.Length, "Every profile tag character must be generated visibly.");
+        }
+        var previous = RenderTexture.active; RenderTexture.active = camera.targetTexture;
         var image = new Texture2D(size.x, size.y, TextureFormat.RGB24, false);
         try { image.ReadPixels(new Rect(0, 0, size.x, size.y), 0, 0); image.Apply(); File.WriteAllBytes(path, image.EncodeToPNG()); }
         finally { RenderTexture.active = previous; Object.DestroyImmediate(image); }

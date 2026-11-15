@@ -21,6 +21,7 @@ void main() {
       {required bool enabled}) async {
     rootBundle.evict('assets/data/species.json');
     rootBundle.evict('assets/data/characters.json');
+    rootBundle.evict('assets/data/character_profiles.json');
     rootBundle.evict('assets/data/window_stories_ko.json');
     rootBundle.evict('assets/data/companion_learning.json');
     Map<String, dynamic>? current;

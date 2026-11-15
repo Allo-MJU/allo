@@ -43,7 +43,7 @@ public class AppVillageCharacterTests
         Assert.NotNull(detail, "tap must open local detail instead of sending dex navigation");
         Assert.AreEqual("second", Get<string>("_villageCreatureId"));
         Assert.IsTrue(detail.GetComponentsInChildren<Text>().Any(t => t.text == "두 번째 친구"));
-        Assert.IsTrue(detail.GetComponentsInChildren<Text>().Any(t => t.text == "두 번째 친구의 배운 행동"));
+        Assert.IsTrue(detail.GetComponentsInChildren<Text>().Any(t => t.text == "할 수 있는 행동"));
         var preview = detail.GetComponentsInChildren<RectTransform>().Single(t => t.name == "Enlarged character");
         var inspector = detail.Find("Character inspector");
         Assert.NotNull(inspector);
@@ -62,6 +62,47 @@ public class AppVillageCharacterTests
         var art = detail.GetComponentInChildren<VillageCharacterArt>();
         Assert.NotNull(art);
         Assert.AreEqual("poses/road_sprout/joy-sheet.png", art.GetComponent<RawImage>().texture.name);
+    }
+
+    [Test]
+    public void RightInspectorShowsTheSelectedCharactersPersonaSummaryAndTraits()
+    {
+        var state = State(2);
+        state.creatures[1] = JsonUtility.FromJson<CreatureState>("{\"id\":\"second\",\"speciesId\":\"road_sprout\",\"name\":\"두 번째 친구\",\"role\":\"cook\",\"personaSummary\":\"차분히 관찰하는 솔직한 친구예요.\",\"personaTraits\":[\"호기심\",\"솔직함\"]}");
+        Receive(state);
+        Marker("second").GetComponent<Button>().onClick.Invoke(); Render();
+        var inspector = Get<RectTransform>("_content").Find("Village character detail/Character inspector");
+        var texts = inspector.GetComponentsInChildren<Text>().Select(t => t.text).ToArray();
+        Assert.Contains("차분히 관찰하는 솔직한 친구예요.", texts);
+        Assert.Contains("호기심", texts); Assert.Contains("솔직함", texts);
+        foreach (var tag in inspector.GetComponentsInChildren<Text>().Where(t => t.text == "호기심" || t.text == "솔직함" || t.text == "요리사"))
+            Assert.GreaterOrEqual(tag.rectTransform.rect.height + .01f, tag.preferredHeight, "profile tag must have enough allocated height to draw its text");
+        Assert.AreEqual("second", Get<string>("_selectedCreature"));
+    }
+
+    [Test]
+    public void EmptyInteractionsOfferExistingTrainingAndKitchenRoutes()
+    {
+        Marker("second").GetComponent<Button>().onClick.Invoke(); Render();
+        var buttons = Get<RectTransform>("_content").GetComponentsInChildren<Button>();
+        Assert.IsTrue(buttons.Single(b => b.name == "훈련장 살펴보기").interactable);
+        buttons.Single(b => b.name == "주방 살펴보기").onClick.Invoke(); Render();
+        Assert.IsNull(Get<string>("_villageCreatureId"));
+        Assert.AreEqual("kitchen", Get<string>("_facility"));
+        Assert.IsTrue(Get<bool>("_campDetail"));
+    }
+
+    [Test]
+    public void InspectorFoodConfirmationKeepsTheExactRecipientAndRecipe()
+    {
+        var state = State(2); state.foods = new[] { new FoodState { id = "berry_snack", label = "베리 간식", count = 2 } }; Receive(state);
+        Marker("second").GetComponent<Button>().onClick.Invoke(); Render();
+        Get<RectTransform>("_content").GetComponentsInChildren<Button>().Single(b => b.name == "베리 간식 · 2개 · 1개 주기").onClick.Invoke();
+        var confirmation = Get<Action>("_confirmAction"); Assert.NotNull(confirmation);
+        var intent = confirmation.Target.GetType().GetFields(Private | BindingFlags.Public).Select(f => f.GetValue(confirmation.Target)).OfType<AppAction>().Single();
+        Assert.AreEqual("feedFood", intent.action);
+        Assert.AreEqual("second", intent.creatureId);
+        Assert.AreEqual("berry_snack", intent.recipeId);
     }
 
     [Test]
