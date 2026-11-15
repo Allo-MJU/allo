@@ -223,6 +223,7 @@ class FakeVehicleFeed implements VehicleFeed {
       }
     } else {
       _tripOrigin = _savedOrigin?.sessionId == sessionId ? _savedOrigin : null;
+      if (retainTripOdometer) _latest = null;
     }
     _pairedSession = sessionId;
     _savedOrigin = null;
