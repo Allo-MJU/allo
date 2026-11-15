@@ -75,8 +75,9 @@ namespace Allo.App
     [Serializable] public sealed class AssignmentState { public string role, creatureId; }
     [Serializable] public sealed class CreatureState
     {
-        public string id, speciesId, name, role, sprite;
+        public string id, speciesId, name, role, sprite, personaSummary;
         public string[] actions = Array.Empty<string>();
+        public string[] personaTraits = Array.Empty<string>();
         public long foodBoostUntilMs;
     }
     [Serializable] public sealed class JobState { public string id, role, label, workerId, targetId; public float progress; public int remainingSec; }

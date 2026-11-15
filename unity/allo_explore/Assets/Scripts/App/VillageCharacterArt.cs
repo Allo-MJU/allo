@@ -12,6 +12,7 @@ namespace Allo.App
     public sealed class VillageCharacterArt : MonoBehaviour
     {
         const float FrameSeconds = .16f;
+        static readonly int[] JoyFrameMilliseconds = { 230, 110, 260, 170, 450 };
         static readonly HashSet<string> WalkingSpecies = new HashSet<string>
         { "road_sprout", "puddle_pip", "lamp_moth", "storm_lantern", "highway_comet", "sea_mist" };
         static readonly Dictionary<string, Texture2D> Textures = new Dictionary<string, Texture2D>();
@@ -20,7 +21,7 @@ namespace Allo.App
         GameObject _fallback;
         Texture2D _idle, _atlas;
         string _species, _idlePath, _atlasPath;
-        bool _moving, _facingLeft, _reducedMotion;
+        bool _moving, _facingLeft, _reducedMotion, _reaction;
         bool _loadComplete = true, _loading;
         float _elapsed;
         int _binding;
@@ -28,7 +29,21 @@ namespace Allo.App
         public bool IsMoving => _moving;
         public bool FacingLeft => _facingLeft;
         public bool IsAnimated => _moving && !_reducedMotion && _atlas != null;
-        public int FrameIndex => IsAnimated ? Mathf.FloorToInt(_elapsed / FrameSeconds) % 8 : 0;
+        public int FrameIndex
+        {
+            get
+            {
+                if (!IsAnimated) return 0;
+                if (!_reaction) return Mathf.FloorToInt(_elapsed / FrameSeconds) % 8;
+                var milliseconds = _elapsed * 1000;
+                for (var i = 0; i < JoyFrameMilliseconds.Length; i++)
+                {
+                    if (milliseconds < JoyFrameMilliseconds[i]) return i;
+                    milliseconds -= JoyFrameMilliseconds[i];
+                }
+                return JoyFrameMilliseconds.Length - 1;
+            }
+        }
 
         void Awake()
         {
@@ -37,13 +52,21 @@ namespace Allo.App
         }
 
         public void Bind(string speciesId, string idleSpritePath, GameObject fallback)
+            => BindArt(speciesId, idleSpritePath, fallback, false);
+
+        public void BindReaction(string speciesId, string idleSpritePath, GameObject fallback)
+            => BindArt(speciesId, idleSpritePath, fallback, true);
+
+        void BindArt(string speciesId, string idleSpritePath, GameObject fallback, bool reaction)
         {
             if (_image == null) Awake();
             StopAllCoroutines();
             ++_binding;
             _species = speciesId;
+            _reaction = reaction;
             _idlePath = idleSpritePath;
-            _atlasPath = WalkingSpecies.Contains(speciesId ?? "") ? "poses/" + speciesId + "/run-sheet.png" : null;
+            _atlasPath = WalkingSpecies.Contains(speciesId ?? "")
+                ? "poses/" + speciesId + (reaction ? "/joy-sheet.png" : "/run-sheet.png") : null;
             _fallback = fallback;
             _idle = _atlas = null;
             _loadComplete = _loading = false;
@@ -65,6 +88,15 @@ namespace Allo.App
         void ResumeLoading()
         {
             if (!isActiveAndEnabled || _loadComplete || _loading) return;
+            var idleReady = string.IsNullOrEmpty(_idlePath) || Cached(_idlePath, out _idle);
+            var atlasReady = string.IsNullOrEmpty(_atlasPath) || Cached(_atlasPath, out _atlas);
+            if (idleReady && atlasReady)
+            {
+                _loadComplete = true;
+                Refresh();
+                return;
+            }
+            Refresh();
             _loading = true;
 #if UNITY_EDITOR
             _idle = ReadEditor(_idlePath, false);
@@ -92,7 +124,7 @@ namespace Allo.App
         {
             if (!isActiveAndEnabled || !_moving || _reducedMotion) return;
             // Keep the inspector clock while its atlas is still being fetched.
-            _elapsed = (_elapsed + Mathf.Max(0, deltaTime)) % (8 * FrameSeconds);
+            _elapsed = (_elapsed + Mathf.Max(0, deltaTime)) % (_reaction ? 1.22f : 8 * FrameSeconds);
             Refresh();
         }
 
@@ -105,20 +137,26 @@ namespace Allo.App
             _image.color = texture == null ? Color.clear : Color.white;
             if (_fallback != null) _fallback.SetActive(texture == null);
             if (texture == null) { _image.uvRect = new Rect(0, 0, 1, 1); return; }
-            var uv = sheet ? FrameUv(FrameIndex, texture.width, texture.height) : new Rect(0, 0, 1, 1);
+            var columns = _reaction ? 5 : 4; var rows = _reaction ? 1 : 2;
+            var uv = sheet ? CellUv(FrameIndex, texture.width, texture.height, columns, rows) : new Rect(0, 0, 1, 1);
             var sourceLeft = _species == "road_sprout" || _species == "puddle_pip";
-            if (sourceLeft != _facingLeft) { uv.x += uv.width; uv.width = -uv.width; }
+            if (!_reaction && sourceLeft != _facingLeft) { uv.x += uv.width; uv.width = -uv.width; }
             _image.uvRect = uv;
-            if (_fit != null) _fit.aspectRatio = sheet ? (texture.width / 4f) / (texture.height / 2f) : (float)texture.width / texture.height;
+            if (_fit != null) _fit.aspectRatio = sheet ? (texture.width / (float)columns) / (texture.height / (float)rows) : (float)texture.width / texture.height;
         }
 
         // Integer boundaries preserve every source pixel in the odd-sized 4 × 2 sheets.
         public static Rect FrameUv(int frame, int width, int height)
         {
             if (frame < 0 || frame >= 8) throw new ArgumentOutOfRangeException(nameof(frame));
-            var column = frame % 4; var row = frame / 4;
-            var left = column * width / 4; var right = (column + 1) * width / 4;
-            var top = row * height / 2; var bottom = (row + 1) * height / 2;
+            return CellUv(frame, width, height, 4, 2);
+        }
+
+        static Rect CellUv(int frame, int width, int height, int columns, int rows)
+        {
+            var column = frame % columns; var row = frame / columns;
+            var left = column * width / columns; var right = (column + 1) * width / columns;
+            var top = row * height / rows; var bottom = (row + 1) * height / rows;
             return new Rect(left / (float)width, 1 - bottom / (float)height,
                 (right - left) / (float)width, (bottom - top) / (float)height);
         }
@@ -173,14 +211,15 @@ namespace Allo.App
 
         static Texture2D Decode(byte[] png, string path, bool sheet)
         {
+            var reaction = path.EndsWith("/joy-sheet.png", StringComparison.Ordinal);
             var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false)
             { name = path, wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
-            if (!texture.LoadImage(png) || (sheet && (texture.width < 4 || texture.height < 2)))
+            if (!texture.LoadImage(png) || (sheet && (texture.width < (reaction ? 5 : 4) || texture.height < (reaction ? 1 : 2))))
             {
                 if (Application.isPlaying) Destroy(texture); else DestroyImmediate(texture);
                 return null;
             }
-            if (sheet)
+            if (sheet && !reaction)
             {
                 // Match the car's alpha cutoff, keeping RGB straight for the UI shader.
                 var pixels = texture.GetPixels32();

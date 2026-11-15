@@ -140,7 +140,7 @@ namespace Allo.App
             var creature = Items(_state.creatures).FirstOrDefault(c => c.id == _villageCreatureId);
             if (creature == null) { CloseVillageCharacterDetail(); return; }
             var detail = Rect("Village character detail", _content); Stretch(detail);
-            detail.gameObject.AddComponent<Image>().color = new Color(.04f, .09f, .06f, .22f);
+            detail.gameObject.AddComponent<Image>().color = new Color(.04f, .09f, .06f, .35f);
             var inspector = Rect("Character inspector", detail);
             Stretch(inspector, 0, 0, 0, 0, new Vector2(.58f, 0), Vector2.one);
             var panel = Sheet(inspector);
@@ -165,28 +165,91 @@ namespace Allo.App
             var title = Copy(header, creature.name, 31); title.GetComponent<LayoutElement>().flexibleWidth = 1;
             var close = Button(header, "상세 닫기", () => { CloseQuestCard(true); CloseVillageCharacterDetail(); }, Cream, 44, true, 19);
             var closeSize = close.GetComponent<LayoutElement>(); closeSize.flexibleWidth = 0; closeSize.minWidth = closeSize.preferredWidth = 110;
-            var role = Copy(panel, RoleLabel(creature.role), 22); role.color = Hex("53765B");
+            CharacterDetailTags(panel, new[] { RoleLabel(creature.role) }, true);
+            var species = Items(_state.dex).FirstOrDefault(d => d.id == creature.speciesId);
+            if (!string.IsNullOrEmpty(creature.personaSummary))
+            {
+                var intro = Copy(panel, creature.personaSummary, 22); intro.gameObject.name = "Persona summary";
+                CharacterDetailTags(panel, Items(creature.personaTraits).Where(t => !string.IsNullOrWhiteSpace(t)).Take(3).ToArray());
+            }
+            else if (!string.IsNullOrEmpty(species?.description)) Note(panel, species.description);
             BuildQuestSection(panel, creature.id);
 
-            var stage = Surface("Character animation stage", panel, Hex("E2E9DC"), false);
-            var stageSize = stage.gameObject.AddComponent<LayoutElement>(); stageSize.minHeight = stageSize.preferredHeight = 202;
+            var stage = Rect("Character animation stage", detail);
+            Stretch(stage, 16, 28, -24, -20, Vector2.zero, new Vector2(.56f, 1));
             var shadow = Rect("Character ground shadow", stage);
-            shadow.anchorMin = shadow.anchorMax = new Vector2(.5f, 0); shadow.anchoredPosition = new Vector2(0, 20); shadow.sizeDelta = new Vector2(140, 15);
+            shadow.anchorMin = shadow.anchorMax = new Vector2(.5f, .10f); shadow.anchoredPosition = Vector2.zero; shadow.sizeDelta = new Vector2(260, 24);
             var shadowImage = shadow.gameObject.AddComponent<Image>(); shadowImage.sprite = ActionCircleSprite(); shadowImage.color = new Color(.15f, .24f, .16f, .16f); shadowImage.raycastTarget = false;
             var preview = Rect("Enlarged character", stage); Stretch(preview, 8, 0, -8, 0);
-            _villageDetailArt = VillageFriendPortrait(preview, creature.speciesId, creature.sprite);
+            _villageDetailArt = VillageFriendPortrait(preview, creature.speciesId, creature.sprite, true);
             _villageDetailArt.SetMotion(CanAct, true, _state.reducedMotion);
             _villageDetailArt.Advance(_villagePreviewElapsed);
 
+            CharacterDetailSection(panel, "지금은");
             var job = Items(_state.jobs).FirstOrDefault(j => j.workerId == creature.id || j.targetId == creature.id);
             var assigned = Items(_state.assignments).FirstOrDefault(a => a.creatureId == creature.id);
-            Copy(panel, job != null ? job.label + " 작업 중" : assigned != null ? RoleLabel(assigned.role) + " 담당 · 대기 중" : "자유 시간을 보내고 있어요", 22);
-            var species = Items(_state.dex).FirstOrDefault(d => d.id == creature.speciesId);
-            if (!string.IsNullOrEmpty(species?.description)) Note(panel, species.description);
-            Space(panel, 4);
-            CreatureActions(panel, creature);
-            Space(panel); Copy(panel, "친구에게 요리 주기", 26);
-            FeedOptions(panel, creature.id);
+            Copy(panel, job != null ? job.label + " 작업 중" : assigned != null ? RoleLabel(assigned.role) + " 담당 · 대기 중" : "자유 시간을 보내고 있어요", 21);
+            if (job != null) Progress(panel, job.progress, TimeLabel(job.remainingSec));
+            if (creature.foodBoostUntilMs > System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) Note(panel, "든든한 요리의 힘을 받고 있어요.");
+
+            CharacterDetailSection(panel, "할 수 있는 행동");
+            var actions = Items(creature.actions);
+            if (actions.Length == 0)
+            {
+                Note(panel, "아직 배운 행동이 없어요. 훈련장에서 새로운 행동을 배울 수 있어요.");
+                Button(panel, "훈련장 살펴보기", () => OpenVillageFacility("training"), Cream, 48, CanAct, 21);
+            }
+            foreach (var action in actions)
+            {
+                var actionId = action;
+                Button(panel, ActionLabel(actionId) + " 보여 주기", () => Send("performAction", new AppAction { creatureId = creature.id, actionId = actionId }), Mint, 52, CanAct && !CreatureBusy(creature.id), 21);
+            }
+            if (CreatureBusy(creature.id)) Note(panel, "작업이 끝나면 배운 행동을 보여 줄 수 있어요.");
+
+            CharacterDetailSection(panel, "요리로 힘을 보태요");
+            var foods = Items(_state.foods).Where(f => f.count > 0).ToArray();
+            if (foods.Length == 0)
+            {
+                Note(panel, "아직 준비된 요리가 없어요. 주방에서 친구에게 줄 요리를 만들 수 있어요.");
+                Button(panel, "주방 살펴보기", () => OpenVillageFacility("kitchen"), Cream, 48, CanAct, 21);
+            }
+            foreach (var food in foods)
+            {
+                var selectedFood = food;
+                Button(panel, food.label + " · " + food.count + "개 · 1개 주기", () => ConfirmIntent(creature.name + "에게 요리를 줄까요?",
+                    selectedFood.label + " 1개를 사용해 친구에게 힘을 보태요.", "feedFood", new AppAction { recipeId = selectedFood.id, creatureId = creature.id }), Cream, 52, CanAct, 21);
+            }
+            if (!string.IsNullOrEmpty(creature.personaSummary) && !string.IsNullOrEmpty(species?.description))
+            {
+                Space(panel, 6); Note(panel, "만나는 힌트 · " + species.description);
+            }
+        }
+
+        void CharacterDetailSection(Transform parent, string title)
+        {
+            Space(parent, 7);
+            var rule = Rect("Detail section rule", parent);
+            rule.gameObject.AddComponent<LayoutElement>().preferredHeight = 1;
+            var image = rule.gameObject.AddComponent<Image>(); image.color = new Color(.20f, .30f, .22f, .15f); image.raycastTarget = false;
+            Space(parent, 2); Copy(parent, title, 23);
+        }
+
+        void CharacterDetailTags(RectTransform parent, string[] labels, bool role = false)
+        {
+            if (labels.Length == 0) return;
+            var row = NewRow(parent, 32);
+            var layout = row.GetComponent<HorizontalLayoutGroup>(); layout.childForceExpandWidth = false; layout.spacing = 7;
+            var available = Mathf.Max(240, parent.rect.width - 32);
+            var maxWidth = (available - (labels.Length - 1) * 7) / labels.Length;
+            foreach (var text in labels)
+            {
+                var badge = Surface("Profile tag " + text, row, role ? Hex("3F6049") : Mint, false);
+                var label = Label(badge, text, role ? 18 : 17, TextAnchor.MiddleCenter);
+                label.color = role ? Cream : Hex("3C513F"); Stretch(label.rectTransform, 9, 0, -9, 0);
+                var size = badge.gameObject.AddComponent<LayoutElement>();
+                size.minWidth = size.preferredWidth = Mathf.Min(maxWidth, label.preferredWidth + 22);
+                size.minHeight = size.preferredHeight = 32;
+            }
         }
     }
 }
