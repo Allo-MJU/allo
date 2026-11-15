@@ -375,14 +375,7 @@ namespace Allo.App
             switch(topic)
             {
                 case "coast_sail":
-                    Shape(p, "Sea", 0,-68,640,45,Water);
-                    var boat=Group(p,"Mail boat",-210,-15);
-                    Shape(boat,"Hull",0,-23,108,34,new Color(.68f,.38f,.21f));
-                    Shape(boat,"Mast",0,22,6,90,Paper);
-                    Shape(boat,"Sail",28,35,a?67:12,65,Gold,2);
-                    Shape(boat,"Letter",-22,2,28,20,Paper);
-                    _motions.Add(t=>boat.anchoredPosition=new Vector2(Mathf.Lerp(-210,a?200:-100,t),-15));
-                    Caption(p,a?"돛 펼치기 · 같은 바람":"돛 접기 · 같은 바람",0,95); break;
+                    DrawSeaExperiment(p,a); break;
                 case "road_seed":
                     Shape(p,"Ground",0,-88,640,16,Green);
                     var seed=Group(p,"Seed",-160,60); Shape(seed,"Seed body",0,0,24,32,Gold,1);
@@ -430,6 +423,29 @@ namespace Allo.App
                 default: Caption(p,"작은 실험을 준비했어",0,0); break;
             }
         }
+        void DrawSeaExperiment(RectTransform parent,bool openSail)
+        {
+            var atlas=Resources.Load<Texture2D>("StoryArt/Sea/boat-states");
+            var ocean=Resources.Load<Texture2D>("StoryArt/Sea/ocean-stage");
+            if (atlas == null || ocean == null)
+            {
+                Caption(parent,"바다 실험 그림을 불러오지 못했어",0,0,23);
+                return;
+            }
+            var backdrop=Box("Ocean illustration viewport",parent,new Vector2(.5f,.5f),new Vector2(.5f,.5f),new Vector2(-340,-115),new Vector2(340,85));
+            backdrop.gameObject.AddComponent<RectMask2D>();
+            var sea=Box("Ocean illustration",backdrop,Vector2.zero,Vector2.one,Vector2.zero,Vector2.zero);
+            var seaImage=sea.gameObject.AddComponent<RawImage>();seaImage.texture=ocean;seaImage.raycastTarget=false;
+            var fit=sea.gameObject.AddComponent<AspectRatioFitter>();fit.aspectMode=AspectRatioFitter.AspectMode.FitInParent;fit.aspectRatio=ocean.width/(float)ocean.height;
+            var boat=Group(parent,"Mail boat",-210,-15);
+            var aspect=atlas.width*.5f/atlas.height;
+            var height=Mathf.Min(220,220/aspect);var width=height*aspect;
+            var artwork=Box("Boat illustration",boat,new Vector2(.5f,.5f),new Vector2(.5f,.5f),new Vector2(-width/2,-height/2),new Vector2(width/2,height/2));
+            var image=artwork.gameObject.AddComponent<RawImage>();image.texture=atlas;image.uvRect=new Rect(openSail?0:.5f,0,.5f,1);image.raycastTarget=false;
+            _motions.Add(t=>boat.anchoredPosition=new Vector2(Mathf.Lerp(-210,openSail?200:-100,t),-15));
+            Caption(parent,openSail?"돛 펼치기 · 같은 바람":"돛 접기 · 같은 바람",0,110);
+        }
+
         void Rain(RectTransform p,float x,float y,int count)
         { for(int i=0;i<count;i++){var d=Shape(p,"Raindrop",x+i*43,y,7,16,Water,1);var origin=d.anchoredPosition;_motions.Add(t=>d.anchoredPosition=origin+new Vector2(0,-t*110));} }
         void Bunny(RectTransform p,float x,float y,float scale,Color c)

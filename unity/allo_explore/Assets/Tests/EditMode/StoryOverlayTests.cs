@@ -137,7 +137,7 @@ public class StoryOverlayTests
     {
         var canvas=_host.AddComponent<Canvas>();canvas.renderMode=RenderMode.WorldSpace;
         _overlay.Apply(_state,false);
-        var guide=_host.GetComponentsInChildren<RawImage>().Single();
+        var guide=_host.GetComponentsInChildren<RawImage>().Single(image=>image.name=="Story guide artwork");
         var texture=new Texture2D(width,height);
         try
         {
@@ -172,6 +172,62 @@ public class StoryOverlayTests
         _overlay.Apply(_state,false);
         Assert.AreEqual(2,_host.GetComponentsInChildren<RectTransform>().Count(r=>r.name=="Comparison"));
         foreach (var comparison in _host.GetComponentsInChildren<RectTransform>().Where(r=>r.name=="Comparison"))
-            Assert.Greater(comparison.GetComponentsInChildren<StoryShape>().Length,0,"Each compared variant must have experiment artwork.");
+        {
+            if (topic == "coast_sail")
+                Assert.NotNull(comparison.GetComponentsInChildren<RawImage>().Single(image=>image.name=="Boat illustration").texture);
+            else Assert.Greater(comparison.GetComponentsInChildren<StoryShape>().Length,0,"Each compared variant must have experiment artwork.");
+        }
     }
+    [Test] public void SeaIllustrationsAreRequiredBundledTextures()
+    {
+        var boats=Resources.Load<Texture2D>("StoryArt/Sea/boat-states");
+        var ocean=Resources.Load<Texture2D>("StoryArt/Sea/ocean-stage");
+        Assert.NotNull(boats,"The sea experiment must bundle its illustrated boat atlas.");
+        Assert.NotNull(ocean,"The sea experiment must bundle its illustrated ocean backdrop.");
+        Assert.AreEqual(0,boats.width%2,"Boat atlas cells must have identical dimensions.");
+        Assert.Greater(boats.height,0); Assert.Greater(ocean.width,ocean.height);
+    }
+    [TestCase("a",0f)] [TestCase("b",.5f)]
+    public void SeaUsesAtlasHalfWithoutPrimitiveHullMastSailOrWater(string variant,float left)
+    {
+        _state.story.variant=variant; _overlay.Apply(_state,false);
+        var boat=_host.GetComponentsInChildren<RawImage>().Single(image=>image.name=="Boat illustration");
+        var atlas=Resources.Load<Texture2D>("StoryArt/Sea/boat-states");
+        Assert.AreSame(atlas,boat.texture); Assert.AreEqual(new Rect(left,0,.5f,1),boat.uvRect);
+        Assert.AreEqual(atlas.width*.5f/atlas.height,boat.rectTransform.rect.width/boat.rectTransform.rect.height,.001f);
+        Assert.GreaterOrEqual(boat.rectTransform.rect.height,200,"The illustrated boat must remain legible in the comparison panels.");
+        Assert.IsFalse(boat.raycastTarget);
+        var ocean=_host.GetComponentsInChildren<RawImage>().Single(image=>image.name=="Ocean illustration");
+        Assert.AreSame(Resources.Load<Texture2D>("StoryArt/Sea/ocean-stage"),ocean.texture);
+        Assert.AreEqual(0,_host.GetComponentsInChildren<StoryShape>().Length,"Sea art must use the real illustrations rather than shape stand-ins.");
+    }
+    [Test] public void SeaComparisonKeepsSameAtlasSizeStartAndLongerOpenSailTravel()
+    {
+        _state.story.variant="both"; _overlay.Apply(_state,false);
+        var boats=_host.GetComponentsInChildren<RawImage>().Where(image=>image.name=="Boat illustration").OrderBy(image=>image.uvRect.x).ToArray();
+        Assert.AreEqual(2,boats.Length); Assert.AreSame(boats[0].texture,boats[1].texture);
+        Assert.AreEqual(boats[0].rectTransform.rect.size,boats[1].rectTransform.rect.size);
+        var open=(RectTransform)boats[0].transform.parent; var furled=(RectTransform)boats[1].transform.parent;
+        Assert.AreEqual("Mail boat",open.name); Assert.AreEqual("Mail boat",furled.name);
+        var motions=(System.Collections.Generic.List<Action<float>>)typeof(StoryOverlay).GetField("_motions",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(_overlay);
+        foreach(var motion in motions) motion(0);
+        Assert.AreEqual(new Vector2(-210,-15),open.anchoredPosition); Assert.AreEqual(open.anchoredPosition,furled.anchoredPosition);
+        foreach(var motion in motions) motion(1);
+        Assert.AreEqual(new Vector2(200,-15),open.anchoredPosition); Assert.AreEqual(new Vector2(-100,-15),furled.anchoredPosition);
+        foreach(var boat in boats)
+        {
+            var r=boat.rectTransform.rect; var position=((RectTransform)boat.transform.parent).anchoredPosition;
+            Assert.LessOrEqual(position.x+r.xMax,340); Assert.GreaterOrEqual(position.x+r.xMin,-340);
+        }
+    }
+    [Test] public void SeaNeutralStaysAtStartAndReducedMotionShowsFinalStaticResult()
+    {
+        _state.story.variant="neutral"; _overlay.Apply(_state,false);
+        typeof(StoryOverlay).GetMethod("Update",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(_overlay,null);
+        Assert.AreEqual(new Vector2(-210,-15),_host.GetComponentsInChildren<RectTransform>().Single(r=>r.name=="Mail boat").anchoredPosition);
+        _state.story.variant="a"; _state.reducedMotion=true; _overlay.Apply(_state,false);
+        typeof(StoryOverlay).GetMethod("Update",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(_overlay,null);
+        Assert.AreEqual(new Vector2(200,-15),_host.GetComponentsInChildren<RectTransform>().Single(r=>r.name=="Mail boat").anchoredPosition);
+    }
+
 }
