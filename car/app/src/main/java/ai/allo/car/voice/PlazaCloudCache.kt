@@ -55,11 +55,23 @@ internal class PlazaCloudCache(
     private val config: PlazaCloudConfig,
     private val download: PlazaDownload = HttpPlazaDownload(),
 ) {
-    suspend fun resolve(entry: PlazaRecordings.Entry): File = withContext(Dispatchers.IO) {
+    suspend fun resolve(entry: PlazaRecordings.Entry): File {
         require(PlazaRecordings.entries.contains(entry)) { "Unknown plaza line" }
+        return resolveClip(entry.species, entry.text, "plaza")
+    }
+
+    suspend fun resolveCharacter(species: String, text: String, purpose: String): File {
+        require(purpose in setOf("dialogue", "destination"))
+        require(PlazaRecordings.entries.any { it.species == species }) { "Unknown character" }
+        require(text.isNotBlank() && text.length <= 600)
+        // The gateway additionally checks the exact authored lines/templates for this purpose.
+        return resolveClip(species, text, "car/$purpose")
+    }
+
+    private suspend fun resolveClip(species: String, text: String, route: String): File = withContext(Dispatchers.IO) {
         directory.mkdirs()
         val key = MessageDigest.getInstance("SHA-256").digest(
-            listOf(config.baseUrl, config.revision, entry.species, entry.text).joinToString("\u0000").toByteArray())
+            listOf(config.baseUrl, config.revision, route, species, text).joinToString("\u0000").toByteArray())
             .joinToString("") { "%02x".format(it) }
         val destination = File(directory, "$key.wav")
         if (destination.isFile && destination.length() in 44..MAX_BYTES.toLong() &&
@@ -67,7 +79,7 @@ internal class PlazaCloudCache(
         destination.delete()
         val token = config.token()
         require(token.isNotBlank()) { "Authentication unavailable" }
-        val bytes = download.fetch("${config.baseUrl}/v1/plaza/clip", token, entry.species, entry.text)
+        val bytes = download.fetch("${config.baseUrl}/v1/$route/clip", token, species, text)
         coroutineContext.ensureActive()
         if (!validPcmWav(bytes)) throw IOException("Invalid speech audio")
         val temporary = File.createTempFile("clip-", ".part", directory)
@@ -75,7 +87,7 @@ internal class PlazaCloudCache(
             temporary.writeBytes(bytes)
             coroutineContext.ensureActive()
             if (!temporary.renameTo(destination)) throw IOException("Speech cache unavailable")
-            // Bound persistent cache to 48 clips (two revisions of all plaza lines).
+            // Bound each persistent voice cache to 48 complete clips.
             directory.listFiles { f -> f.extension == "wav" }?.sortedByDescending { it.lastModified() }
                 ?.drop(48)?.forEach { it.delete() }
             destination

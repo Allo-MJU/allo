@@ -691,3 +691,24 @@ Unity 6000.0.85f2, Blender 5.2.3, 휴대폰 에뮬레이터(Medium Phone API 37,
 놀이 물건 6종(흔들 인형·장난감 차·오르골·그림책·휴지 상자·비눗방울 병)은 움직이는 부품이 있어 다음 작업.
 
 테스트: Unity EditMode 132개 통과 (+4 `PropModelTests`).
+
+
+### 2026-11-15 · 기존 Gleo 실제 음성 검증 시도 — 환경 초기화 실패
+
+- 범위: STT를 앱에 추가하지 않고 기존 Gleo 목적지 제안·수락·다음 후보의 실제 음성 입력 검증을 시도했다. Qwen TTS와 앱 코드는 변경하지 않았다.
+- `Pleos_Connect_2_1_0` AVD를 기존 데이터 그대로 실행했다. `ai.allo.car` 설치, 기본 assistant `ai.umos.ambientai/.service.AiAssistantService`, ASSIST activity 해석을 확인했다.
+- Gleo ASSIST 실행 및 현재 사용자 재실행 후에도 음성 입력 준비를 확인하지 못했다. 설정 화면은 `Unknown [4ch]`, Gleo Ai App `4.2.0.15`, STT SDK `3.3.1`, Speech SDK `1.17.1`을 표시했다. 설정값은 변경하지 않았다.
+- Gleo 로그에서 `initializeSpokesman() initialized fail`과 `InvalidConfigError`, `/data/user/10/ai.umos.ambientai/files/assets.zip/SpeechRecognitionConfig.dat`의 `ErrorNotExists`가 반복됐다. 적어도 Gleo 음성 초기화 구성에 문제가 있다. 이것만으로 모든 인식 모드의 불가 또는 설정 파일 누락의 발생 원인까지 단정하지 않는다.
+- **실제 음성 제안·수락·다음 후보: 모두 미검증.** 사용자 발화 또는 녹음 입력을 성공적으로 제공하지 않았으며, 이번 시도에서 `SUGGEST_DESTINATION`을 adb로 주입하지 않았다. 과거 브로드캐스트 검증을 이번 음성 검증 성공으로 취급하지 않는다.
+- 후속 조건: Pleos가 지원하는 Gleo 음성 자산/모델 초기화와 마이크 입력 경로가 준비된 환경에서 실제 발화→Gleo 함수 호출→후보 변경/내비 요청을 확인해야 한다. 앱의 별도 SpeechToText SDK 추가를 환경 문제 해결책으로 가정하지 않는다.
+- 화면·최소 오류 증거: 로컬 `tasks/verification/gleo-voice-2026-11-15/` (Git 제외). 로그의 에뮬레이터 시간은 호스트와 달라 한국 날짜는 2026-11-15로 기록했다.
+
+## 2026-11-15 목적지 STT 및 캐릭터 TTS 후속
+
+후속 사용자 승인으로 Gleo 호환 경로를 유지하면서 Pleos SpeechToText ON_DEVICE를 추가했다. 앞 절의 STT 미도입 결론은 이 승인 이전의 검증 기록이다. 범위·콜백 수정·실제 발화 결과는 [목적지 음성 입력](vehicle/destination-voice.md)에 기록한다.
+
+- 실제 사용자 발화로 추천→다음 후보→수락→내비 GUIDING/ROUTE_DRIVE를 확인했다. 을왕리해수욕장,81km·1시간20분. 실제 폰 대신 로컬 Firebase 인증 fixture로 동행 상태를 제공했고 STT 결과/목적지 명령을 주입하지 않았다.
+- 이야기의 선택 대상과 여행의 폰 동행은 별도로 Qwen 화자에 연결한다. 광장24문장은 원본 WAV로 재생한다.
+- Qwen 실패 시 동일 문장의 Pleos ON_DEVICE TTS 대체를 구현했다. 준비6초·대체12초 상한, 취소/지연 콜백/이중 완료 방지 회귀 포함 차량368테스트, 서버28테스트 통과. debug APK 빌드와 에뮬레이터 업데이트 설치 성공.
+- Qwen 실제 합성200/WAV 및 사용자 본 앱 소리 출력을 확인했으나, 캐릭터 원본 음색과는 다르다. 등록 voice가 없고 voice-enrollment 조회는403 AccessDenied.Unpurchased로 막힌다. 이 PR은 음색 복제 완료를 주장하지 않는다.
+- 자동 Pleos 대체 경로의 에뮬레이터 실제 청취는 후속 검증에서 완료했다. Qwen gateway 무응답과 캐시 배제로 이야기·여행 Pleos 재생 및 사용자 청취를 확인했고, TTS 완료 뒤 STT 재개→실제 수락→내비 연결까지 확인했다. 상세 시각은 [목적지 음성 입력](vehicle/destination-voice.md)의 장애 검증 표를 참고한다. 실차는 미검증이다.
