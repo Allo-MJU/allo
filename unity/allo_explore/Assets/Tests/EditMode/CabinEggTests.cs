@@ -47,7 +47,7 @@ public class CabinEggTests
     {
         var surfaces = new string[4];
         for (var zone = 0; zone < 4; zone++) surfaces[zone] = CabinEgg.ZoneSurfaceName(zone);
-        CollectionAssert.AreEquivalent(new[] { "Walk_Dashboard", "Walk_DoorSill_L", "Walk_DoorSill_R", "Walk_Floor" }, surfaces);
+        CollectionAssert.AreEquivalent(new[] { "Walk_Console", "Walk_DoorSill_L", "Walk_DoorSill_R", "Walk_Floor" }, surfaces);
         Assert.Throws<ArgumentOutOfRangeException>(() => CabinEgg.ZoneSurfaceName(-1));
         Assert.Throws<ArgumentOutOfRangeException>(() => CabinEgg.ZoneSurfaceName(4));
     }
@@ -127,8 +127,8 @@ public class CabinEggTests
             }
             var egg = visuals.Find("Cabin egg");
             Assert.IsTrue(egg.gameObject.activeSelf);
-            var local = egg.GetComponent<MeshFilter>().sharedMesh.bounds;
-            Assert.AreEqual(CabinEgg.EggHeight, local.size.y * egg.lossyScale.y, 0.0001f);
+            var bounds = CabinEgg.SurfaceBounds(egg.GetComponentInChildren<Renderer>());
+            Assert.AreEqual(CabinEgg.EggHeight, bounds.size.y, 0.0001f);
             Assert.AreEqual(0.64f, egg.position.y, 0.0001f);
         }
         finally
@@ -161,6 +161,28 @@ public class CabinEggTests
         Assert.IsNull(CabinEgg.EggIntent(state, "cabin", "previous", "petEgg", 0));
         Assert.IsNull(CabinEgg.EggIntent(state, "cabin", "current", "placeEgg", 4));
         Assert.IsNull(CabinEgg.EggIntent(state, "cabin", "current", "discardEgg", 0));
+    }
+
+    [Test]
+    public void PhotoQuestAndRecordingCannotCreateEggCareIntents()
+    {
+        var state = new AppState { ready = true, connected = true, egg = new EggState { id = "current", active = true, photoRequired = true } };
+        Assert.IsNull(CabinEgg.EggIntent(state, "cabin", "current", "petEgg", 0));
+        Assert.IsNull(CabinEgg.EggIntent(state, "cabin", "current", "placeEgg", 1));
+        state.egg.photoRequired = false;
+        state.learning = new LearningState { recording = true };
+        Assert.IsNull(CabinEgg.EggIntent(state, "cabin", "current", "petEgg", 0));
+    }
+
+    [Test]
+    public void PetAndMoveCooldownsRemainIndependent()
+    {
+        var state = new AppState { ready = true, connected = true, egg = new EggState { id = "current", active = true, petCooldown = 10 } };
+        Assert.IsNull(CabinEgg.EggIntent(state, "cabin", "current", "petEgg", 0));
+        Assert.NotNull(CabinEgg.EggIntent(state, "cabin", "current", "placeEgg", 1));
+        state.egg.petCooldown = 0; state.egg.moveCooldown = 15;
+        Assert.NotNull(CabinEgg.EggIntent(state, "cabin", "current", "petEgg", 0));
+        Assert.IsNull(CabinEgg.EggIntent(state, "cabin", "current", "placeEgg", 1));
     }
 
     [Test]

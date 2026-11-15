@@ -386,3 +386,8 @@ PR #93의 `affinity {score, target, phase, photoCompleted}` 요약은 낚시·�
 Unity의 `quests` snapshot과 openQuest/laterQuest/acceptQuest/observeQuest/requestQuestTravel intent는 앱 로컬 표시 계약이다. 마을·상세·도감의 `?`는 자동 본문/TTS를 열지 않는다. 과거 방문·오랜만이라는 문장은 실제 확인한 동행 이력이 있을 때만 사용하고, 장소 후보는 확인된 방문을 제외한다. 현재 바다 재방문 간격 기본값은14일이다. 서버와 SDK가 배포/구동되었다는 증거 없이 실사용 완료로 표시하지 않는다.
 
 방문 이력 보완: 같은 owner transaction은 `companions/{creatureId}/places/{placeId}`에도 동행이 확인된 최신 도착을 기록한다. 값은 canonical visit과 동일한 필드에 embedded `visitId`를 포함한다. 더 오래된 도착·중복·동행자가 없는 도착은 이 인덱스를 바꾸지 않는다. 폰은 장소 요약·최근 방문200개·이 인덱스를 별도 읽고, 실제 근거와 동행 일치를 검증해 병합한다. 따라서 오래된 수락 후 도착과 캐릭터의 마지막 바다 방문이 최근200개 밖으로 밀려도 새 인덱스에 있으면 복구할 수 있다. 인덱스 이전 자료는 별도 백필하지 않으며 최근200개 밖의 이전 동행 이력은 없는 것으로 단정하지 않는다.
+### Unity 캐릭터 상세의 표시용 소개 (2026-11-15)
+
+캐릭터 정보 화면에는 `phone/assets/data/character_profiles.json`의 한 줄 소개와 성격 태그만 제공한다. 서버 persona·지식·스토리 본문이나 프롬프트를 배포하는 것이 아니며, AI 대화의 권위 있는 자료도 여전히 서버 소유다. 표시용 문구는 원문을 요약한 정적 메타데이터이며 원문이 바뀌면 출처 기록과 함께 검토한다.
+
+앱-local v1 Unity snapshot의 `creatures[]`는 optional `personaSummary:string`과 `personaTraits:string[]`를 추가한다. 정확한 `speciesId`로 연결하고, 등록되지 않은 종은 빈 문자열과 빈 배열을 전달한다. 구형 snapshot에서 누락되어도 기본 설명으로 표시한다. RTDB `/game`, 비용·보상·소유권 및 서버 대화 요청 계약은 변경하지 않는다.

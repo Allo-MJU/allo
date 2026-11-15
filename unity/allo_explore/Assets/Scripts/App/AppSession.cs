@@ -59,6 +59,7 @@ namespace Allo.App
             {
                 Install();
                 _instance.GetComponent<CabinInteraction>()?.BeforeWorldChange(next);
+                _instance._egg.BeforeWorldChange(next);
                 _instance._world.Apply(next);
                 _instance._egg.SetView(next.view);
                 _instance._egg.Apply(next);

@@ -14,11 +14,11 @@ class ManifestTests(unittest.TestCase):
     def test_complete_current_dialogue_and_character_identity(self):
         result = m.build_manifest()
         self.assertEqual(len(result['references']), 17)
-        self.assertEqual(len(result['jobs']), 104)
-        self.assertEqual(len(result['storyCatalog']['entries']), 104)
+        self.assertEqual(len(result['jobs']), 105)
+        self.assertEqual(len(result['storyCatalog']['entries']), 105)
         consumers = [c for j in result['jobs'] for c in j['consumers']]
-        self.assertEqual(len(consumers), 128)
-        self.assertEqual(len(set(consumers)), 128)
+        self.assertEqual(len(consumers), 129)
+        self.assertEqual(len(set(consumers)), 129)
         for job in result['jobs']:
             for target in job['targets']:
                 self.assertIn('/' + job['species'] + '/', target)
@@ -31,6 +31,30 @@ class ManifestTests(unittest.TestCase):
         night = next(e for e in entries if e['topicId'] == 'night_stars' and e['nodeId'] == 'ending')
         self.assertEqual(rain['text'], '물방울 여행 지도 완성! 땅속 길도 있었네.')
         self.assertEqual(night['text'], '별이 숨은 게 아니라 빛에 가려 보였구나.')
+
+    def test_sea_pilot_synthesizes_current_lines_without_relabeling_old_audio(self):
+        result = m.build_manifest()
+        runtime_entries = json.loads((m.ROOT / m.STORY / 'catalog.json').read_text())['entries']
+        expected = {
+            'prediction': '같은 바람이면 어느 배가 더 멀리 갈까?',
+            'choose': '어느 쪽부터 해 볼까?',
+            'explain': '바람이 펼쳐진 돛을 밀어 배를 움직였어.',
+        }
+        for node, text in expected.items():
+            with self.subTest(node=node):
+                self.assertFalse(any(e['topicId'] == 'coast_sail' and e['nodeId'] == node
+                                     for e in runtime_entries))
+                entry = next(e for e in result['storyCatalog']['entries']
+                             if e['topicId'] == 'coast_sail' and e['nodeId'] == node)
+                self.assertEqual(entry['text'], text)
+                self.assertEqual(entry['species'], 'tide_keeper')
+                job = next(j for j in result['jobs'] if f'story/coast_sail/{node}' in j['consumers'])
+                self.assertEqual(job['text'], text)
+                self.assertIn(f'unity/allo_explore/Assets/Resources/{entry["resource"]}.wav',
+                              job['targets'])
+        # These remain original voice references, never current-text runtime mappings.
+        for filename in ['coast_sail_choice.wav', 'coast_sail_explain.wav']:
+            self.assertTrue((m.ROOT / m.STORY / 'tide_keeper' / filename).is_file())
 
     def test_stale_runtime_catalog_fails_before_generation(self):
         with tempfile.TemporaryDirectory() as temp:

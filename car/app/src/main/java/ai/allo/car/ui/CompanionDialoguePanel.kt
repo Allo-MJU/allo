@@ -6,7 +6,8 @@ import ai.allo.car.model.DialogueAnswer
 import ai.allo.car.model.GameState
 import ai.allo.car.model.PlazaPopulation
 import androidx.compose.runtime.saveable.rememberSaveable
-import ai.allo.car.voice.DialogueVoice
+import ai.allo.car.voice.DialogueVoiceState
+import ai.allo.car.voice.characterDialogueVoice
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -60,25 +61,27 @@ fun CompanionDialoguePanel(
     var answer by remember(subject?.key, connected) { mutableStateOf<DialogueAnswer?>(null) }
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val voice = remember(context) { DialogueVoice(context) }
-    val voiceState by voice.state.collectAsState()
+    val voice = remember(context, subject?.key) {
+        subject?.let { characterDialogueVoice(context, it.speciesId) }
+    }
+    val voiceState = voice?.state?.collectAsState()?.value ?: DialogueVoiceState()
     DisposableEffect(voice, lifecycleOwner) {
-        voice.start()
+        voice?.start()
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE) voice.stop()
+            if (event == Lifecycle.Event.ON_PAUSE) voice?.stop()
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            voice.release()
+            voice?.release()
         }
     }
-    LaunchedEffect(subject?.key, connected) { voice.stop() }
+    LaunchedEffect(subject?.key, connected) { voice?.stop() }
     if (pickerOpen) StoryFriendPicker(available, guestSpeciesId, catalog, connected,
         onSelect = { id ->
             // Check current ownership again, including if the dialog was open during a sync.
             if (id == null || (latestConnected && dialogue.subject(latestGame, true, id) != null)) {
-                voice.stop()
+                voice?.stop()
                 answer = null
                 guestSpeciesId = id
                 pickerOpen = false
@@ -97,7 +100,7 @@ fun CompanionDialoguePanel(
                 val accent = if (dark) Color(0xFF83996B) else Color(0xFFD8E4BB)
                 Surface(onClick = {
                     if (dialogue.subject(latestGame, latestConnected, latestGuestSpeciesId)?.key == subject.key) {
-                        answer?.let { voice.speak(it.text) }
+                        answer?.let { voice?.speak(it.text) }
                     }
                 }, enabled = answer != null && voiceState.ready,
                     modifier = Modifier.widthIn(max = 760.dp).fillMaxWidth()
@@ -155,7 +158,7 @@ fun CompanionDialoguePanel(
                 ToyButton(question.label, onClick = {
                     // Revalidate the live subject; an old tap cannot answer for a replacement.
                     if (dialogue.subject(latestGame, latestConnected, latestGuestSpeciesId)?.key == subject.key) {
-                        voice.stop()
+                        voice?.stop()
                         answer = dialogue.answer(question.id, latestGame, latestConnected, latestGuestSpeciesId)
                     }
                 }, primary = chosen, modifier = Modifier.fillMaxWidth())

@@ -131,6 +131,7 @@ class UnityAppController extends ChangeNotifier {
   final _stabilizer = SceneStabilizer();
   List<Species> _species = [];
   Map<String, Map<String, dynamic>> _characters = {};
+  Map<String, Map<String, dynamic>> _characterProfiles = {};
   Map<String, int> _counts = {};
   late Map<String, dynamic> _egg;
   String view = 'home';
@@ -217,6 +218,12 @@ class UnityAppController extends ChangeNotifier {
       _characters = {
         for (final c in characters['species'] as List)
           (c as Map<String, dynamic>)['id'] as String: c
+      };
+      final profiles = jsonDecode(await rootBundle.loadString(
+          'assets/data/character_profiles.json')) as Map<String, dynamic>;
+      _characterProfiles = {
+        for (final profile in profiles['profiles'] as List)
+          (profile as Map<String, dynamic>)['id'] as String: profile
       };
       if (demoCreatures && game.isFake) {
         await seedUnityDemoCreatures(game.dex, _species);
@@ -447,6 +454,10 @@ class UnityAppController extends ChangeNotifier {
             'id': creature.id,
             'speciesId': creature.speciesId,
             'name': _characterName(creature.speciesId),
+            'personaSummary':
+                _characterProfiles[creature.speciesId]?['summary'] ?? '',
+            'personaTraits':
+                _characterProfiles[creature.speciesId]?['traits'] ?? const [],
             'role': CampCatalog.roleFor(creature.speciesId)?.name ?? '',
             'sprite': _characters[creature.speciesId]?['sprite'] ??
                 _species

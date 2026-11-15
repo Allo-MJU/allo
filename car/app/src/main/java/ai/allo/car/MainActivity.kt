@@ -37,6 +37,7 @@ import ai.allo.car.model.PleosRoute
 import ai.allo.car.ui.PleosStatusScreen
 import ai.allo.car.model.TransferStatus
 import ai.allo.car.feature.TravelRequestCard
+import ai.allo.car.feature.DestinationVoiceControls
 import ai.allo.car.model.CarScreen
 import ai.allo.car.model.CarDisplayPolicy
 import ai.allo.car.model.ParkedShareTransition
@@ -85,6 +86,7 @@ class MainActivity : ComponentActivity() {
             val transfer by session.transferUi.collectAsStateWithLifecycle()
             val fishingUi by session.fishingUi.collectAsStateWithLifecycle()
             val travelOffer by session.travelOffer.collectAsStateWithLifecycle()
+            val destinationVoiceState by session.destinationVoiceState.collectAsStateWithLifecycle()
             val travelMessage by session.travelMessage.collectAsStateWithLifecycle()
             val ended by session.ended.collectAsStateWithLifecycle()
             val pairingReady by session.pairingReady.collectAsStateWithLifecycle()
@@ -150,6 +152,10 @@ class MainActivity : ComponentActivity() {
                                     onCallCompanion = if (game.hasV2Contract && game.companion?.location == "car" && transfer.pending == null && fishingUi.pending == null && !ended)
                                         ({ session.requestCompanionTransfer(); Unit }) else null,
                                     travelContent = {
+                                        DestinationVoiceControls(destinationVoiceState, connected && !ended,
+                                            onVisible = session::setDestinationVoiceVisible,
+                                            onStart = session::startDestinationVoice,
+                                            onCancel = { session.cancelDestinationVoice() })
                                         TravelRequestCard(game, connected && !ended, travelOffer, travelMessage,
                                             onOffer = { session.offerTravel() }, onAccept = { token, index -> session.acceptTravel(token, index) })
                                     })

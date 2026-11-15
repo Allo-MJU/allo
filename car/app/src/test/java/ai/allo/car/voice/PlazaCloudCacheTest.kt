@@ -39,6 +39,26 @@ class PlazaCloudCacheTest {
         } finally { dir.deleteRecursively() }
     }
 
+    @Test fun `character cache isolates selected speaker and dialogue from destination`() = runBlocking {
+        val dir = directory()
+        try {
+            val requests = mutableListOf<Pair<String, String>>()
+            val cache = PlazaCloudCache(dir, config(), PlazaDownload { url, _, species, _ ->
+                requests += url to species; wav()
+            })
+            val first = cache.resolveCharacter("road_sprout", "안녕", "dialogue")
+            assertEquals(first, cache.resolveCharacter("road_sprout", "안녕", "dialogue"))
+            assertNotEquals(first, cache.resolveCharacter("lamp_moth", "안녕", "dialogue"))
+            assertNotEquals(first, cache.resolveCharacter("road_sprout", "안녕", "destination"))
+            assertEquals(listOf("road_sprout", "lamp_moth", "road_sprout"), requests.map { it.second })
+            assertTrue(requests[0].first.endsWith("/v1/car/dialogue/clip"))
+            assertTrue(requests[2].first.endsWith("/v1/car/destination/clip"))
+            try { cache.resolveCharacter("unknown", "안녕", "dialogue"); fail("Unknown speaker") }
+            catch (_: IllegalArgumentException) { }
+            assertEquals(3, requests.size)
+        } finally { dir.deleteRecursively() }
+    }
+
     @Test fun `invalid or interrupted downloads never become cached audio`() = runBlocking {
         val dir = directory()
         try {

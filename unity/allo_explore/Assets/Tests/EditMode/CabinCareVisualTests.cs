@@ -28,15 +28,15 @@ public class CabinCareVisualTests
             var egg = host.AddComponent<CabinEgg>();
             egg.SetView("cabin"); egg.Apply(State(0, ""));
             var body = host.transform.Find("Cabin egg visuals/Cabin egg");
-            var originalColor = body.GetComponent<Renderer>().sharedMaterial.color;
+            var originalColor = body.GetComponentInChildren<Renderer>().sharedMaterial.color;
             var accepted = State(1, action); egg.Apply(accepted);
-            Assert.AreNotEqual(originalColor, body.GetComponent<Renderer>().sharedMaterial.color, "a static highlight also works with reduced motion");
+            Assert.AreNotEqual(originalColor, body.GetComponentInChildren<Renderer>().sharedMaterial.color, "a static highlight also works with reduced motion");
             if (toyName != null) Assert.IsNotNull(host.transform.Find("Cabin egg visuals/" + toyName), action);
             Assert.IsEmpty(host.GetComponentsInChildren<Text>(true), "egg reactions must not create dialogue");
             Assert.AreEqual(42, accepted.egg.score, "presentation never awards affinity");
             egg.SetView("home");
             if (toyName != null) Assert.IsNull(host.transform.Find("Cabin egg visuals/" + toyName));
-            Assert.AreEqual(originalColor, body.GetComponent<Renderer>().sharedMaterial.color);
+            Assert.AreEqual(originalColor, body.GetComponentInChildren<Renderer>().sharedMaterial.color);
         }
         finally
         {

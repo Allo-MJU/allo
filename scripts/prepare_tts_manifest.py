@@ -45,7 +45,7 @@ def build_manifest(root=ROOT):
         species = next(iter(narrators[pack['id']]))
         for node in pack['nodes']:
             entry = by_node.get((pack['id'], node['id']))
-            # Two formerly unmatched endings are synthesized from the actual UI text.
+            # Unrecorded or revised lines are synthesized from the actual UI text.
             resource = entry['resource'] if entry else f"StoryVoice/{species}/{pack['id']}_{node['id']}"
             target = f'unity/allo_explore/Assets/Resources/{resource}.wav'
             add(species, node['line'], target, f"story/{pack['id']}/{node['id']}")
