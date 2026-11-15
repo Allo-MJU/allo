@@ -1,6 +1,6 @@
 # Sea Learning Pilot Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Let the user complete the sea experiment, save their prediction and observation, and inspect the actual Android Unity app on a visible emulator.
 
@@ -40,34 +40,38 @@
 
 ### Task 1: Personal evidence and storage
 
-- [ ] Add failing tests for 2 predictions × 2 first actions; require comparison/explanation and correct personal card fields.
-- [ ] Test legacy cards, non-sea unfinished session retention, pause/restart restoration, version mismatch, failed-save retry, replay replace, duplicate/stale input and delayed-write owner replacement.
-- [ ] Run `flutter test test/story` in phone and record expected failures.
-- [ ] Implement the minimal additive storage/model/content changes; retain existing all-pack tests through default behavior.
-- [ ] Rerun focused tests and `dart analyze lib/story test/story`.
-- [ ] Review against spec before integration.
+- [x] Add failing tests for 2 predictions × 2 first actions; require comparison/explanation and correct personal card fields.
+- [x] Test legacy cards, non-sea unfinished session retention, pause/restart restoration, version mismatch, failed-save retry, replay replace, duplicate/stale input and delayed-write owner replacement.
+- [x] Run `flutter test test/story` in phone and record expected failures.
+- [x] Implement the minimal additive storage/model/content changes; retain existing all-pack tests through default behavior.
+- [x] Rerun focused tests and `dart analyze lib/story test/story`.
+- [x] Review against spec before integration.
 
 ### Task 2: Host connection and input lifecycle
 
-- [ ] Replace old no-story assertions with manual-only pilot tests; maintain unpaired/legacy-intent restrictions.
-- [ ] Test manual notebook→sea start→four paths→save; background/navigation/connection ending/photo-required pauses; delayed request rejection; busy AI/native input prevents opening.
-- [ ] Test retryable initialization and fresh controller storage ownership using Task 1 flush/barrier contract.
-- [ ] Run failing host tests, implement initialization/snapshot/dispatch/lifecycle integration, rerun host tests.
-- [ ] Verify unrelated egg affinity and direct learning behavior through existing targeted tests.
+- [x] Replace old no-story assertions with manual-only pilot tests; maintain unpaired/legacy-intent restrictions.
+- [x] Test manual notebook→sea start→four paths→save; background/navigation/connection ending/photo-required pauses; delayed request rejection; busy AI/native input prevents opening.
+- [x] Test retryable initialization and fresh controller storage ownership using Task 1 flush/barrier contract.
+- [x] Run failing host tests, implement initialization/snapshot/dispatch/lifecycle integration, rerun host tests.
+- [x] Verify unrelated egg affinity and direct learning behavior through existing targeted tests.
 
 ### Task 3: Unity entry, experiment and notebook
 
-- [ ] Add failing EditMode tests for connected-only notebook entry, host-driven open/close, stale story isolation, evidence display and update at fixed cardCount.
-- [ ] Read impeccable craft floor before UI edits; preserve incumbent tokens, boat art and character assets.
-- [ ] Add compact lower action entry; connect persistent overlay, use existing experiment geometry, display prediction distinctly and personal card rows in bounded layout.
-- [ ] Enforce no concurrent direct chat/egg gestures; preserve Back, pause, reduced motion and matching TTS only.
-- [ ] Run Unity EditMode tests after integration; inspect Android renders at 1600×720 and small landscape.
+- [x] Add failing EditMode tests for connected-only notebook entry, host-driven open/close, stale story isolation, evidence display and update at fixed cardCount.
+- [x] Read impeccable craft floor before UI edits; preserve incumbent tokens, boat art and character assets.
+- [x] Add compact lower action entry; connect persistent overlay, use existing experiment geometry, display prediction distinctly and personal card rows in bounded layout.
+- [x] Enforce no concurrent direct chat/egg gestures; preserve Back, pause, reduced motion and matching TTS only.
+- [x] Run Unity EditMode tests after integration; inspect Android renders at 2400×1080 (1600×720 reference canvas) and 800×360 landscape.
 
 ### Task 4: Review and user-visible demo
 
-- [ ] Run complete Flutter tests, shared core tests and Unity EditMode suite; analyze changed Dart.
-- [ ] Independent reviewer checks storage races, session compatibility, UI capture and host entry against spec; fix actionable findings and rerun relevant checks.
-- [ ] Export this worktree's Unity project and build fake-feed Unity debug APK with long-lived local trip timing; record artifact source/hash.
-- [ ] Install without clearing app data, launch on a visible Android emulator, exercise actual prediction/compare/reason/save/reopen and restart restore. Capture inspected screenshots and log errors separately.
-- [ ] Leave the emulator at the experiment start for user interaction. Add a repeatable launch helper and concise local instructions with exact route and test limitations.
-- [ ] Record verification, update checked tasks and commit scoped changes. No merge/deploy/push.
+- [x] Run complete Flutter tests, shared core tests and Unity EditMode suite; analyze changed Dart.
+- [x] Independent reviewer checks storage races, session compatibility, UI capture and host entry against spec; fix actionable findings and rerun relevant checks.
+- [x] Export this worktree's Unity project and build fake-feed Unity debug APK with long-lived local trip timing; record artifact source/hash.
+- [x] Install without clearing app data, launch on a visible Android emulator, exercise actual prediction/compare/reason/save/reopen and restart restore. Capture inspected screenshots and log errors separately.
+- [x] Leave the emulator at the experiment start for user interaction. Add a repeatable launch helper and concise local instructions with exact route and test limitations.
+- [x] Record verification, update checked tasks and commit scoped changes. No merge/deploy/push.
+
+## Completed evidence
+
+Implementation source `6c4a79e`; Flutter555/core93/Unity294 passed. Scoped code re-review resolved all five findings including native preferences memory-before-failure. Fresh native export and final debug APK succeeded; emulator manual flow, update/restart card restore and small landscape were observed. Visual finish review returned ship; ordinary-extension design metadata check needed no changes. See `docs/verification/2026-11-15-sea-learning-pilot.md` for artifact hash, receipts and unverified physical/AI/audio limits.
